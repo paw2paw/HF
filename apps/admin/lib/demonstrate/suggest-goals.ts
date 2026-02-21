@@ -89,6 +89,7 @@ export async function suggestGoals(params: SuggestGoalsParams): Promise<string[]
     : `Given this context:\n${context}\n\nSuggest 3 specific, actionable session goals the admin could demonstrate. Consider the learner's history and domain curriculum. Each should be 1 short sentence. Return ONLY a JSON array of strings, nothing else.`;
 
   try {
+    // @ai-call demonstrate.suggest — Suggest session goals for demonstrate flow | config: /x/ai-config
     const result = await getConfiguredMeteredAICompletion(
       {
         callPoint: "demonstrate.suggest",

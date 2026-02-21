@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.5.34",
+  "version": "0.5.35",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -42,6 +42,7 @@
     "db:reset": "tsx prisma/reset.ts",
     "db:seed": "tsx prisma/seed-clean.ts",
     "db:seed:reset": "tsx prisma/seed-clean.ts --reset",
+    "db:golden": "SEED_PROFILE=golden tsx prisma/seed-full.ts --reset",
     "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "ctl": "tsx cli/control.ts",
     "control": "tsx cli/control.ts menu",

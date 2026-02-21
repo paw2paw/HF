@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { startTaskTracking, updateTaskProgress } from "@/lib/ai/task-guidance";
+import { startTaskTracking, updateTaskProgress, failTask } from "@/lib/ai/task-guidance";
 import { courseSetup } from "@/lib/domain/course-setup";
 import type { CourseSetupInput, CourseSetupResult } from "@/lib/domain/course-setup";
 
@@ -54,14 +54,7 @@ export async function POST(request: NextRequest) {
       });
     }).catch(async (err) => {
       console.error("[courses-setup] Executor failed:", err);
-      // Mark task as abandoned
-      await updateTaskProgress(taskId, {
-        context: {
-          phase: "failed",
-          error: err.message,
-        },
-      });
-      // Task completion happens in the executor on success; on failure, leave it to be manually checked
+      await failTask(taskId, err.message);
     });
 
     return NextResponse.json({

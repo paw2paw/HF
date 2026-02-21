@@ -38,7 +38,7 @@ export async function GET() {
 
 /**
  * @api POST /api/institutions
- * @auth SUPERADMIN
+ * @auth OPERATOR
  * @description Create a new institution.
  * @body name string (required)
  * @body slug string (required) — lowercase alphanumeric + hyphens
@@ -48,7 +48,7 @@ export async function GET() {
  * @body welcomeMessage string (optional)
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth("SUPERADMIN");
+  const auth = await requireAuth("OPERATOR");
   if (isAuthError(auth)) return auth.error;
 
   const body = await request.json();

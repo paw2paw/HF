@@ -120,19 +120,15 @@ describe("checkCourseReadiness", () => {
   });
 
   it("returns ready when all checks pass", async () => {
-    // Assertions reviewed
-    mockPrisma.contentAssertion.count
-      .mockResolvedValueOnce(50) // total
-      .mockResolvedValueOnce(25); // reviewed
-    // Lesson plan configured
-    mockPrisma.playbook.findFirst.mockResolvedValue({
-      items: [{
-        spec: {
-          specRole: "CONTENT",
-          isActive: true,
-          config: { deliveryConfig: { lessonPlan: [{ session: 1 }] } },
-        },
-      }],
+    // Use mockImplementation to handle parallel count calls from different checks
+    mockPrisma.contentAssertion.count.mockImplementation(async (args: any) => {
+      const where = args?.where || {};
+      // assertions_reviewed: { sourceId: "src-1" }
+      if (where.sourceId === "src-1" && where.reviewedAt) return 25; // reviewed
+      if (where.sourceId === "src-1") return 50; // total
+      // lesson_plan: { source: { subjects: { some: ... } } }
+      if (where.source) return 50; // has assertions → passes lesson_plan check
+      return 0;
     });
     // Onboarding configured
     mockPrisma.domain.findUnique.mockResolvedValue({
@@ -191,9 +187,23 @@ describe("checkCourseReadiness", () => {
       { sourceId: "src-a" },
       { sourceId: "src-b" },
     ]);
-    mockPrisma.contentAssertion.count
-      .mockResolvedValueOnce(100) // total
-      .mockResolvedValueOnce(50); // reviewed
+    // contentAssertion.count is called by both assertions_reviewed (2 calls) and lesson_plan (1 call) in parallel.
+    // lesson_plan calls count({ source: { subjects: ... } }) and assertions_reviewed calls count({ sourceId: { in: ... } }).
+    // Mock enough calls: all return positive values so both checks pass their count queries.
+    mockPrisma.contentAssertion.count.mockResolvedValue(100);
+    // Override the second call to assertions_reviewed (reviewed count) — but since we can't
+    // guarantee order with parallel execution, use mockImplementation to distinguish by args.
+    mockPrisma.contentAssertion.count.mockImplementation(async (args: any) => {
+      const where = args?.where || {};
+      // reviewed count: has reviewedAt filter
+      if (where.reviewedAt || where.sourceId?.in) {
+        if (where.reviewedAt) return 50; // reviewed
+        return 100; // total for domain-wide
+      }
+      // lesson_plan count: has source.subjects filter
+      if (where.source) return 100;
+      return 0;
+    });
     mockPrisma.playbook.findFirst.mockResolvedValue(null);
     mockPrisma.domain.findUnique.mockResolvedValue({
       onboardingIdentitySpecId: null,

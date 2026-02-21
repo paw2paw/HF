@@ -23,7 +23,8 @@ describe("resolveManifestItem", () => {
 
     const withRole = resolveManifestItem("edu-classrooms", "EDUCATOR");
     expect(withRole?.href).toBe("/x/educator/classrooms");
-    expect(withRole?.label).toBe("Classrooms");
+    // EDUCATOR variant only overrides href and icon, label falls back to base
+    expect(withRole?.label).toBe("Cohorts");
     expect(withRole?.icon).toBe("School");
   });
 

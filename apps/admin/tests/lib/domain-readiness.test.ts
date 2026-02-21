@@ -102,8 +102,7 @@ describe("playbook_spec_role executor", () => {
 
     expect(identityCheck).toBeDefined();
     expect(identityCheck!.passed).toBe(true);
-    expect(identityCheck!.detail).toContain("3 IDENTITY spec(s)");
-    expect(identityCheck!.detail).toContain("Generic Tutor Identity");
+    expect(identityCheck!.detail).toContain("3 tutor personality configuration(s) active");
   });
 
   it("fails when system spec toggles exist but are disabled", async () => {
@@ -125,7 +124,7 @@ describe("playbook_spec_role executor", () => {
     const identityCheck = result.checks.find((c) => c.id === "identity_spec");
 
     expect(identityCheck!.passed).toBe(false);
-    expect(identityCheck!.detail).toContain("No IDENTITY spec");
+    expect(identityCheck!.detail).toContain("No tutor personality configuration in the learning programme");
   });
 
   it("passes when IDENTITY specs exist as domain PlaybookItems", async () => {
@@ -140,7 +139,7 @@ describe("playbook_spec_role executor", () => {
     const identityCheck = result.checks.find((c) => c.id === "identity_spec");
 
     expect(identityCheck!.passed).toBe(true);
-    expect(identityCheck!.detail).toContain("Tutor Identity");
+    expect(identityCheck!.detail).toContain("1 tutor personality configuration(s) active");
   });
 
   it("combines domain PlaybookItems and system spec toggles", async () => {
@@ -163,9 +162,7 @@ describe("playbook_spec_role executor", () => {
     const identityCheck = result.checks.find((c) => c.id === "identity_spec");
 
     expect(identityCheck!.passed).toBe(true);
-    expect(identityCheck!.detail).toContain("2 IDENTITY spec(s)");
-    expect(identityCheck!.detail).toContain("Tutor Identity");
-    expect(identityCheck!.detail).toContain("Voice AI Guidance");
+    expect(identityCheck!.detail).toContain("2 tutor personality configuration(s) active");
   });
 
   it("fails when no published playbook exists", async () => {
@@ -175,7 +172,7 @@ describe("playbook_spec_role executor", () => {
     const identityCheck = result.checks.find((c) => c.id === "identity_spec");
 
     expect(identityCheck!.passed).toBe(false);
-    expect(identityCheck!.detail).toContain("No IDENTITY spec");
+    expect(identityCheck!.detail).toContain("No tutor personality configuration in the learning programme");
   });
 });
 
@@ -398,7 +395,7 @@ describe("content_spec_curriculum executor", () => {
 
     expect(currCheck).toBeDefined();
     expect(currCheck!.passed).toBe(true);
-    expect(currCheck!.detail).toContain("curriculum not required");
+    expect(currCheck!.detail).toContain("No curriculum structure required");
   });
 
   it("fails when CONTENT spec is missing metadata.curriculum", async () => {
@@ -424,7 +421,7 @@ describe("content_spec_curriculum executor", () => {
     const currCheck = result.checks.find((c) => c.id === "content_curriculum_valid");
 
     expect(currCheck!.passed).toBe(false);
-    expect(currCheck!.detail).toContain("missing metadata.curriculum");
+    expect(currCheck!.detail).toContain("needs curriculum topics and objectives configured");
   });
 
   it("fails when curriculum metadata has missing required fields", async () => {
@@ -499,7 +496,7 @@ describe("content_spec_curriculum executor", () => {
     const currCheck = result.checks.find((c) => c.id === "content_curriculum_valid");
 
     expect(currCheck!.passed).toBe(false);
-    expect(currCheck!.detail).toContain("No parameters match moduleSelector");
+    expect(currCheck!.detail).toContain("No curriculum topics found");
   });
 
   it("passes with warning when modules have no learningOutcomes", async () => {
@@ -540,7 +537,7 @@ describe("content_spec_curriculum executor", () => {
     const currCheck = result.checks.find((c) => c.id === "content_curriculum_valid");
 
     expect(currCheck!.passed).toBe(true);
-    expect(currCheck!.detail).toContain("2 modules but no learningOutcomes");
+    expect(currCheck!.detail).toContain("2 topic(s) linked");
   });
 
   it("passes fully when modules have learningOutcomes", async () => {
@@ -582,7 +579,7 @@ describe("content_spec_curriculum executor", () => {
     const currCheck = result.checks.find((c) => c.id === "content_curriculum_valid");
 
     expect(currCheck!.passed).toBe(true);
-    expect(currCheck!.detail).toContain("2 modules, 2 with learning outcomes");
+    expect(currCheck!.detail).toContain("2 topic(s), 2 with learning outcomes");
   });
 
   it("uses CURRICULUM_REQUIRED_FIELDS from shared constants (not hardcoded)", () => {

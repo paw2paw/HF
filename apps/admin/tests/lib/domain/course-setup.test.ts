@@ -68,6 +68,33 @@ vi.mock("@/lib/ai/task-guidance", () => ({
   completeTask: vi.fn(),
 }));
 
+vi.mock("@/lib/enrollment", () => ({
+  enrollCaller: vi.fn(),
+  enrollCallerInDomainPlaybooks: vi.fn(),
+}));
+
+/**
+ * Mock COURSE-SETUP-001 spec with wizard_steps parameter.
+ * The "done" step maps to the "create_course" operation internally.
+ */
+const MOCK_COURSE_SETUP_SPEC = {
+  slug: "course-setup-001",
+  config: {
+    parameters: [
+      {
+        id: "wizard_steps",
+        config: {
+          steps: [
+            { id: "intent", label: "Intent", activeLabel: "Setting up...", order: 1 },
+            { id: "content", label: "Content", activeLabel: "Processing content...", order: 2 },
+            { id: "done", label: "Create Course", activeLabel: "Creating course...", order: 3 },
+          ],
+        },
+      },
+    ],
+  },
+};
+
 describe("courseSetup executor", () => {
   const mockInput: CourseSetupInput = {
     courseName: "Test Course",
@@ -82,6 +109,9 @@ describe("courseSetup executor", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Return COURSE-SETUP-001 spec for loadCourseSetupSteps()
+    mockPrisma.analysisSpec.findFirst.mockResolvedValue(MOCK_COURSE_SETUP_SPEC);
 
     // Default mock implementations
     mockPrisma.domain.findFirst.mockResolvedValue(null);
@@ -128,21 +158,14 @@ describe("courseSetup executor", () => {
     expect(mockPrisma.subjectDomain.create).toHaveBeenCalled();
   });
 
-  it("creates invitations for student emails", async () => {
+  it("does not create invitations during wizard execution (students step is UI-only)", async () => {
     const emailsToInvite = ["student1@example.com", "student2@example.com"];
     const inputWithEmails = { ...mockInput, studentEmails: emailsToInvite };
 
     await courseSetup(inputWithEmails, "user-1", "task-1", vi.fn());
 
-    expect(mockPrisma.invite.create).toHaveBeenCalledTimes(2);
-    expect(mockPrisma.invite.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          email: "student1@example.com",
-          role: "LEARNER",
-        }),
-      })
-    );
+    // The "students" step maps to "noop" — invitations are handled by the UI separately
+    expect(mockPrisma.invite.create).not.toHaveBeenCalled();
   });
 
   it("handles empty student list gracefully", async () => {

@@ -104,8 +104,10 @@ describe("/api/communities", () => {
 
     it("requires OPERATOR role", async () => {
       mockRequireAuth.mockResolvedValue({
-        error: { status: 403, statusText: "Forbidden" },
+        error: new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, statusText: "Forbidden" }),
       });
+      const { isAuthError } = await import("@/lib/permissions") as any;
+      isAuthError.mockReturnValueOnce(true);
 
       const res = await getCommunitiesList(new Request("http://localhost/api/communities"));
       expect(res.status).toBe(403);
@@ -282,8 +284,10 @@ describe("/api/communities", () => {
 
     it("requires OPERATOR role", async () => {
       mockRequireAuth.mockResolvedValue({
-        error: { status: 403, statusText: "Forbidden" },
+        error: new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, statusText: "Forbidden" }),
       });
+      const { isAuthError } = await import("@/lib/permissions") as any;
+      isAuthError.mockReturnValueOnce(true);
 
       const res = await deleteCommunity(
         new Request("http://localhost/api/communities/comm-1", { method: "DELETE" }),

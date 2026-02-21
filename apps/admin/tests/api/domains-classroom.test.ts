@@ -23,10 +23,17 @@ const mockPrisma = {
     create: vi.fn(),
     update: vi.fn(),
   },
+  playbook: {
+    findMany: vi.fn().mockResolvedValue([]),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
+}));
+
+vi.mock("@/lib/enrollment", () => ({
+  assignPlaybookToCohort: vi.fn().mockResolvedValue(undefined),
 }));
 
 // =====================================================

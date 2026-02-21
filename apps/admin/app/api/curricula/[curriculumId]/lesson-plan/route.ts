@@ -7,6 +7,7 @@ import {
   startTaskTracking,
   updateTaskProgress,
   completeTask,
+  failTask,
 } from "@/lib/ai/task-guidance";
 
 type Params = { params: Promise<{ curriculumId: string }> };
@@ -305,6 +306,7 @@ ${moduleSummary}
 
 Total modules: ${modules.length}`;
 
+    // @ai-call lesson-plan.generate — Generate structured lesson plan from curriculum modules | config: /x/ai-config
     const result = await getConfiguredMeteredAICompletion({
       callPoint: "lesson-plan.generate",
       messages: [
@@ -353,9 +355,7 @@ Total modules: ${modules.length}`;
     await completeTask(taskId);
   } catch (error: any) {
     console.error("[lesson-plan background] Error:", error);
-    await updateTaskProgress(taskId, {
-      context: { error: error.message },
-    });
+    await failTask(taskId, error.message);
   }
 }
 
@@ -428,9 +428,7 @@ export async function POST(
       includeAssessments,
     ).catch(async (err) => {
       console.error("[lesson-plan] Background error:", err);
-      await updateTaskProgress(taskId, {
-        context: { error: err.message },
-      });
+      await failTask(taskId, err.message);
     });
 
     return NextResponse.json(

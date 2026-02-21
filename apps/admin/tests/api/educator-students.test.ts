@@ -35,6 +35,13 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
 }));
 
+vi.mock("@/lib/permissions", () => ({
+  requireAuth: vi.fn().mockResolvedValue({
+    error: { status: 403 },
+  }),
+  isAuthError: vi.fn().mockReturnValue(true),
+}));
+
 vi.mock("@/lib/educator-access", () => ({
   requireEducator: vi.fn().mockResolvedValue({
     session: {
@@ -101,7 +108,9 @@ describe("GET /api/educator/students", () => {
       },
     ]);
 
-    const res = await GET();
+    const res = await GET(
+      new NextRequest(new URL("http://localhost:3000/api/educator/students"), { method: "GET" })
+    );
     const body = await res.json();
 
     expect(res.status).toBe(200);

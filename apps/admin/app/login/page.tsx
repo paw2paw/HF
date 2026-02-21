@@ -211,9 +211,7 @@ export default function LoginPage() {
 const DEMO_ACCOUNTS = [
   { email: "school@hff.com", label: "School", role: "Educator" },
   { email: "corporate@hff.com", label: "Corporate", role: "Educator" },
-  { email: "community@hff.com", label: "Community", role: "Educator" },
-  { email: "coaching@hff.com", label: "Coaching", role: "Educator" },
-  { email: "healthcare@hff.com", label: "Healthcare", role: "Educator" },
+  { email: "training@hff.com", label: "Training", role: "Educator" },
 ];
 
 function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {

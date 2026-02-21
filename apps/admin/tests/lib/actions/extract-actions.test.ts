@@ -32,6 +32,24 @@ vi.mock("@/lib/logger", () => ({
   logAI: vi.fn(),
 }));
 
+vi.mock("@/lib/system-settings", () => ({
+  ACTIONS_DEFAULTS: {
+    transcriptLimit: 4000,
+    minTranscriptLength: 100,
+    confidenceThreshold: 0.6,
+    similarityThreshold: 0.8,
+  },
+  getActionSettings: vi.fn().mockResolvedValue({
+    transcriptLimit: 4000,
+    minTranscriptLength: 100,
+    confidenceThreshold: 0.6,
+    similarityThreshold: 0.8,
+  }),
+  getSystemSetting: vi.fn().mockImplementation(async (_key: string, defaultValue?: any) => defaultValue ?? null),
+  clearSystemSettingsCache: vi.fn(),
+  SETTINGS_REGISTRY: [],
+}));
+
 const mockLog = {
   info: vi.fn(),
   warn: vi.fn(),

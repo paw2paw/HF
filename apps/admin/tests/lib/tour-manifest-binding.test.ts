@@ -38,7 +38,8 @@ describe("tour-manifest binding", () => {
     const resolved = resolveManifestItem("edu-classrooms", "EDUCATOR");
     expect(resolved).not.toBeNull();
     expect(resolved!.href).toBe("/x/educator/classrooms");
-    expect(resolved!.label).toBe("Classrooms");
+    // EDUCATOR variant only overrides href and icon, label falls back to base
+    expect(resolved!.label).toBe("Cohorts");
   });
 
   it("every manifest item has a unique id", () => {

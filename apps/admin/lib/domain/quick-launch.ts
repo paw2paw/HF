@@ -24,6 +24,8 @@ import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
 import { enrollCaller } from "@/lib/enrollment";
+import { loadComposeConfig, executeComposition, persistComposedPrompt } from "@/lib/prompt/composition";
+import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
 import type { SpecConfig } from "@/lib/types/json-fields";
 
 // ── Types ──────────────────────────────────────────────
@@ -48,6 +50,7 @@ export interface QuickLaunchInput {
   mode?: "upload" | "generate";
   domainId?: string; // Use existing domain instead of creating new one
   kind?: "INSTITUTION" | "COMMUNITY"; // Domain kind (defaults to INSTITUTION)
+  institutionId?: string; // Link domain to an institution
 }
 
 export interface ProgressEvent {
@@ -134,7 +137,7 @@ const stepExecutors: Record<string, StepExecutor> = {
    * Otherwise creates a new domain from subjectName (original behavior).
    */
   create_domain: async (ctx) => {
-    const { subjectName, brief, qualificationRef, domainId: existingDomainId, kind } = ctx.input;
+    const { subjectName, brief, qualificationRef, domainId: existingDomainId, kind, institutionId } = ctx.input;
 
     let domain;
 
@@ -162,6 +165,7 @@ const stepExecutors: Record<string, StepExecutor> = {
             description: brief || `Quick-launched domain for ${subjectName}`,
             kind: (kind as any) || "INSTITUTION",
             isActive: true,
+            institutionId: institutionId ?? undefined,
           },
         });
       }
@@ -572,6 +576,29 @@ const stepExecutors: Record<string, StepExecutor> = {
     if (ctx.results.playbookId) {
       await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch");
     }
+  },
+
+  /**
+   * Step 8: Compose the first prompt so the caller is ready-to-teach immediately.
+   * Uses the same composition pipeline as POST /api/callers/:callerId/compose-prompt.
+   */
+  compose_prompt: async (ctx) => {
+    const callerId = ctx.results.callerId;
+    if (!callerId) {
+      ctx.results.warnings!.push("No caller — prompt composition skipped");
+      return;
+    }
+
+    const { fullSpecConfig, sections, specSlug } = await loadComposeConfig();
+    const composition = await executeComposition(callerId, sections, fullSpecConfig);
+    const promptSummary = renderPromptSummary(composition.llmPrompt);
+
+    await persistComposedPrompt(composition, promptSummary, {
+      callerId,
+      triggerType: "quick-launch",
+      composeSpecSlug: specSlug,
+      specConfig: fullSpecConfig,
+    });
   },
 };
 
@@ -1038,7 +1065,7 @@ export async function quickLaunchCommit(
   };
 
   const steps = await loadLaunchSteps();
-  const commitOps = ["scaffold_domain", "generate_curriculum", "create_caller"];
+  const commitOps = ["scaffold_domain", "generate_curriculum", "create_caller", "compose_prompt"];
   const commitSteps = steps.filter((s) => commitOps.includes(s.operation));
 
   onProgress({

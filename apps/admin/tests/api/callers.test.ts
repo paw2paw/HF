@@ -45,6 +45,11 @@ vi.mock("@/lib/access-control", () => ({
   buildScopeFilter: vi.fn().mockReturnValue({}),
 }));
 
+vi.mock("@/lib/enrollment", () => ({
+  enrollCallerInCohortPlaybooks: vi.fn().mockResolvedValue(undefined),
+  enrollCallerInDomainPlaybooks: vi.fn().mockResolvedValue(undefined),
+}));
+
 // =====================================================
 // TESTS
 // =====================================================

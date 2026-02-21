@@ -34,6 +34,9 @@ vi.mock("@/lib/permissions", () => ({
   isAuthError: mockIsAuthError,
 }));
 
+// Undo the global mock from setup.ts — we want to test the real implementation
+vi.unmock("@/lib/student-access");
+
 // ---------------------------------------------------------------------------
 // Import unit under test AFTER mocks are wired
 // ---------------------------------------------------------------------------

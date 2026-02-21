@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import ReviewPanel from "./ReviewPanel";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
 import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
@@ -516,6 +517,13 @@ export default function QuickLaunchPage() {
   const [domains, setDomains] = useState<{ id: string; slug: string; name: string }[]>([]);
   const [selectedDomainId, setSelectedDomainId] = useState<string>("");
 
+  // Institution picker
+  const { data: sessionData } = useSession();
+  const [institutions, setInstitutions] = useState<{ id: string; name: string }[]>([]);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<string>("");
+  const [newInstitutionName, setNewInstitutionName] = useState("");
+  const [institutionsLoading, setInstitutionsLoading] = useState(true);
+
   // Personas from API
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [personasLoading, setPersonasLoading] = useState(true);
@@ -531,6 +539,7 @@ export default function QuickLaunchPage() {
   const [commitTimeline, setCommitTimeline] = useState<TimelineStep[]>([]);
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const commitAbortRef = useRef<AbortController | null>(null);
 
   // Resume
   const [resumeTask, setResumeTask] = useState<ResumeTask | null>(null);
@@ -573,7 +582,29 @@ export default function QuickLaunchPage() {
         }
       })
       .catch(() => {});
+
+    // Load institutions for institution picker
+    fetch("/api/institutions")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.institutions) {
+          setInstitutions(data.institutions.map((i: any) => ({
+            id: i.id,
+            name: i.name,
+          })));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setInstitutionsLoading(false));
   }, []);
+
+  // ── Auto-select user's institution from session ──
+  useEffect(() => {
+    const userInstId = (sessionData?.user as any)?.institutionId;
+    if (userInstId && !selectedInstitutionId) {
+      setSelectedInstitutionId(userInstId);
+    }
+  }, [sessionData, selectedInstitutionId]);
 
   // ── Check for resumable task ──────────────────────
 
@@ -879,26 +910,36 @@ export default function QuickLaunchPage() {
   // ── Build (Analyze) ─────────────────────────────
 
   // In community mode, content is optional; in institution mode, content is required
-  const canLaunch = subjectName.trim() && persona && (communityMode || launchMode === "generate" || !!file) && phase === "form";
+  const hasInstitution = communityMode || selectedInstitutionId === "__new__" ? !!newInstitutionName.trim() : !!selectedInstitutionId;
+  const canLaunch = subjectName.trim() && persona && hasInstitution && (communityMode || launchMode === "generate" || !!file) && phase === "form";
 
   const handleBuild = async () => {
     if (!canLaunch) return;
 
     setPhase("building");
     setError(null);
-    setPreview({});
+    // Clear previous analysis state (user chose to re-build, not return to review)
     setOverrides({});
     setAnalysisComplete(false);
     setAnalysisProgress(5);
     setAnalysisLabel("Setting up agent...");
+    // NOTE: preview is NOT cleared here — we read preview.domainId below to reuse the domain
 
     const formData = new FormData();
     formData.append("subjectName", subjectName.trim());
     formData.append("persona", persona);
     formData.append("mode", launchMode);
     formData.append("kind", communityMode ? "COMMUNITY" : "INSTITUTION");
-    if (selectedDomainId) {
-      formData.append("domainId", selectedDomainId);
+    // Institution — send selected ID or "create:Name" for inline creation
+    if (selectedInstitutionId === "__new__" && newInstitutionName.trim()) {
+      formData.append("institutionId", `create:${newInstitutionName.trim()}`);
+    } else if (selectedInstitutionId && selectedInstitutionId !== "__new__") {
+      formData.append("institutionId", selectedInstitutionId);
+    }
+    // Reuse existing domain if we have one from a previous analyze (prevents orphans on Back + re-submit)
+    const domainIdToUse = selectedDomainId || preview.domainId;
+    if (domainIdToUse) {
+      formData.append("domainId", domainIdToUse);
     }
     if (brief.trim()) {
       formData.append("brief", brief.trim());
@@ -976,9 +1017,15 @@ export default function QuickLaunchPage() {
     setCommitTimeline([]);
     setError(null);
 
+    // Create abort controller for cancel escape hatch
+    commitAbortRef.current?.abort();
+    const controller = new AbortController();
+    commitAbortRef.current = controller;
+
     try {
       const response = await fetch("/api/domains/quick-launch/commit", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId,
@@ -1040,6 +1087,11 @@ export default function QuickLaunchPage() {
         }
       }
     } catch (err: any) {
+      if (err.name === "AbortError") {
+        // User cancelled — go back to review quietly
+        setPhase("review");
+        return;
+      }
       const msg = err.message || "Creation failed";
       // Translate browser network errors to user-friendly messages
       const isNetworkError = msg === "Load failed" || msg === "Failed to fetch" || msg === "NetworkError when attempting to fetch resource.";
@@ -1050,6 +1102,11 @@ export default function QuickLaunchPage() {
       );
       setPhase("review");
     }
+  };
+
+  const handleCancelCommit = () => {
+    commitAbortRef.current?.abort();
+    setPhase("review");
   };
 
   const handleCommitEvent = (event: any) => {
@@ -1098,14 +1155,23 @@ export default function QuickLaunchPage() {
     });
   };
 
-  // ── Back to form ──────────────────────────────────
+  // ── Back to form (non-destructive) ────────────────
+  //
+  // Preserves preview + overrides so user can tweak inputs
+  // and return to review without re-running extraction.
+  // Clears polling to stop background fetches.
 
   const handleBackToForm = () => {
     setPhase("form");
-    setPreview({});
-    setOverrides({});
-    setAnalysisComplete(false);
-    setAnalysisProgress(0);
+    // Stop any in-flight extraction polling
+    if (jobPollRef.current) {
+      clearInterval(jobPollRef.current);
+      jobPollRef.current = null;
+    }
+    setExtractionJobId(null);
+    setExtractionSourceId(null);
+    // NOTE: preview, overrides, analysisComplete, analysisProgress
+    // are intentionally preserved so the user can return to review.
   };
 
   // ── Result screen state (inline editing + classroom) ──
@@ -1247,13 +1313,15 @@ export default function QuickLaunchPage() {
     setCopied(false);
     setEditDomainName("");
     setEditWelcome("");
+    setNewInstitutionName("");
   };
 
   // ── Form completion ───────────────────────────────
 
-  // In community mode, step 4 (content) is optional; in institution mode, it's required
-  const formSteps = [!!subjectName.trim(), !!persona, communityMode || launchMode === "generate" || !!file];
+  // In community mode, institution is not required; in institution mode, it is
+  const formSteps = [!!subjectName.trim(), !!persona, hasInstitution, communityMode || launchMode === "generate" || !!file];
   const completedSteps = formSteps.filter(Boolean).length;
+  const totalRequired = formSteps.length;
 
   const selectedPersona = personas.find((p) => p.slug === persona);
 
@@ -1518,7 +1586,7 @@ export default function QuickLaunchPage() {
                       display: "inline-block",
                       width: 14,
                       height: 14,
-                      border: "2px solid rgba(255,255,255,0.3)",
+                      border: "2px solid color-mix(in srgb, white 30%, transparent)",
                       borderTopColor: "white",
                       borderRadius: "50%",
                       animation: "spin 0.8s linear infinite",
@@ -1545,6 +1613,26 @@ export default function QuickLaunchPage() {
               </div>
             </div>
           ))}
+
+          {/* Cancel escape hatch */}
+          <button
+            onClick={handleCancelCommit}
+            style={{
+              marginTop: 16,
+              padding: "8px 16px",
+              borderRadius: 8,
+              background: "transparent",
+              border: "1px solid var(--border-default)",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              alignSelf: "center",
+              transition: "color 0.15s",
+            }}
+          >
+            Cancel
+          </button>
         </div>
       )}
 
@@ -1556,7 +1644,7 @@ export default function QuickLaunchPage() {
             style={{
               padding: 32,
               borderRadius: 16,
-              background: "linear-gradient(135deg, var(--status-success-bg), #ecfdf5)",
+              background: "var(--status-success-bg)",
               border: "2px solid var(--status-success-border)",
             }}
           >
@@ -1945,11 +2033,48 @@ export default function QuickLaunchPage() {
           <FormCard>
             <StepMarker number={1} label={communityMode ? "Describe your community" : "Describe what you're building"} completed={!!subjectName.trim()} />
 
+            {/* Institution picker */}
+            {!communityMode && (
+              <div style={{ marginBottom: 16 }}>
+                <FancySelect
+                  options={[
+                    ...institutions.map((i) => ({ value: i.id, label: i.name })),
+                    { value: "__new__", label: "+ Create new institution" },
+                  ]}
+                  value={selectedInstitutionId}
+                  onChange={setSelectedInstitutionId}
+                  placeholder="Select institution..."
+                  loading={institutionsLoading}
+                  searchable={institutions.length > 3}
+                  sortable={false}
+                />
+                {selectedInstitutionId === "__new__" && (
+                  <input
+                    type="text"
+                    value={newInstitutionName}
+                    onChange={(e) => setNewInstitutionName(e.target.value)}
+                    placeholder="Institution name (e.g. Oakwood Academy)"
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: 8,
+                      border: "1px solid var(--input-border)",
+                      fontSize: 14,
+                      background: "var(--input-bg)",
+                      color: "var(--text-primary)",
+                      marginTop: 8,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
             {/* Domain picker — use existing domain or create new */}
             {domains.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
-                  Organisation / Domain
+                  Domain
                 </label>
                 <select
                   value={selectedDomainId}
@@ -2621,6 +2746,28 @@ export default function QuickLaunchPage() {
 
           {/* ── Build Button ── */}
           <div style={{ padding: "32px 0 0" }}>
+            {/* Return to Review — shown when user went Back but analysis is still valid */}
+            {analysisComplete && preview.domainId && (
+              <button
+                onClick={() => setPhase("review")}
+                style={{
+                  width: "100%",
+                  padding: "14px 24px",
+                  borderRadius: 12,
+                  border: "2px solid var(--accent-primary)",
+                  background: "var(--surface-primary)",
+                  color: "var(--accent-primary)",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  marginBottom: 12,
+                  transition: "all 0.2s",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Return to Review
+              </button>
+            )}
             <button
               onClick={handleBuild}
               disabled={!canLaunch}
@@ -2657,16 +2804,18 @@ export default function QuickLaunchPage() {
                   marginBottom: 6,
                 }}
               >
-                <span>{completedSteps} of 3 required</span>
+                <span>{completedSteps} of {totalRequired} required</span>
                 {!canLaunch && (
                   <span>
                     {!subjectName.trim()
                       ? "Enter an agent name"
                       : !persona
                         ? "Select a persona"
-                        : launchMode === "upload" && !file
-                          ? "Upload material"
-                          : ""}
+                        : !hasInstitution
+                          ? "Select an institution"
+                          : launchMode === "upload" && !file
+                            ? "Upload material"
+                            : ""}
                   </span>
                 )}
               </div>
@@ -2681,9 +2830,9 @@ export default function QuickLaunchPage() {
                 <div
                   style={{
                     height: "100%",
-                    width: `${(completedSteps / 3) * 100}%`,
+                    width: `${(completedSteps / totalRequired) * 100}%`,
                     borderRadius: 2,
-                    background: completedSteps === 3
+                    background: completedSteps === totalRequired
                       ? "var(--status-success-text)"
                       : "var(--accent-primary)",
                     transition: "width 0.3s ease",

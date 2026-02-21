@@ -60,6 +60,10 @@ vi.mock("@/lib/cohort-access", () => ({
   isCohortOwnershipError: vi.fn().mockReturnValue(false),
 }));
 
+vi.mock("@/lib/enrollment", () => ({
+  enrollCallerInCohortPlaybooks: vi.fn().mockResolvedValue(undefined),
+}));
+
 // =====================================================
 // TESTS
 // =====================================================

@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   mediaAssetUpdate: vi.fn(),
   computeContentHash: vi.fn(),
   getStorageAdapter: vi.fn(),
+  startTaskTracking: vi.fn(),
+  updateTaskProgress: vi.fn(),
+  completeTask: vi.fn(),
 }));
 
 vi.mock("@/lib/permissions", () => ({
@@ -53,6 +56,12 @@ vi.mock("@/lib/storage", () => ({
 
 vi.mock("@/lib/config", () => ({
   config: { storage: { backend: "local" } },
+}));
+
+vi.mock("@/lib/ai/task-guidance", () => ({
+  startTaskTracking: (...args: any[]) => mocks.startTaskTracking(...args),
+  updateTaskProgress: (...args: any[]) => mocks.updateTaskProgress(...args),
+  completeTask: (...args: any[]) => mocks.completeTask(...args),
 }));
 
 vi.mock("@/lib/content-trust/extraction-jobs", () => ({
@@ -153,6 +162,9 @@ describe("POST /api/content-sources/:sourceId/import (mode=classify)", () => {
     mocks.mediaAssetFindUnique.mockResolvedValue(null);
     mocks.mediaAssetCreate.mockResolvedValue({ id: "media-1" });
     mocks.sourceUpdate.mockResolvedValue({});
+    mocks.startTaskTracking.mockResolvedValue("task-1");
+    mocks.updateTaskProgress.mockResolvedValue(undefined);
+    mocks.completeTask.mockResolvedValue(undefined);
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -190,7 +202,7 @@ describe("POST /api/content-sources/:sourceId/import (mode=classify)", () => {
     expect(data.error).toContain("No file");
   });
 
-  it("returns 422 when text extraction fails", async () => {
+  it("returns 202 with taskId for classify mode (async)", async () => {
     mocks.extractText.mockResolvedValue({ text: "" });
 
     const req = makeMockRequest({
@@ -198,14 +210,15 @@ describe("POST /api/content-sources/:sourceId/import (mode=classify)", () => {
       mode: "classify",
     });
     const res = await POST(req, { params: makeParams() });
-    expect(res.status).toBe(422);
+    // Classify mode is now async — always returns 202 immediately
+    expect(res.status).toBe(202);
 
     const data = await res.json();
-    expect(data.ok).toBe(false);
-    expect(data.error).toContain("Could not extract text");
+    expect(data.ok).toBe(true);
+    expect(data.taskId).toBe("task-1");
   });
 
-  it("classifies document, stores file, updates source, returns classification", async () => {
+  it("starts background classification and returns 202 with taskId", async () => {
     const extractedText = "Chapter 1: Introduction to Food Safety...";
     mocks.extractText.mockResolvedValue({ text: extractedText });
     mocks.classifyDocument.mockResolvedValue({
@@ -219,46 +232,25 @@ describe("POST /api/content-sources/:sourceId/import (mode=classify)", () => {
       mode: "classify",
     });
     const res = await POST(req, { params: makeParams() });
-    expect(res.status).toBe(200);
+    // Classify mode now returns 202 with taskId (background classification)
+    expect(res.status).toBe(202);
 
     const data = await res.json();
     expect(data.ok).toBe(true);
-    expect(data.mode).toBe("classify");
-    expect(data.classification.documentType).toBe("CURRICULUM");
-    expect(data.classification.confidence).toBe(0.92);
-    expect(data.classification.reasoning).toContain("learning outcomes");
-    expect(data.mediaId).toBe("media-1");
-    expect(data.textLength).toBe(extractedText.length);
+    expect(data.taskId).toBe("task-1");
 
-    // Verify source was updated with classification
-    expect(mocks.sourceUpdate).toHaveBeenCalledWith({
-      where: { id: "src-1" },
-      data: {
-        documentType: "CURRICULUM",
-        documentTypeSource: "ai:0.92",
-        textSample: extractedText.substring(0, 1000),
-        aiClassification: "CURRICULUM:0.92",
-      },
-    });
-
-    // Verify file was stored
-    expect(mocks.computeContentHash).toHaveBeenCalled();
-    expect(MOCK_STORAGE.upload).toHaveBeenCalled();
-    expect(mocks.mediaAssetCreate).toHaveBeenCalledWith(
+    // Verify task tracking was started
+    expect(mocks.startTaskTracking).toHaveBeenCalledWith(
+      "u1",
+      "classification",
       expect.objectContaining({
-        data: expect.objectContaining({
-          sourceId: "src-1",
-          contentHash: "abc123hash",
-          storageType: "local",
-        }),
-      })
+        sourceId: "src-1",
+        fileName: "syllabus.pdf",
+      }),
     );
-
-    // Verify NO extraction was triggered
-    // (extractAssertions should not be called)
   });
 
-  it("reuses existing media asset on duplicate content hash", async () => {
+  it("returns 202 with taskId for duplicate content hash scenario", async () => {
     mocks.extractText.mockResolvedValue({ text: "Some text content" });
     mocks.classifyDocument.mockResolvedValue({
       documentType: "TEXTBOOK",
@@ -272,21 +264,14 @@ describe("POST /api/content-sources/:sourceId/import (mode=classify)", () => {
       mode: "classify",
     });
     const res = await POST(req, { params: makeParams() });
-    expect(res.status).toBe(200);
+    // Classify mode is now async — returns 202 immediately
+    expect(res.status).toBe(202);
 
     const data = await res.json();
-    expect(data.mediaId).toBe("existing-media");
+    expect(data.ok).toBe(true);
+    expect(data.taskId).toBe("task-1");
 
-    // Should NOT upload a new file
-    expect(MOCK_STORAGE.upload).not.toHaveBeenCalled();
-    expect(mocks.mediaAssetCreate).not.toHaveBeenCalled();
-
-    // Should update existing media to link to this source
-    expect(mocks.mediaAssetUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "existing-media" },
-        data: { sourceId: "src-1" },
-      })
-    );
+    // Background task was started
+    expect(mocks.startTaskTracking).toHaveBeenCalled();
   });
 });

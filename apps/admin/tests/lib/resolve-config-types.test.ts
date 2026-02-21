@@ -129,7 +129,7 @@ describe("resolveExtractionConfig", () => {
   it("WORKSHEET type applies maxAssertions override", async () => {
     const cfg = await resolveExtractionConfig(undefined, "WORKSHEET");
 
-    expect(cfg.extraction.maxAssertionsPerDocument).toBe(100);
+    expect(cfg.extraction.maxAssertionsPerDocument).toBe(200);
   });
 
   it("REFERENCE type applies flat 2-level structure", async () => {

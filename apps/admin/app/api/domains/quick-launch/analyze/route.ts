@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
   const goalsRaw = formData.get("learningGoals") as string | null;
   const qualificationRef = formData.get("qualificationRef") as string | null;
   const existingDomainId = formData.get("domainId") as string | null;
+  const institutionIdRaw = formData.get("institutionId") as string | null;
 
   // Validate required fields
   if (!subjectName?.trim()) {
@@ -115,6 +116,41 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // ── Step 0: Resolve institution (from form, session, or create inline) ──
+
+    let resolvedInstitutionId: string | null = null;
+
+    if (institutionIdRaw?.startsWith("create:")) {
+      // Inline institution creation: "create:Oakwood Academy"
+      const instName = institutionIdRaw.slice(7).trim();
+      if (instName) {
+        const instSlug = instName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const existing = await prisma.institution.findFirst({ where: { slug: instSlug } });
+        if (existing) {
+          resolvedInstitutionId = existing.id;
+        } else {
+          const created = await prisma.institution.create({
+            data: { name: instName, slug: instSlug },
+          });
+          resolvedInstitutionId = created.id;
+        }
+      }
+    } else if (institutionIdRaw) {
+      // Existing institution ID from picker
+      resolvedInstitutionId = institutionIdRaw;
+    } else {
+      // Fallback to user's session institution
+      resolvedInstitutionId = session.user.institutionId ?? null;
+    }
+
+    // Link user to institution if they had none (so they aren't asked again)
+    if (resolvedInstitutionId && !session.user.institutionId) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { institutionId: resolvedInstitutionId },
+      });
+    }
+
     // ── Step 1: Resolve or create domain + subject (fast, sync) ──
 
     let domain;
@@ -142,7 +178,7 @@ export async function POST(req: NextRequest) {
             name: subjectName.trim(),
             description: brief?.trim() || `Quick-launched domain for ${subjectName.trim()}`,
             isActive: true,
-            institutionId: session.user.institutionId ?? undefined,
+            institutionId: resolvedInstitutionId ?? undefined,
           },
         });
       }

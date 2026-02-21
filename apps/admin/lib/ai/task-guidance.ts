@@ -144,6 +144,32 @@ export async function completeTask(taskId: string): Promise<void> {
   });
 }
 
+/**
+ * Mark a task as failed/abandoned. Sets terminal status + records error in context.
+ * Use this in every error handler instead of manually writing prisma.userTask.update().
+ */
+export async function failTask(taskId: string, error: string): Promise<void> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userTask.findUnique({
+        where: { id: taskId },
+        select: { context: true },
+      });
+      const existingCtx = (existing?.context as Record<string, any>) ?? {};
+      await tx.userTask.update({
+        where: { id: taskId },
+        data: {
+          status: "abandoned",
+          completedAt: new Date(),
+          context: { ...existingCtx, error },
+        },
+      });
+    });
+  } catch {
+    // Best-effort — don't let error recording crash the caller
+  }
+}
+
 // ============================================================================
 // GUIDANCE GENERATION
 // ============================================================================

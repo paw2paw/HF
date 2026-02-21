@@ -121,6 +121,10 @@ describe("startCurriculumGeneration", () => {
         preview: expect.objectContaining({ ok: true }),
         moduleCount: 1,
         warnings: [],
+        summary: {
+          subject: { id: "sub-1", name: "Food Safety L2" },
+          counts: { modules: 1, assertions: 2 },
+        },
       },
     });
   });

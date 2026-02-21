@@ -16,6 +16,7 @@ import { CallActionType, CallActionAssignee, CallActionPriority } from "@prisma/
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 import { logAI } from "@/lib/logger";
+import { getActionSettings, ACTIONS_DEFAULTS } from "@/lib/system-settings";
 
 // =====================================================
 // TYPES
@@ -57,15 +58,6 @@ type Logger = {
 };
 
 // =====================================================
-// CONSTANTS
-// =====================================================
-
-const TRANSCRIPT_LIMIT = 4000;
-const MIN_TRANSCRIPT_LENGTH = 100;
-const CONFIDENCE_THRESHOLD = 0.6;
-const SIMILARITY_THRESHOLD = 0.8;
-
-// =====================================================
 // MAIN EXPORT
 // =====================================================
 
@@ -85,8 +77,11 @@ export async function extractActions(
     errors: [],
   };
 
+  // Load thresholds from SystemSettings (falls back to ACTIONS_DEFAULTS)
+  const settings = await getActionSettings().catch(() => ACTIONS_DEFAULTS);
+
   // 1. Validate input
-  if (!call.transcript || call.transcript.length < MIN_TRANSCRIPT_LENGTH) {
+  if (!call.transcript || call.transcript.length < settings.minTranscriptLength) {
     log.info("Skipping action extraction - transcript too short", {
       callId: call.id,
       transcriptLength: call.transcript?.length ?? 0,
@@ -102,7 +97,7 @@ export async function extractActions(
     });
 
     // 3. Build prompt
-    const prompt = buildActionExtractionPrompt(call.transcript, existingActions);
+    const prompt = buildActionExtractionPrompt(call.transcript, existingActions, settings.transcriptLimit);
 
     // 4. Handle mock engine
     if (engine === "mock") {
@@ -170,7 +165,7 @@ export async function extractActions(
             continue;
           }
 
-          if (extracted.confidence < CONFIDENCE_THRESHOLD) {
+          if (extracted.confidence < settings.confidenceThreshold) {
             log.debug("Skipping low confidence action", {
               title: extracted.title,
               confidence: extracted.confidence,
@@ -186,7 +181,7 @@ export async function extractActions(
               calculateSimilarity(
                 e.title.toLowerCase(),
                 extracted.title.toLowerCase()
-              ) > SIMILARITY_THRESHOLD
+              ) > settings.similarityThreshold
           );
 
           if (isDuplicate) {
@@ -241,7 +236,8 @@ export async function extractActions(
 
 function buildActionExtractionPrompt(
   transcript: string,
-  existingActions: Array<{ id: string; type: CallActionType; title: string }>
+  existingActions: Array<{ id: string; type: CallActionType; title: string }>,
+  transcriptLimit: number,
 ): string {
   const existingList =
     existingActions.length > 0
@@ -282,7 +278,7 @@ EXISTING ACTIONS (do not duplicate):
 ${existingList}
 
 TRANSCRIPT:
-${transcript.slice(0, TRANSCRIPT_LIMIT)}
+${transcript.slice(0, transcriptLimit)}
 
 Return JSON (no markdown):
 {"actions":[{"t":"HOMEWORK","a":"CALLER","ti":"Practice times tables","d":"Practice 7x and 8x multiplication tables before next session","p":"MEDIUM","co":0.9,"ev":"for homework try the seven and eight times tables"}]}

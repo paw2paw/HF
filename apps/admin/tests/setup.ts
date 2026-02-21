@@ -182,7 +182,91 @@ vi.mock('@prisma/client', () => {
       create: vi.fn(),
       count: vi.fn(),
     },
+    playbook: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
+    aiModel: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    taskGuidance: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    domain: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    invite: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
+    contentQuestion: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    contentVocabulary: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    contentSource: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
+    curriculum: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    userTask: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
     $disconnect: vi.fn(),
+    $transaction: vi.fn().mockImplementation((fn: any) => {
+      if (typeof fn === 'function') return fn(mockPrismaClient);
+      return Promise.all(fn);
+    }),
   };
 
   // Create a mock class
@@ -360,6 +444,56 @@ vi.mock('@/lib/permissions', () => ({
   }),
 }));
 
+// Mock student-access — provides student + admin combined auth helpers
+vi.mock('@/lib/student-access', () => ({
+  requireStudent: vi.fn().mockResolvedValue({
+    session: {
+      user: { id: 'test-user', email: 'test@example.com', name: 'Test User', role: 'STUDENT', image: null },
+      expires: new Date(Date.now() + 86400000).toISOString(),
+    },
+    callerId: 'test-caller-id',
+    cohortGroupId: 'test-cohort-id',
+    institutionId: null,
+  }),
+  requireStudentOrAdmin: vi.fn().mockResolvedValue({
+    session: {
+      user: { id: 'test-user', email: 'test@example.com', name: 'Test User', role: 'STUDENT', image: null },
+      expires: new Date(Date.now() + 86400000).toISOString(),
+    },
+    callerId: 'test-caller-id',
+    cohortGroupId: 'test-cohort-id',
+    institutionId: null,
+  }),
+  isStudentAuthError: vi.fn().mockReturnValue(false),
+}));
+
+// Mock educator-access — provides educator + admin combined auth helpers
+vi.mock('@/lib/educator-access', () => ({
+  requireEducator: vi.fn().mockResolvedValue({
+    session: {
+      user: { id: 'test-user', email: 'test@example.com', name: 'Test User', role: 'EDUCATOR', image: null },
+      expires: new Date(Date.now() + 86400000).toISOString(),
+    },
+    callerId: 'test-educator-caller-id',
+    institutionId: null,
+  }),
+  requireEducatorOrAdmin: vi.fn().mockResolvedValue({
+    session: {
+      user: { id: 'test-user', email: 'test@example.com', name: 'Test User', role: 'EDUCATOR', image: null },
+      expires: new Date(Date.now() + 86400000).toISOString(),
+    },
+    callerId: 'test-educator-caller-id',
+    institutionId: null,
+  }),
+  isEducatorAuthError: vi.fn().mockReturnValue(false),
+  requireEducatorCohortOwnership: vi.fn().mockResolvedValue({
+    cohort: { id: 'test-cohort-id', name: 'Test Cohort', ownerId: 'test-educator-caller-id', _count: { members: 0 } },
+  }),
+  requireEducatorStudentAccess: vi.fn().mockResolvedValue({
+    student: { id: 'test-student-id', name: 'Test Student' },
+  }),
+}));
+
 // Mock access-control — prevents ESM resolution via auth → next-auth → next/server
 vi.mock('@/lib/access-control', () => ({
   requireEntityAccess: vi.fn().mockResolvedValue({
@@ -397,6 +531,8 @@ vi.mock('@/lib/system-settings', () => ({
   getKnowledgeRetrievalSettings: vi.fn().mockResolvedValue({ queryMessageCount: 3, topResults: 10, chunkLimit: 5, assertionLimit: 5, memoryLimit: 3, minRelevance: 0.3 }),
   VOICE_CALL_DEFAULTS: { provider: 'openai', model: 'gpt-4o', knowledgePlanEnabled: true, autoPipeline: true, toolLookupTeachingPoint: true, toolCheckMastery: true, toolRecordObservation: true, toolGetPracticeQuestion: true, toolGetNextModule: true, toolLogActivityResult: true, toolSendText: true, toolRequestArtifact: true, unknownCallerPrompt: 'You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.', noActivePromptFallback: 'You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation.' },
   getVoiceCallSettings: vi.fn().mockResolvedValue({ provider: 'openai', model: 'gpt-4o', knowledgePlanEnabled: true, autoPipeline: true, toolLookupTeachingPoint: true, toolCheckMastery: true, toolRecordObservation: true, toolGetPracticeQuestion: true, toolGetNextModule: true, toolLogActivityResult: true, toolSendText: true, toolRequestArtifact: true, unknownCallerPrompt: 'You are a helpful voice assistant. This caller is not yet registered in the system. Have a friendly conversation and gather their name.', noActivePromptFallback: 'You are a helpful voice tutor. No personalized prompt is available yet — have a warm, friendly conversation.' }),
+  ACTIONS_DEFAULTS: { transcriptLimit: 4000, minTranscriptLength: 100, confidenceThreshold: 0.6, similarityThreshold: 0.8 },
+  getActionSettings: vi.fn().mockResolvedValue({ transcriptLimit: 4000, minTranscriptLength: 100, confidenceThreshold: 0.6, similarityThreshold: 0.8 }),
   SETTINGS_REGISTRY: [],
   EMAIL_TEMPLATE_DEFAULTS: {
     magicLinkSubject: 'Sign in', magicLinkHeading: 'Sign in', magicLinkBody: 'Click below',

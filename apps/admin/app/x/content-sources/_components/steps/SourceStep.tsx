@@ -210,9 +210,10 @@ function UploadNewSourceSection({
             });
           }
           setClassifyTaskId(null);
-        } else if (task?.status === "failed") {
+        } else if (task?.status === "failed" || task?.status === "abandoned") {
           clearInterval(interval);
-          setError("Classification failed. Please try again.");
+          const ctx = (task.context as Record<string, any>) || {};
+          setError(ctx.error || "Classification failed. Please try again.");
           setClassifyTaskId(null);
         }
       } catch {

@@ -331,6 +331,45 @@ function CategoryBar({ label, count, maxCount }: { label: string; count: number;
   );
 }
 
+// ── Category Badge ─────────────────────────────────
+
+const CATEGORY_COLORS: Record<string, string> = {
+  fact: "#2563eb", key_fact: "#2563eb", reading_passage: "#2563eb", information: "#2563eb",
+  definition: "#059669", vocabulary_item: "#059669", vocabulary_exercise: "#059669",
+  question: "#7c3aed", comprehension_question: "#7c3aed", discussion_prompt: "#7c3aed",
+  answer: "#0891b2", answer_key_item: "#0891b2",
+  true_false: "#d97706", matching_exercise: "#d97706", matching_item: "#d97706",
+  rule: "#dc2626", legal_requirement: "#dc2626", safety_point: "#dc2626",
+  threshold: "#ea580c", process: "#ea580c", procedure: "#ea580c",
+  example: "#6366f1", concept: "#6366f1", observation: "#6366f1",
+  learning_outcome: "#0d9488", assessment_criterion: "#0d9488",
+  activity: "#8b5cf6", starter: "#8b5cf6", plenary: "#8b5cf6",
+};
+
+function AssertionCategoryBadge({ category }: { category: string }) {
+  const color = CATEGORY_COLORS[category] || "var(--text-muted)";
+  const label = category.replace(/_/g, " ");
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 6px",
+        borderRadius: 4,
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.03em",
+        color,
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 // ── Main ReviewPanel ───────────────────────────────
 
 export default function ReviewPanel({
@@ -532,6 +571,60 @@ export default function ReviewPanel({
                             <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{ch.count}</span>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Sample teaching points */}
+                    {(summary as any).sampleAssertions?.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          Sample Teaching Points
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {(summary as any).sampleAssertions.map((a: any, i: number) => (
+                            <div
+                              key={i}
+                              style={{
+                                display: "flex",
+                                gap: 8,
+                                alignItems: "flex-start",
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                background: "var(--surface-secondary)",
+                                border: "1px solid var(--border-subtle, var(--border-default))",
+                              }}
+                            >
+                              <AssertionCategoryBadge category={a.category} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    color: "var(--text-primary)",
+                                    lineHeight: 1.45,
+                                    overflow: "hidden",
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                  }}
+                                  title={a.assertion}
+                                >
+                                  {a.assertion}
+                                </div>
+                                {a.chapter && (
+                                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                                    {a.chapter}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {(preview.assertionCount || 0) > (summary as any).sampleAssertions.length && (
+                          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8, textAlign: "center" }}>
+                            Showing {(summary as any).sampleAssertions.length} of {preview.assertionCount} teaching points
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -790,15 +883,15 @@ export default function ReviewPanel({
                 borderRadius: 12,
                 border: "none",
                 background: analysisComplete
-                  ? "linear-gradient(135deg, var(--accent-primary), #1d4ed8)"
+                  ? "var(--accent-primary)"
                   : "var(--surface-tertiary)",
-                color: analysisComplete ? "#fff" : "var(--text-muted)",
+                color: analysisComplete ? "white" : "var(--text-muted)",
                 fontSize: 16,
                 fontWeight: 800,
                 cursor: analysisComplete ? "pointer" : "not-allowed",
                 transition: "all 0.2s",
                 letterSpacing: "-0.02em",
-                boxShadow: analysisComplete ? "0 4px 14px rgba(37, 99, 235, 0.35)" : "none",
+                boxShadow: analysisComplete ? "0 4px 14px color-mix(in srgb, var(--accent-primary) 35%, transparent)" : "none",
               }}
             >
               {analysisComplete ? "Create" : "Waiting for analysis..."}

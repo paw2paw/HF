@@ -34,6 +34,15 @@ vi.mock("next-auth/jwt", () => ({
   encode: vi.fn().mockResolvedValue("mock-jwt-token"),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockReturnValue({ ok: true }),
+  getClientIP: vi.fn().mockReturnValue("127.0.0.1"),
+}));
+
+vi.mock("@/lib/enrollment", () => ({
+  enrollCallerInCohortPlaybooks: vi.fn().mockResolvedValue(undefined),
+}));
+
 // =====================================================
 // TESTS
 // =====================================================
@@ -278,7 +287,7 @@ describe("/api/join/[token]", () => {
       const data = await response.json();
 
       expect(response.status).toBe(409);
-      expect(data.error).toContain("already associated with this classroom");
+      expect(data.error).toContain("already exists");
     });
 
     it("should return 400 if first name is missing", async () => {

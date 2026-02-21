@@ -218,6 +218,16 @@ describe("lib/auth", () => {
       expect(result).toBeNull();
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
         where: { email: "nobody@example.com" },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          passwordHash: true,
+          isActive: true,
+          role: true,
+          assignedDomainId: true,
+          institutionId: true,
+        },
       });
     });
 

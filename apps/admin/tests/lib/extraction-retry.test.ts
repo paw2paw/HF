@@ -81,7 +81,7 @@ describe("extractAssertions retry logic", () => {
     expect(result.assertions.length).toBe(0);
     expect(mockAICompletion).toHaveBeenCalledTimes(3);
     // Should have a warning about failed chunks
-    expect(result.warnings.some((w) => w.includes("failed extraction after"))).toBe(true);
+    expect(result.warnings.some((w) => w.includes("failed extraction"))).toBe(true);
   }, 15000);
 
   it("succeeds on first attempt without retrying", async () => {

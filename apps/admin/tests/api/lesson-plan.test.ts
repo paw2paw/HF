@@ -29,6 +29,15 @@ vi.mock("@/lib/ai/assistant-wrapper", () => ({
   logAssistantCall: vi.fn(),
 }));
 
+const mockStartTaskTracking = vi.fn();
+const mockUpdateTaskProgress = vi.fn();
+const mockCompleteTask = vi.fn();
+vi.mock("@/lib/ai/task-guidance", () => ({
+  startTaskTracking: (...args: any[]) => mockStartTaskTracking(...args),
+  updateTaskProgress: (...args: any[]) => mockUpdateTaskProgress(...args),
+  completeTask: (...args: any[]) => mockCompleteTask(...args),
+}));
+
 // ── Helpers ────────────────────────────────────────────
 
 function mockAuth(role = "OPERATOR", userId = "user-1") {
@@ -249,60 +258,46 @@ describe("POST /api/curricula/:curriculumId/lesson-plan (generate)", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockStartTaskTracking.mockResolvedValue("task-1");
+    mockUpdateTaskProgress.mockResolvedValue(undefined);
+    mockCompleteTask.mockResolvedValue(undefined);
     const mod = await import("@/app/api/curricula/[curriculumId]/lesson-plan/route");
     POST = mod.POST;
   });
 
-  it("generates a plan from curriculum modules", async () => {
+  it("returns 202 with taskId for async generation", async () => {
     mockAuth();
+    // First call: POST handler checks existence with select { id, notableInfo }
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "R04 Pensions",
-      description: "CII R04 syllabus",
       notableInfo: {
         modules: [
           { id: "MOD-1", title: "State Pension", learningOutcomes: ["LO1", "LO2"] },
           { id: "MOD-2", title: "Occupational Pensions", learningOutcomes: ["LO3"] },
         ],
       },
-      subjectId: "subj-1",
     });
-    mockPrisma.contentAssertion.groupBy.mockResolvedValue([
-      { topicSlug: "MOD-1", _count: 23 },
-      { topicSlug: "MOD-2", _count: 15 },
-    ]);
-
-    const aiResponse = JSON.stringify({
-      reasoning: "4 sessions to cover 2 modules",
-      entries: [
-        { session: 1, type: "onboarding", moduleId: null, moduleLabel: "", label: "Welcome" },
-        { session: 2, type: "introduce", moduleId: "MOD-1", moduleLabel: "State Pension", label: "State Pension Basics", assertionCount: 23 },
-        { session: 3, type: "introduce", moduleId: "MOD-2", moduleLabel: "Occupational Pensions", label: "Occupational Pensions", assertionCount: 15 },
-        { session: 4, type: "assess", moduleId: null, moduleLabel: "", label: "Final Assessment" },
-      ],
-    });
-    mockAICompletion.mockResolvedValue({ content: aiResponse });
 
     const res = await POST(makeRequest("POST", {}), { params: PARAMS });
     const data = await res.json();
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(data.ok).toBe(true);
-    expect(data.plan).toHaveLength(4);
-    expect(data.estimatedSessions).toBe(4);
-    expect(data.reasoning).toBe("4 sessions to cover 2 modules");
-    // Session numbers are renumbered
-    expect(data.plan[0].session).toBe(1);
-    expect(data.plan[3].session).toBe(4);
+    expect(data.taskId).toBe("task-1");
+
+    // Verify task tracking was started
+    expect(mockStartTaskTracking).toHaveBeenCalledWith(
+      "user-1",
+      "lesson_plan",
+      expect.objectContaining({ curriculumId: CURRICULUM_ID }),
+    );
   });
 
   it("returns 400 when curriculum has no modules", async () => {
     mockAuth();
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "Empty Curriculum",
       notableInfo: { modules: [] },
-      subjectId: null,
     });
 
     const res = await POST(makeRequest("POST"), { params: PARAMS });
@@ -319,144 +314,86 @@ describe("POST /api/curricula/:curriculumId/lesson-plan (generate)", () => {
     expect(res.status).toBe(404);
   });
 
-  it("handles AI returning markdown-wrapped JSON", async () => {
+  it("returns 202 for async generation (previously tested sync markdown-wrapped JSON)", async () => {
     mockAuth();
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "Test",
       notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: ["LO1"] }] },
-      subjectId: null,
-    });
-
-    mockAICompletion.mockResolvedValue({
-      content: "```json\n" + JSON.stringify({
-        reasoning: "Single module plan",
-        entries: [
-          { session: 1, type: "onboarding", label: "Welcome" },
-          { session: 2, type: "introduce", moduleId: "M1", moduleLabel: "Topic", label: "Topic Intro" },
-        ],
-      }) + "\n```",
     });
 
     const res = await POST(makeRequest("POST"), { params: PARAMS });
     const data = await res.json();
+    expect(res.status).toBe(202);
     expect(data.ok).toBe(true);
-    expect(data.plan).toHaveLength(2);
+    expect(data.taskId).toBe("task-1");
   });
 
-  it("passes totalSessionTarget to AI prompt", async () => {
+  it("passes totalSessionTarget via task context", async () => {
     mockAuth();
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "Test",
       notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
-      subjectId: null,
-    });
-    mockAICompletion.mockResolvedValue({
-      content: JSON.stringify({
-        reasoning: "Custom target",
-        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
-      }),
     });
 
-    await POST(makeRequest("POST", { totalSessionTarget: 10 }), { params: PARAMS });
+    const res = await POST(makeRequest("POST", { totalSessionTarget: 10 }), { params: PARAMS });
+    expect(res.status).toBe(202);
 
-    expect(mockAICompletion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: "system",
-            content: expect.stringContaining("approximately 10 sessions"),
-          }),
-        ]),
-      })
+    // Task tracking receives the parameters
+    expect(mockStartTaskTracking).toHaveBeenCalledWith(
+      "user-1",
+      "lesson_plan",
+      expect.objectContaining({ totalSessionTarget: 10 }),
     );
   });
 
-  it("passes durationMins to AI prompt", async () => {
+  it("passes durationMins via task context", async () => {
     mockAuth();
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "Test",
       notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
-      subjectId: null,
-    });
-    mockAICompletion.mockResolvedValue({
-      content: JSON.stringify({
-        reasoning: "Duration-aware plan",
-        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
-      }),
     });
 
-    await POST(makeRequest("POST", { durationMins: 45 }), { params: PARAMS });
+    const res = await POST(makeRequest("POST", { durationMins: 45 }), { params: PARAMS });
+    expect(res.status).toBe(202);
 
-    expect(mockAICompletion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: "system",
-            content: expect.stringContaining("45 minutes"),
-          }),
-        ]),
-      })
+    expect(mockStartTaskTracking).toHaveBeenCalledWith(
+      "user-1",
+      "lesson_plan",
+      expect.objectContaining({ durationMins: 45 }),
     );
   });
 
-  it("passes emphasis=depth to AI prompt", async () => {
+  it("passes emphasis via task context", async () => {
     mockAuth();
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "Test",
       notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
-      subjectId: null,
-    });
-    mockAICompletion.mockResolvedValue({
-      content: JSON.stringify({
-        reasoning: "Depth-first plan",
-        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
-      }),
     });
 
-    await POST(makeRequest("POST", { emphasis: "depth" }), { params: PARAMS });
+    const res = await POST(makeRequest("POST", { emphasis: "depth" }), { params: PARAMS });
+    expect(res.status).toBe(202);
 
-    expect(mockAICompletion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: "system",
-            content: expect.stringContaining("DEPTH-FIRST"),
-          }),
-        ]),
-      })
+    expect(mockStartTaskTracking).toHaveBeenCalledWith(
+      "user-1",
+      "lesson_plan",
+      expect.objectContaining({ emphasis: "depth" }),
     );
   });
 
-  it("passes includeAssessments=none to AI prompt", async () => {
+  it("passes includeAssessments via task context", async () => {
     mockAuth();
     mockPrisma.curriculum.findUnique.mockResolvedValue({
       id: CURRICULUM_ID,
-      name: "Test",
       notableInfo: { modules: [{ id: "M1", title: "Topic", learningOutcomes: [] }] },
-      subjectId: null,
-    });
-    mockAICompletion.mockResolvedValue({
-      content: JSON.stringify({
-        reasoning: "No assessments",
-        entries: [{ session: 1, type: "onboarding", label: "Welcome" }],
-      }),
     });
 
-    await POST(makeRequest("POST", { includeAssessments: "none" }), { params: PARAMS });
+    const res = await POST(makeRequest("POST", { includeAssessments: "none" }), { params: PARAMS });
+    expect(res.status).toBe(202);
 
-    expect(mockAICompletion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: "system",
-            content: expect.stringContaining("Do NOT include any"),
-          }),
-        ]),
-      })
+    expect(mockStartTaskTracking).toHaveBeenCalledWith(
+      "user-1",
+      "lesson_plan",
+      expect.objectContaining({ includeAssessments: "none" }),
     );
   });
 });

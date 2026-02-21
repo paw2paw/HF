@@ -1,12 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET, PATCH } from "@/app/api/institution/terminology/route";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_TERMINOLOGY, DEFAULT_PRESET } from "@/lib/terminology/types";
 import { requireAuth } from "@/lib/permissions";
+import { TECHNICAL_TERMS } from "@/lib/terminology";
+
+// ── Mock resolveTerminology (the unified resolver) ──
+
+const mockResolveTerminology = vi.fn();
+vi.mock("@/lib/terminology", async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual,
+    resolveTerminology: (...args: any[]) => mockResolveTerminology(...args),
+  };
+});
 
 vi.mock("@/lib/permissions", () => ({
   requireAuth: vi.fn(async () => ({
-    session: { user: { id: "user-1", role: "VIEWER" } },
+    session: { user: { id: "user-1", role: "VIEWER", institutionId: null } },
   })),
   isAuthError: vi.fn(() => false),
 }));
@@ -16,41 +27,40 @@ describe("GET /api/institution/terminology", () => {
     vi.clearAllMocks();
   });
 
-  it("returns default terminology when user has no institution", async () => {
-    (prisma.user.findUnique as any).mockResolvedValue({
-      id: "user-1",
-      institution: null,
-    });
+  it("returns technical terms for admin users (via resolveTerminology)", async () => {
+    // Route calls resolveTerminology(role, institutionId) which returns technical terms for VIEWER with no institution
+    mockResolveTerminology.mockResolvedValue(TECHNICAL_TERMS);
 
     const res = await GET();
     const body = await res.json();
 
     expect(body.ok).toBe(true);
-    expect(body.terminology).toEqual(DEFAULT_TERMINOLOGY);
-    expect(body.preset).toBe(DEFAULT_PRESET);
+    // Route maps unified terms to legacy shape
+    expect(body.terminology.institution).toBe("Domain");
+    expect(body.terminology.learner).toBe("Caller");
+    expect(body.preset).toBeNull(); // presets are now DB-driven
     expect(body.overrides).toBeNull();
   });
 
-  it("returns default terminology when institution has no config", async () => {
-    (prisma.user.findUnique as any).mockResolvedValue({
-      id: "user-1",
-      institution: { terminology: null },
-    });
+  it("returns unified terms alongside legacy shape", async () => {
+    mockResolveTerminology.mockResolvedValue(TECHNICAL_TERMS);
 
     const res = await GET();
     const body = await res.json();
 
     expect(body.ok).toBe(true);
-    expect(body.terminology).toEqual(DEFAULT_TERMINOLOGY);
-    expect(body.preset).toBe(DEFAULT_PRESET);
+    expect(body.terms).toEqual(TECHNICAL_TERMS); // unified 7-key TermMap
   });
 
-  it("returns resolved terminology for corporate preset", async () => {
-    (prisma.user.findUnique as any).mockResolvedValue({
-      id: "user-1",
-      institution: {
-        terminology: { preset: "corporate" },
-      },
+  it("returns resolved terminology when institution type is configured", async () => {
+    mockResolveTerminology.mockResolvedValue({
+      domain: "Organization",
+      playbook: "Course",
+      spec: "Content",
+      caller: "Employee",
+      cohort: "Team",
+      instructor: "Trainer",
+      session: "Training Session",
     });
 
     const res = await GET();
@@ -61,28 +71,20 @@ describe("GET /api/institution/terminology", () => {
     expect(body.terminology.cohort).toBe("Team");
     expect(body.terminology.learner).toBe("Employee");
     expect(body.terminology.instructor).toBe("Trainer");
-    expect(body.terminology.supervisor).toBe("My Manager");
-    expect(body.preset).toBe("corporate");
   });
 
-  it("returns resolved terminology with overrides", async () => {
-    (prisma.user.findUnique as any).mockResolvedValue({
-      id: "user-1",
-      institution: {
-        terminology: {
-          preset: "corporate",
-          overrides: { learner: "Associate" },
-        },
-      },
+  it("maps supervisor to instructor in legacy shape", async () => {
+    mockResolveTerminology.mockResolvedValue({
+      ...TECHNICAL_TERMS,
+      instructor: "Coach",
     });
 
     const res = await GET();
     const body = await res.json();
 
     expect(body.ok).toBe(true);
-    expect(body.terminology.learner).toBe("Associate");
-    expect(body.terminology.cohort).toBe("Team"); // from preset
-    expect(body.overrides).toEqual({ learner: "Associate" });
+    expect(body.terminology.supervisor).toBe("Coach"); // supervisor maps to instructor
+    expect(body.terminology.instructor).toBe("Coach");
   });
 });
 
@@ -98,7 +100,7 @@ describe("PATCH /api/institution/terminology", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAuth).mockResolvedValue({
-      session: { user: { id: "user-1", role: "ADMIN" } },
+      session: { user: { id: "user-1", role: "ADMIN", institutionId: "inst-1" } },
     } as any);
   });
 
@@ -108,6 +110,15 @@ describe("PATCH /api/institution/terminology", () => {
       institutionId: "inst-1",
     });
     (prisma.institution.update as any).mockResolvedValue({});
+    mockResolveTerminology.mockResolvedValue({
+      domain: "Organization",
+      playbook: "Course",
+      spec: "Content",
+      caller: "Employee",
+      cohort: "Team",
+      instructor: "Trainer",
+      session: "Training Session",
+    });
 
     const res = await PATCH(makePatchRequest({ preset: "corporate" }) as any);
     const body = await res.json();
@@ -127,6 +138,15 @@ describe("PATCH /api/institution/terminology", () => {
       institutionId: "inst-1",
     });
     (prisma.institution.update as any).mockResolvedValue({});
+    mockResolveTerminology.mockResolvedValue({
+      domain: "School",
+      playbook: "Curriculum",
+      spec: "Material",
+      caller: "Pupil",
+      cohort: "Classroom",
+      instructor: "Teacher",
+      session: "Lesson",
+    });
 
     const res = await PATCH(
       makePatchRequest({
@@ -183,6 +203,15 @@ describe("PATCH /api/institution/terminology", () => {
       institutionId: "inst-1",
     });
     (prisma.institution.update as any).mockResolvedValue({});
+    mockResolveTerminology.mockResolvedValue({
+      domain: "School",
+      playbook: "Curriculum",
+      spec: "Material",
+      caller: "Pupil",
+      cohort: "Classroom",
+      instructor: "Teacher",
+      session: "Lesson",
+    });
 
     const res = await PATCH(
       makePatchRequest({

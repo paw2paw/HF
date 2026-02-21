@@ -40,6 +40,9 @@ vi.mock("@/lib/permissions", () => ({
   isAuthError: mockIsAuthError,
 }));
 
+// Undo the global mock from setup.ts — we want to test the real implementation
+vi.unmock("@/lib/educator-access");
+
 // ---------------------------------------------------------------------------
 // Import unit under test AFTER mocks are wired
 // ---------------------------------------------------------------------------
@@ -188,7 +191,7 @@ describe("educator-access", () => {
       expect(isEducatorAuthError(result)).toBe(true);
       if (isEducatorAuthError(result)) {
         const body = await result.error.json();
-        expect(body.error).toBe("Classroom not found");
+        expect(body.error).toBe("Cohort not found");
         expect(result.error.status).toBe(404);
       }
     });
@@ -260,7 +263,7 @@ describe("educator-access", () => {
       expect(isEducatorAuthError(result)).toBe(true);
       if (isEducatorAuthError(result)) {
         const body = await result.error.json();
-        expect(body.error).toBe("Student not found");
+        expect(body.error).toBe("Learner not found");
         expect(result.error.status).toBe(404);
       }
     });

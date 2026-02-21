@@ -26,6 +26,7 @@ import {
   startTaskTracking,
   updateTaskProgress,
   completeTask,
+  failTask,
 } from "@/lib/ai/task-guidance";
 import type { DocumentType } from "@/lib/content-trust/resolve-config";
 
@@ -317,13 +318,7 @@ async function runBackgroundExtraction(
         // Fire background scaffolding (non-blocking)
         runScaffoldingTask(scaffoldTaskId, domain.id, userId).catch(async (err) => {
           console.error(`[extract] Scaffolding task failed for ${domain.slug}:`, err);
-          await updateTaskProgress(scaffoldTaskId, {
-            context: { error: err.message, step: "failed" },
-          });
-          await prisma.userTask.update({
-            where: { id: scaffoldTaskId },
-            data: { status: "abandoned", completedAt: new Date() },
-          });
+          await failTask(scaffoldTaskId, err.message);
         });
       }
     } catch (err) {

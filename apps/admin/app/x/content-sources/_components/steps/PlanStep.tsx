@@ -102,11 +102,22 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
   // ── Poll curriculum generation task ──────────────────
   useEffect(() => {
     if (!currGenTaskId || curriculumStatus !== "generating") return;
+    const startedAt = Date.now();
+    const POLL_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
     const interval = setInterval(async () => {
+      // Timeout guard
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        clearInterval(interval);
+        setError("Curriculum generation timed out. Please try again.");
+        setCurriculumStatus("none");
+        setCurrGenTaskId(null);
+        return;
+      }
       try {
         const res = await fetch(`/api/tasks?taskId=${currGenTaskId}`);
         const data = await res.json();
-        if (data.task?.status === "completed") {
+        const task = data.task || data.tasks?.[0];
+        if (task?.status === "completed") {
           clearInterval(interval);
           // Save curriculum from task
           const saveRes = await fetch(`/api/subjects/${subjectId}/curriculum`, {
@@ -118,11 +129,16 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
           if (saveData.curriculum?.id) {
             setCurriculumId(saveData.curriculum.id);
             setCurriculumStatus("ready");
+          } else {
+            setError(saveData.error || "Failed to save curriculum. Please try again.");
+            setCurriculumStatus("none");
           }
-        } else if (data.task?.status === "failed") {
+        } else if (task?.status === "failed" || task?.status === "abandoned") {
           clearInterval(interval);
-          setError("Curriculum generation failed. Please try again.");
+          const ctx = (task.context as Record<string, any>) || {};
+          setError(ctx.error || "Curriculum generation failed. Please try again.");
           setCurriculumStatus("none");
+          setCurrGenTaskId(null);
         }
       } catch {
         // silent — poll continues
@@ -194,16 +210,26 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
   // ── Poll lesson plan task ──────────────────────────────
   useEffect(() => {
     if (!planTaskId) return;
+    const startedAt = Date.now();
+    const POLL_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
     const interval = setInterval(async () => {
+      // Timeout guard
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        clearInterval(interval);
+        setError("Lesson plan generation timed out. Please try again.");
+        setPhase("intents");
+        setGenerating(false);
+        setPlanTaskId(null);
+        return;
+      }
       try {
         const res = await fetch(`/api/tasks?taskId=${planTaskId}`);
         const data = await res.json();
         const task = data.task || data.tasks?.[0]; // Handle both response formats
+        const ctx = (task?.context as Record<string, any>) || {};
 
         if (task?.status === "completed") {
           clearInterval(interval);
-          const ctx = (task.context as Record<string, any>) || {};
-
           if (ctx.error) {
             setError(ctx.error);
             setPhase("intents");
@@ -219,9 +245,16 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
             setGenerating(false);
           }
           setPlanTaskId(null);
-        } else if (task?.status === "failed") {
+        } else if (task?.status === "failed" || task?.status === "abandoned") {
           clearInterval(interval);
-          setError("Lesson plan generation failed. Please try again.");
+          setError(ctx.error || "Lesson plan generation failed. Please try again.");
+          setPhase("intents");
+          setGenerating(false);
+          setPlanTaskId(null);
+        } else if (task?.status === "in_progress" && ctx.error) {
+          // Background job errored but didn't set terminal status
+          clearInterval(interval);
+          setError(ctx.error);
           setPhase("intents");
           setGenerating(false);
           setPlanTaskId(null);

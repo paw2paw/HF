@@ -166,10 +166,10 @@ async function callClaude(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await client.messages.create({
-      ...createParams,
-      signal: controller.signal as any,
-    });
+    const response = await client.messages.create(
+      createParams,
+      { signal: controller.signal },
+    );
 
     // Extract text content
     const textBlocks = response.content.filter((c: any) => c.type === "text");

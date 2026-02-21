@@ -141,10 +141,15 @@ vi.mock("@/lib/goals/extract-goals", () => ({
 // Mock config
 vi.mock("@/lib/config", () => ({
   config: {
+    ai: {
+      claude: { model: "claude-sonnet-4-20250514", lightModel: "claude-haiku-4-5-20251001" },
+      openai: { model: "gpt-4o", lightModel: "gpt-4o-mini" },
+    },
     specs: {
       pipeline: "PIPELINE-001",
       pipelineFallback: "GUARD-001",
     },
+    vapi: { webhookSecret: "test-secret" },
   },
 }));
 

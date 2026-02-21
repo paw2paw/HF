@@ -111,6 +111,22 @@ const TYPES: InstitutionTypeSeed[] = [
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
   },
+  {
+    slug: "training",
+    name: "Training",
+    description: "Training companies and professional development providers",
+    terminology: {
+      domain: "Academy",
+      playbook: "Course",
+      spec: "Content",
+      caller: "Participant",
+      cohort: "Cohort",
+      instructor: "Trainer",
+      session: "Training Session",
+    },
+    setupSpecSlug: "COURSE-SETUP-001",
+    defaultDomainKind: "INSTITUTION",
+  },
 ];
 
 export async function main(externalPrisma?: PrismaClient) {

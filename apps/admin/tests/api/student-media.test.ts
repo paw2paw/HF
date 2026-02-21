@@ -18,6 +18,12 @@ vi.mock("@/lib/student-access", () => ({
     cohortGroupId: "cohort-1",
     institutionId: null,
   }),
+  requireStudentOrAdmin: vi.fn().mockResolvedValue({
+    session: { user: { id: "stu-user-1", role: "STUDENT" } },
+    callerId: "stu-caller-1",
+    cohortGroupId: "cohort-1",
+    institutionId: null,
+  }),
   isStudentAuthError: vi.fn((r: Record<string, unknown>) => "error" in r),
 }));
 

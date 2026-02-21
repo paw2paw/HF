@@ -252,11 +252,12 @@ describe("POST /api/subjects/:subjectId/upload", () => {
       })
     );
 
-    // Verify classifyDocument was called with truncated text sample
+    // Verify classifyDocument was called with truncated text sample + examples
     expect(mocks.classifyDocument).toHaveBeenCalledWith(
       extractedText.substring(0, MOCK_EXTRACTION_CONFIG.classification.sampleSize),
       "test-doc.pdf",
       MOCK_EXTRACTION_CONFIG,
+      [], // few-shot examples (mocked to empty)
     );
   });
 

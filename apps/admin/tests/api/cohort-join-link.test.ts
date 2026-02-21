@@ -161,7 +161,7 @@ describe("/api/cohorts/:cohortId/join-link", () => {
       expect(mockPrisma.cohortGroup.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "cohort-1" },
-          data: { joinToken: expect.any(String) },
+          data: { joinToken: expect.any(String), joinTokenExp: expect.any(Date) },
         })
       );
     });

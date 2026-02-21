@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import {
   startTaskTracking,
   updateTaskProgress,
+  failTask,
   completeTask,
 } from "@/lib/ai/task-guidance";
 
@@ -167,14 +168,10 @@ export async function updateJob(id: string, patch: Partial<ExtractionJob>) {
     await completeTask(id);
     return;
   } else if (patch.status === "error") {
-    // Store error in context, then mark completed (with error flag)
+    // Store error in context, then mark abandoned
     contextPatch.error = patch.error || "Unknown error";
     await updateTaskProgress(id, { context: contextPatch });
-    // Mark as abandoned for error state
-    await prisma.userTask.update({
-      where: { id },
-      data: { status: "abandoned", completedAt: new Date() },
-    });
+    await failTask(id, patch.error || "Unknown error");
     return;
   }
 

@@ -379,12 +379,17 @@ export default function ContentWizardPage() {
     }
   }
 
-  // Watch for curriculum completion
+  // Watch for curriculum completion or failure
   useEffect(() => {
     if (!activeCurriculumJob) return;
     const job = jobs.find((j) => j.taskId === activeCurriculumJob.taskId);
-    if (job && job.progress.status === "completed" && selectedSubjectId) {
+    if (!job) return;
+    if (job.progress.status === "completed" && selectedSubjectId) {
       loadCurriculum(selectedSubjectId);
+    } else if (job.progress.status === "abandoned" || job.progress.status === "failed") {
+      const ctx = (job.progress as any).context || {};
+      setError(ctx.error || "Curriculum generation failed. Please try again.");
+      setActiveCurriculumJob(null);
     }
   }, [jobs, activeCurriculumJob?.taskId, selectedSubjectId]);
 

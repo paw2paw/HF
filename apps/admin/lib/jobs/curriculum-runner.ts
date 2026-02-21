@@ -6,7 +6,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { startTaskTracking, updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
+import { startTaskTracking, updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
 import { extractCurriculumFromAssertions } from "@/lib/content-trust/extract-curriculum";
 
 /**
@@ -26,17 +26,7 @@ export async function startCurriculumGeneration(
   // Fire-and-forget background generation
   runCurriculumGeneration(taskId, subjectId, subjectName).catch(async (err) => {
     console.error(`[curriculum-runner] Task ${taskId} unhandled error:`, err);
-    try {
-      await updateTaskProgress(taskId, {
-        context: { error: err.message || "Curriculum generation failed" },
-      });
-      await prisma.userTask.update({
-        where: { id: taskId },
-        data: { status: "abandoned", completedAt: new Date() },
-      });
-    } catch {
-      // Best-effort error recording
-    }
+    await failTask(taskId, err.message || "Curriculum generation failed");
   });
 
   return taskId;
@@ -55,13 +45,7 @@ async function runCurriculumGeneration(
   });
 
   if (!subject) {
-    await updateTaskProgress(taskId, {
-      context: { error: "Subject not found" },
-    });
-    await prisma.userTask.update({
-      where: { id: taskId },
-      data: { status: "abandoned", completedAt: new Date() },
-    });
+    await failTask(taskId, "Subject not found");
     return;
   }
 
@@ -81,13 +65,7 @@ async function runCurriculumGeneration(
       ).map((s) => s.sourceId);
 
   if (sourceIds.length === 0) {
-    await updateTaskProgress(taskId, {
-      context: { error: "No sources attached to this subject" },
-    });
-    await prisma.userTask.update({
-      where: { id: taskId },
-      data: { status: "abandoned", completedAt: new Date() },
-    });
+    await failTask(taskId, "No sources attached to this subject");
     return;
   }
 
@@ -104,13 +82,7 @@ async function runCurriculumGeneration(
   });
 
   if (assertions.length === 0) {
-    await updateTaskProgress(taskId, {
-      context: { error: "No assertions found. Extract documents first." },
-    });
-    await prisma.userTask.update({
-      where: { id: taskId },
-      data: { status: "abandoned", completedAt: new Date() },
-    });
+    await failTask(taskId, "No assertions found. Extract documents first.");
     return;
   }
 
@@ -128,13 +100,7 @@ async function runCurriculumGeneration(
   );
 
   if (!result.ok) {
-    await updateTaskProgress(taskId, {
-      context: { error: result.error, warnings: result.warnings },
-    });
-    await prisma.userTask.update({
-      where: { id: taskId },
-      data: { status: "abandoned", completedAt: new Date() },
-    });
+    await failTask(taskId, result.error || "Curriculum extraction failed");
     return;
   }
 

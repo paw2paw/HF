@@ -59,9 +59,9 @@ describe("task-guidance", () => {
 
       await startTaskTracking("user-1", "content_wizard");
 
-      // content_wizard has 4 steps
+      // content_wizard has 7 steps
       expect(mockCreate).toHaveBeenCalledWith({
-        data: expect.objectContaining({ totalSteps: 4 }),
+        data: expect.objectContaining({ totalSteps: 7 }),
       });
     });
 

@@ -47,6 +47,23 @@ vi.mock("@/lib/knowledge/retriever", () => ({
   retrieveKnowledgeForPrompt: (...args: any[]) => mockRetrieve(...args),
 }));
 
+// ── Mock assertion search functions ─────────────────
+const mockSearchAssertionsHybrid = vi.fn();
+const mockSearchAssertions = vi.fn();
+const mockSearchCallerMemories = vi.fn();
+const mockSearchQuestions = vi.fn();
+const mockSearchVocabulary = vi.fn();
+vi.mock("@/lib/knowledge/assertions", () => ({
+  searchAssertionsHybrid: (...args: any[]) => mockSearchAssertionsHybrid(...args),
+  searchAssertions: (...args: any[]) => mockSearchAssertions(...args),
+  searchCallerMemories: (...args: any[]) => mockSearchCallerMemories(...args),
+  searchQuestions: (...args: any[]) => mockSearchQuestions(...args),
+  searchVocabulary: (...args: any[]) => mockSearchVocabulary(...args),
+  formatAssertion: (a: any) => `[${a.category}] ${a.assertion}`,
+  formatQuestion: (q: any) => `[QUESTION] ${q.questionText}`,
+  formatVocabulary: (v: any) => `[VOCAB] ${v.term}: ${v.definition}`,
+}));
+
 // ── Mock system settings ─────────────────────────────
 vi.mock("@/lib/system-settings", () => ({
   getKnowledgeRetrievalSettings: vi.fn().mockResolvedValue({
@@ -84,6 +101,11 @@ describe("VAPI knowledge endpoint", () => {
     mockFindMany.mockResolvedValue([]);
     mockQueryRaw.mockResolvedValue([]);
     mockMemoryFindMany.mockResolvedValue([]);
+    mockSearchAssertionsHybrid.mockResolvedValue([]);
+    mockSearchAssertions.mockResolvedValue([]);
+    mockSearchCallerMemories.mockResolvedValue([]);
+    mockSearchQuestions.mockResolvedValue([]);
+    mockSearchVocabulary.mockResolvedValue([]);
   });
 
   it("returns empty results for no user messages", async () => {
@@ -133,8 +155,8 @@ describe("VAPI knowledge endpoint", () => {
   it("merges and sorts results by similarity", async () => {
     mockEmbedText.mockResolvedValue([0.1]);
 
-    // Vector assertion results
-    mockQueryRaw.mockResolvedValue([
+    // Hybrid assertion results (from searchAssertionsHybrid)
+    mockSearchAssertionsHybrid.mockResolvedValue([
       {
         assertion: "ISA limit is £20,000",
         category: "fact",
@@ -143,21 +165,17 @@ describe("VAPI knowledge endpoint", () => {
         trustLevel: "L3",
         examRelevance: 0.9,
         sourceName: "CII R04",
-        similarity: 0.95,
+        relevanceScore: 0.95,
       },
-    ]);
-
-    // Keyword assertion results
-    mockFindMany.mockResolvedValue([
       {
         assertion: "ISA is tax-free",
         category: "fact",
         chapter: null,
         tags: ["isa", "tax"],
-        depth: null,
-        examRelevance: 0.7,
         trustLevel: "L2",
-        source: { name: "CII R04", trustLevel: "L2" },
+        examRelevance: 0.7,
+        sourceName: "CII R04",
+        relevanceScore: 0.7,
       },
     ]);
 
@@ -172,6 +190,10 @@ describe("VAPI knowledge endpoint", () => {
         chunkIndex: 0,
       },
     ]);
+
+    // Questions and vocabulary
+    mockSearchQuestions.mockResolvedValue([]);
+    mockSearchVocabulary.mockResolvedValue([]);
 
     const req = makeRequest([{ role: "user", content: "What is an ISA allowance?" }]);
     const res = await POST(req);

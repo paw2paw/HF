@@ -77,6 +77,8 @@ export const DEFAULT_CATEGORY_MAP: Record<string, SettingsCategory> = {
   knowledge: "ai",
   email: "communications",
   demo: "developer",
+  actions: "system",
+  defaults: "system",
 };
 
 // Non-advanced panels (shown in simple mode)

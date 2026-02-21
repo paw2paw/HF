@@ -95,6 +95,14 @@
             "order": 7,
             "onError": "abort",
             "progressMessage": "Creating test caller..."
+          },
+          {
+            "id": "compose_prompt",
+            "name": "Compose First Prompt",
+            "operation": "compose_prompt",
+            "order": 8,
+            "onError": "continue",
+            "progressMessage": "Composing first lesson prompt..."
           }
         ]
       }

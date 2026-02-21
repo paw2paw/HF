@@ -4,8 +4,8 @@
  *   GET  /api/calls/[callId]/messages — Fetch messages (optionally filtered)
  *
  * Business rules:
- *   - POST validates role and content
- *   - POST only accepts "user" or "assistant" role
+ *   - POST validates role and (content or mediaId)
+ *   - POST only accepts "user", "assistant", or "teacher" role
  *   - GET supports ?after= and ?role= filters
  *   - GET returns callEnded flag
  */
@@ -107,10 +107,10 @@ describe("POST /api/calls/[callId]/messages", () => {
     const body = await res.json();
 
     expect(res.status).toBe(400);
-    expect(body.error).toMatch(/role and content/i);
+    expect(body.error).toMatch(/role and \(content or mediaId\)/i);
   });
 
-  it("rejects missing content", async () => {
+  it("rejects missing content and mediaId", async () => {
     const res = await POST(
       makePostRequest({ role: "user" }),
       makeParams({ callId: "call-1" })
@@ -118,18 +118,38 @@ describe("POST /api/calls/[callId]/messages", () => {
     const body = await res.json();
 
     expect(res.status).toBe(400);
-    expect(body.error).toMatch(/role and content/i);
+    expect(body.error).toMatch(/role and \(content or mediaId\)/i);
   });
 
-  it("rejects invalid role (teacher via POST)", async () => {
+  it("accepts teacher role via POST", async () => {
+    mockPrisma.call.findUnique.mockResolvedValue({ id: "call-1" });
+    mockPrisma.callMessage.create.mockResolvedValue({
+      id: "msg-2",
+      role: "teacher",
+      content: "Teacher message",
+      createdAt: new Date(),
+    });
+
     const res = await POST(
-      makePostRequest({ role: "teacher", content: "Not allowed" }),
+      makePostRequest({ role: "teacher", content: "Teacher message" }),
+      makeParams({ callId: "call-1" })
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.message.role).toBe("teacher");
+  });
+
+  it("rejects invalid role", async () => {
+    const res = await POST(
+      makePostRequest({ role: "system", content: "Not allowed" }),
       makeParams({ callId: "call-1" })
     );
     const body = await res.json();
 
     expect(res.status).toBe(400);
-    expect(body.error).toMatch(/user.*assistant/i);
+    expect(body.error).toMatch(/user.*assistant.*teacher/i);
   });
 
   it("returns 404 for nonexistent call", async () => {

@@ -206,27 +206,20 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
         for (const id of activeIds) {
           const serverTask = serverTasks.find((st: any) => st.id === id);
           if (!serverTask) {
-            // Task not in in_progress list — check directly
+            // Task not in in_progress list — check directly by taskId
             try {
               const taskRes = await fetch(`/api/tasks?taskId=${id}`);
               if (taskRes.ok) {
                 const taskData = await taskRes.json();
-                if (taskData.ok && taskData.guidance?.task) {
-                  // Task exists but completed — get its full data
-                  const fullRes = await fetch(`/api/tasks?status=completed`);
-                  if (fullRes.ok) {
-                    const fullData = await fullRes.json();
-                    const completedTask = fullData.tasks?.find((t: any) => t.id === id);
-                    if (completedTask) {
-                      setJobs((prev) =>
-                        prev.map((j) =>
-                          j.taskId === id
-                            ? { ...j, progress: serverTaskToProgress(completedTask) }
-                            : j
-                        )
-                      );
-                    }
-                  }
+                const directTask = taskData.guidance?.task || taskData.task;
+                if (directTask && (directTask.status === "completed" || directTask.status === "abandoned")) {
+                  setJobs((prev) =>
+                    prev.map((j) =>
+                      j.taskId === id
+                        ? { ...j, progress: serverTaskToProgress(directTask) }
+                        : j
+                    )
+                  );
                 }
               }
             } catch {

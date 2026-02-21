@@ -7,18 +7,20 @@
  * Usage:
  *   npx tsx prisma/seed-full.ts              # Full seed (additive, all steps)
  *   npx tsx prisma/seed-full.ts --reset      # Clear DB first, then full seed
- *   SEED_PROFILE=core npx tsx prisma/seed-full.ts   # PROD — specs + demo domains only
- *   SEED_PROFILE=test npx tsx prisma/seed-full.ts   # TEST — core + e2e fixtures
- *   SEED_PROFILE=full npx tsx prisma/seed-full.ts   # DEV/VM — everything (default)
+ *   SEED_PROFILE=core npx tsx prisma/seed-full.ts     # PROD — specs + demo domains only
+ *   SEED_PROFILE=test npx tsx prisma/seed-full.ts     # TEST — core + e2e fixtures
+ *   SEED_PROFILE=full npx tsx prisma/seed-full.ts     # DEV/VM — everything (default)
+ *   SEED_PROFILE=golden npx tsx prisma/seed-full.ts   # Golden path — clean minimal demo data
  *
  * Profiles:
- *   core  — Specs, domains, institution, demo domains, run configs, dedup (PROD)
- *   test  — Everything in core + e2e fixtures (TEST)
- *   full  — Everything in test + educator demo, school data, legacy fixtures (DEV/VM)
+ *   core    — Specs, domains, institution, demo domains, run configs, dedup (PROD)
+ *   test    — Everything in core + e2e fixtures (TEST)
+ *   full    — Everything in test + educator demo, school data, legacy fixtures (DEV/VM)
+ *   golden  — Specs + institution types + 3 clean institutions (demo golden path)
  *
  * Steps (full profile):
  *   1.  seed-clean              → 51 specs, 160 params, admin user, contracts
- *   2.  seed-institution-types  → 5 institution types (school, corporate, community, coaching, healthcare)
+ *   2.  seed-institution-types  → 6 institution types (school, corporate, community, coaching, healthcare, training)
  *   3.  seed-domains            → 4 professional domains
  *   4.  seed-default-institution → "HumanFirst" institution
  *   5.  seed-demo-domains       → 12 demo callers + 4 playbooks (3 per domain)
@@ -45,8 +47,9 @@ import { main as seedSchoolInstitutions } from "./seed-school-institutions";
 import { main as seedDemoFixtures } from "./seed-demo-fixtures";
 import { main as seedInstitutionTypes } from "./seed-institution-types";
 import { main as seedDemoLogins } from "./seed-demo-logins";
+import { main as seedGolden } from "./seed-golden";
 
-type Profile = "core" | "test" | "full";
+type Profile = "core" | "test" | "full" | "golden";
 
 interface Step {
   name: string;
@@ -56,19 +59,24 @@ interface Step {
 }
 
 const ALL_STEPS: Step[] = [
-  // ── Core (runs in every profile) ──────────────────────
+  // ── Foundation (runs in every profile including golden) ─
   { name: "seed-clean", fn: seedClean },
   { name: "seed-institution-types", fn: seedInstitutionTypes },
-  { name: "seed-domains", fn: seedDomains },
-  { name: "seed-default-institution", fn: seedDefaultInstitution },
-  { name: "seed-demo-domains", fn: seedDemoDomains },
-  { name: "seed-run-configs", fn: seedRunConfigs },
-  { name: "seed (dedup)", fn: seedDedup },
 
-  // ── Test (core + e2e fixtures) ────────────────────────
+  // ── Core (runs in core/test/full but NOT golden) ────────
+  { name: "seed-domains", fn: seedDomains, profiles: ["core", "test", "full"] },
+  { name: "seed-default-institution", fn: seedDefaultInstitution, profiles: ["core", "test", "full"] },
+  { name: "seed-demo-domains", fn: seedDemoDomains, profiles: ["core", "test", "full"] },
+  { name: "seed-run-configs", fn: seedRunConfigs, profiles: ["core", "test", "full"] },
+  { name: "seed (dedup)", fn: seedDedup, profiles: ["core", "test", "full"] },
+
+  // ── Golden (minimal demo data) ──────────────────────────
+  { name: "seed-golden", fn: seedGolden, profiles: ["golden"] },
+
+  // ── Test (core + e2e fixtures) ──────────────────────────
   { name: "seed-e2e", fn: seedE2E, profiles: ["test", "full"] },
 
-  // ── Full (test + educator/school/legacy data) ─────────
+  // ── Full (test + educator/school/legacy data) ───────────
   { name: "seed-educator-demo", fn: seedEducatorDemo, profiles: ["full"] },
   { name: "seed-school-institutions", fn: seedSchoolInstitutions, profiles: ["full"] },
   { name: "seed-demo-fixtures", fn: seedDemoFixtures, profiles: ["full"] },
@@ -77,7 +85,7 @@ const ALL_STEPS: Step[] = [
 
 function getProfile(): Profile {
   const val = process.env.SEED_PROFILE || "full";
-  if (val === "core" || val === "test" || val === "full") return val;
+  if (val === "core" || val === "test" || val === "full" || val === "golden") return val;
   console.warn(`Invalid SEED_PROFILE "${val}", defaulting to "full"`);
   return "full";
 }

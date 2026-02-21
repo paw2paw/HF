@@ -34,12 +34,40 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
 }));
 
+vi.mock("@/lib/permissions", () => ({
+  requireAuth: vi.fn().mockResolvedValue({
+    session: {
+      user: { id: "edu-user-1", email: "teacher@test.com", role: "EDUCATOR" },
+    },
+  }),
+  isAuthError: vi.fn().mockReturnValue(false),
+  ROLE_LEVEL: {
+    SUPERADMIN: 5,
+    ADMIN: 4,
+    OPERATOR: 3,
+    EDUCATOR: 3,
+    SUPER_TESTER: 2,
+    TESTER: 1,
+    STUDENT: 1,
+    DEMO: 0,
+    VIEWER: 1,
+  },
+}));
+
 vi.mock("@/lib/educator-access", () => ({
   requireEducator: vi.fn().mockResolvedValue({
     session: {
       user: { id: "edu-user-1", email: "teacher@test.com", role: "EDUCATOR" },
     },
     callerId: "edu-caller-1",
+    institutionId: null,
+  }),
+  requireEducatorOrAdmin: vi.fn().mockResolvedValue({
+    session: {
+      user: { id: "edu-user-1", email: "teacher@test.com", role: "EDUCATOR" },
+    },
+    callerId: "edu-caller-1",
+    institutionId: null,
   }),
   isEducatorAuthError: vi.fn(
     (result: Record<string, unknown>) => "error" in result

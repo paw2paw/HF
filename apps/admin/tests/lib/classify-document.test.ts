@@ -176,14 +176,22 @@ describe("classifyDocument", () => {
 
     await classify(longText, "long.pdf", makeConfig({ sampleSize }));
 
-    // The user prompt passed to the AI should contain only sampleSize characters of the text
+    // The user prompt passed to the AI should contain a sample constrained by sampleSize
     const callArgs = mocks.getConfiguredMeteredAICompletion.mock.calls[0][0];
     const userMessage = callArgs.messages.find((m: { role: string }) => m.role === "user");
     expect(userMessage).toBeDefined();
 
-    // The sample in the prompt should be exactly sampleSize characters
+    // The sample uses multi-point sampling (start+middle+end) so total length
+    // includes section markers. But the raw text content must not exceed sampleSize.
     const sampleInPrompt = userMessage.content.split("--- TEXT SAMPLE ---\n")[1].split("\n--- END SAMPLE ---")[0];
-    expect(sampleInPrompt.length).toBe(sampleSize);
+    // Multi-point sampling adds markers like [START OF DOCUMENT], [MIDDLE OF DOCUMENT], [END OF DOCUMENT]
+    // Total sample text (excluding markers) should not exceed sampleSize
+    const rawTextOnly = sampleInPrompt
+      .replace(/\[START OF DOCUMENT\]\n?/g, "")
+      .replace(/\[MIDDLE OF DOCUMENT\]\n?/g, "")
+      .replace(/\[END OF DOCUMENT\]\n?/g, "")
+      .replace(/\n/g, "");
+    expect(rawTextOnly.length).toBeLessThanOrEqual(sampleSize);
   });
 
   it("provides default reasoning when missing", async () => {

@@ -36,10 +36,24 @@ const mockPrisma = {
   domain: {
     findUnique: vi.fn(),
   },
+  playbook: {
+    findMany: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
+}));
+
+vi.mock("@/lib/permissions", () => ({
+  requireAuth: vi.fn().mockResolvedValue({
+    error: { status: 403 },
+  }),
+  isAuthError: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("@/lib/enrollment", () => ({
+  assignPlaybookToCohort: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/educator-access", () => ({
@@ -123,7 +137,7 @@ describe("GET /api/educator/classrooms", () => {
     mockPrisma.call.groupBy.mockResolvedValue([]);
     mockPrisma.caller.findMany.mockResolvedValue([]);
 
-    const res = await GET();
+    const res = await GET(createGetRequest());
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -152,6 +166,8 @@ describe("POST /api/educator/classrooms", () => {
       id: "d1",
       name: "English",
     });
+
+    mockPrisma.playbook.findMany.mockResolvedValue([]);
 
     mockPrisma.cohortGroup.create.mockResolvedValue({
       id: "new-c1",

@@ -73,18 +73,24 @@ describe("CurriculumExtractor chunking", () => {
     const extractor = new CurriculumExtractor();
 
     const text = [
-      "Preamble content about the course...",
+      "Preamble content about the course. This qualification covers food safety principles and practices for the hospitality industry.",
       "",
       "Learning Outcome 1: Understand food safety",
-      "AC 1.1: Define food safety",
-      "AC 1.2: List key principles",
+      "AC 1.1: Define food safety and explain its importance in the hospitality sector",
+      "AC 1.2: List key principles of food safety management systems and their application",
+      "AC 1.3: Identify the main legislation relating to food safety in the United Kingdom",
+      "AC 1.4: Describe the role of the Environmental Health Officer in food premises inspections",
       "",
       "Learning Outcome 2: Temperature control",
-      "AC 2.1: Explain danger zone",
-      "AC 2.2: Describe monitoring procedures",
+      "AC 2.1: Explain the danger zone and its significance for bacterial growth in food",
+      "AC 2.2: Describe monitoring procedures and record-keeping requirements for temperatures",
+      "AC 2.3: State the legal temperature requirements for hot holding, cold holding and reheating",
+      "AC 2.4: Explain how to use calibrated temperature probes correctly and safely",
       "",
       "Learning Outcome 3: Personal hygiene",
-      "AC 3.1: Describe handwashing",
+      "AC 3.1: Describe effective handwashing techniques and when they should be used",
+      "AC 3.2: Explain the importance of protective clothing and hair coverings in food areas",
+      "AC 3.3: Describe procedures for reporting illness and exclusion from food handling duties",
     ].join("\n");
 
     const chunks = extractor.chunkText(text, 8000);

@@ -23,6 +23,12 @@ vi.mock("@/lib/student-access", () => ({
     cohortGroupId: "cohort-1",
     institutionId: null,
   }),
+  requireStudentOrAdmin: vi.fn().mockResolvedValue({
+    session: { user: { id: "stu-user-1", role: "STUDENT" } },
+    callerId: "stu-caller-1",
+    cohortGroupId: "cohort-1",
+    institutionId: null,
+  }),
   isStudentAuthError: vi.fn((r: Record<string, unknown>) => "error" in r),
 }));
 
@@ -105,10 +111,10 @@ describe("GET /api/student/progress", () => {
     expect(body.keyFactCount).toBe(0);
   });
 
-  it("returns auth error when requireStudent fails", async () => {
-    const { requireStudent } = await import("@/lib/student-access");
+  it("returns auth error when requireStudentOrAdmin fails", async () => {
+    const { requireStudentOrAdmin } = await import("@/lib/student-access");
     const { NextResponse } = await import("next/server");
-    (requireStudent as any).mockResolvedValueOnce({
+    (requireStudentOrAdmin as any).mockResolvedValueOnce({
       error: NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 }),
     });
 

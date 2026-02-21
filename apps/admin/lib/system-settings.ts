@@ -505,6 +505,55 @@ export async function getEmailTemplateSettings(): Promise<EmailTemplateSettings>
 }
 
 // ═══════════════════════════════════════════════════════
+// 9. ACTION EXTRACTION
+// ═══════════════════════════════════════════════════════
+
+export interface ActionSettings {
+  transcriptLimit: number;
+  minTranscriptLength: number;
+  confidenceThreshold: number;
+  similarityThreshold: number;
+}
+
+export const ACTIONS_DEFAULTS: ActionSettings = {
+  transcriptLimit: 4000,
+  minTranscriptLength: 100,
+  confidenceThreshold: 0.6,
+  similarityThreshold: 0.8,
+};
+
+const ACTIONS_KEYS: Record<keyof ActionSettings, string> = {
+  transcriptLimit: "actions.transcript_limit",
+  minTranscriptLength: "actions.min_transcript_length",
+  confidenceThreshold: "actions.confidence_threshold",
+  similarityThreshold: "actions.similarity_threshold",
+};
+
+export async function getActionSettings(): Promise<ActionSettings> {
+  return loadGroup(ACTIONS_KEYS, ACTIONS_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 10. DEFAULTS (Archetype, etc.)
+// ═══════════════════════════════════════════════════════
+
+export interface DefaultsSettings {
+  defaultArchetype: string;
+}
+
+export const DEFAULTS_DEFAULTS: DefaultsSettings = {
+  defaultArchetype: "TUT-001",
+};
+
+const DEFAULTS_KEYS: Record<keyof DefaultsSettings, string> = {
+  defaultArchetype: "defaults.archetype",
+};
+
+export async function getDefaultsSettings(): Promise<DefaultsSettings> {
+  return loadGroup(DEFAULTS_KEYS, DEFAULTS_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -680,6 +729,27 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "email.invite.body", label: "Invite — Body", description: "Use {{greeting}} and {{context}} for dynamic content", type: "textarea", default: "{{greeting}} {{context}}" },
       { key: "email.invite.button_text", label: "Invite — Button", description: "Call-to-action button label", type: "text", default: "Accept Invitation", placeholder: "Accept Invitation" },
       { key: "email.invite.footer", label: "Invite — Footer", description: "Footer text below the button", type: "textarea", default: "This invitation expires in 7 days." },
+    ],
+  },
+  {
+    id: "actions",
+    label: "Action Extraction",
+    icon: "Zap",
+    description: "Thresholds for extracting homework, follow-ups, and tasks from call transcripts",
+    settings: [
+      { key: "actions.transcript_limit", label: "Transcript limit", description: "Maximum characters of transcript sent to AI for action extraction", type: "int" as const, default: 4000, min: 500, max: 20000, step: 500 },
+      { key: "actions.min_transcript_length", label: "Min transcript length", description: "Transcripts shorter than this (chars) are skipped entirely", type: "int" as const, default: 100, min: 10, max: 1000, step: 10 },
+      { key: "actions.confidence_threshold", label: "Confidence threshold", description: "Actions below this confidence score are discarded (0–1)", type: "float" as const, default: 0.6, min: 0, max: 1, step: 0.05 },
+      { key: "actions.similarity_threshold", label: "Similarity threshold", description: "Actions with title similarity above this are treated as duplicates (0–1)", type: "float" as const, default: 0.8, min: 0, max: 1, step: 0.05 },
+    ],
+  },
+  {
+    id: "defaults",
+    label: "Defaults",
+    icon: "Target",
+    description: "Default values used when creating new entities (domains, overlays, etc.)",
+    settings: [
+      { key: "defaults.archetype", label: "Default archetype", description: "Base archetype slug used when scaffolding new domain overlays (e.g. TUT-001, COACH-001)", type: "text" as const, default: "TUT-001", placeholder: "e.g. TUT-001" },
     ],
   },
 ];
