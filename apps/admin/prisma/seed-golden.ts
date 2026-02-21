@@ -498,17 +498,25 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
       });
     }
 
-    // Callers (must come before CohortGroup since callers reference cohortGroupId)
-    if (callerIds.length > 0) {
-      await prisma.caller.deleteMany({
-        where: { externalId: { startsWith: TAG } },
+    // Disconnect member callers from cohort groups (clear FK before deleting groups)
+    if (cohortIds.length > 0) {
+      await prisma.caller.updateMany({
+        where: { cohortGroupId: { in: cohortIds } },
+        data: { cohortGroupId: null },
       });
     }
 
-    // CohortGroups
+    // CohortGroups (must come before teacher callers — ownerId FK)
     if (cohortIds.length > 0) {
       await prisma.cohortGroup.deleteMany({
         where: { id: { in: cohortIds } },
+      });
+    }
+
+    // Callers (safe now — no cohort groups reference them as owners)
+    if (callerIds.length > 0) {
+      await prisma.caller.deleteMany({
+        where: { externalId: { startsWith: TAG } },
       });
     }
 
