@@ -103,6 +103,11 @@ async function main() {
   const profile = getProfile();
   const steps = filterSteps(profile);
 
+  // Golden profile forces SEED_MODE=prod so seed-clean skips transcript imports
+  if (profile === "golden" && !process.env.SEED_MODE) {
+    process.env.SEED_MODE = "prod";
+  }
+
   const prisma = new PrismaClient();
   const t0 = Date.now();
 
