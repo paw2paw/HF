@@ -479,6 +479,8 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
     "contentSource",
     "subjectDomain",
     "subject",
+    "mediaAsset",
+    "userTask",
   ];
 
   for (const table of tables) {
