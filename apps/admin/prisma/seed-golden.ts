@@ -459,106 +459,74 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
 // ══════════════════════════════════════════════════════════
 
 async function cleanup(prisma: PrismaClient): Promise<void> {
-  const domainSlugs = INSTITUTIONS.map((i) => i.domain.slug);
-  const instSlugs = INSTITUTIONS.map((i) => i.slug);
-  const loginEmails = INSTITUTIONS.map((i) => i.login.email);
+  // Nuclear cleanup: wipe ALL entity data that seed-clean's clearDatabase() misses.
+  // seed-clean handles: specs, parameters, callers, calls, playbooks, domains, etc.
+  // But it DOESN'T clear: institutions, users (non-admin), goals, cohorts, enrollments.
+  // For golden profile we want a truly empty slate before creating the 3 institutions.
 
-  // Find golden callers
-  const goldenCallers = await prisma.caller.findMany({
-    where: { externalId: { startsWith: TAG } },
-    select: { id: true },
-  });
-  const callerIds = goldenCallers.map((c) => c.id);
+  // FK-safe order: leaf tables first, then parents
+  const tables = [
+    "callerPlaybook",
+    "cohortPlaybook",
+    "goal",
+    "onboardingSession",
+    "invite",
+    "channelConfig",
+    "subjectSource",
+    "contentVocabulary",
+    "contentQuestion",
+    "contentAssertion",
+    "contentSource",
+    "subjectDomain",
+    "subject",
+  ];
 
-  if (callerIds.length > 0) {
-    // CallerPlaybook
-    await prisma.callerPlaybook.deleteMany({
-      where: { callerId: { in: callerIds } },
-    });
+  for (const table of tables) {
+    try {
+      // @ts-ignore — dynamic table access
+      const count = await prisma[table].count();
+      if (count > 0) {
+        // @ts-ignore
+        await prisma[table].deleteMany();
+      }
+    } catch {
+      // Table might not exist in this schema version
+    }
   }
 
-  // Find golden domains
-  const goldenDomains = await prisma.domain.findMany({
-    where: { slug: { in: domainSlugs } },
-    select: { id: true },
+  // Disconnect callers from cohort groups before deleting cohorts
+  await prisma.caller.updateMany({
+    where: { cohortGroupId: { not: null } },
+    data: { cohortGroupId: null },
   });
-  const domainIds = goldenDomains.map((d) => d.id);
 
-  if (domainIds.length > 0) {
-    // CohortPlaybook → CohortGroup
-    const cohorts = await prisma.cohortGroup.findMany({
-      where: { domainId: { in: domainIds } },
-      select: { id: true },
-    });
-    const cohortIds = cohorts.map((c) => c.id);
+  // Delete all cohort groups
+  await prisma.cohortGroup.deleteMany();
 
-    if (cohortIds.length > 0) {
-      await prisma.cohortPlaybook.deleteMany({
-        where: { cohortGroupId: { in: cohortIds } },
-      });
-    }
+  // Delete all callers (seed-clean may have missed some)
+  await prisma.caller.deleteMany();
 
-    // Disconnect member callers from cohort groups (clear FK before deleting groups)
-    if (cohortIds.length > 0) {
-      await prisma.caller.updateMany({
-        where: { cohortGroupId: { in: cohortIds } },
-        data: { cohortGroupId: null },
-      });
-    }
+  // Delete all playbook items, then playbooks
+  await prisma.playbookItem.deleteMany();
+  await prisma.playbook.deleteMany();
 
-    // CohortGroups (must come before teacher callers — ownerId FK)
-    if (cohortIds.length > 0) {
-      await prisma.cohortGroup.deleteMany({
-        where: { id: { in: cohortIds } },
-      });
-    }
+  // Delete domain-scoped identity specs (DOMAIN type)
+  await prisma.analysisSpec.deleteMany({
+    where: { specType: "DOMAIN" },
+  });
 
-    // Callers (safe now — no cohort groups reference them as owners)
-    if (callerIds.length > 0) {
-      await prisma.caller.deleteMany({
-        where: { externalId: { startsWith: TAG } },
-      });
-    }
+  // Delete all domains
+  await prisma.domain.deleteMany();
 
-    // PlaybookItems → Playbooks
-    const playbooks = await prisma.playbook.findMany({
-      where: { domainId: { in: domainIds } },
-      select: { id: true },
-    });
-    const pbIds = playbooks.map((p) => p.id);
+  // Delete all institutions
+  await prisma.institution.deleteMany();
 
-    if (pbIds.length > 0) {
-      await prisma.playbookItem.deleteMany({
-        where: { playbookId: { in: pbIds } },
-      });
-      await prisma.playbook.deleteMany({
-        where: { id: { in: pbIds } },
-      });
-    }
-
-    // Identity specs
-    const identitySlugs = domainSlugs.map((s) => `${s}-identity`);
-    await prisma.analysisSpec.deleteMany({
-      where: { slug: { in: identitySlugs } },
-    });
-
-    // Domains
-    await prisma.domain.deleteMany({
-      where: { slug: { in: domainSlugs } },
-    });
-  }
-
-  // Users (EDUCATOR logins)
+  // Delete non-admin users (keep SUPERADMIN accounts from seed-clean)
   await prisma.user.deleteMany({
-    where: { email: { in: loginEmails } },
+    where: { role: { not: "SUPERADMIN" } },
   });
 
-  // Institutions
-  await prisma.institution.deleteMany({
-    where: { slug: { in: instSlugs } },
-  });
-
-  console.log("  🧹 Cleaned up previous golden path data\n");
+  console.log("  🧹 Cleaned all entity data (keeping specs + admin users)\n");
 }
 
 // ══════════════════════════════════════════════════════════
