@@ -2643,7 +2643,6 @@ model CallerIdentity {
 
   @@index([callerId])
   @@index([externalId])
-  @@index([promptStackId])
   @@index([segmentId])
 }
 
