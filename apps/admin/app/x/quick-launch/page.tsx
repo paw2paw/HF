@@ -337,24 +337,6 @@ export default function QuickLaunchPage() {
             (t: any) => t.taskType === "quick_launch" && t.status === "completed" && t.context?.phase === "result" && t.context?.result
           );
 
-          // Auto-restore summary mode (no banner — completed launches just show)
-          if (!inProgress && !reviewPhase && resultPhase && resultPhase.context?.result) {
-            const ctx = resultPhase.context;
-            setTaskId(resultPhase.id);
-            try { localStorage.setItem("ql-active-task", resultPhase.id); } catch {}
-            if (ctx.input) {
-              setSubjectName(ctx.input.subjectName || "");
-              setBrief(ctx.input.brief || "");
-              setNameManuallyEdited(true);
-              setPersona(ctx.input.persona || "");
-              setGoals(ctx.input.learningGoals || []);
-            }
-            if (ctx.mode) setLaunchMode(ctx.mode);
-            setResult(ctx.result as LaunchResult);
-            setPhase("result");
-            return;
-          }
-
           // For in_progress/review, show resume banner
           const qlTask = inProgress || reviewPhase;
           // Skip if another tab already claimed this task

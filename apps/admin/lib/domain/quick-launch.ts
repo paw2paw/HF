@@ -978,8 +978,11 @@ export async function quickLaunchAnalyze(
   onProgress: ProgressCallback,
 ): Promise<AnalysisPreview> {
   const steps = await loadLaunchSteps();
-  // Only run the first 4 steps (analysis phase)
-  const analyzeOps = ["create_domain", "extract_content", "save_assertions", "generate_identity"];
+  // Only run analysis-phase steps — community mode skips content extraction
+  const isCommunity = input.kind === "COMMUNITY";
+  const analyzeOps = isCommunity
+    ? ["create_domain", "generate_identity"]
+    : ["create_domain", "extract_content", "save_assertions", "generate_identity"];
   const analyzeSteps = steps.filter((s) => analyzeOps.includes(s.operation));
 
   const ctx: LaunchContext = {
@@ -1136,7 +1139,11 @@ export async function quickLaunchCommit(
   const effectiveCallerName = overrides.callerName || `Test Caller — ${effectiveDomainName}`;
 
   const steps = await loadLaunchSteps();
-  const commitOps = ["scaffold_domain", "generate_curriculum", "create_caller", "compose_prompt"];
+  // Community mode skips curriculum generation — no content, no modules
+  const isCommunity = input.kind === "COMMUNITY";
+  const commitOps = isCommunity
+    ? ["scaffold_domain", "create_caller", "compose_prompt"]
+    : ["scaffold_domain", "generate_curriculum", "create_caller", "compose_prompt"];
   const commitSteps = steps.filter((s) => commitOps.includes(s.operation));
 
   onProgress({

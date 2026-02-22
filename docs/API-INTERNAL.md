@@ -5081,13 +5081,13 @@ text/event-stream — progress events then final result
 
 ### `POST` /api/domains/quick-launch/analyze
 
-Non-blocking Quick Launch setup.
+Community Quick Launch setup.
 
 **Auth**: OPERATOR
 
 **Response** `202`
 ```json
-{ ok, domainId, subjectId, sourceId?, jobId?, taskId, mode }
+{ ok, domainId, domainSlug, domainName, subjectId, identityConfig, taskId }
 ```
 
 ---
