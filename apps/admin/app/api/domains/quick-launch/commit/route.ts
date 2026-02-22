@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
       };
 
       try {
+        const userId = (authResult as any).session.user.id;
         const result = await quickLaunchCommit(
           domainId,
           preview,
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
             matrixPositions: input.matrixPositions,
           },
           sendEvent,
+          userId,
         );
 
         // Store summary + mark task as completed

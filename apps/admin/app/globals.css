@@ -3170,7 +3170,6 @@ html.light {
   gap: 24px;
 }
 .hf-tuning-grid-compact {
-  grid-template-columns: 1fr;
   gap: 16px;
 }
 .hf-tuning-matrix-item {

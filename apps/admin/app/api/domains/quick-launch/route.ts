@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
       };
 
       try {
+        const userId = (authResult as any).session.user.id;
         const result = await quickLaunch(
           {
             subjectName: subjectName.trim(),
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
             qualificationRef: qualificationRef?.trim() || undefined,
           },
           sendEvent,
+          userId,
         );
 
         // Final result event

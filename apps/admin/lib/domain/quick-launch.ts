@@ -90,6 +90,7 @@ interface LaunchContext {
   input: QuickLaunchInput;
   results: Partial<QuickLaunchResult> & { [key: string]: any };
   onProgress: ProgressCallback;
+  userId: string;
 }
 
 type StepExecutor = (ctx: LaunchContext, step: LaunchStep) => Promise<void>;
@@ -583,7 +584,7 @@ const stepExecutors: Record<string, StepExecutor> = {
         const enrichTaskId = await startCurriculumEnrichment(
           contentSpec.id,
           { subjectName, persona, learningGoals, qualificationRef, domainId },
-          "system",
+          ctx.userId,
         );
         ctx.results.enrichmentTaskId = enrichTaskId;
       } catch (err: any) {
@@ -710,6 +711,7 @@ export async function loadPersonaFlowPhases(persona: string): Promise<any | null
 export async function quickLaunch(
   input: QuickLaunchInput,
   onProgress: ProgressCallback,
+  userId: string,
 ): Promise<QuickLaunchResult> {
   const steps = await loadLaunchSteps();
 
@@ -717,6 +719,7 @@ export async function quickLaunch(
     input,
     results: { warnings: [] },
     onProgress,
+    userId,
   };
 
   onProgress({
@@ -1051,6 +1054,7 @@ export async function quickLaunchCommit(
   overrides: CommitOverrides,
   input: QuickLaunchInput,
   onProgress: ProgressCallback,
+  userId: string,
 ): Promise<QuickLaunchResult> {
   // Apply domain overrides first
   if (overrides.domainName || overrides.domainSlug) {
@@ -1085,6 +1089,7 @@ export async function quickLaunchCommit(
       warnings: [],
     },
     onProgress,
+    userId,
   };
 
   const steps = await loadLaunchSteps();
