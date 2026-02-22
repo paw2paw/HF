@@ -69,7 +69,7 @@ export default async function TesterDashboard({ enhanced = false }: TesterDashbo
         {enhanced && (
           <div style={{ padding: "20px 16px", background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, textAlign: "center" }}>
             <div style={{ fontSize: 28, fontWeight: 700, color: "var(--button-primary-bg)", marginBottom: 4 }}>{domains.length}</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Domains</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Institutions</div>
           </div>
         )}
       </div>
@@ -112,10 +112,10 @@ export default async function TesterDashboard({ enhanced = false }: TesterDashbo
         </div>
       )}
 
-      {/* Domain Selector for SuperTesters */}
+      {/* Institution Selector for SuperTesters */}
       {enhanced && domains.length > 0 && (
         <div style={{ marginTop: 32 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Available Domains</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Available Institutions</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
             {domains.map((domain) => (
               <div key={domain.id} style={{ padding: "12px 16px", background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8 }}>

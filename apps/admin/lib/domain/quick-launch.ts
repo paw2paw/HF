@@ -22,7 +22,7 @@ import {
 } from "@/lib/domain/generate-identity";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
-import { generateContentSpec } from "@/lib/domain/generate-content-spec";
+import { generateContentSpec, patchContentSpecForContract } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
 import { generateSkeletonCurriculum } from "@/lib/content-trust/generate-skeleton-curriculum";
 import { startCurriculumEnrichment } from "@/lib/jobs/curriculum-enricher";
@@ -697,65 +697,6 @@ export async function loadPersonaFlowPhases(persona: string): Promise<any | null
   const specConfig = spec.config as SpecConfig;
   const personaConfig = specConfig.personas?.[persona];
   return personaConfig?.firstCallFlow?.phases ? { phases: personaConfig.firstCallFlow.phases } : null;
-}
-
-/**
- * Patch a CONTENT spec to be CURRICULUM_PROGRESS_V1 contract-compliant.
- *
- * generateContentSpec() creates specs with config.modules[] (flat array).
- * compose-content-section.ts and track-progress.ts need:
- *   - config.metadata.curriculum (type, trackingMode, etc.)
- *   - config.parameters[] (contract-driven module extraction format)
- *
- * This patch adds both without touching the existing modules[] (legacy compat).
- */
-async function patchContentSpecForContract(specId: string): Promise<void> {
-  const spec = await prisma.analysisSpec.findUnique({
-    where: { id: specId },
-    select: { config: true },
-  });
-
-  if (!spec?.config) return;
-
-  const cfg = spec.config as Record<string, any>;
-
-  // Skip if already has metadata.curriculum (idempotent)
-  if (cfg.metadata?.curriculum) return;
-
-  // Add metadata.curriculum for contract compliance
-  cfg.metadata = {
-    ...cfg.metadata,
-    curriculum: {
-      type: "sequential",
-      trackingMode: "module-based",
-      moduleSelector: "section=content",
-      moduleOrder: "sortBySequence",
-      progressKey: "current_module",
-      masteryThreshold: 0.7,
-    },
-  };
-
-  // Convert modules to parameters[] format for contract-driven extraction
-  if (Array.isArray(cfg.modules) && !cfg.parameters) {
-    cfg.parameters = cfg.modules.map((m: any, i: number) => ({
-      id: m.id,
-      name: m.title || m.name,
-      description: m.description || "",
-      section: "content",
-      sequence: m.sortOrder ?? i,
-      config: {
-        ...m,
-        learningOutcomes: m.learningOutcomes || [],
-        assessmentCriteria: m.assessmentCriteria || [],
-        keyTerms: m.keyTerms || [],
-      },
-    }));
-  }
-
-  await prisma.analysisSpec.update({
-    where: { id: specId },
-    data: { config: cfg },
-  });
 }
 
 // ── Main Executor ──────────────────────────────────────

@@ -58,8 +58,8 @@ export default async function AdminDashboard() {
   }
 
   const stats = [
-    { label: "Domains", value: domainsCount, href: "/x/domains", icon: "🌐" },
-    { label: "Playbooks", value: playbooksCount, href: "/x/playbooks", icon: "📚" },
+    { label: "Institutions", value: domainsCount, href: "/x/domains", icon: "🌐" },
+    { label: "Courses", value: playbooksCount, href: "/x/playbooks", icon: "📚" },
     { label: "Callers", value: callersCount, href: "/x/callers", icon: "👥" },
   ];
 
@@ -75,10 +75,10 @@ export default async function AdminDashboard() {
     },
     {
       title: "Configuration",
-      description: "Configure domains and playbooks",
+      description: "Configure institutions and courses",
       items: [
-        { title: "Domains", description: "Manage business domains", href: "/x/domains", icon: "🌐" },
-        { title: "Playbooks", description: "Create and edit playbooks", href: "/x/playbooks", icon: "📚" },
+        { title: "Institutions", description: "Manage institutions", href: "/x/domains", icon: "🌐" },
+        { title: "Courses", description: "Create and edit courses", href: "/x/playbooks", icon: "📚" },
         { title: "Import", description: "Import transcripts and data", href: "/x/import", icon: "📥" },
       ],
     },

@@ -7,7 +7,7 @@ Kill any stale Next.js/node processes and clean the `.next` cache on the hf-dev 
 Run this Bash command:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; rm -rf ~/HF/apps/admin/.next; rm -f /tmp/hf-dev.log; echo CLEANED"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; fuser -k 3001/tcp 2>/dev/null; fuser -k 3002/tcp 2>/dev/null; fuser -k 3003/tcp 2>/dev/null; fuser -k 3004/tcp 2>/dev/null; sleep 1; rm -rf ~/HF/apps/admin/.next; rm -f /tmp/hf-dev.log; echo CLEANED"
 ```
 
 Report the result. If the SSH connection fails with exit code 255, wait 3 seconds and retry once. If still failing, suggest the user check IAP:

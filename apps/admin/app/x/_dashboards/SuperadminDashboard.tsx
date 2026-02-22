@@ -36,8 +36,8 @@ export default async function SuperadminDashboard() {
   }
 
   const stats = [
-    { label: "Domains", value: domainsCount, href: "/x/domains", icon: "🌐" },
-    { label: "Playbooks", value: playbooksCount, href: "/x/playbooks", icon: "📚" },
+    { label: "Institutions", value: domainsCount, href: "/x/domains", icon: "🌐" },
+    { label: "Courses", value: playbooksCount, href: "/x/playbooks", icon: "📚" },
     { label: "Callers", value: callersCount, href: "/x/callers", icon: "👥" },
     { label: "Specs", value: specsCount, href: "/x/specs", icon: "📐" },
     { label: "Parameters", value: parametersCount, href: "/x/dictionary", icon: "🌳" },
@@ -49,8 +49,8 @@ export default async function SuperadminDashboard() {
       description: "Tune and validate your AI prompts",
       items: [
         { title: "Prompt Tuner", description: "Fine-tune prompt output for a specific caller", href: "/x/playground?mode=caller", icon: "🧪" },
-        { title: "Compare Playbooks", description: "A/B test two playbook configurations", href: "/x/playground?mode=compare", icon: "📒📒" },
-        { title: "Validate Playbook", description: "Test a playbook across multiple callers", href: "/x/playground?mode=playbook", icon: "✅" },
+        { title: "Compare Courses", description: "A/B test two course configurations", href: "/x/playground?mode=compare", icon: "📒📒" },
+        { title: "Validate Course", description: "Test a course across multiple callers", href: "/x/playground?mode=playbook", icon: "✅" },
       ],
     },
     {
@@ -65,10 +65,10 @@ export default async function SuperadminDashboard() {
     },
     {
       title: "Configuration",
-      description: "Configure domains, playbooks, and specs",
+      description: "Configure institutions, courses, and specs",
       items: [
-        { title: "Domains", description: "Manage business domains", href: "/x/domains", icon: "🌐" },
-        { title: "Playbooks", description: "Create and edit playbooks", href: "/x/playbooks", icon: "📚" },
+        { title: "Institutions", description: "Manage institutions", href: "/x/domains", icon: "🌐" },
+        { title: "Courses", description: "Create and edit courses", href: "/x/playbooks", icon: "📚" },
         { title: "Specs", description: "Analysis specifications", href: "/x/specs", icon: "📐" },
         { title: "Taxonomy", description: "Parameters, variables, and patterns", href: "/x/dictionary", icon: "🌳" },
       ],
