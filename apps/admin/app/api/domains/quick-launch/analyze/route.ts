@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
         console.warn("[quick-launch:analyze] Failed to create task:", err);
       }
 
-      // Save preview to task
+      // Save preview to task (await to ensure it's persisted before responding)
       if (taskId) {
         const preview: AnalysisPreview = {
           domainId: domain.id,
@@ -283,22 +283,24 @@ export async function POST(req: NextRequest) {
           identityConfig,
           warnings: [],
         };
-        updateTaskProgress(taskId, {
-          currentStep: 3,
-          context: {
-            phase: "review",
-            preview,
-            input: {
-              subjectName: subjectName.trim(),
-              brief: brief?.trim() || undefined,
-              persona: persona.trim(),
-              learningGoals,
-              toneTraits,
+        try {
+          await updateTaskProgress(taskId, {
+            currentStep: 3,
+            context: {
+              phase: "review",
+              preview,
+              input: {
+                subjectName: subjectName.trim(),
+                brief: brief?.trim() || undefined,
+                persona: persona.trim(),
+                learningGoals,
+                toneTraits,
+              },
             },
-          },
-        }).catch((err) => {
+          });
+        } catch (err) {
           console.error(`[quick-launch:analyze] Failed to save task preview:`, err);
-        });
+        }
       }
 
       return NextResponse.json(
@@ -591,15 +593,9 @@ async function runQuickLaunchBackground(
     console.warn("[quick-launch:analyze] Identity generation failed:", err.message);
   }
 
-  // ── Mark job done ──
-  await updateJob(jobId, {
-    status: "done",
-    importedCount: toCreate.length,
-    duplicatesSkipped,
-    extractedCount: result.assertions.length,
-  });
-
-  // ── Save full preview to UserTask for resume ──
+  // ── Save full preview to UserTask BEFORE marking job done ──
+  // (Client polls job status; when it sees "done" it immediately fetches the task.
+  //  Preview must already be persisted or the client gets stale data.)
   if (taskId) {
     const summary = computeAssertionSummary(result.assertions);
     const preview: AnalysisPreview = {
@@ -614,15 +610,25 @@ async function runQuickLaunchBackground(
       warnings: result.warnings,
     };
 
-    updateTaskProgress(taskId, {
-      currentStep: 3,
-      context: {
-        phase: "review",
-        preview,
-        input: identityInput,
-      },
-    }).catch((err) => {
+    try {
+      await updateTaskProgress(taskId, {
+        currentStep: 3,
+        context: {
+          phase: "review",
+          preview,
+          input: identityInput,
+        },
+      });
+    } catch (err) {
       console.error(`[quick-launch:analyze] Failed to save task preview:`, err);
-    });
+    }
   }
+
+  // ── Mark job done (client will see this and fetch task which already has the preview) ──
+  await updateJob(jobId, {
+    status: "done",
+    importedCount: toCreate.length,
+    duplicatesSkipped,
+    extractedCount: result.assertions.length,
+  });
 }

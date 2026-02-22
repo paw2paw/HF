@@ -125,6 +125,30 @@ gcloud run deploy $SERVICE \
   --region=europe-west2 --project=hf-admin-prod
 ```
 
+### 4. (DEV only) Seed demo accounts
+
+For DEV quick deploys, always rebuild the seed image and run the seed job to ensure demo login accounts exist. Skip this step for TEST/PROD.
+
+```bash
+# Build seed image
+cat > /tmp/cloudbuild-seed.yaml <<'EOF'
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--no-cache', '--target', 'seed', '-t', 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest', '-f', 'Dockerfile', '.']
+images:
+  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest'
+EOF
+
+cd apps/admin
+gcloud builds submit --config /tmp/cloudbuild-seed.yaml --project hf-admin-prod --region europe-west2 .
+
+# Execute seed job (SEED_PROFILE=full includes demo logins)
+gcloud run jobs update hf-seed-dev \
+  --set-env-vars=SEED_PROFILE=full \
+  --region=europe-west2 --project=hf-admin-prod
+gcloud run jobs execute hf-seed-dev --region=europe-west2 --project=hf-admin-prod --wait
+```
+
 ## Full Deploy Steps (option 3)
 
 ### With Migrations
