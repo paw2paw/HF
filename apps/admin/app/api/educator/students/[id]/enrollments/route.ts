@@ -4,7 +4,7 @@
  * @scope educator:read
  * @auth bearer
  * @tags educator, students, enrollments
- * @description List all course enrollments for a student. Requires educator access to the student's cohort.
+ * @description List all course enrollments for a student. ADMIN+ can view any student; educators require cohort ownership.
  * @response 200 { ok: true, enrollments: CallerPlaybook[] }
  * @response 403 { ok: false, error: "Forbidden" }
  *
@@ -13,7 +13,7 @@
  * @scope educator:write
  * @auth bearer
  * @tags educator, students, enrollments
- * @description Enroll a student in a course (playbook). The playbook must be PUBLISHED and belong to the student's domain. Requires educator access to the student's cohort.
+ * @description Enroll a student in a course (playbook). The playbook must be PUBLISHED and belong to the student's domain. ADMIN+ can enroll any student; educators require cohort ownership.
  * @body playbookId string - The playbook to enroll in
  * @response 200 { ok: true, enrollment: CallerPlaybook }
  * @response 400 { ok: false, error: string }
@@ -22,6 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, isAuthError } from "@/lib/permissions";
 import {
   requireEducator,
   isEducatorAuthError,
@@ -33,10 +34,19 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
+  // ADMIN+ path — can view any student's enrollments
+  const adminAuth = await requireAuth("ADMIN");
+  if (!isAuthError(adminAuth)) {
+    const enrollments = await getAllEnrollments(id);
+    return NextResponse.json({ ok: true, enrollments });
+  }
+
+  // Educator path — requires cohort ownership
   const auth = await requireEducator();
   if (isEducatorAuthError(auth)) return auth.error;
 
-  const { id } = await params;
   const access = await requireEducatorStudentAccess(id, auth.callerId);
   if ("error" in access) return access.error;
 
@@ -49,12 +59,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireEducator();
-  if (isEducatorAuthError(auth)) return auth.error;
-
   const { id } = await params;
-  const access = await requireEducatorStudentAccess(id, auth.callerId);
-  if ("error" in access) return access.error;
+
+  // ADMIN+ path — can enroll any student
+  const adminAuth = await requireAuth("ADMIN");
+  const isAdmin = !isAuthError(adminAuth);
+
+  if (!isAdmin) {
+    const auth = await requireEducator();
+    if (isEducatorAuthError(auth)) return auth.error;
+
+    const access = await requireEducatorStudentAccess(id, auth.callerId);
+    if ("error" in access) return access.error;
+  }
 
   const body = await request.json().catch(() => null);
   if (!body?.playbookId) {
@@ -64,12 +81,17 @@ export async function POST(
     );
   }
 
+  // Look up student's domain for playbook validation
+  const student = await prisma.caller.findUnique({
+    where: { id },
+    select: { domain: { select: { id: true } } },
+  });
+
   // Validate playbook belongs to student's domain and is PUBLISHED
-  const { student } = access;
   const playbook = await prisma.playbook.findFirst({
     where: {
       id: body.playbookId,
-      domainId: student.domain?.id,
+      domainId: student?.domain?.id,
       status: "PUBLISHED",
     },
     select: { id: true, name: true },

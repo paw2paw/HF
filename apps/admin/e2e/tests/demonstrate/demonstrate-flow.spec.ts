@@ -10,38 +10,6 @@ test.describe('Teach Flow', () => {
     await loginAs('admin@test.com');
   });
 
-  test('step flow banner persists across navigation', async ({ page }) => {
-    await page.goto('/x/teach');
-    await page.waitForLoadState('networkidle');
-
-    // Step flow banner should be visible
-    const banner = page.getByRole('navigation', { name: /flow/i });
-    await expect(banner).toBeVisible();
-
-    // Navigate to a different page
-    await page.goto('/x/domains');
-    await page.waitForLoadState('domcontentloaded');
-
-    // Banner should still be visible with "Back to Teach" button
-    await expect(banner).toBeVisible();
-    const backBtn = banner.getByRole('button', { name: /back to teach/i });
-    await expect(backBtn).toBeVisible();
-  });
-
-  test('step flow banner not visible on sim pages', async ({ page }) => {
-    // Start the flow first
-    await page.goto('/x/teach');
-    await page.waitForLoadState('domcontentloaded');
-
-    // Navigate to a sim page
-    await page.goto('/x/sim');
-    await page.waitForLoadState('domcontentloaded');
-
-    // Banner should NOT be visible on sim pages
-    const banner = page.getByRole('navigation', { name: /flow/i });
-    await expect(banner).not.toBeVisible();
-  });
-
   test('goal input visible on step 2', async ({ page }) => {
     await page.goto('/x/teach');
     await page.waitForLoadState('networkidle');

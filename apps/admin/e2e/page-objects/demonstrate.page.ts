@@ -20,7 +20,6 @@ export class DemonstratePage extends BasePage {
   readonly goalInput: Locator;
   readonly nextButton: Locator;
   readonly backButton: Locator;
-  readonly stepFlowBanner: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -36,6 +35,5 @@ export class DemonstratePage extends BasePage {
     this.goalInput = page.getByPlaceholder(/what do you want to demonstrate/i);
     this.nextButton = page.getByRole('button', { name: /next/i });
     this.backButton = page.getByRole('button', { name: /back/i });
-    this.stepFlowBanner = page.getByRole('navigation', { name: /flow/i });
   }
 }

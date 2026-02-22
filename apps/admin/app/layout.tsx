@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
 import SimpleSidebarNav from '@/src/components/shared/SimpleSidebarNav';
 import { TopBar } from '@/components/shared/TopBar';
-import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, BrandingProvider, useBranding, ViewModeProvider, StepFlowProvider, useStepFlow } from '@/contexts';
+import { EntityProvider, ChatProvider, ThemeProvider, PaletteProvider, useChatContext, themeInitScript, MasqueradeProvider, BrandingProvider, useBranding, ViewModeProvider, StepFlowProvider } from '@/contexts';
 import { TerminologyProvider } from '@/contexts/TerminologyContext';
 import { GuidanceProvider } from '@/contexts/GuidanceContext';
 import { GlobalAssistantProvider } from '@/contexts/AssistantContext';
@@ -14,7 +14,6 @@ import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
 import DynamicFavicon from '@/components/shared/DynamicFavicon';
-import StepFlowBanner, { STEP_FLOW_BANNER_HEIGHT } from '@/components/shared/StepFlowBanner';
 import { TourOverlay } from '@/src/components/shared/TourOverlay';
 import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
 import { BugReportButton } from '@/components/shared/BugReportButton';
@@ -86,7 +85,6 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const { isOpen, chatLayout } = useChatContext();
   const { isMobile, showDesktop } = useResponsive();
-  const { isActive: isStepFlowActive } = useStepFlow();
   const { branding } = useBranding();
 
   // Embed mode - render without sidebar/chrome (for iframes)
@@ -196,13 +194,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   // Sidebar width config
   const effectiveSidebarWidth = collapsed ? COLLAPSED_WIDTH : sidebarWidth;
 
-  // Get isOnFlowPage from context to suppress banner height on wizard home pages
-  const { isOnFlowPage } = useStepFlow();
-
-  // Height accounts for fixed banners (StepFlowBanner)
-  const showStepFlowBar = isStepFlowActive && !isOnFlowPage && !isSimPage && !isAuthPage && !isEmbed;
-  const bannerHeight = showStepFlowBar ? STEP_FLOW_BANNER_HEIGHT : 0;
-  const layoutHeight = bannerHeight > 0 ? `calc(100vh - ${bannerHeight}px)` : '100vh';
+  const layoutHeight = '100vh';
 
   // Auth pages, embed mode, and sim pages render without sidebar/chrome
   if (isAuthPage || isEmbed || isSimPage) {
@@ -363,7 +355,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <MasqueradeProvider>
               <StepFlowProvider>
               <ViewModeProvider>
-              <StepFlowBanner />
               <EntityProvider>
                 <GuidanceProvider>
                   <ChatProvider>

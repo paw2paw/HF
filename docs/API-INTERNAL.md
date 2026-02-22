@@ -5439,7 +5439,7 @@ List students. ADMIN+ users see all learners (optionally scoped by institutionId
 
 ### `GET` /api/educator/students/:id/enrollments
 
-Enroll a student in a course (playbook). The playbook must be PUBLISHED and belong to the student's domain. Requires educator access to the student's cohort.
+Enroll a student in a course (playbook). The playbook must be PUBLISHED and belong to the student's domain. ADMIN+ can enroll any student; educators require cohort ownership.
 
 **Auth**: Bearer token · **Scope**: `educator:write`
 
@@ -5508,7 +5508,7 @@ Update a student's enrollment status (pause, resume, or drop). Requires educator
 
 ### `GET` /api/educator/students/[id]
 
-Get detailed student view including recent call history (last 20), goals with progress, and personality profile parameter values. Requires educator access to the student's cohort.
+Get detailed student view including recent call history (last 20), goals with progress, and personality profile parameter values. ADMIN+ can view any student; educators require cohort ownership.
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 
