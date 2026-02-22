@@ -228,6 +228,13 @@ export const AI_CALL_POINTS = [
     defaultModel: config.ai.claude.model,
   },
   {
+    callPoint: "content-trust.curriculum-skeleton",
+    label: "Content Trust - Curriculum Skeleton",
+    description: "Fast skeleton curriculum (titles + descriptions only) using lightweight model. Detail added async.",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel,
+  },
+  {
     callPoint: "quick-launch.suggest-name",
     label: "Quick Launch - Suggest Name",
     description: "Suggests a short course name from a free-text brief",

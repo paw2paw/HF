@@ -13,6 +13,7 @@ import { ChatPanel } from '@/components/chat';
 import { GlobalAssistant } from '@/components/shared/GlobalAssistant';
 import { ContentJobQueueProvider, ContentJobQueue } from '@/components/shared/ContentJobQueue';
 import EnvironmentBanner from '@/components/shared/EnvironmentBanner';
+import DynamicFavicon from '@/components/shared/DynamicFavicon';
 import StepFlowBanner, { STEP_FLOW_BANNER_HEIGHT } from '@/components/shared/StepFlowBanner';
 import { TourOverlay } from '@/src/components/shared/TourOverlay';
 import { ErrorCaptureProvider } from '@/contexts/ErrorCaptureContext';
@@ -352,6 +353,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="h-screen overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased">
         <EnvironmentBanner />
+        <DynamicFavicon />
         <ErrorCaptureProvider>
         <ThemeProvider>
           <PaletteProvider>

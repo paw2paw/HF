@@ -84,6 +84,7 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; tempe
   "content-trust.classify": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 500 },
   "content-trust.curriculum": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 8000 },
   "content-trust.curriculum-from-goals": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 8000 },
+  "content-trust.curriculum-skeleton": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2000 },
   "workflow.classify": { provider: "claude", model: config.ai.claude.model },
   "workflow.step": { provider: "claude", model: config.ai.claude.model },
   "quick-launch.identity": { provider: "claude", model: config.ai.claude.model, temperature: 0.4 },

@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" fill="#075E54" rx="0"/>
-  <text x="256" y="256" text-anchor="middle" dominant-baseline="central"
-        font-family="Helvetica, Arial, sans-serif" font-size="200" font-weight="bold"
-        fill="white">HF</text>
+  <rect width="512" height="512" rx="96" fill="#1F1B4A"/>
+  <text x="256" y="264" text-anchor="middle" dominant-baseline="central"
+        font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif"
+        font-size="210" font-weight="700"
+        fill="#F5B856">HF</text>
 </svg>

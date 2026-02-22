@@ -6,7 +6,7 @@ import { TASK_STATUS, isTerminal, POLL_INTERVAL_MS as DEFAULT_POLL_INTERVAL, POL
 
 // ── Types ──
 
-type BackgroundTaskType = "extraction" | "curriculum_generation" | "course_setup" | "snapshot_take" | "snapshot_restore";
+type BackgroundTaskType = "extraction" | "curriculum_generation" | "curriculum_enrichment" | "course_setup" | "snapshot_take" | "snapshot_restore";
 
 interface TaskProgress {
   status: string;            // "in_progress" | "completed" | "abandoned"
@@ -52,6 +52,7 @@ interface BackgroundTaskQueueContextValue {
   jobs: QueuedTask[];
   addExtractionJob: (taskId: string, sourceId: string, sourceName: string, fileName: string, subjectId?: string) => void;
   addCurriculumJob: (taskId: string, subjectId: string, subjectName: string) => void;
+  addCurriculumEnrichmentJob: (taskId: string, subjectName: string) => void;
   addCourseSetupJob: (taskId: string, courseName: string) => void;
   addSnapshotJob: (taskId: string, snapshotName: string, operation: "take" | "restore") => void;
   /** @deprecated Use addExtractionJob */
@@ -267,7 +268,7 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
         }
 
         // Check server for any auto-triggered tasks we don't know about yet
-        const backgroundTypes: BackgroundTaskType[] = ["extraction", "curriculum_generation", "course_setup", "snapshot_take", "snapshot_restore"];
+        const backgroundTypes: BackgroundTaskType[] = ["extraction", "curriculum_generation", "curriculum_enrichment", "course_setup", "snapshot_take", "snapshot_restore"];
         const knownIds = new Set(current.map((j) => j.taskId));
         for (const st of serverTasks) {
           if (backgroundTypes.includes(st.taskType) && !knownIds.has(st.id)) {
@@ -279,11 +280,13 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
                 ? ctx.fileName || "Content Extraction"
                 : st.taskType === "curriculum_generation"
                   ? ctx.subjectName || "Curriculum Generation"
-                  : st.taskType === "snapshot_take"
-                    ? `Take: ${ctx.snapshotName || "Snapshot"}`
-                    : st.taskType === "snapshot_restore"
-                      ? `Restore: ${ctx.snapshotName || "Snapshot"}`
-                      : ctx.courseName || "Course Setup",
+                  : st.taskType === "curriculum_enrichment"
+                    ? `${ctx.subjectName || "Curriculum"} (enriching)`
+                    : st.taskType === "snapshot_take"
+                      ? `Take: ${ctx.snapshotName || "Snapshot"}`
+                      : st.taskType === "snapshot_restore"
+                        ? `Restore: ${ctx.snapshotName || "Snapshot"}`
+                        : ctx.courseName || "Course Setup",
               subjectId: ctx.subjectId,
               sourceId: ctx.sourceId,
               startedAt: new Date(st.startedAt).getTime(),
@@ -346,6 +349,30 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
             taskType: "curriculum_generation" as BackgroundTaskType,
             label: subjectName,
             subjectId,
+            startedAt: Date.now(),
+            progress: {
+              status: "in_progress",
+              currentStep: 1,
+              totalSteps: 3,
+              warnings: [],
+            },
+          },
+          ...prev,
+        ];
+      });
+    },
+    []
+  );
+
+  const addCurriculumEnrichmentJob = useCallback(
+    (taskId: string, subjectName: string) => {
+      setJobs((prev) => {
+        if (prev.some((j) => j.taskId === taskId)) return prev;
+        return [
+          {
+            taskId,
+            taskType: "curriculum_enrichment" as BackgroundTaskType,
+            label: `${subjectName} (enriching)`,
             startedAt: Date.now(),
             progress: {
               status: "in_progress",
@@ -428,7 +455,7 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
 
   return (
     <BackgroundTaskQueueContext.Provider
-      value={{ jobs, addExtractionJob, addCurriculumJob, addCourseSetupJob, addSnapshotJob, addJob, dismissJob, activeCount }}
+      value={{ jobs, addExtractionJob, addCurriculumJob, addCurriculumEnrichmentJob, addCourseSetupJob, addSnapshotJob, addJob, dismissJob, activeCount }}
     >
       {children}
     </BackgroundTaskQueueContext.Provider>
@@ -473,6 +500,12 @@ export function ContentJobQueue() {
       if (isDone(j)) return `${p.moduleCount ?? 0} modules`;
       if (p.currentStep >= 2) return "Generating...";
       return "Loading assertions...";
+    }
+    if (j.taskType === "curriculum_enrichment") {
+      if (isError(j)) return p.error || "Failed";
+      if (isDone(j)) return `${p.moduleCount ?? 0} modules enriched`;
+      if (p.currentStep >= 2) return "Updating spec...";
+      return "Generating detail...";
     }
     if (j.taskType === "course_setup") {
       if (isError(j)) return p.error || "Failed";
@@ -662,6 +695,7 @@ export function ContentJobQueue() {
                     >
                       {job.taskType === "extraction" ? "Content Extraction"
                         : job.taskType === "curriculum_generation" ? "Curriculum Generation"
+                        : job.taskType === "curriculum_enrichment" ? "Curriculum Enrichment"
                         : job.taskType === "snapshot_take" ? "Snapshot Take"
                         : job.taskType === "snapshot_restore" ? "Snapshot Restore"
                         : "Course Setup"}

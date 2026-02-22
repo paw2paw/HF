@@ -24,6 +24,8 @@ import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
+import { generateSkeletonCurriculum } from "@/lib/content-trust/generate-skeleton-curriculum";
+import { startCurriculumEnrichment } from "@/lib/jobs/curriculum-enricher";
 import { enrollCaller } from "@/lib/enrollment";
 import { loadComposeConfig, executeComposition, persistComposedPrompt } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
@@ -79,6 +81,8 @@ export interface QuickLaunchResult {
     isComposite: boolean;
     sections: DocumentStructureSection[];
   };
+  /** Background curriculum enrichment task ID (skeleton mode) */
+  enrichmentTaskId?: string;
 }
 
 /** Shared context accumulating results across steps */
@@ -440,25 +444,44 @@ const stepExecutors: Record<string, StepExecutor> = {
       return;
     }
 
-    // No assertions — use goals-based generation (generate mode)
+    // No assertions — use fast skeleton + async enrichment (generate mode)
     const { subjectName, persona, learningGoals, qualificationRef } = ctx.input;
 
-    const curriculum = await generateCurriculumFromGoals(
+    // Phase 1: Fast skeleton with Haiku (~3-5s)
+    let skeleton = await generateSkeletonCurriculum(
       subjectName,
       persona,
       learningGoals,
       qualificationRef,
     );
 
-    if (!curriculum.ok || curriculum.modules.length === 0) {
-      ctx.results.moduleCount = 0;
-      ctx.results.warnings!.push(
-        curriculum.error || "Curriculum generation produced no modules"
+    // Fallback: if skeleton fails, try synchronous full generation
+    if (!skeleton.ok || skeleton.modules.length === 0) {
+      console.warn("[quick-launch] Skeleton failed, falling back to full generation:", skeleton.error);
+      const fullCurriculum = await generateCurriculumFromGoals(
+        subjectName,
+        persona,
+        learningGoals,
+        qualificationRef,
       );
-      return;
+      if (!fullCurriculum.ok || fullCurriculum.modules.length === 0) {
+        ctx.results.moduleCount = 0;
+        ctx.results.warnings!.push(
+          fullCurriculum.error || "Curriculum generation produced no modules"
+        );
+        return;
+      }
+      // Use full curriculum directly (no enrichment needed)
+      skeleton = {
+        ok: true,
+        name: fullCurriculum.name,
+        description: fullCurriculum.description,
+        modules: fullCurriculum.modules,
+        warnings: fullCurriculum.warnings,
+      };
     }
 
-    // Create CONTENT spec from goals-based curriculum
+    // Create CONTENT spec from skeleton
     const domain = await prisma.domain.findUnique({
       where: { id: domainId },
       select: { slug: true, name: true },
@@ -483,7 +506,7 @@ const stepExecutors: Record<string, StepExecutor> = {
       data: {
         slug: contentSlug,
         name: `${domain!.name} Curriculum`,
-        description: curriculum.description || `AI-generated curriculum for ${domain!.name}`,
+        description: skeleton.description || `AI-generated curriculum for ${domain!.name}`,
         outputType: "COMPOSE",
         specRole: "CONTENT",
         specType: "DOMAIN",
@@ -493,11 +516,11 @@ const stepExecutors: Record<string, StepExecutor> = {
         isDirty: false,
         isDeletable: true,
         config: JSON.parse(JSON.stringify({
-          modules: curriculum.modules,
-          deliveryConfig: curriculum.deliveryConfig,
+          modules: skeleton.modules,
+          deliveryConfig: {},
           sourceCount: 0,
           assertionCount: 0,
-          generatedFrom: "goals",
+          generatedFrom: "goals-skeleton",
           generatedAt: new Date().toISOString(),
         })),
         triggers: {
@@ -549,9 +572,24 @@ const stepExecutors: Record<string, StepExecutor> = {
     }
 
     ctx.results.contentSpecId = contentSpec.id;
-    ctx.results.moduleCount = curriculum.modules.length;
+    ctx.results.moduleCount = skeleton.modules.length;
 
     await patchContentSpecForContract(contentSpec.id);
+
+    // Phase 2: Fire-and-forget async enrichment with Sonnet
+    // Only if we used the skeleton (not the full fallback)
+    if (skeleton.modules[0]?.learningOutcomes?.length === 0) {
+      try {
+        const enrichTaskId = await startCurriculumEnrichment(
+          contentSpec.id,
+          { subjectName, persona, learningGoals, qualificationRef, domainId },
+          "system",
+        );
+        ctx.results.enrichmentTaskId = enrichTaskId;
+      } catch (err: any) {
+        ctx.results.warnings!.push(`Background enrichment failed to start: ${err.message}`);
+      }
+    }
   },
 
   /**
@@ -1187,6 +1225,7 @@ export async function quickLaunchCommit(
     assertionCount: preview.assertionCount,
     moduleCount: ctx.results.moduleCount || 0,
     goalCount: effectiveGoals.length,
+    enrichmentTaskId: ctx.results.enrichmentTaskId,
     warnings: ctx.results.warnings || [],
     documentStructure: preview.documentStructure,
   };

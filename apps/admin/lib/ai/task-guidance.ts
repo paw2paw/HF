@@ -285,6 +285,13 @@ async function generateSuggestions(task: TaskContext): Promise<GuidanceSuggestio
       });
       break;
 
+    case "curriculum_enrichment":
+      suggestions.push({
+        type: "tip",
+        message: "Your curriculum skeleton is already usable. Full detail (learning outcomes, assessment criteria) is being added in the background.",
+      });
+      break;
+
     case "content_wizard":
       if (task.currentStep === 1) {
         suggestions.push({
@@ -594,6 +601,22 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
     3: {
       title: "Complete",
       description: "Curriculum ready for review",
+    },
+  },
+  curriculum_enrichment: {
+    1: {
+      title: "Generating Detail",
+      description: "AI is adding learning outcomes, assessment criteria, and key terms",
+      estimated: "30-60 sec",
+    },
+    2: {
+      title: "Updating",
+      description: "Patching curriculum with full detail",
+      estimated: "5 sec",
+    },
+    3: {
+      title: "Complete",
+      description: "Curriculum enrichment complete",
     },
   },
   content_wizard: {

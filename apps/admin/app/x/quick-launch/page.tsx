@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import ReviewPanel from "./ReviewPanel";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
 import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
+import { useTaskPoll } from "@/hooks/useTaskPoll";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import { AgentTuner } from "@/components/shared/AgentTuner";
 import type { AgentTunerOutput, AgentTunerPill } from "@/lib/agent-tuner/types";
@@ -51,6 +52,7 @@ type LaunchResult = {
   assertionCount: number;
   moduleCount: number;
   goalCount: number;
+  enrichmentTaskId?: string;
   warnings: string[];
   identitySpecId?: string;
   contentSpecId?: string;
@@ -219,6 +221,35 @@ export default function QuickLaunchPage() {
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const commitAbortRef = useRef<AbortController | null>(null);
+
+  // Enrichment polling (skeleton → full curriculum detail)
+  const [enriching, setEnriching] = useState(false);
+  const [enrichedModuleCount, setEnrichedModuleCount] = useState<number | null>(null);
+
+  // Start polling when result arrives with an enrichment task
+  useEffect(() => {
+    if (result?.enrichmentTaskId) {
+      setEnriching(true);
+      setEnrichedModuleCount(null);
+    }
+  }, [result?.enrichmentTaskId]);
+
+  useTaskPoll({
+    taskId: result?.enrichmentTaskId ?? null,
+    onProgress: () => {},
+    onComplete: (task) => {
+      setEnriching(false);
+      const count = task.context?.moduleCount ?? task.context?.summary?.counts?.modules;
+      if (typeof count === "number" && count > 0) {
+        setEnrichedModuleCount(count);
+      }
+    },
+    onError: () => {
+      // Enrichment failure is non-critical — skeleton remains usable
+      setEnriching(false);
+    },
+    timeoutMs: 120_000, // 2 min — enrichment can take 30-60s
+  });
 
   // Resume
   const [resumeTask, setResumeTask] = useState<ResumeTask | null>(null);
@@ -1063,6 +1094,8 @@ export default function QuickLaunchPage() {
     setAnalysisProgress(0);
     setTaskId(null);
     setError(null);
+    setEnriching(false);
+    setEnrichedModuleCount(null);
     setClassroom(null);
     setEditDomainName("");
     setEditWelcome("");
@@ -1232,7 +1265,7 @@ export default function QuickLaunchPage() {
           {/* ── Summary ── */}
           <WizardSummary
             title={communityMode ? "Your Community is Ready!" : "Your Agent is Ready!"}
-            subtitle={`${result.assertionCount} teaching points${result.moduleCount > 0 ? `, ${result.moduleCount} modules` : ""}${result.goalCount > 0 ? `, ${result.goalCount} goals` : ""}`}
+            subtitle={`${result.assertionCount} teaching points${(enrichedModuleCount ?? result.moduleCount) > 0 ? `, ${enrichedModuleCount ?? result.moduleCount} modules${enriching ? " (enriching...)" : ""}` : ""}${result.goalCount > 0 ? `, ${result.goalCount} goals` : ""}`}
             intent={{
               items: [
                 { icon: <BookOpen className="w-4 h-4" />, label: "Subject", value: subjectName || "—" },
@@ -1265,7 +1298,7 @@ export default function QuickLaunchPage() {
             }}
             stats={[
               { label: "Teaching Points", value: result.assertionCount },
-              ...(result.moduleCount > 0 ? [{ label: "Modules", value: result.moduleCount }] : []),
+              ...((enrichedModuleCount ?? result.moduleCount) > 0 ? [{ label: enriching ? "Modules (enriching...)" : "Modules", value: enrichedModuleCount ?? result.moduleCount }] : []),
               ...(result.goalCount > 0 ? [{ label: "Goals", value: result.goalCount }] : []),
             ]}
             tuning={matrixTraits.length > 0 || tunerPills.length > 0 ? {
