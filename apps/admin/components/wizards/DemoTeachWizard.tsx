@@ -36,6 +36,7 @@ import { WizardSummary } from "@/components/shared/WizardSummary";
 import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { POLL_TIMEOUT_MS } from "@/lib/tasks/constants";
+import "./demo-teach-wizard.css";
 
 // ── Types ──────────────────────────────────────────
 
@@ -575,118 +576,26 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     router.push(url);
   };
 
-  // ── Shared styles ─────────────────────────────────
-
-  const sectionStyle: React.CSSProperties = {
-    padding: 24,
-    borderRadius: 14,
-    background: "var(--surface-primary)",
-    border: "1px solid var(--border-default)",
-    marginBottom: 20,
-  };
-
-  const sectionLabelStyle: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 700,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-    color: "var(--text-muted)",
-    marginBottom: 8,
-  };
-
-  const nextBtnStyle = (enabled: boolean): React.CSSProperties => ({
-    padding: "12px 28px",
-    borderRadius: 10,
-    background: enabled ? "var(--accent-primary)" : "var(--border-default)",
-    color: enabled ? "white" : "var(--text-muted)",
-    border: "none",
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: enabled ? "pointer" : "not-allowed",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    transition: "all 0.15s",
-  });
-
-  const backBtnStyle: React.CSSProperties = {
-    padding: "12px 20px",
-    borderRadius: 10,
-    background: "transparent",
-    border: "1px solid var(--border-default)",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-    color: "var(--text-secondary)",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-  };
-
   // ── Render ────────────────────────────────────────
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 32px 64px" }}>
+    <div className="dtw-page">
       {/* ── Header ── */}
-      <div
-        style={{
-          marginBottom: 32,
-          textAlign: "center",
-          padding: "32px 24px 28px",
-          borderRadius: 20,
-          background:
-            "linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, var(--surface-primary)), color-mix(in srgb, var(--accent-primary) 3%, var(--surface-primary)))",
-          border:
-            "1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 48,
-            height: 48,
-            borderRadius: 14,
-            background:
-              "linear-gradient(135deg, var(--accent-primary), var(--accent-primary-hover))",
-            marginBottom: 16,
-            boxShadow:
-              "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-          }}
-        >
-          <span style={{ fontSize: 24, color: "white" }}>
-            {config.headerEmoji}
-          </span>
+      <div className="dtw-hero">
+        <div className="dtw-hero-icon">
+          <span>{config.headerEmoji}</span>
         </div>
-        <h1
-          style={{
-            fontSize: 32,
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            marginBottom: 8,
-            color: "var(--text-primary)",
-            lineHeight: 1.1,
-          }}
-        >
+        <h1 className="dtw-hero-title">
           {config.headerTitle}
         </h1>
-        <p
-          style={{
-            fontSize: 16,
-            color: "var(--text-secondary)",
-            maxWidth: 480,
-            margin: "0 auto",
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="dtw-hero-subtitle">
           {config.fallbackSteps[currentStep]?.label ||
             `Prepare and launch a live ${t.session.toLowerCase()}.`}
         </p>
       </div>
 
       {/* ── Progress Stepper ── */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="dtw-stepper">
         <ProgressStepper
           steps={(state?.steps ?? config.fallbackSteps).map((s, i) => ({
             label: s.label,
@@ -699,14 +608,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
       {/* ── Error banner ── */}
       {wizardError && (
-        <div
-          className="hf-banner hf-banner-error"
-          style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}
-        >
+        <div className="hf-banner hf-banner-error dtw-error-banner">
           <span>{wizardError}</span>
           <button
             onClick={clearWizardError}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: 16, lineHeight: 1 }}
+            className="dtw-error-dismiss"
           >
             &times;
           </button>
@@ -717,33 +623,17 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       {/* STEP 0: Select Domain & Caller                  */}
       {/* ═══════════════════════════════════════════════ */}
       {currentStep === 0 && (
-        <div style={sectionStyle}>
-          <div style={sectionLabelStyle}>{t.domain}</div>
+        <div className="dtw-section">
+          <div className="dtw-section-label">{t.domain}</div>
           {loadingDomains ? (
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                padding: "8px 0",
-              }}
-            >
+            <div className="dtw-muted-text">
               Loading {t.domain.toLowerCase()}s...
             </div>
           ) : domainOptions.length === 0 ? (
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                padding: "8px 0",
-              }}
-            >
+            <div className="dtw-muted-text">
               No {t.domain.toLowerCase()}s found.{" "}
               <span
-                style={{
-                  color: "var(--accent-primary)",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
+                className="dtw-inline-link"
                 onClick={() => router.push("/x/quick-launch")}
               >
                 Create one with Quick Launch
@@ -763,20 +653,14 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* Caller selector */}
           {selectedDomainId && callerOptions.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={sectionLabelStyle}>
+            <div className="dtw-caller-section">
+              <div className="dtw-section-label">
                 {callerOptions.length > 1
                   ? `Test ${t.caller}`
                   : t.caller}
               </div>
               {callerOptions.length === 1 ? (
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    padding: "4px 0",
-                  }}
-                >
+                <div className="dtw-single-caller">
                   {callerOptions[0].label}
                 </div>
               ) : (
@@ -795,38 +679,15 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           {selectedDomainId &&
             !loadingDomains &&
             callerOptions.length === 0 && (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 16,
-                  borderRadius: 10,
-                  background:
-                    "color-mix(in srgb, var(--status-warning-text) 8%, transparent)",
-                  border:
-                    "1px solid color-mix(in srgb, var(--status-warning-text) 20%, transparent)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--status-warning-text)",
-                    marginBottom: 4,
-                  }}
-                >
+              <div className="dtw-warning-box">
+                <div className="dtw-warning-title">
                   No learners found
                 </div>
-                <div
-                  style={{ fontSize: 13, color: "var(--text-secondary)" }}
-                >
+                <div className="dtw-warning-body">
                   This {t.domain.toLowerCase()} has no{" "}
                   {t.caller.toLowerCase()}s yet.{" "}
                   <span
-                    style={{
-                      color: "var(--accent-primary)",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
+                    className="dtw-inline-link"
                     onClick={() =>
                       router.push(
                         `/x/domains?selected=${selectedDomainId}`,
@@ -840,17 +701,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             )}
 
           {/* Step navigation */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginTop: 20,
-            }}
-          >
+          <div className="dtw-nav">
             <button
               onClick={canAdvanceFromDomain ? handleNext : undefined}
               disabled={!canAdvanceFromDomain}
-              style={nextBtnStyle(canAdvanceFromDomain)}
+              className={`dtw-btn-next ${canAdvanceFromDomain ? "dtw-btn-next-enabled" : "dtw-btn-next-disabled"}`}
             >
               Next <ChevronRight size={16} />
             </button>
@@ -862,31 +717,15 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       {/* STEP 1: Set Your Goal                           */}
       {/* ═══════════════════════════════════════════════ */}
       {currentStep === 1 && (
-        <div style={sectionStyle}>
-          <div style={sectionLabelStyle}>Session Goal</div>
+        <div className="dtw-section">
+          <div className="dtw-section-label">Session Goal</div>
           <textarea
+            className="dtw-textarea"
             value={goalText}
             onChange={(e) => setGoalText(e.target.value)}
             placeholder={`What do you want to ${config.headerTitle.toLowerCase()}? e.g., Teach ${t.caller.toLowerCase()} about fractions using real-world examples`}
             rows={3}
-            style={{
-              width: "100%",
-              padding: 14,
-              borderRadius: 10,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-secondary)",
-              color: "var(--text-primary)",
-              fontSize: 14,
-              lineHeight: 1.5,
-              resize: "vertical",
-              fontFamily: "inherit",
-              outline: "none",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "var(--accent-primary)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "var(--border-default)";
+            onBlur={() => {
               if (goalText.trim()) {
                 fetchSuggestions(goalText.trim());
               }
@@ -895,59 +734,27 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* AI suggestions */}
           {(loadingSuggestions || suggestions.length > 0) && (
-            <div style={{ marginTop: 12 }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                  marginBottom: 6,
-                }}
-              >
+            <div className="dtw-suggestions">
+              <div className="dtw-suggestions-label">
                 Suggested goals
               </div>
               {loadingSuggestions ? (
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="dtw-skeleton-row">
                   {[1, 2, 3].map((i) => (
                     <div
                       key={i}
-                      style={{
-                        height: 32,
-                        width: 120 + i * 20,
-                        borderRadius: 16,
-                        background: "var(--surface-secondary)",
-                        animation: "pulse 1.5s ease-in-out infinite",
-                      }}
+                      className="dtw-skeleton-pill"
+                      style={{ width: 120 + i * 20 }}
                     />
                   ))}
                 </div>
               ) : (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div className="dtw-suggestion-list">
                   {suggestions.map((s, i) => (
                     <button
                       key={i}
                       onClick={() => setGoalText(s)}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: 16,
-                        background:
-                          "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                        border:
-                          "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
-                        color: "var(--accent-primary)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background =
-                          "color-mix(in srgb, var(--accent-primary) 18%, transparent)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background =
-                          "color-mix(in srgb, var(--accent-primary) 10%, transparent)";
-                      }}
+                      className="dtw-suggestion-chip"
                     >
                       {s}
                     </button>
@@ -959,24 +766,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* Save as Goal button */}
           {goalText.trim() && (
-            <div style={{ marginTop: 12 }}>
+            <div className="dtw-save-goal-row">
               <button
                 onClick={handleSaveAsGoal}
                 disabled={savingGoal}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 8,
-                  background: "transparent",
-                  border: "1px dashed var(--border-default)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: savingGoal ? "wait" : "pointer",
-                  color: "var(--text-secondary)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  transition: "all 0.15s",
-                }}
+                className={`dtw-btn-save-goal ${savingGoal ? "dtw-btn-save-goal-saving" : ""}`}
               >
                 <Plus size={14} />
                 {savingGoal ? "Saving..." : "Save as Goal"}
@@ -986,53 +780,20 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* ── Caller Goals (CRUD) ── */}
           {(callerGoals.length > 0 || loadingGoals) && (
-            <div
-              style={{
-                marginTop: 20,
-                borderTop: "1px solid var(--border-default)",
-                paddingTop: 16,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                  marginBottom: 8,
-                }}
-              >
+            <div className="dtw-goals-section">
+              <div className="dtw-goals-label">
                 {t.caller}&apos;s Goals
               </div>
               {loadingGoals ? (
-                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                <div className="dtw-goals-loading">
                   Loading goals...
                 </div>
               ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
+                <div className="dtw-goals-list">
                   {callerGoals.map((goal) => (
                     <div
                       key={goal.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        background:
-                          goalText === goal.name
-                            ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
-                            : "var(--surface-secondary)",
-                        border: `1px solid ${goalText === goal.name ? "color-mix(in srgb, var(--accent-primary) 20%, transparent)" : "var(--border-default)"}`,
-                        cursor:
-                          editingGoalId === goal.id ? "default" : "pointer",
-                        transition: "all 0.15s",
-                      }}
+                      className={`dtw-goal-row ${goalText === goal.name ? "dtw-goal-row-selected" : "dtw-goal-row-default"} ${editingGoalId === goal.id ? "dtw-goal-row-editing" : ""}`}
                       onClick={() => {
                         if (editingGoalId !== goal.id) {
                           setGoalText(goal.name);
@@ -1040,13 +801,14 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                       }}
                     >
                       {/* Type emoji */}
-                      <span style={{ fontSize: 14, flexShrink: 0 }}>
+                      <span className="dtw-goal-emoji">
                         {GOAL_TYPE_EMOJI[goal.type] || "\uD83C\uDFAF"}
                       </span>
 
                       {/* Name (inline edit or display) */}
                       {editingGoalId === goal.id ? (
                         <input
+                          className="dtw-goal-edit-input"
                           value={editGoalName}
                           onChange={(e) => setEditGoalName(e.target.value)}
                           onKeyDown={(e) => {
@@ -1059,53 +821,19 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                           }}
                           autoFocus
                           onClick={(e) => e.stopPropagation()}
-                          style={{
-                            flex: 1,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            border: "1px solid var(--accent-primary)",
-                            background: "var(--surface-primary)",
-                            color: "var(--text-primary)",
-                            fontSize: 13,
-                            fontFamily: "inherit",
-                            outline: "none",
-                          }}
                         />
                       ) : (
-                        <span
-                          style={{
-                            flex: 1,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            color: "var(--text-primary)",
-                            minWidth: 0,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                        <span className="dtw-goal-name">
                           {goal.name}
                         </span>
                       )}
 
                       {/* Progress bar */}
                       {goal.progress > 0 && editingGoalId !== goal.id && (
-                        <div
-                          style={{
-                            width: 40,
-                            height: 4,
-                            borderRadius: 2,
-                            background: "var(--border-default)",
-                            flexShrink: 0,
-                          }}
-                        >
+                        <div className="dtw-goal-progress-track">
                           <div
-                            style={{
-                              width: `${goal.progress * 100}%`,
-                              height: "100%",
-                              borderRadius: 2,
-                              background: "var(--status-success-text)",
-                            }}
+                            className="dtw-goal-progress-fill"
+                            style={{ width: `${goal.progress * 100}%` }}
                           />
                         </div>
                       )}
@@ -1113,23 +841,12 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                       {/* Action buttons */}
                       {editingGoalId === goal.id ? (
                         <div
-                          style={{
-                            display: "flex",
-                            gap: 4,
-                            flexShrink: 0,
-                          }}
+                          className="dtw-goal-actions"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
                             onClick={() => handleUpdateGoal(goal.id)}
-                            style={{
-                              padding: 4,
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "var(--status-success-text)",
-                              display: "flex",
-                            }}
+                            className="dtw-icon-btn dtw-icon-btn-success"
                             title="Save"
                           >
                             <Save size={14} />
@@ -1139,14 +856,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                               setEditingGoalId(null);
                               setEditGoalName("");
                             }}
-                            style={{
-                              padding: 4,
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "var(--text-muted)",
-                              display: "flex",
-                            }}
+                            className="dtw-icon-btn dtw-icon-btn-muted"
                             title="Cancel"
                           >
                             <X size={14} />
@@ -1154,11 +864,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                         </div>
                       ) : (
                         <div
-                          style={{
-                            display: "flex",
-                            gap: 2,
-                            flexShrink: 0,
-                          }}
+                          className="dtw-goal-actions dtw-goal-actions-view"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
@@ -1166,28 +872,14 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                               setEditingGoalId(goal.id);
                               setEditGoalName(goal.name);
                             }}
-                            style={{
-                              padding: 4,
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "var(--text-muted)",
-                              display: "flex",
-                            }}
+                            className="dtw-icon-btn dtw-icon-btn-muted"
                             title="Edit goal"
                           >
                             <Pencil size={13} />
                           </button>
                           <button
                             onClick={() => handleDeleteGoal(goal.id)}
-                            style={{
-                              padding: 4,
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "var(--status-error-text)",
-                              display: "flex",
-                            }}
+                            className="dtw-icon-btn dtw-icon-btn-error"
                             title="Delete goal"
                           >
                             <Trash2 size={13} />
@@ -1202,20 +894,14 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           )}
 
           {/* Step navigation */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 20,
-            }}
-          >
-            <button onClick={handlePrev} style={backBtnStyle}>
+          <div className="dtw-nav-between">
+            <button onClick={handlePrev} className="dtw-btn-back">
               <ChevronLeft size={16} /> Back
             </button>
             <button
               onClick={canAdvanceFromGoal ? handleNext : undefined}
               disabled={!canAdvanceFromGoal}
-              style={nextBtnStyle(canAdvanceFromGoal)}
+              className={`dtw-btn-next ${canAdvanceFromGoal ? "dtw-btn-next-enabled" : "dtw-btn-next-disabled"}`}
             >
               Next <ChevronRight size={16} />
             </button>
@@ -1227,43 +913,21 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       {/* STEP 2: Readiness Checks                        */}
       {/* ═══════════════════════════════════════════════ */}
       {currentStep === 2 && selectedDomainId && (
-        <div
-          style={{
-            ...sectionStyle,
-            border: `1px solid ${level === "ready" ? "var(--status-success-border)" : "var(--border-default)"}`,
-            transition: "border-color 0.3s",
-          }}
-        >
+        <div className={`dtw-section ${level === "ready" ? "dtw-section-ready" : ""}`}>
           {/* Status badge */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 16,
-            }}
-          >
-            <div style={sectionLabelStyle}>Course Readiness</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="dtw-readiness-header">
+            <div className="dtw-section-label">Course Readiness</div>
+            <div className="dtw-readiness-badges">
               <div
+                className="dtw-readiness-level-badge"
                 style={{
-                  fontSize: 12,
-                  fontWeight: 700,
                   color: levelColor,
-                  padding: "3px 10px",
-                  borderRadius: 20,
                   background: `color-mix(in srgb, ${levelColor} 12%, transparent)`,
                 }}
               >
                 {levelLabel}
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                }}
-              >
+              <div className="dtw-readiness-score">
                 {score}%
               </div>
             </div>
@@ -1271,68 +935,26 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* Check items */}
           {checksLoading && checks.length === 0 ? (
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                padding: "8px 0",
-              }}
-            >
+            <div className="dtw-muted-text">
               Loading checks...
             </div>
           ) : checks.length === 0 ? (
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                padding: "8px 0",
-              }}
-            >
+            <div className="dtw-muted-text">
               No readiness checks configured.
             </div>
           ) : (
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: 6 }}
-            >
+            <div className="dtw-checks-list">
               {checks.map((check) => (
                 <div
                   key={check.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    background: check.passed
-                      ? "color-mix(in srgb, var(--status-success-bg) 50%, transparent)"
-                      : "var(--surface-secondary)",
-                    border: `1px solid ${check.passed ? "var(--status-success-border)" : "var(--border-default)"}`,
-                    cursor: check.fixAction?.href ? "pointer" : "default",
-                    transition: "background 0.15s",
-                  }}
+                  className={`dtw-check-row ${check.passed ? "dtw-check-row-pass" : "dtw-check-row-pending"} ${check.fixAction?.href ? "dtw-check-row-clickable" : ""}`}
                   onClick={() => {
                     if (check.fixAction?.href)
                       router.push(check.fixAction.href);
                   }}
                 >
                   <div
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      background: check.passed
-                        ? "var(--status-success-text)"
-                        : check.severity === "critical"
-                          ? "var(--status-error-text)"
-                          : "var(--border-default)",
-                      color: "white",
-                    }}
+                    className={`dtw-check-circle ${check.passed ? "dtw-check-circle-pass" : check.severity === "critical" ? "dtw-check-circle-critical" : "dtw-check-circle-default"}`}
                   >
                     {check.passed
                       ? "\u2713"
@@ -1340,48 +962,21 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                         ? "!"
                         : "\u2022"}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                      }}
-                    >
+                  <div className="dtw-check-content">
+                    <div className="dtw-check-name">
                       {check.name}
                       {check.severity === "critical" && !check.passed && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: "var(--status-error-text)",
-                            marginLeft: 6,
-                          }}
-                        >
+                        <span className="dtw-check-required">
                           REQUIRED
                         </span>
                       )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="dtw-check-detail">
                       {check.detail}
                     </div>
                   </div>
                   {check.fixAction?.href && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "var(--accent-primary)",
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
-                      }}
-                    >
+                    <div className="dtw-check-fix">
                       {check.fixAction.label} &rarr;
                     </div>
                   )}
@@ -1391,20 +986,14 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           )}
 
           {/* Step navigation */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 20,
-            }}
-          >
-            <button onClick={handlePrev} style={backBtnStyle}>
+          <div className="dtw-nav-between">
+            <button onClick={handlePrev} className="dtw-btn-back">
               <ChevronLeft size={16} /> Back
             </button>
             <button
               onClick={ready ? handleNext : undefined}
               disabled={!ready}
-              style={nextBtnStyle(ready)}
+              className={`dtw-btn-next ${ready ? "dtw-btn-next-enabled" : "dtw-btn-next-disabled"}`}
               title={
                 !ready ? "Complete required checks above first" : undefined
               }
@@ -1419,7 +1008,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       {/* STEP 3: Launch                                  */}
       {/* ═══════════════════════════════════════════════ */}
       {currentStep === 3 && (
-        <div style={sectionStyle}>
+        <div className="dtw-section">
           <WizardSummary
             title="Ready to Go!"
             subtitle={
@@ -1484,21 +1073,12 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
       {/* ── Quick actions (visible on all steps) ── */}
       {selectedDomainId && (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div className="dtw-quick-actions">
           <button
             onClick={() => {
               router.push(`/x/domains?selected=${selectedDomainId}`);
             }}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 8,
-              background: "transparent",
-              border: "1px solid var(--border-default)",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              color: "var(--text-secondary)",
-            }}
+            className="dtw-btn-quick"
           >
             View {t.domain}
           </button>
@@ -1507,16 +1087,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
               onClick={() => {
                 router.push(`/x/callers/${selectedCallerId}`);
               }}
-              style={{
-                padding: "8px 16px",
-                borderRadius: 8,
-                background: "transparent",
-                border: "1px solid var(--border-default)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                color: "var(--text-secondary)",
-              }}
+              className="dtw-btn-quick"
             >
               View {t.caller}
             </button>
@@ -1525,16 +1096,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             onClick={() => {
               router.push("/x/quick-launch");
             }}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 8,
-              background: "transparent",
-              border: "1px solid var(--border-default)",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              color: "var(--text-secondary)",
-            }}
+            className="dtw-btn-quick"
           >
             Quick Launch
           </button>

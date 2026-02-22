@@ -1,0 +1,441 @@
+/* ══════════════════════════════════════════════════════════════
+   Dictionary Page — dict-* classes
+   Migrated from inline style={{}} to CSS classes.
+   Uses hf-* design system classes where applicable.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Layout ── */
+
+.dict-header {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dict-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Summary Stats Grid ── */
+
+.dict-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* ── Stat Card ── */
+
+.dict-stat-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-primary);
+}
+
+.dict-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.dict-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* ── Filters Bar ── */
+
+.dict-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.dict-search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.dict-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── Results Count ── */
+
+.dict-results-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Error Banner ── */
+
+.dict-error {
+  padding: 16px;
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+/* ── Loading State ── */
+
+.dict-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Empty State ── */
+
+.dict-empty {
+  padding: 40px;
+  text-align: center;
+  background: var(--surface-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+}
+
+.dict-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.dict-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dict-empty-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* ── Groups Container ── */
+
+.dict-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Category Header ── */
+
+.dict-category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dict-category-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dict-category-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── Table ── */
+
+.dict-table {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dict-table-header {
+  display: grid;
+  grid-template-columns: 24px minmax(180px, 1fr) minmax(200px, 2fr) auto;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.dict-table-header-links {
+  text-align: right;
+}
+
+/* ── Data Row ── */
+
+.dict-row {
+  display: grid;
+  grid-template-columns: 24px minmax(180px, 1fr) minmax(200px, 2fr) auto;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+  align-items: center;
+}
+
+.dict-row-expanded {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  border-bottom: none;
+}
+
+/* ── Active Indicator Dot ── */
+
+.dict-active-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dict-active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dict-active-dot-on {
+  background: var(--status-success-text);
+}
+
+.dict-active-dot-off {
+  background: var(--border-default);
+}
+
+/* ── Parameter Key (monospace) ── */
+
+.dict-param-key {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--button-primary-bg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Name Cell ── */
+
+.dict-name-cell {
+  overflow: hidden;
+}
+
+.dict-name {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.dict-definition-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* ── Relationship Pills Container ── */
+
+.dict-pills {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Pill Badge ── */
+
+.dict-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.dict-pill-count {
+  font-weight: 700;
+}
+
+/* ── Orphan Label ── */
+
+.dict-orphan-label {
+  font-size: 11px;
+  color: var(--status-error-text);
+  font-weight: 500;
+}
+
+/* ── Expanded Detail Panel ── */
+
+.dict-detail {
+  padding: 16px 16px 16px 44px;
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.dict-definition {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+  max-width: 700px;
+}
+
+/* ── Relationship Section ── */
+
+.dict-rel-section {
+  margin-bottom: 12px;
+}
+
+.dict-rel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.dict-rel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ── Relationship Chip ── */
+
+.dict-rel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+
+.dict-rel-chip-sub {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* ── Behavior Targets Grid ── */
+
+.dict-targets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.dict-target-card {
+  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--badge-yellow-text) 20%, transparent);
+  background: color-mix(in srgb, var(--badge-yellow-text) 5%, transparent);
+}
+
+.dict-target-value {
+  font-weight: 600;
+  color: var(--badge-yellow-text);
+}
+
+.dict-target-conf {
+  font-weight: 400;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.dict-target-meta {
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Scoring Anchors ── */
+
+.dict-anchors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dict-anchor-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.dict-anchor-score {
+  font-weight: 700;
+  color: var(--badge-purple-text);
+  min-width: 20px;
+  text-align: right;
+}
+
+.dict-anchor-gold {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--trust-l5-text);
+  background: color-mix(in srgb, var(--trust-l5-text) 12%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.dict-anchor-text {
+  color: var(--text-secondary);
+}
+
+/* ── Orphan Warning ── */
+
+.dict-orphan-warning {
+  font-size: 13px;
+  color: var(--status-error-text);
+  padding: 8px 12px;
+  background: var(--status-error-bg);
+  border-radius: 6px;
+  font-weight: 500;
+}

@@ -112,7 +112,7 @@ const CATEGORIES = [
   { value: "concept", label: "Concept", color: "var(--accent-primary)", icon: "\uD83D\uDCA1" },
   { value: "observation", label: "Observation", color: "var(--status-success-text)", icon: "\uD83D\uDC41\uFE0F" },
   { value: "discussion_point", label: "Discussion Point", color: "var(--accent-secondary, #8b5cf6)", icon: "\uD83D\uDCAC" },
-  { value: "context", label: "Context", color: "var(--text-muted)", icon: "\uD83D\uDCC" },
+  { value: "context", label: "Context", color: "var(--text-muted)", icon: "\uD83D\uDCC4" },
 ];
 
 const DOCUMENT_TYPES: Record<string, { label: string; icon: string }> = {

@@ -1,5 +1,7 @@
 "use client";
 
+import "./parameters-tab.css";
+
 export type ParameterCategory = {
   category: string;
   icon: string;
@@ -46,6 +48,12 @@ export interface ParametersTabContentProps {
   toggleParamExpand: (paramId: string) => void;
 }
 
+function anchorScoreClass(score: number): string {
+  if (score >= 0.7) return "pt-anchor-score pt-anchor-score--high";
+  if (score <= 0.3) return "pt-anchor-score pt-anchor-score--low";
+  return "pt-anchor-score pt-anchor-score--mid";
+}
+
 export function ParametersTabContent({
   parametersLoading,
   parametersData,
@@ -60,120 +68,56 @@ export function ParametersTabContent({
   toggleParamExpand,
 }: ParametersTabContentProps) {
   return (
-        <div style={{ marginTop: 24 }}>
+        <div className="pt-root">
           {parametersLoading ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
+            <div className="pt-loading">
               Loading parameters...
             </div>
           ) : !parametersData ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
+            <div className="pt-loading">
               Failed to load parameters data
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="pt-content">
               {/* Summary - Clickable Filters */}
-              <div style={{
-                padding: 16,
-                background: "var(--background)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}>
+              <div className="pt-filter-bar">
                 <button
                   onClick={() => setActiveFilter(null)}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: activeFilter === null ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                    background: activeFilter === null ? "var(--status-info-bg)" : "var(--surface-primary)",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    minWidth: 70,
-                  }}
+                  className={`pt-filter-chip${activeFilter === null ? " pt-filter-chip--active" : ""}`}
                 >
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>All</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === null ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{parametersData.counts.parameters}</div>
+                  <div className="pt-filter-chip-label">All</div>
+                  <div className={`pt-filter-chip-count${activeFilter === null ? " pt-filter-chip-count--active" : ""}`}>{parametersData.counts.parameters}</div>
                 </button>
                 {parametersData.categories.map(cat => (
                   <button
                     key={cat.category}
                     onClick={() => toggleFilter(cat.category)}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: activeFilter === cat.category ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                      background: activeFilter === cat.category ? "var(--status-info-bg)" : "var(--surface-primary)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      minWidth: 70,
-                    }}
+                    className={`pt-filter-chip${activeFilter === cat.category ? " pt-filter-chip--active" : ""}`}
                   >
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>{cat.icon} {cat.category}</div>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: activeFilter === cat.category ? "var(--button-primary-bg)" : "var(--text-primary)" }}>{cat.parameters.length}</div>
+                    <div className="pt-filter-chip-label">{cat.icon} {cat.category}</div>
+                    <div className={`pt-filter-chip-count${activeFilter === cat.category ? " pt-filter-chip-count--active" : ""}`}>{cat.parameters.length}</div>
                   </button>
                 ))}
-                <div style={{ marginLeft: "auto", position: "relative" }}>
+                <div className="pt-search-wrap">
                   <input
                     type="text"
                     placeholder="Search parameters..."
                     value={parameterSearch}
                     onChange={(e) => setParameterSearch(e.target.value)}
-                    style={{
-                      padding: "8px 12px 8px 32px",
-                      borderRadius: 6,
-                      border: "1px solid var(--border-default)",
-                      background: "var(--surface-primary)",
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                      width: 200,
-                      outline: "none",
-                    }}
+                    className="pt-search-input"
                   />
-                  <span style={{
-                    position: "absolute",
-                    left: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--text-muted)",
-                    fontSize: 14,
-                    pointerEvents: "none",
-                  }}>🔍</span>
+                  <span className="pt-search-icon">🔍</span>
                   {parameterSearch && (
                     <button
                       onClick={() => setParameterSearch("")}
-                      style={{
-                        position: "absolute",
-                        right: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--text-muted)",
-                        fontSize: 12,
-                        padding: 0,
-                      }}
+                      className="pt-search-clear"
                     >✕</button>
                   )}
                 </div>
               </div>
 
               {/* Categories */}
-              <div style={{
-                background: "var(--surface-primary)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                overflow: "hidden",
-                maxHeight: "calc(100vh - 400px)",
-                overflowY: "auto",
-              }}>
+              <div className="pt-categories">
                 {parametersData.categories
                   .filter(category => !activeFilter || activeFilter === category.category)
                   .map((category) => {
@@ -191,103 +135,73 @@ export function ParametersTabContent({
                     {/* Category Header */}
                     <div
                       onClick={() => toggleParamCategoryExpand(category.category)}
-                      style={{
-                        padding: "12px 16px",
-                        background: "var(--background)",
-                        borderBottom: "1px solid var(--border-default)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
+                      className="pt-cat-header"
                     >
-                      <span style={{ fontSize: 18 }}>{category.icon}</span>
-                      <span style={{ fontWeight: 600 }}>{category.category}</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>({filteredParams.length}{parameterSearch && filteredParams.length !== category.parameters.length ? ` / ${category.parameters.length}` : ""})</span>
-                      <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 12 }}>
+                      <span className="pt-cat-icon">{category.icon}</span>
+                      <span className="pt-cat-name">{category.category}</span>
+                      <span className="pt-cat-count">({filteredParams.length}{parameterSearch && filteredParams.length !== category.parameters.length ? ` / ${category.parameters.length}` : ""})</span>
+                      <span className="pt-cat-chevron">
                         {expandedParamCategories.has(category.category) ? "▼" : "▶"}
                       </span>
                     </div>
                     {/* Category Content */}
                     {expandedParamCategories.has(category.category) && (
-                      <div style={{ padding: "8px 0" }}>
+                      <div className="pt-cat-body">
                         {filteredParams.map((param) => (
                           <div key={param.parameterId}>
                             {/* Parameter Header */}
                             <div
                               onClick={() => toggleParamExpand(param.parameterId)}
-                              style={{
-                                padding: "8px 16px 8px 32px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                borderBottom: "1px solid var(--border-subtle)",
-                              }}
+                              className="pt-param-header"
                             >
-                              <span style={{
-                                fontSize: 11,
-                                fontFamily: "monospace",
-                                color: "var(--button-primary-bg)",
-                                background: "var(--status-info-bg)",
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                              }}>
+                              <span className="pt-param-id">
                                 {param.parameterId}
                               </span>
-                              <span style={{ fontWeight: 500 }}>{param.name}</span>
+                              <span className="pt-param-name">{param.name}</span>
                               {param.sourceFeatureSet && (
-                                <span
-                                  style={{
-                                    fontSize: 10,
-                                    background: "var(--status-success-bg)",
-                                    color: "var(--status-success-text)",
-                                    padding: "1px 6px",
-                                    borderRadius: 3,
-                                  }}
-                                >
+                                <span className="pt-param-feature-tag">
                                   {param.sourceFeatureSet.name}
                                 </span>
                               )}
                               {param.scoringAnchors.length > 0 && (
-                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                                <span className="pt-param-anchor-count">
                                   {param.scoringAnchors.length} anchors
                                 </span>
                               )}
-                              <span style={{ marginLeft: "auto", color: "var(--text-placeholder)", fontSize: 11 }}>
+                              <span className="pt-param-chevron">
                                 {expandedParams.has(param.parameterId) ? "▼" : "▶"}
                               </span>
                             </div>
                             {/* Parameter Details */}
                             {expandedParams.has(param.parameterId) && (
-                              <div style={{ padding: "8px 16px 16px 48px", background: "var(--background)" }}>
+                              <div className="pt-param-detail">
                                 {param.definition && (
-                                  <div style={{ marginBottom: 8, color: "var(--text-secondary)", fontSize: 13 }}>
+                                  <div className="pt-param-definition">
                                     {param.definition}
                                   </div>
                                 )}
-                                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 12, fontSize: 12 }}>
+                                <div className="pt-param-meta">
                                   <div>
-                                    <span style={{ color: "var(--text-muted)" }}>Scale:</span>{" "}
-                                    <span style={{ fontWeight: 500 }}>{param.scaleType}</span>
+                                    <span className="pt-param-meta-label">Scale:</span>{" "}
+                                    <span className="pt-param-meta-value">{param.scaleType}</span>
                                   </div>
                                   <div>
-                                    <span style={{ color: "var(--text-muted)" }}>Type:</span>{" "}
-                                    <span style={{ fontWeight: 500 }}>{param.parameterType}</span>
+                                    <span className="pt-param-meta-label">Type:</span>{" "}
+                                    <span className="pt-param-meta-value">{param.parameterType}</span>
                                   </div>
                                 </div>
                                 {(param.interpretationHigh || param.interpretationLow) && (
-                                  <div style={{ marginBottom: 12, fontSize: 12 }}>
+                                  <div className="pt-interpretation">
                                     {param.interpretationHigh && (
-                                      <div style={{ marginBottom: 4 }}>
-                                        <span style={{ color: "var(--status-success-text)" }}>↑ High:</span>{" "}
-                                        <span style={{ color: "var(--text-secondary)" }}>{param.interpretationHigh}</span>
+                                      <div className="pt-interpretation-row">
+                                        <span className="pt-interpretation-high">↑ High:</span>{" "}
+                                        <span className="pt-interpretation-text">{param.interpretationHigh}</span>
                                       </div>
                                     )}
                                     {param.interpretationLow && (
                                       <div>
-                                        <span style={{ color: "var(--status-error-text)" }}>↓ Low:</span>{" "}
-                                        <span style={{ color: "var(--text-secondary)" }}>{param.interpretationLow}</span>
+                                        <span className="pt-interpretation-low">↓ Low:</span>{" "}
+                                        <span className="pt-interpretation-text">{param.interpretationLow}</span>
                                       </div>
                                     )}
                                   </div>
@@ -295,39 +209,30 @@ export function ParametersTabContent({
                                 {/* Scoring Anchors */}
                                 {param.scoringAnchors.length > 0 && (
                                   <div>
-                                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase" }}>
+                                    <div className="pt-anchors-title">
                                       Scoring Anchors
                                     </div>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <div className="pt-anchors-list">
                                       {param.scoringAnchors.map((anchor) => (
                                         <div
                                           key={anchor.id}
-                                          style={{
-                                            padding: "8px 12px",
-                                            background: "var(--surface-primary)",
-                                            borderRadius: 6,
-                                            border: anchor.isGold ? "2px solid var(--status-warning-border)" : "1px solid var(--border-default)",
-                                          }}
+                                          className={`pt-anchor-card${anchor.isGold ? " pt-anchor-card--gold" : ""}`}
                                         >
-                                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                            <span style={{
-                                              fontWeight: 700,
-                                              fontSize: 14,
-                                              color: anchor.score >= 0.7 ? "var(--status-success-text)" : anchor.score <= 0.3 ? "var(--status-error-text)" : "var(--status-warning-text)",
-                                            }}>
+                                          <div className="pt-anchor-head">
+                                            <span className={anchorScoreClass(anchor.score)}>
                                               {anchor.score.toFixed(1)}
                                             </span>
                                             {anchor.isGold && (
-                                              <span style={{ fontSize: 11, color: "var(--status-warning-text)", background: "var(--status-warning-bg)", padding: "1px 4px", borderRadius: 3 }}>
+                                              <span className="pt-anchor-gold-tag">
                                                 Gold
                                               </span>
                                             )}
                                           </div>
-                                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4, fontStyle: "italic" }}>
+                                          <div className="pt-anchor-example">
                                             &ldquo;{anchor.example}&rdquo;
                                           </div>
                                           {anchor.rationale && (
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                            <div className="pt-anchor-rationale">
                                               {anchor.rationale}
                                             </div>
                                           )}
@@ -338,20 +243,13 @@ export function ParametersTabContent({
                                 )}
                                 {/* Used by Specs */}
                                 {param.usedBySpecs.length > 0 && (
-                                  <div style={{ marginTop: 12 }}>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Used by:</div>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                  <div className="pt-used-by">
+                                    <div className="pt-used-by-label">Used by:</div>
+                                    <div className="pt-used-by-list">
                                       {param.usedBySpecs.map((spec) => (
                                         <span
                                           key={spec.specId}
-                                          style={{
-                                            fontSize: 10,
-                                            background: "var(--status-success-bg)",
-                                            color: "var(--status-success-text)",
-                                            padding: "2px 6px",
-                                            borderRadius: 3,
-                                            border: "1px solid var(--status-success-border)",
-                                          }}
+                                          className="pt-used-by-tag"
                                         >
                                           {spec.specSlug}
                                         </span>
@@ -369,7 +267,7 @@ export function ParametersTabContent({
                 );
                 })}
                 {parametersData.categories.length === 0 && (
-                  <div style={{ padding: 48, textAlign: "center", color: "var(--text-placeholder)" }}>
+                  <div className="pt-no-params">
                     No parameters found in this playbook
                   </div>
                 )}

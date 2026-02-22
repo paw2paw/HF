@@ -1,0 +1,495 @@
+/* ── WorkflowAIPanel ─────────────────────────── */
+/* Extracted from inline styles — imported by WorkflowAIPanel.tsx */
+
+/* ── Spinner keyframe ── */
+@keyframes wap-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════════════════════════════════════════════
+   BreadcrumbBar
+   ══════════════════════════════════════════════════ */
+
+.wap-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-default);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.wap-breadcrumb-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wap-breadcrumb-btn-active {
+  background: var(--accent-bg, color-mix(in srgb, var(--accent-primary) 10%, transparent));
+  color: var(--accent-primary);
+}
+.wap-breadcrumb-btn-inactive {
+  background: var(--surface-tertiary);
+  color: var(--text-muted);
+}
+
+.wap-breadcrumb-sep {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin: 0 2px;
+}
+
+/* Step breadcrumb variants (dynamic states handled via JS className toggling) */
+.wap-breadcrumb-step-completed {
+  background: var(--success-bg, var(--status-success-bg));
+  color: var(--success-text, var(--status-success-text));
+}
+.wap-breadcrumb-step-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ══════════════════════════════════════════════════
+   ThreadView
+   ══════════════════════════════════════════════════ */
+
+.wap-thread {
+  border-bottom: 1px solid var(--border-default);
+}
+.wap-thread-inactive {
+  background: var(--surface-secondary);
+}
+
+.wap-thread-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.wap-thread-chevron {
+  color: var(--text-muted);
+}
+
+.wap-thread-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.wap-thread-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wap-thread-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--surface-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.wap-thread-messages {
+  padding: 0 12px 8px;
+}
+.wap-thread-messages-active {
+  padding: 0;
+}
+
+/* ══════════════════════════════════════════════════
+   MessageBubble
+   ══════════════════════════════════════════════════ */
+
+.wap-msg-row {
+  display: flex;
+  margin-bottom: 8px;
+}
+.wap-msg-row-user {
+  justify-content: flex-end;
+}
+.wap-msg-row-assistant {
+  justify-content: flex-start;
+}
+.wap-msg-row-readonly {
+  opacity: 0.7;
+}
+
+.wap-msg-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wap-msg-bubble-user {
+  border-radius: 14px 14px 4px 14px;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--button-primary-text, var(--surface-primary));
+}
+.wap-msg-bubble-assistant {
+  border-radius: 14px 14px 14px 4px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+/* ══════════════════════════════════════════════════
+   OptionButtons
+   ══════════════════════════════════════════════════ */
+
+.wap-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+.wap-option-btn {
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  text-align: left;
+  transition: all 0.15s ease;
+  max-width: 100%;
+  cursor: pointer;
+}
+.wap-option-btn-with-desc {
+  padding: 10px 16px;
+}
+.wap-option-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.wap-option-btn:not(:disabled):hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-bg, color-mix(in srgb, var(--accent-primary) 10%, transparent));
+}
+
+.wap-option-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.wap-option-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* ══════════════════════════════════════════════════
+   PlanPreview
+   ══════════════════════════════════════════════════ */
+
+.wap-plan {
+  margin: 12px 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid var(--accent-primary);
+  background: var(--accent-bg, color-mix(in srgb, var(--accent-primary) 10%, transparent));
+}
+
+.wap-plan-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  margin-bottom: 8px;
+}
+
+.wap-plan-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.wap-plan-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.wap-plan-section-label-steps {
+  margin-bottom: 6px;
+}
+
+.wap-plan-match {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.wap-plan-reuse-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--success-bg, var(--status-success-bg));
+  color: var(--success-text, var(--status-success-text));
+}
+
+.wap-plan-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.wap-plan-step-number {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.wap-plan-step-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.wap-plan-step-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.wap-plan-step-condition {
+  font-size: 11px;
+  color: var(--warning-text, var(--status-warning-text));
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.wap-plan-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wap-plan-confirm-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent-primary);
+  color: var(--button-primary-text, var(--surface-primary));
+  cursor: pointer;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.wap-plan-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════
+   Main Panel
+   ══════════════════════════════════════════════════ */
+
+.wap-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface-primary);
+  overflow: hidden;
+}
+.wap-panel-planning {
+  border-radius: 16px;
+  border: 1px solid var(--border-default);
+}
+.wap-panel-execution {
+  border-right: 1px solid var(--border-default);
+}
+
+/* Header */
+.wap-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  flex-shrink: 0;
+}
+
+.wap-header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wap-header-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.wap-header-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Chat area */
+.wap-chat {
+  flex: 1;
+  overflow-y: auto;
+}
+.wap-chat-planning {
+  padding: 16px;
+}
+.wap-chat-execution {
+  padding: 0;
+}
+
+/* Empty state */
+.wap-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+.wap-empty-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+.wap-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.wap-empty-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Loading indicator */
+.wap-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.wap-loading-planning {
+  padding: 8px 0;
+}
+.wap-loading-execution {
+  padding: 8px 12px;
+}
+
+.wap-loading-spinner {
+  animation: wap-spin 1s linear infinite;
+}
+
+/* Input area */
+.wap-input-area {
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  flex-shrink: 0;
+}
+.wap-input-area-planning {
+  padding: 12px 16px 16px;
+}
+.wap-input-area-execution {
+  padding: 12px;
+}
+
+.wap-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.wap-textarea {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Action buttons (send/stop) */
+.wap-action-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.wap-stop-btn {
+  border: 1px solid var(--error-border, var(--status-error-text));
+  background: var(--surface-primary);
+  color: var(--error-text, var(--status-error-text));
+}
+
+.wap-send-btn-active {
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--button-primary-text, var(--surface-primary));
+}
+
+.wap-send-btn-disabled {
+  border: none;
+  background: var(--surface-tertiary);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.wap-shortcut-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: right;
+}

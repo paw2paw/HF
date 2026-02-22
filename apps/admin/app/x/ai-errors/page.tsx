@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import "./ai-errors.css";
 
 interface Failure {
   id: string;
@@ -89,67 +90,32 @@ export default function AIErrorsPage() {
   const uniqueCallPoints = ["all", ...new Set(callPoints)];
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--surface-secondary)", padding: 24 }}>
+    <div className="aie-page">
       <AdvancedBanner />
       {/* Header */}
-      <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div className="aie-header">
         <div>
           <h1 className="hf-page-title">
             AI Error Monitor
           </h1>
-          <p style={{ fontSize: 16, color: "var(--text-secondary)", marginTop: 8 }}>
+          <p className="aie-subtitle">
             Pipeline LLM failures and fallback tracking
           </p>
         </div>
-        <a
-          href="/x/ai-knowledge"
-          style={{
-            padding: "12px 24px",
-            fontSize: 14,
-            fontWeight: 600,
-            borderRadius: 10,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            textDecoration: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--surface-secondary)";
-            e.currentTarget.style.borderColor = "var(--accent-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--surface-primary)";
-            e.currentTarget.style.borderColor = "var(--border-default)";
-          }}
-        >
+        <a href="/x/ai-knowledge" className="aie-nav-link">
           AI Knowledge
         </a>
       </div>
 
       {/* Alert Banner */}
       {data?.stats.alertThresholdExceeded && (
-        <div
-          style={{
-            background: "var(--status-error-bg)",
-            border: "1px solid var(--status-error-text)",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 24,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <span style={{ fontSize: 20 }}>!!</span>
+        <div className="aie-alert-banner">
+          <span className="aie-alert-icon">!!</span>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--status-error-text)" }}>
+            <div className="aie-alert-title">
               High failure rate detected
             </div>
-            <div style={{ fontSize: 13, color: "var(--status-error-text)", marginTop: 2 }}>
+            <div className="aie-alert-desc">
               One or more pipeline call points exceed 20% failure rate. Check AI configuration at /x/ai-config
             </div>
           </div>
@@ -157,106 +123,54 @@ export default function AIErrorsPage() {
       )}
 
       {loading && !data ? (
-        <div style={{ textAlign: "center", padding: 80 }}>
-          <div
-            style={{
-              width: 60,
-              height: 60,
-              margin: "0 auto 24px",
-              border: "4px solid var(--border-default)",
-              borderTopColor: "var(--accent-primary)",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-            }}
-          />
-          <p style={{ color: "var(--text-muted)" }}>Loading error data...</p>
+        <div className="aie-center-block">
+          <div className="aie-spinner-lg" />
+          <p className="hf-text-muted">Loading error data...</p>
         </div>
       ) : data ? (
         <>
           {/* Stats Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, marginBottom: 32 }}>
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 16,
-                padding: 24,
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+          <div className="aie-stats-grid">
+            <div className="hf-card hf-mb-0">
+              <div className="aie-stat-label">
                 FAILURES ({hours}h)
               </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: data.stats.totalFailures > 0 ? "var(--status-error-text)" : "var(--status-success-text)" }}>
+              <div className="aie-stat-value" style={{ color: data.stats.totalFailures > 0 ? "var(--status-error-text)" : "var(--status-success-text)" }}>
                 {data.stats.totalFailures.toLocaleString()}
               </div>
             </div>
 
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 16,
-                padding: 24,
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+            <div className="hf-card hf-mb-0">
+              <div className="aie-stat-label">
                 FAILURE RATE
               </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: rateColor(data.stats.failureRate) }}>
+              <div className="aie-stat-value" style={{ color: rateColor(data.stats.failureRate) }}>
                 {(data.stats.failureRate * 100).toFixed(1)}%
               </div>
             </div>
 
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 16,
-                padding: 24,
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+            <div className="hf-card hf-mb-0">
+              <div className="aie-stat-label">
                 TOTAL INTERACTIONS ({hours}h)
               </div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: "var(--accent-primary)" }}>
+              <div className="aie-stat-value aie-stat-value-accent">
                 {data.stats.totalInteractions.toLocaleString()}
               </div>
             </div>
           </div>
 
           {/* Controls: Time Range + Call Point Filter + Refresh */}
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 20,
-              display: "flex",
-              gap: 16,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <div className="aie-controls">
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+              <label className="hf-label hf-text-muted">
                 TIME RANGE
               </label>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="hf-flex hf-gap-sm">
                 {[1, 6, 24, 168].map((h) => (
                   <button
                     key={h}
                     onClick={() => setHours(h)}
-                    style={{
-                      padding: "6px 14px",
-                      fontSize: 13,
-                      fontWeight: hours === h ? 700 : 400,
-                      borderRadius: 8,
-                      border: hours === h ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                      background: hours === h ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "var(--surface-secondary)",
-                      color: hours === h ? "var(--accent-primary)" : "var(--text-primary)",
-                      cursor: "pointer",
-                    }}
+                    className={`aie-time-btn ${hours === h ? "aie-time-btn-active" : "aie-time-btn-inactive"}`}
                   >
                     {h === 168 ? "7d" : `${h}h`}
                   </button>
@@ -264,22 +178,14 @@ export default function AIErrorsPage() {
               </div>
             </div>
 
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+            <div className="aie-filter-field">
+              <label className="hf-label hf-text-muted">
                 CALL POINT
               </label>
               <select
                 value={selectedCallPoint}
                 onChange={(e) => setSelectedCallPoint(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  fontSize: 14,
-                  borderRadius: 8,
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                }}
+                className="aie-select"
               >
                 {uniqueCallPoints.map((cp) => (
                   <option key={cp} value={cp}>
@@ -289,75 +195,28 @@ export default function AIErrorsPage() {
               </select>
             </div>
 
-            <button
-              onClick={loadErrors}
-              style={{
-                padding: "10px 20px",
-                fontSize: 14,
-                fontWeight: 600,
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                cursor: "pointer",
-                alignSelf: "flex-end",
-              }}
-            >
+            <button onClick={loadErrors} className="aie-refresh-btn">
               Refresh
             </button>
           </div>
 
           {/* Failure Rate by Call Point */}
           {data.stats.byCallPoint.length > 0 && (
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 16,
-                padding: 24,
-                marginBottom: 20,
-              }}
-            >
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>
+            <div className="hf-card">
+              <h2 className="aie-section-heading">
                 Failure Rate by Call Point
               </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="hf-flex-col hf-gap-sm">
                 {data.stats.byCallPoint.map((cp) => (
-                  <div
-                    key={cp.callPoint}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 14px",
-                      background: "var(--surface-secondary)",
-                      borderRadius: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        backgroundColor: rateColor(cp.rate),
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                  <div key={cp.callPoint} className="aie-cp-row">
+                    <div className="aie-dot" style={{ backgroundColor: rateColor(cp.rate) }} />
+                    <div className="aie-cp-name">
                       {cp.callPoint}
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", minWidth: 100, textAlign: "right" }}>
+                    <div className="aie-cp-fraction">
                       {cp.failures} / {cp.total}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: rateColor(cp.rate),
-                        minWidth: 60,
-                        textAlign: "right",
-                      }}
-                    >
+                    <div className="aie-cp-rate" style={{ color: rateColor(cp.rate) }}>
                       {(cp.rate * 100).toFixed(1)}%
                     </div>
                   </div>
@@ -367,84 +226,55 @@ export default function AIErrorsPage() {
           )}
 
           {/* Recent Failures */}
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ padding: 24, borderBottom: "1px solid var(--border-default)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <div className="aie-failures-card">
+            <div className="aie-failures-header">
+              <h2 className="aie-failures-title">
                 Recent Failures ({data.total})
               </h2>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <div className="aie-failures-subtitle">
                 Auto-refreshes every 30s
               </div>
             </div>
 
             {data.failures.length > 0 ? (
-              <div style={{ maxHeight: 600, overflowY: "auto" }}>
+              <div className="aie-failures-list">
                 {data.failures.map((f) => (
                   <div
                     key={f.id}
-                    style={{
-                      padding: "14px 24px",
-                      borderBottom: "1px solid var(--border-default)",
-                      cursor: "pointer",
-                    }}
+                    className="aie-failure-row"
                     onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          backgroundColor: "var(--status-error-text)",
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: 4,
-                          background: "var(--surface-tertiary)",
-                          color: "var(--text-muted)",
-                          flexShrink: 0,
-                        }}
-                      >
+                    <div className="aie-failure-summary">
+                      <div className="aie-dot aie-dot-error" />
+                      <span className="aie-callpoint-badge">
                         {f.callPoint}
                       </span>
-                      <div style={{ flex: 1, fontSize: 13, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div className="aie-error-preview">
                         {f.aiResponse}
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", flexShrink: 0 }}>
+                      <div className="aie-timestamp">
                         {relativeTime(f.createdAt)}
                       </div>
                     </div>
 
                     {expandedId === f.id && (
-                      <div style={{ marginTop: 12, paddingLeft: 20, borderLeft: "2px solid var(--border-default)" }}>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                      <div className="aie-detail">
+                        <div className="aie-detail-row">
                           <strong>Operation:</strong> {f.userMessage}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                        <div className="aie-detail-row">
                           <strong>Error:</strong>{" "}
-                          <span style={{ color: "var(--status-error-text)" }}>{f.aiResponse}</span>
+                          <span className="hf-text-error">{f.aiResponse}</span>
                         </div>
                         {f.metadata && (
-                          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                          <div className="aie-detail-row">
                             <strong>Metadata:</strong>{" "}
-                            <code style={{ fontSize: 11, background: "var(--surface-tertiary)", padding: "1px 4px", borderRadius: 3 }}>
+                            <code className="aie-metadata-code">
                               {JSON.stringify(f.metadata)}
                             </code>
                           </div>
                         )}
-                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        <div className="aie-detail-time">
                           {new Date(f.createdAt).toLocaleString()}
                         </div>
                       </div>
@@ -453,11 +283,11 @@ export default function AIErrorsPage() {
                 ))}
               </div>
             ) : (
-              <div style={{ padding: 80, textAlign: "center" }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>
-                  {data.stats.totalInteractions > 0 ? "✅" : "📭"}
+              <div className="aie-center-block">
+                <div className="aie-center-icon">
+                  {data.stats.totalInteractions > 0 ? "\u2705" : "\uD83D\uDCED"}
                 </div>
-                <p style={{ fontSize: 16, color: "var(--text-muted)" }}>
+                <p className="aie-center-text">
                   {data.stats.totalInteractions > 0
                     ? "No failures in this time range"
                     : "No AI interactions recorded yet"}
@@ -467,19 +297,11 @@ export default function AIErrorsPage() {
           </div>
         </>
       ) : (
-        <div style={{ textAlign: "center", padding: 80 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>!!</div>
-          <p style={{ fontSize: 16, color: "var(--text-muted)" }}>Failed to load error data</p>
+        <div className="aie-center-block">
+          <div className="aie-center-icon">!!</div>
+          <p className="aie-center-text">Failed to load error data</p>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }

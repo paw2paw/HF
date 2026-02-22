@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, GripVertical, RotateCcw, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
+import "./extraction.css";
 
 // ------------------------------------------------------------------
 // Types (mirror resolve-config.ts)
@@ -296,7 +297,7 @@ export default function ExtractionConfigPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+      <div className="ext-loading">
         Loading extraction config...
       </div>
     );
@@ -304,10 +305,10 @@ export default function ExtractionConfigPage() {
 
   if (error && !config) {
     return (
-      <div style={{ padding: 40 }}>
-        <div style={{ color: "var(--status-error-text)", marginBottom: 16 }}>{error}</div>
-        <button onClick={() => router.push("/x/domains")} style={linkButtonStyle}>
-          ← Back to Domains
+      <div className="ext-error-wrap">
+        <div className="ext-error-msg">{error}</div>
+        <button onClick={() => router.push("/x/domains")} className="ext-btn-link">
+          &larr; Back to Domains
         </button>
       </div>
     );
@@ -319,57 +320,37 @@ export default function ExtractionConfigPage() {
   const isDirty = JSON.stringify(config) !== JSON.stringify(originalConfig);
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="ext-page">
       {/* Header */}
-      <div style={{
-        padding: "16px 24px",
-        borderBottom: "1px solid var(--border-default)",
-        background: "var(--surface-primary)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link
-            href={`/x/domains?id=${domainId}`}
-            style={{ color: "var(--text-muted)", textDecoration: "none", display: "flex", alignItems: "center" }}
-          >
+      <div className="ext-header">
+        <div className="ext-header-left">
+          <Link href={`/x/domains?id=${domainId}`} className="ext-back-link">
             <ArrowLeft size={18} />
           </Link>
           <div>
             <h1 className="hf-section-title">Extraction Config</h1>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+            <div className="ext-header-meta">
               {domainName}
               {hasOverride && (
-                <span style={{
-                  marginLeft: 8,
-                  padding: "1px 6px",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  background: "var(--badge-purple-bg)",
-                  color: "var(--badge-purple-text)",
-                  borderRadius: 4,
-                }}>
-                  OVERRIDE
-                </span>
+                <span className="ext-override-badge">OVERRIDE</span>
               )}
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="ext-header-actions">
           {saveMessage && (
-            <span style={{ fontSize: 13, color: "var(--status-success-text)", fontWeight: 500 }}>{saveMessage}</span>
+            <span className="ext-save-msg">{saveMessage}</span>
           )}
           {error && (
-            <span style={{ fontSize: 13, color: "var(--status-error-text)" }}>{error}</span>
+            <span className="ext-error-inline">{error}</span>
           )}
           {hasOverride && (
-            <button onClick={handleReset} disabled={saving} style={secondaryButtonStyle}>
+            <button onClick={handleReset} disabled={saving} className="ext-btn-secondary">
               <RotateCcw size={14} />
               Reset to Defaults
             </button>
           )}
-          <button onClick={handleSave} disabled={saving || !isDirty} style={primaryButtonStyle}>
+          <button onClick={handleSave} disabled={saving || !isDirty} className="ext-btn-primary">
             <Save size={14} />
             {saving ? "Saving..." : "Save Override"}
           </button>
@@ -377,10 +358,10 @@ export default function ExtractionConfigPage() {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <div className="ext-body">
+        <div className="ext-body-inner">
 
-          {/* ── Pyramid Structure Section ── */}
+          {/* -- Pyramid Structure Section -- */}
           <CollapsibleSection
             title="Pyramid Structure"
             subtitle={`${levels.length} levels, target ~${config.structuring.targetChildCount} children per node`}
@@ -388,39 +369,21 @@ export default function ExtractionConfigPage() {
             onToggle={() => toggleSection("pyramid")}
           >
             {/* Visual pyramid preview */}
-            <div style={{
-              padding: 20,
-              background: "var(--surface-secondary)",
-              borderRadius: 8,
-              marginBottom: 20,
-              fontFamily: "monospace",
-              fontSize: 13,
-              lineHeight: 1.8,
-            }}>
+            <div className="ext-pyramid-preview">
               {levels.map((level, i) => {
                 const indent = i * 24;
                 const renderIcon = RENDER_AS_OPTIONS.find((o) => o.value === level.renderAs)?.preview || "?";
                 const isLast = i === levels.length - 1;
                 return (
                   <div key={i} style={{ paddingLeft: indent }}>
-                    <span style={{ color: "var(--text-muted)" }}>
-                      {i === 0 ? "┌" : isLast ? "└" : "├"}{"─ "}
+                    <span className="ext-pyramid-connector">
+                      {i === 0 ? "\u250C" : isLast ? "\u2514" : "\u251C"}{"\u2500 "}
                     </span>
-                    <span style={{ fontWeight: 600 }}>{level.label}</span>
-                    <span style={{ color: "var(--text-muted)" }}>
-                      {" ── max: "}{level.maxChildren}{" ── "}
+                    <span className="ext-pyramid-label">{level.label}</span>
+                    <span className="ext-pyramid-meta">
+                      {" \u2500\u2500 max: "}{level.maxChildren}{" \u2500\u2500 "}
                     </span>
-                    <span style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 18,
-                      height: 18,
-                      borderRadius: 3,
-                      background: "var(--surface-tertiary)",
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}>
+                    <span className="ext-render-icon">
                       {renderIcon}
                     </span>
                   </div>
@@ -438,21 +401,9 @@ export default function ExtractionConfigPage() {
               addLabel="+ Add Level"
               minItems={2}
               renderCard={(level, index) => (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }} onClick={(e) => e.stopPropagation()}>
+                <div className="ext-level-row" onClick={(e) => e.stopPropagation()}>
                   {/* Depth badge */}
-                  <span style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "var(--surface-tertiary)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--text-muted)",
-                    flexShrink: 0,
-                  }}>
+                  <span className="ext-depth-badge">
                     {index}
                   </span>
 
@@ -461,20 +412,20 @@ export default function ExtractionConfigPage() {
                     type="text"
                     value={level.label}
                     onChange={(e) => updateLevel(index, { label: e.target.value })}
-                    style={{ ...inputStyle, width: 120, fontWeight: 600 }}
+                    className="ext-input ext-input-label"
                     placeholder="Level label"
                   />
 
                   {/* Max children */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>max</span>
+                  <div className="hf-flex hf-gap-xs">
+                    <span className="ext-field-hint">max</span>
                     <input
                       type="number"
                       min={1}
                       max={20}
                       value={level.maxChildren}
                       onChange={(e) => updateLevel(index, { maxChildren: parseInt(e.target.value) || 1 })}
-                      style={{ ...inputStyle, width: 50, textAlign: "center" }}
+                      className="ext-input ext-input-narrow"
                     />
                   </div>
 
@@ -482,7 +433,7 @@ export default function ExtractionConfigPage() {
                   <select
                     value={level.renderAs}
                     onChange={(e) => updateLevel(index, { renderAs: e.target.value as PyramidLevel["renderAs"] })}
-                    style={{ ...inputStyle, width: 110 }}
+                    className="ext-input ext-input-select"
                   >
                     {RENDER_AS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -494,7 +445,7 @@ export default function ExtractionConfigPage() {
                     type="text"
                     value={level.description || ""}
                     onChange={(e) => updateLevel(index, { description: e.target.value })}
-                    style={{ ...inputStyle, flex: 1 }}
+                    className="ext-input ext-input-flex"
                     placeholder="Description"
                   />
                 </div>
@@ -502,9 +453,9 @@ export default function ExtractionConfigPage() {
             />
 
             {/* Target children */}
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Target children per node:</span>
+            <div className="ext-target-row">
+              <div className="hf-flex hf-gap-sm">
+                <span className="hf-text-sm hf-text-secondary">Target children per node:</span>
                 <input
                   type="number"
                   min={1}
@@ -514,22 +465,22 @@ export default function ExtractionConfigPage() {
                     ...config,
                     structuring: { ...config.structuring, targetChildCount: parseInt(e.target.value) || 3 },
                   })}
-                  style={{ ...inputStyle, width: 50, textAlign: "center" }}
+                  className="ext-input ext-input-narrow"
                 />
               </div>
             </div>
           </CollapsibleSection>
 
-          {/* ── Depth Adaptation Section ── */}
+          {/* -- Depth Adaptation Section -- */}
           <CollapsibleSection
             title="Depth Adaptation"
             subtitle="Adjust rendering depth based on learner signals"
             expanded={expandedSections.adaptation}
             onToggle={() => toggleSection("adaptation")}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <span style={{ fontSize: 13, color: "var(--text-secondary)", width: 160 }}>Default max depth:</span>
+            <div className="hf-flex-col hf-gap-lg">
+              <div className="hf-flex hf-gap-lg">
+                <span className="ext-field-label">Default max depth:</span>
                 <input
                   type="number"
                   min={1}
@@ -539,9 +490,9 @@ export default function ExtractionConfigPage() {
                     ...config,
                     rendering: { ...config.rendering, defaultMaxDepth: parseInt(e.target.value) || 3 },
                   })}
-                  style={{ ...inputStyle, width: 60, textAlign: "center" }}
+                  className="ext-input ext-input-num-md"
                 />
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <span className="ext-depth-hint">
                   of {levels.length} levels
                 </span>
               </div>
@@ -582,71 +533,61 @@ export default function ExtractionConfigPage() {
             </div>
           </CollapsibleSection>
 
-          {/* ── Extraction Categories Section ── */}
+          {/* -- Extraction Categories Section -- */}
           <CollapsibleSection
             title="Extraction Categories"
             subtitle={`${config.extraction.categories.length} categories`}
             expanded={expandedSections.categories}
             onToggle={() => toggleSection("categories")}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="hf-flex-col hf-gap-sm">
               {config.extraction.categories.map((cat, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 12px",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 6,
-                  }}
-                >
+                <div key={i} className="ext-category-row">
                   <input
                     type="text"
                     value={cat.id}
                     onChange={(e) => updateCategory(i, { id: e.target.value })}
-                    style={{ ...inputStyle, width: 100, fontFamily: "monospace", fontSize: 12 }}
+                    className="ext-input ext-input-mono"
                     placeholder="id"
                   />
                   <input
                     type="text"
                     value={cat.label}
                     onChange={(e) => updateCategory(i, { label: e.target.value })}
-                    style={{ ...inputStyle, width: 150, fontWeight: 500 }}
+                    className="ext-input ext-input-label-text"
                     placeholder="Label"
                   />
                   <input
                     type="text"
                     value={cat.description}
                     onChange={(e) => updateCategory(i, { description: e.target.value })}
-                    style={{ ...inputStyle, flex: 1 }}
+                    className="ext-input ext-input-flex"
                     placeholder="Description"
                   />
                   <button
                     onClick={() => removeCategory(i)}
-                    style={{ ...iconButtonStyle, color: "var(--status-error-text)" }}
+                    className="ext-btn-icon ext-btn-icon-danger"
                     title="Remove"
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>
               ))}
-              <button onClick={addCategory} style={{ ...secondaryButtonStyle, alignSelf: "flex-start" }}>
+              <button onClick={addCategory} className="ext-btn-secondary ext-add-btn">
                 <Plus size={14} />
                 Add Category
               </button>
             </div>
           </CollapsibleSection>
 
-          {/* ── Extraction Rules Section ── */}
+          {/* -- Extraction Rules Section -- */}
           <CollapsibleSection
             title="Extraction Rules"
             subtitle="Precision and extraction behavior"
             expanded={expandedSections.rules}
             onToggle={() => toggleSection("rules")}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="hf-flex-col hf-gap-lg">
               <Toggle
                 label="No invention"
                 description="AI must not invent information not present in source text"
@@ -683,8 +624,8 @@ export default function ExtractionConfigPage() {
                   },
                 })}
               />
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <span style={{ fontSize: 13, color: "var(--text-secondary)", width: 160 }}>Chunk size (chars):</span>
+              <div className="hf-flex hf-gap-lg">
+                <span className="ext-field-label">Chunk size (chars):</span>
                 <input
                   type="number"
                   min={1000}
@@ -695,11 +636,11 @@ export default function ExtractionConfigPage() {
                     ...config,
                     extraction: { ...config.extraction, chunkSize: parseInt(e.target.value) || 8000 },
                   })}
-                  style={{ ...inputStyle, width: 80, textAlign: "center" }}
+                  className="ext-input ext-input-num-lg"
                 />
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <span style={{ fontSize: 13, color: "var(--text-secondary)", width: 160 }}>Max assertions/doc:</span>
+              <div className="hf-flex hf-gap-lg">
+                <span className="ext-field-label">Max assertions/doc:</span>
                 <input
                   type="number"
                   min={10}
@@ -710,22 +651,22 @@ export default function ExtractionConfigPage() {
                     ...config,
                     extraction: { ...config.extraction, maxAssertionsPerDocument: parseInt(e.target.value) || 500 },
                   })}
-                  style={{ ...inputStyle, width: 80, textAlign: "center" }}
+                  className="ext-input ext-input-num-lg"
                 />
               </div>
             </div>
           </CollapsibleSection>
 
-          {/* ── Prompts Section ── */}
+          {/* -- Prompts Section -- */}
           <CollapsibleSection
             title="System Prompts"
             subtitle="AI prompts for extraction and structuring"
             expanded={expandedSections.prompts}
             onToggle={() => toggleSection("prompts")}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="hf-flex-col hf-gap-lg">
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+                <label className="ext-prompt-label">
                   Extraction Prompt
                 </label>
                 <textarea
@@ -734,19 +675,11 @@ export default function ExtractionConfigPage() {
                     ...config,
                     extraction: { ...config.extraction, systemPrompt: e.target.value },
                   })}
-                  style={{
-                    ...inputStyle,
-                    width: "100%",
-                    minHeight: 200,
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    resize: "vertical",
-                  }}
+                  className="ext-textarea ext-textarea-tall"
                 />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+                <label className="ext-prompt-label">
                   Structuring Prompt
                 </label>
                 <textarea
@@ -755,15 +688,7 @@ export default function ExtractionConfigPage() {
                     ...config,
                     structuring: { ...config.structuring, systemPrompt: e.target.value },
                   })}
-                  style={{
-                    ...inputStyle,
-                    width: "100%",
-                    minHeight: 150,
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    resize: "vertical",
-                  }}
+                  className="ext-textarea ext-textarea-med"
                 />
               </div>
             </div>
@@ -793,34 +718,16 @@ function CollapsibleSection({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{
-      border: "1px solid var(--border-default)",
-      borderRadius: 10,
-      marginBottom: 16,
-      overflow: "hidden",
-    }}>
-      <button
-        onClick={onToggle}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          padding: "14px 16px",
-          background: "var(--surface-secondary)",
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
+    <div className="ext-section">
+      <button onClick={onToggle} className="ext-section-header">
         <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{title}</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{subtitle}</div>
+          <div className="ext-section-title">{title}</div>
+          <div className="ext-section-subtitle">{subtitle}</div>
         </div>
         {expanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
       </button>
       {expanded && (
-        <div style={{ padding: 16 }}>
+        <div className="ext-section-body">
           {children}
         </div>
       )}
@@ -840,39 +747,18 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+    <div className="ext-toggle-wrap">
       <button
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        style={{
-          width: 40,
-          height: 22,
-          borderRadius: 11,
-          border: "none",
-          background: checked ? "var(--status-success-text)" : "var(--surface-tertiary)",
-          cursor: "pointer",
-          position: "relative",
-          flexShrink: 0,
-          marginTop: 1,
-          transition: "background 0.2s",
-        }}
+        className={`ext-toggle-track ${checked ? "ext-toggle-track-on" : "ext-toggle-track-off"}`}
       >
-        <div style={{
-          width: 16,
-          height: 16,
-          borderRadius: "50%",
-          background: "white",
-          position: "absolute",
-          top: 3,
-          left: checked ? 21 : 3,
-          transition: "left 0.2s",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-        }} />
+        <div className={`ext-toggle-thumb ${checked ? "ext-toggle-thumb-on" : "ext-toggle-thumb-off"}`} />
       </button>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{label}</div>
-        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{description}</div>
+        <div className="ext-toggle-label">{label}</div>
+        <div className="ext-toggle-desc">{description}</div>
       </div>
     </div>
   );
@@ -888,8 +774,8 @@ function OffsetSlider({
   onChange: (v: number) => void;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-      <span style={{ fontSize: 13, color: "var(--text-secondary)", width: 180 }}>{label}:</span>
+    <div className="ext-slider-row">
+      <span className="ext-field-label-wide">{label}:</span>
       <input
         type="range"
         min={-3}
@@ -897,83 +783,11 @@ function OffsetSlider({
         step={1}
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        style={{ flex: 1, maxWidth: 200 }}
+        className="ext-slider-input"
       />
-      <span style={{
-        fontSize: 13,
-        fontWeight: 600,
-        fontFamily: "monospace",
-        color: value === 0 ? "var(--text-muted)" : "var(--status-warning-text)",
-        width: 30,
-        textAlign: "center",
-      }}>
+      <span className={`ext-slider-value ${value === 0 ? "ext-slider-value-zero" : "ext-slider-value-active"}`}>
         {value === 0 ? "0" : value}
       </span>
     </div>
   );
 }
-
-// ------------------------------------------------------------------
-// Shared styles
-// ------------------------------------------------------------------
-
-const inputStyle: React.CSSProperties = {
-  padding: "6px 8px",
-  border: "1px solid var(--border-default)",
-  borderRadius: 6,
-  background: "var(--surface-primary)",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  outline: "none",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "8px 16px",
-  fontSize: 13,
-  fontWeight: 600,
-  color: "white",
-  background: "var(--button-primary-bg)",
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "6px 12px",
-  fontSize: 13,
-  fontWeight: 500,
-  color: "var(--text-secondary)",
-  background: "var(--surface-secondary)",
-  border: "1px solid var(--border-default)",
-  borderRadius: 6,
-  cursor: "pointer",
-};
-
-const iconButtonStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 24,
-  height: 24,
-  padding: 0,
-  background: "none",
-  border: "none",
-  borderRadius: 4,
-  cursor: "pointer",
-  color: "var(--text-muted)",
-};
-
-const linkButtonStyle: React.CSSProperties = {
-  color: "var(--accent-primary)",
-  background: "none",
-  border: "none",
-  fontSize: 14,
-  cursor: "pointer",
-  textDecoration: "underline",
-};

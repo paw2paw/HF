@@ -7,6 +7,7 @@ import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
 import { School, Plus, Users, Phone, Target } from "lucide-react";
 import { useSession } from "next-auth/react";
+import "./cohorts.css";
 
 type CohortGroup = {
   id: string;
@@ -106,67 +107,23 @@ export default function CohortsPage() {
   return (
     <div>
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
+      <div className="ch-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <School size={22} style={{ color: "var(--text-secondary)" }} />
-            <h1
-              style={{
-                fontSize: 24,
-                fontWeight: 700,
-                color: "var(--text-primary)",
-                margin: 0,
-              }}
-            >
-              Cohorts
-            </h1>
+          <div className="ch-header-left">
+            <School size={22} className="ch-header-icon" />
+            <h1 className="hf-page-title">Cohorts</h1>
             {cohortsData && (
-              <span
-                style={{
-                  fontSize: 12,
-                  padding: "2px 8px",
-                  background: "var(--surface-tertiary)",
-                  borderRadius: 10,
-                  color: "var(--text-muted)",
-                }}
-              >
-                {cohortsData.total}
-              </span>
+              <span className="ch-count-badge">{cohortsData.total}</span>
             )}
           </div>
-          <p
-            style={{
-              fontSize: 14,
-              color: "var(--text-muted)",
-              marginTop: 4,
-            }}
-          >
+          <p className="hf-page-subtitle hf-text-muted">
             Manage teacher and tutor cohort groups
           </p>
         </div>
         {isOperator && (
           <button
             onClick={() => setShowCreateModal(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-primary"
           >
             <Plus size={14} />
             New Cohort
@@ -175,28 +132,13 @@ export default function CohortsPage() {
       </div>
 
       {/* Filters */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginBottom: 20,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="ch-filters">
         <input
           type="text"
           placeholder="Search cohorts..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid var(--input-border)",
-            borderRadius: 6,
-            fontSize: 13,
-            width: 220,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-          }}
+          className="ch-search-input"
         />
         <FancySelect
           value={filterDomain}
@@ -223,12 +165,11 @@ export default function CohortsPage() {
 
       {/* Delete error */}
       {deleteError && (
-        <div className="hf-banner hf-banner-error" style={{ justifyContent: "space-between" }}>
+        <div className="hf-banner hf-banner-error hf-flex-between">
           <span>{deleteError}</span>
           <button
             onClick={() => setDeleteError(null)}
-            className="hf-btn-ghost"
-            style={{ padding: 0, fontSize: 12, color: "inherit", textDecoration: "underline" }}
+            className="hf-btn-ghost ch-banner-dismiss"
           >
             Dismiss
           </button>
@@ -237,127 +178,39 @@ export default function CohortsPage() {
 
       {/* Error */}
       {error && (
-        <div
-          style={{
-            padding: 16,
-            background: "var(--status-error-bg)",
-            color: "var(--status-error-text)",
-            borderRadius: 8,
-            marginBottom: 20,
-          }}
-        >
-          {error}
-        </div>
+        <div className="ch-error">{error}</div>
       )}
 
       {/* Content */}
       {loading ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            color: "var(--text-muted)",
-          }}
-        >
-          Loading...
-        </div>
+        <div className="ch-loading">Loading...</div>
       ) : filtered.length === 0 ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--surface-secondary)",
-            borderRadius: 12,
-            border: "1px solid var(--border-default)",
-          }}
-        >
-          <School
-            size={48}
-            style={{ color: "var(--text-placeholder)", marginBottom: 16 }}
-          />
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-            }}
-          >
+        <div className="ch-empty">
+          <School size={48} className="ch-empty-icon" />
+          <div className="ch-empty-title">
             {search || filterDomain !== "all"
               ? "No cohorts match filters"
               : "No cohorts yet"}
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-muted)",
-              marginTop: 8,
-            }}
-          >
+          <div className="ch-empty-desc">
             Create a cohort to group pupils under a teacher or tutor
           </div>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 16,
-          }}
-        >
+        <div className="ch-grid">
           {filtered.map((cohort) => (
             <Link
               key={cohort.id}
               href={`/x/cohorts/${cohort.id}`}
-              style={{ textDecoration: "none", color: "inherit" }}
+              className="ch-card-link"
             >
-              <div
-                style={{
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 12,
-                  padding: 20,
-                  cursor: "pointer",
-                  transition: "border-color 0.15s, box-shadow 0.15s",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.borderColor = "var(--accent-primary)";
-                  e.currentTarget.style.boxShadow =
-                    "0 2px 8px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border-default)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
+              <div className="ch-card">
                 {/* Card Header */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "start",
-                    marginBottom: 12,
-                  }}
-                >
+                <div className="ch-card-header">
                   <div>
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontSize: 16,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {cohort.name}
-                    </h3>
+                    <h3 className="ch-card-name">{cohort.name}</h3>
                     {cohort.description && (
-                      <p
-                        style={{
-                          margin: "4px 0 0 0",
-                          fontSize: 13,
-                          color: "var(--text-muted)",
-                          lineHeight: 1.4,
-                        }}
-                      >
+                      <p className="ch-card-desc">
                         {cohort.description.length > 80
                           ? cohort.description.slice(0, 80) + "..."
                           : cohort.description}
@@ -365,61 +218,29 @@ export default function CohortsPage() {
                     )}
                   </div>
                   <span
-                    style={{
-                      fontSize: 10,
-                      padding: "2px 8px",
-                      background: cohort.isActive
-                        ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
-                        : "var(--surface-tertiary)",
-                      color: cohort.isActive ? "var(--status-success-text)" : "var(--text-muted)",
-                      borderRadius: 4,
-                      fontWeight: 600,
-                    }}
+                    className={`ch-status-badge ${cohort.isActive ? "ch-status-active" : "ch-status-inactive"}`}
                   >
                     {cohort.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
 
                 {/* Stats Row */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 16,
-                    marginBottom: 12,
-                    fontSize: 13,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                <div className="ch-stats">
+                  <div className="ch-stat-item">
                     <Users size={14} />
-                    <span style={{ fontWeight: 600 }}>
+                    <span className="ch-stat-value">
                       {cohort._count.members}
                     </span>
-                    <span style={{ color: "var(--text-muted)" }}>
+                    <span className="ch-stat-max">
                       / {cohort.maxMembers}
                     </span>
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div className="ch-card-footer">
                   <DomainPill label={cohort.domain.name} size="compact" />
-                  <span
-                    style={{ fontSize: 11, color: "var(--text-placeholder)" }}
-                  >
+                  <span className="ch-owner-label">
                     Owner: {cohort.owner.name}
                   </span>
                 </div>
@@ -427,26 +248,24 @@ export default function CohortsPage() {
                 {/* Delete action */}
                 {isOperator && (
                   <div
-                    style={{ paddingTop: 10, marginTop: 10, borderTop: "1px solid var(--border-default)" }}
+                    className="ch-delete-area"
                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                   >
                     {confirmDeleteId === cohort.id ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                        <span style={{ color: "var(--status-error-text)", fontWeight: 600 }}>
+                      <div className="ch-delete-confirm">
+                        <span className="ch-delete-warning">
                           Permanently delete this cohort?
                         </span>
                         <button
                           onClick={() => handleDelete(cohort.id)}
                           disabled={deleting}
                           className="hf-btn hf-btn-destructive"
-                          style={{ padding: "2px 8px", fontSize: 11 }}
                         >
                           {deleting ? "..." : "Yes, delete"}
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
                           className="hf-btn hf-btn-secondary"
-                          style={{ padding: "2px 8px", fontSize: 11 }}
                         >
                           Cancel
                         </button>
@@ -454,8 +273,7 @@ export default function CohortsPage() {
                     ) : (
                       <button
                         onClick={() => setConfirmDeleteId(cohort.id)}
-                        className="hf-btn-ghost"
-                        style={{ padding: 0, fontSize: 11 }}
+                        className="hf-btn-ghost ch-delete-btn"
                       >
                         Delete
                       </button>
@@ -569,127 +387,40 @@ function CreateCohortModal({
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="ch-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          borderRadius: 12,
-          padding: 24,
-          width: 440,
-          maxWidth: "90vw",
-        }}
-      >
-        <h2
-          style={{
-            margin: "0 0 16px 0",
-            fontSize: 18,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-          }}
-        >
-          Create Cohort
-        </h2>
+      <div className="ch-modal">
+        <h2 className="ch-modal-title">Create Cohort</h2>
 
         {error && (
-          <div
-            style={{
-              padding: 10,
-              background: "var(--status-error-bg)",
-              color: "var(--status-error-text)",
-              borderRadius: 6,
-              fontSize: 13,
-              marginBottom: 12,
-            }}
-          >
-            {error}
-          </div>
+          <div className="ch-modal-error">{error}</div>
         )}
 
         {/* Name */}
-        <label
-          style={{
-            display: "block",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--text-secondary)",
-            marginBottom: 4,
-          }}
-        >
-          Name
-        </label>
+        <label className="ch-modal-label">Name</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Year 10 Science"
-          style={{
-            width: "100%",
-            padding: "8px 12px",
-            border: "1px solid var(--input-border)",
-            borderRadius: 6,
-            fontSize: 14,
-            marginBottom: 12,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            boxSizing: "border-box",
-          }}
+          className="ch-modal-input"
         />
 
         {/* Description */}
-        <label
-          style={{
-            display: "block",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--text-secondary)",
-            marginBottom: 4,
-          }}
-        >
-          Description (optional)
-        </label>
+        <label className="ch-modal-label">Description (optional)</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Brief description..."
           rows={2}
-          style={{
-            width: "100%",
-            padding: "8px 12px",
-            border: "1px solid var(--input-border)",
-            borderRadius: 6,
-            fontSize: 14,
-            marginBottom: 12,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            resize: "vertical",
-            boxSizing: "border-box",
-          }}
+          className="ch-modal-textarea"
         />
 
         {/* Domain */}
-        <label
-          style={{
-            display: "block",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--text-secondary)",
-            marginBottom: 4,
-          }}
-        >
-          Domain
-        </label>
+        <label className="ch-modal-label">Domain</label>
         <FancySelect
           value={domainId}
           onChange={setDomainId}
@@ -699,50 +430,16 @@ function CreateCohortModal({
         />
 
         {/* Owner search */}
-        <label
-          style={{
-            display: "block",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--text-secondary)",
-            marginBottom: 4,
-          }}
-        >
-          Owner (Teacher / Tutor)
-        </label>
+        <label className="ch-modal-label">Owner (Teacher / Tutor)</label>
         {ownerId ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 12px",
-              background: "var(--surface-secondary)",
-              borderRadius: 6,
-              marginBottom: 12,
-            }}
-          >
-            <span
-              style={{
-                flex: 1,
-                fontSize: 14,
-                color: "var(--text-primary)",
-              }}
-            >
-              {ownerName}
-            </span>
+          <div className="ch-owner-selected">
+            <span className="ch-owner-name">{ownerName}</span>
             <button
               onClick={() => {
                 setOwnerId("");
                 setOwnerName("");
               }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
+              className="ch-owner-change"
             >
               Change
             </button>
@@ -754,50 +451,14 @@ function CreateCohortModal({
               value={ownerSearch}
               onChange={(e) => setOwnerSearch(e.target.value)}
               placeholder="Search teachers/tutors by name..."
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--input-border)",
-                borderRadius: 6,
-                fontSize: 14,
-                marginBottom: 4,
-                background: "var(--surface-primary)",
-                color: "var(--text-primary)",
-                boxSizing: "border-box",
-              }}
+              className="ch-modal-input ch-modal-input-tight"
             />
             {ownerSearch.length >= 2 && (
-              <div
-                style={{
-                  maxHeight: 140,
-                  overflowY: "auto",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                  marginBottom: 12,
-                }}
-              >
+              <div className="ch-owner-dropdown">
                 {searchingOwners ? (
-                  <div
-                    style={{
-                      padding: 8,
-                      fontSize: 12,
-                      color: "var(--text-muted)",
-                      textAlign: "center",
-                    }}
-                  >
-                    Searching...
-                  </div>
+                  <div className="ch-owner-dropdown-empty">Searching...</div>
                 ) : ownerResults?.callers.length === 0 ? (
-                  <div
-                    style={{
-                      padding: 8,
-                      fontSize: 12,
-                      color: "var(--text-muted)",
-                      textAlign: "center",
-                    }}
-                  >
-                    No teachers/tutors found
-                  </div>
+                  <div className="ch-owner-dropdown-empty">No teachers/tutors found</div>
                 ) : (
                   ownerResults?.callers.map((c) => (
                     <div
@@ -807,30 +468,10 @@ function CreateCohortModal({
                         setOwnerName(c.name);
                         setOwnerSearch("");
                       }}
-                      style={{
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        fontSize: 13,
-                        borderBottom: "1px solid var(--border-default)",
-                        color: "var(--text-primary)",
-                      }}
-                      onMouseOver={(e) =>
-                        (e.currentTarget.style.background =
-                          "var(--surface-secondary)")
-                      }
-                      onMouseOut={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
+                      className="ch-owner-option"
                     >
                       {c.name}{" "}
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        ({c.role})
-                      </span>
+                      <span className="ch-owner-role">({c.role})</span>
                     </div>
                   ))
                 )}
@@ -840,42 +481,14 @@ function CreateCohortModal({
         )}
 
         {/* Actions */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            marginTop: 16,
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              padding: "8px 16px",
-              background: "var(--surface-secondary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 6,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-            }}
-          >
+        <div className="ch-modal-actions">
+          <button onClick={onClose} className="ch-modal-cancel">
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating}
-            style={{
-              padding: "8px 16px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: creating ? "not-allowed" : "pointer",
-              opacity: creating ? 0.7 : 1,
-            }}
+            className="ch-modal-submit"
           >
             {creating ? "Creating..." : "Create Cohort"}
           </button>

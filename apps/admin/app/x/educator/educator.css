@@ -1,0 +1,241 @@
+/* ── Educator Dashboard ────────────────────── */
+/* Extracted inline styles — imported by educator/page.tsx */
+
+/* Page wrapper */
+.edu-page { padding: 0 0 40px; }
+
+/* Header section spacing */
+.edu-header { margin-bottom: 32px; }
+.edu-header-title { margin-bottom: 8px; }
+
+/* Back/change button (school picker) */
+.edu-change-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+/* School picker grid */
+.edu-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+/* School picker card */
+.edu-picker-card {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+.edu-picker-card-selected {
+  background: var(--surface-active);
+  border: 2px solid var(--accent-primary);
+}
+
+/* Picker card text */
+.edu-picker-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.edu-picker-slug {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Empty picker hint */
+.edu-picker-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+.edu-picker-empty-link {
+  color: var(--accent-primary);
+}
+
+/* Stats row grid */
+.edu-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+/* Stat card override padding */
+.edu-stat-card { padding: 20px 16px; }
+
+/* Quick actions section */
+.edu-actions-section { margin-bottom: 32px; }
+.edu-actions-title { margin-bottom: 12px; }
+
+/* Quick actions grid */
+.edu-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* Action card (Link or button) */
+.edu-action-card {
+  padding: 16px;
+  text-decoration: none;
+}
+
+/* Invite action card accent border */
+.edu-action-invite { border-left: 3px solid var(--status-warning-text); }
+
+/* Action card title + description */
+.edu-action-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.edu-action-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Invite form */
+.edu-invite-form {
+  margin-top: 12px;
+  padding: 16px;
+}
+.edu-invite-input {
+  flex: 1;
+  min-width: 200px;
+}
+.edu-invite-btn {
+  background: var(--status-warning-text);
+  border-radius: 6px;
+}
+
+/* Invite result */
+.edu-invite-result {
+  width: 100%;
+  font-size: 13px;
+  padding: 6px 0;
+}
+.edu-invite-result-success { color: var(--status-success-text); }
+.edu-invite-result-error { color: var(--status-error-text); }
+
+/* Copy link button */
+.edu-copy-btn {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* Two column layout */
+.edu-two-col {
+  display: grid;
+  gap: 20px;
+}
+.edu-two-col-full { grid-template-columns: 1fr; }
+.edu-two-col-half { grid-template-columns: 1fr 1fr; }
+
+/* Activity/attention card override */
+.edu-panel { padding: 20px; }
+.edu-panel-title { margin-bottom: 16px; }
+
+/* Activity/attention text */
+.edu-empty-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Activity list */
+.edu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Activity/attention row */
+.edu-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Row link (student name) */
+.edu-row-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+/* Row date/meta */
+.edu-row-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Classroom badge (needs attention) */
+.edu-classroom-badge {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Empty state CTA */
+.edu-empty-cta {
+  padding: 40px 20px;
+  margin-top: 20px;
+}
+.edu-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.edu-empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.edu-empty-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 auto 20px;
+}
+.edu-empty-cta-link { text-decoration: none; }
+
+/* Loading state */
+.edu-loading { padding: 32px; }
+.edu-loading-text {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* Error state */
+.edu-error { padding: 32px; }
+.edu-error-banner {
+  padding: 16px;
+  background: color-mix(in srgb, var(--status-error-text) 10%, transparent);
+  color: var(--status-error-text);
+  border-radius: 12px;
+  font-size: 14px;
+}

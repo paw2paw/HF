@@ -1,0 +1,347 @@
+/* ParametersTab — pt-* classes */
+
+/* Root wrapper */
+.pt-root {
+  margin-top: 24px;
+}
+
+/* Loading / error empty state */
+.pt-loading {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Main content column */
+.pt-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Filter bar ── */
+.pt-filter-bar {
+  padding: 16px;
+  background: var(--background);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Filter chip (shared base) */
+.pt-filter-chip {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+}
+
+.pt-filter-chip--active {
+  border: 2px solid var(--button-primary-bg);
+  background: var(--status-info-bg);
+}
+
+.pt-filter-chip-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.pt-filter-chip-count {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pt-filter-chip-count--active {
+  color: var(--button-primary-bg);
+}
+
+/* ── Search wrapper ── */
+.pt-search-wrap {
+  margin-left: auto;
+  position: relative;
+}
+
+.pt-search-input {
+  padding: 8px 12px 8px 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 200px;
+  outline: none;
+}
+
+.pt-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.pt-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0;
+}
+
+/* ── Category list container ── */
+.pt-categories {
+  background: var(--surface-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+}
+
+/* ── Category header ── */
+.pt-cat-header {
+  padding: 12px 16px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border-default);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pt-cat-icon {
+  font-size: 18px;
+}
+
+.pt-cat-name {
+  font-weight: 600;
+}
+
+.pt-cat-count {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.pt-cat-chevron {
+  margin-left: auto;
+  color: var(--text-placeholder);
+  font-size: 12px;
+}
+
+/* ── Category body (param list) ── */
+.pt-cat-body {
+  padding: 8px 0;
+}
+
+/* ── Parameter header row ── */
+.pt-param-header {
+  padding: 8px 16px 8px 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pt-param-id {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--button-primary-bg);
+  background: var(--status-info-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pt-param-name {
+  font-weight: 500;
+}
+
+.pt-param-feature-tag {
+  font-size: 10px;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.pt-param-anchor-count {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.pt-param-chevron {
+  margin-left: auto;
+  color: var(--text-placeholder);
+  font-size: 11px;
+}
+
+/* ── Parameter detail panel ── */
+.pt-param-detail {
+  padding: 8px 16px 16px 48px;
+  background: var(--background);
+}
+
+.pt-param-definition {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pt-param-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.pt-param-meta-label {
+  color: var(--text-muted);
+}
+
+.pt-param-meta-value {
+  font-weight: 500;
+}
+
+/* ── Interpretation ── */
+.pt-interpretation {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.pt-interpretation-row {
+  margin-bottom: 4px;
+}
+
+.pt-interpretation-high {
+  color: var(--status-success-text);
+}
+
+.pt-interpretation-low {
+  color: var(--status-error-text);
+}
+
+.pt-interpretation-text {
+  color: var(--text-secondary);
+}
+
+/* ── Scoring anchors ── */
+.pt-anchors-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.pt-anchors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pt-anchor-card {
+  padding: 8px 12px;
+  background: var(--surface-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+}
+
+.pt-anchor-card--gold {
+  border: 2px solid var(--status-warning-border);
+}
+
+.pt-anchor-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pt-anchor-score {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pt-anchor-score--high {
+  color: var(--status-success-text);
+}
+
+.pt-anchor-score--mid {
+  color: var(--status-warning-text);
+}
+
+.pt-anchor-score--low {
+  color: var(--status-error-text);
+}
+
+.pt-anchor-gold-tag {
+  font-size: 11px;
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.pt-anchor-example {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.pt-anchor-rationale {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Used-by specs ── */
+.pt-used-by {
+  margin-top: 12px;
+}
+
+.pt-used-by-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.pt-used-by-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pt-used-by-tag {
+  font-size: 10px;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--status-success-border);
+}
+
+/* ── Empty state at bottom ── */
+.pt-no-params {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-placeholder);
+}

@@ -1,0 +1,459 @@
+/* ══════════════════════════════════════════════════════════════
+   Extraction Config Page — ext-* classes
+   Uses hf-* design system classes where matching.
+   Page-specific styles prefixed ext-.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Layout shell */
+.ext-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Loading / error states */
+.ext-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.ext-error-wrap {
+  padding: 40px;
+}
+
+.ext-error-msg {
+  color: var(--status-error-text);
+  margin-bottom: 16px;
+}
+
+/* Header bar */
+.ext-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ext-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ext-back-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.ext-header-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ext-override-badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--badge-purple-bg);
+  color: var(--badge-purple-text);
+  border-radius: 4px;
+}
+
+.ext-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ext-save-msg {
+  font-size: 13px;
+  color: var(--status-success-text);
+  font-weight: 500;
+}
+
+.ext-error-inline {
+  font-size: 13px;
+  color: var(--status-error-text);
+}
+
+/* Body / content area */
+.ext-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.ext-body-inner {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Buttons (page-specific sizes) */
+.ext-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: var(--button-primary-bg);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ext-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ext-btn-link {
+  color: var(--accent-primary);
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ext-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.ext-btn-icon-danger {
+  color: var(--status-error-text);
+}
+
+/* Pyramid preview */
+.ext-pyramid-preview {
+  padding: 20px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.ext-pyramid-connector {
+  color: var(--text-muted);
+}
+
+.ext-pyramid-label {
+  font-weight: 600;
+}
+
+.ext-pyramid-meta {
+  color: var(--text-muted);
+}
+
+.ext-render-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Level editor row */
+.ext-level-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.ext-depth-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Shared input base (compact variant for extraction page) */
+.ext-input {
+  padding: 6px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.ext-input-label {
+  width: 120px;
+  font-weight: 600;
+}
+
+.ext-input-narrow {
+  width: 50px;
+  text-align: center;
+}
+
+.ext-input-select {
+  width: 110px;
+}
+
+.ext-input-flex {
+  flex: 1;
+}
+
+.ext-input-mono {
+  font-family: monospace;
+  font-size: 12px;
+  width: 100px;
+}
+
+.ext-input-label-text {
+  width: 150px;
+  font-weight: 500;
+}
+
+.ext-input-num-md {
+  width: 60px;
+  text-align: center;
+}
+
+.ext-input-num-lg {
+  width: 80px;
+  text-align: center;
+}
+
+/* Inline field label (small muted text beside input) */
+.ext-field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ext-field-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  width: 160px;
+}
+
+.ext-field-label-wide {
+  font-size: 13px;
+  color: var(--text-secondary);
+  width: 180px;
+}
+
+/* Target children row */
+.ext-target-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 12px;
+}
+
+/* Category row */
+.ext-category-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.ext-add-btn {
+  align-self: flex-start;
+}
+
+/* Collapsible section */
+.ext-section {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.ext-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface-secondary);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ext-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ext-section-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ext-section-body {
+  padding: 16px;
+}
+
+/* Toggle switch */
+.ext-toggle-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ext-toggle-track {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: background 0.2s;
+}
+
+.ext-toggle-track-on {
+  background: var(--status-success-text);
+}
+
+.ext-toggle-track-off {
+  background: var(--surface-tertiary);
+}
+
+.ext-toggle-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 3px;
+  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.ext-toggle-thumb-on {
+  left: 21px;
+}
+
+.ext-toggle-thumb-off {
+  left: 3px;
+}
+
+.ext-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ext-toggle-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Offset slider */
+.ext-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ext-slider-input {
+  flex: 1;
+  max-width: 200px;
+}
+
+.ext-slider-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: monospace;
+  width: 30px;
+  text-align: center;
+}
+
+.ext-slider-value-zero {
+  color: var(--text-muted);
+}
+
+.ext-slider-value-active {
+  color: var(--status-warning-text);
+}
+
+/* Prompt section */
+.ext-prompt-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.ext-textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  font-family: monospace;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ext-textarea-tall {
+  min-height: 200px;
+}
+
+.ext-textarea-med {
+  min-height: 150px;
+}
+
+/* Depth adaptation label suffix */
+.ext-depth-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}

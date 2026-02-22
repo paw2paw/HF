@@ -11,6 +11,7 @@ import type {
   WorkflowPhase,
   WorkflowPlan,
 } from "@/lib/workflow/types";
+import "./workflow-ai-panel.css";
 
 // ============================================================================
 // Types
@@ -46,36 +47,14 @@ function BreadcrumbBar({
   onThreadSelect: (threadId: string) => void;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "8px 12px",
-        borderBottom: "1px solid var(--border-default)",
-        overflowX: "auto",
-        flexShrink: 0,
-      }}
-    >
+    <div className="wap-breadcrumb">
       <button
         onClick={() => onThreadSelect("planning")}
-        style={{
-          padding: "4px 10px",
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 600,
-          border: "none",
-          background:
-            currentThreadId === "planning"
-              ? "var(--accent-bg)"
-              : "var(--surface-tertiary)",
-          color:
-            currentThreadId === "planning"
-              ? "var(--accent-primary)"
-              : "var(--text-muted)",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
+        className={`wap-breadcrumb-btn ${
+          currentThreadId === "planning"
+            ? "wap-breadcrumb-btn-active"
+            : "wap-breadcrumb-btn-inactive"
+        }`}
       >
         Planning ✓
       </button>
@@ -85,38 +64,17 @@ function BreadcrumbBar({
         const isActive = step.id === currentThreadId;
         const indicator = isCompleted ? "✓" : isCurrent ? "●" : "○";
         return (
-          <div key={step.id} style={{ display: "flex", alignItems: "center" }}>
-            <span
-              style={{
-                color: "var(--text-muted)",
-                fontSize: 10,
-                margin: "0 2px",
-              }}
-            >
-              →
-            </span>
+          <div key={step.id} className="hf-flex hf-items-center">
+            <span className="wap-breadcrumb-sep">→</span>
             <button
               onClick={() => onThreadSelect(step.id)}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 600,
-                border: "none",
-                background: isActive
-                  ? "var(--accent-bg)"
+              className={`wap-breadcrumb-btn ${
+                isActive
+                  ? "wap-breadcrumb-btn-active"
                   : isCompleted
-                    ? "var(--success-bg)"
-                    : "var(--surface-tertiary)",
-                color: isActive
-                  ? "var(--accent-primary)"
-                  : isCompleted
-                    ? "var(--success-text)"
-                    : "var(--text-muted)",
-                cursor: isCompleted || isCurrent ? "pointer" : "default",
-                opacity: !isCompleted && !isCurrent ? 0.5 : 1,
-                whiteSpace: "nowrap",
-              }}
+                    ? "wap-breadcrumb-step-completed"
+                    : "wap-breadcrumb-btn-inactive"
+              }${!isCompleted && !isCurrent ? " wap-breadcrumb-step-disabled" : ""}`}
             >
               {indicator} {step.title}
             </button>
@@ -151,67 +109,24 @@ function ThreadView({
   const isCollapsed = thread.collapsed && !isActive;
 
   return (
-    <div
-      style={{
-        borderBottom: "1px solid var(--border-default)",
-        background: isActive ? "transparent" : "var(--surface-secondary)",
-      }}
-    >
+    <div className={`wap-thread${!isActive ? " wap-thread-inactive" : ""}`}>
       {/* Thread header (clickable to expand/collapse) */}
       {!isActive && (
         <button
           onClick={() => onToggle(threadId)}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
+          className="wap-thread-header"
         >
           {isCollapsed ? (
-            <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+            <ChevronRight size={14} className="wap-thread-chevron" />
           ) : (
-            <ChevronDown size={14} style={{ color: "var(--text-muted)" }} />
+            <ChevronDown size={14} className="wap-thread-chevron" />
           )}
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-              flex: 1,
-            }}
-          >
-            {label}
-          </span>
+          <span className="wap-thread-label">{label}</span>
           {thread.summary && isCollapsed && (
-            <span
-              style={{
-                fontSize: 11,
-                color: "var(--text-muted)",
-                maxWidth: 200,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {thread.summary}
-            </span>
+            <span className="wap-thread-summary">{thread.summary}</span>
           )}
           {isCollapsed && thread.messages.length > 0 && (
-            <span
-              style={{
-                fontSize: 10,
-                color: "var(--text-muted)",
-                background: "var(--surface-tertiary)",
-                padding: "2px 6px",
-                borderRadius: 4,
-              }}
-            >
+            <span className="wap-thread-count">
               {thread.messages.length} msg{thread.messages.length !== 1 ? "s" : ""}
             </span>
           )}
@@ -220,7 +135,7 @@ function ThreadView({
 
       {/* Thread messages (shown when expanded) */}
       {!isCollapsed && (
-        <div style={{ padding: isActive ? 0 : "0 12px 8px" }}>
+        <div className={isActive ? "wap-thread-messages-active" : "wap-thread-messages"}>
           {thread.messages.map((msg, i) => (
             <MessageBubble
               key={i}
@@ -249,27 +164,14 @@ function MessageBubble({
 
   return (
     <div
-      style={{
-        display: "flex",
-        justifyContent: isUser ? "flex-end" : "flex-start",
-        marginBottom: 8,
-        opacity: isReadOnly ? 0.7 : 1,
-      }}
+      className={`wap-msg-row ${isUser ? "wap-msg-row-user" : "wap-msg-row-assistant"}${
+        isReadOnly ? " wap-msg-row-readonly" : ""
+      }`}
     >
       <div
-        style={{
-          maxWidth: "85%",
-          padding: "10px 14px",
-          borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-          background: isUser
-            ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
-            : "var(--surface-secondary)",
-          color: isUser ? "var(--button-primary-text, var(--surface-primary))" : "var(--text-primary)",
-          fontSize: 13,
-          lineHeight: 1.5,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-        }}
+        className={`wap-msg-bubble ${
+          isUser ? "wap-msg-bubble-user" : "wap-msg-bubble-assistant"
+        }`}
       >
         {message.content}
       </div>
@@ -291,63 +193,17 @@ function OptionButtons({
   disabled: boolean;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 8,
-        marginBottom: 12,
-        paddingLeft: 4,
-      }}
-    >
+    <div className="wap-options">
       {options.map((option, i) => (
         <button
           key={i}
           onClick={() => !disabled && onSelect(option)}
           disabled={disabled}
-          style={{
-            padding: option.description ? "10px 16px" : "8px 16px",
-            borderRadius: 12,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            cursor: disabled ? "default" : "pointer",
-            opacity: disabled ? 0.5 : 1,
-            textAlign: "left",
-            transition: "all 0.15s ease",
-            maxWidth: "100%",
-          }}
-          onMouseEnter={(e) => {
-            if (!disabled) {
-              e.currentTarget.style.borderColor = "var(--accent-primary)";
-              e.currentTarget.style.background = "var(--accent-bg)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--border-default)";
-            e.currentTarget.style.background = "var(--surface-primary)";
-          }}
+          className={`wap-option-btn${option.description ? " wap-option-btn-with-desc" : ""}`}
         >
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              lineHeight: 1.3,
-            }}
-          >
-            {option.label}
-          </div>
+          <div className="wap-option-label">{option.label}</div>
           {option.description && (
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--text-muted)",
-                marginTop: 2,
-                lineHeight: 1.3,
-              }}
-            >
-              {option.description}
-            </div>
+            <div className="wap-option-desc">{option.description}</div>
           )}
         </button>
       ))}
@@ -367,138 +223,34 @@ function PlanPreview({
   onConfirm: () => void;
 }) {
   return (
-    <div
-      style={{
-        margin: "12px 0",
-        padding: 16,
-        borderRadius: 12,
-        border: "2px solid var(--accent-primary)",
-        background: "var(--accent-bg)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: "var(--accent-primary)",
-          marginBottom: 8,
-        }}
-      >
-        Proposed Plan
-      </div>
-      <p
-        style={{
-          fontSize: 13,
-          color: "var(--text-secondary)",
-          margin: "0 0 12px",
-          lineHeight: 1.4,
-        }}
-      >
-        {plan.summary}
-      </p>
+    <div className="wap-plan">
+      <div className="wap-plan-title">Proposed Plan</div>
+      <p className="wap-plan-summary">{plan.summary}</p>
 
       {plan.existingMatches.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              marginBottom: 4,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Existing matches
-          </div>
+        <div className="hf-mb-12">
+          <div className="wap-plan-section-label">Existing matches</div>
           {plan.existingMatches.map((match, i) => (
-            <div
-              key={i}
-              style={{
-                fontSize: 12,
-                color: "var(--text-secondary)",
-                padding: "4px 0",
-              }}
-            >
+            <div key={i} className="wap-plan-match">
               ● <strong>{match.name}</strong> ({match.type}) — {match.matchReason}
               {match.action === "reuse" && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 10,
-                    padding: "1px 6px",
-                    borderRadius: 4,
-                    background: "var(--success-bg)",
-                    color: "var(--success-text)",
-                  }}
-                >
-                  reuse
-                </span>
+                <span className="wap-plan-reuse-badge">reuse</span>
               )}
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ marginBottom: 16 }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--text-muted)",
-            marginBottom: 6,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Steps
-        </div>
+      <div className="hf-mb-md">
+        <div className="wap-plan-section-label wap-plan-section-label-steps">Steps</div>
         {plan.steps.map((step, i) => (
-          <div
-            key={step.id}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              padding: "6px 0",
-              fontSize: 12,
-              color: "var(--text-secondary)",
-            }}
-          >
-            <span
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 6,
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 10,
-                fontWeight: 700,
-                color: "var(--text-muted)",
-                flexShrink: 0,
-              }}
-            >
-              {i + 1}
-            </span>
+          <div key={step.id} className="wap-plan-step">
+            <span className="wap-plan-step-number">{i + 1}</span>
             <div>
-              <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                {step.title}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                {step.description}
-              </div>
+              <div className="wap-plan-step-title">{step.title}</div>
+              <div className="wap-plan-step-desc">{step.description}</div>
               {step.condition?.question && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "var(--warning-text)",
-                    fontStyle: "italic",
-                    marginTop: 2,
-                  }}
-                >
+                <div className="wap-plan-step-condition">
                   Conditional: {step.condition.question}
                 </div>
               )}
@@ -507,35 +259,12 @@ function PlanPreview({
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          onClick={onConfirm}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            fontSize: 13,
-            fontWeight: 700,
-            borderRadius: 10,
-            border: "none",
-            background: "var(--accent-primary)",
-            color: "var(--button-primary-text, var(--surface-primary))",
-            cursor: "pointer",
-            boxShadow: "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-          }}
-        >
-          Looks good — let's start
+      <div className="wap-plan-actions">
+        <button onClick={onConfirm} className="wap-plan-confirm-btn">
+          Looks good — let&apos;s start
         </button>
       </div>
-      <p
-        style={{
-          fontSize: 11,
-          color: "var(--text-muted)",
-          margin: "8px 0 0",
-          textAlign: "center",
-        }}
-      >
-        Or type to amend the plan
-      </p>
+      <p className="wap-plan-hint">Or type to amend the plan</p>
     </div>
   );
 }
@@ -602,58 +331,18 @@ export function WorkflowAIPanel({
 
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        background: "var(--surface-primary)",
-        borderRadius: isPlanningPhase ? 16 : 0,
-        border: isPlanningPhase
-          ? "1px solid var(--border-default)"
-          : "none",
-        borderRight: !isPlanningPhase
-          ? "1px solid var(--border-default)"
-          : undefined,
-        overflow: "hidden",
-      }}
+      className={`wap-panel ${isPlanningPhase ? "wap-panel-planning" : "wap-panel-execution"}`}
     >
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "14px 16px",
-          borderBottom: "1px solid var(--border-default)",
-          background: "var(--surface-secondary)",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background:
-              "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+      <div className="wap-header">
+        <div className="wap-header-icon">
           <Bot size={18} color="var(--button-primary-text, var(--surface-primary))" />
         </div>
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: "var(--text-primary)",
-            }}
-          >
+        <div className="hf-flex-1">
+          <div className="wap-header-title">
             {isPlanningPhase ? "What do you want to build?" : "Workflow Assistant"}
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          <div className="wap-header-subtitle">
             {isPlanningPhase
               ? "Describe what you want to accomplish"
               : `Step ${steps.findIndex((s) => s.id === currentStepId) + 1} of ${steps.length}`}
@@ -679,36 +368,15 @@ export function WorkflowAIPanel({
       )}
 
       {/* Chat area */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: isPlanningPhase ? 16 : 0,
-        }}
-      >
+      <div className={`wap-chat ${isPlanningPhase ? "wap-chat-planning" : "wap-chat-execution"}`}>
         {/* Planning phase: show messages directly */}
         {isPlanningPhase && currentThread && (
           <>
             {currentThread.messages.length === 0 && (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "40px 20px",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 16 }}>✨</div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    marginBottom: 8,
-                  }}
-                >
-                  What do you want to accomplish?
-                </div>
-                <div style={{ fontSize: 13, lineHeight: 1.5, maxWidth: 400, margin: "0 auto" }}>
+              <div className="wap-empty">
+                <div className="wap-empty-icon">✨</div>
+                <div className="wap-empty-title">What do you want to accomplish?</div>
+                <div className="wap-empty-desc">
                   Describe your goal in plain English. For example:
                   <br />
                   &ldquo;I want a new Food Safety Level 2 Tutor&rdquo;
@@ -790,20 +458,8 @@ export function WorkflowAIPanel({
 
         {/* Loading indicator */}
         {isLoading && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: isPlanningPhase ? "8px 0" : "8px 12px",
-              color: "var(--text-muted)",
-              fontSize: 13,
-            }}
-          >
-            <Loader2
-              size={14}
-              style={{ animation: "spin 1s linear infinite" }}
-            />
+          <div className={`wap-loading ${isPlanningPhase ? "wap-loading-planning" : "wap-loading-execution"}`}>
+            <Loader2 size={14} className="wap-loading-spinner" />
             Thinking...
           </div>
         )}
@@ -812,15 +468,8 @@ export function WorkflowAIPanel({
       </div>
 
       {/* Input area */}
-      <div
-        style={{
-          padding: isPlanningPhase ? "12px 16px 16px" : "12px",
-          borderTop: "1px solid var(--border-default)",
-          background: "var(--surface-secondary)",
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+      <div className={`wap-input-area ${isPlanningPhase ? "wap-input-area-planning" : "wap-input-area-execution"}`}>
+        <div className="wap-input-row">
           <textarea
             ref={inputRef}
             value={input}
@@ -832,37 +481,12 @@ export function WorkflowAIPanel({
                 : "Ask about this step..."
             }
             rows={isPlanningPhase ? 3 : 2}
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              fontSize: 14,
-              borderRadius: 12,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-              outline: "none",
-              resize: "none",
-              fontFamily: "inherit",
-              lineHeight: 1.5,
-            }}
+            className="wap-textarea"
           />
           {isLoading ? (
             <button
               onClick={onStop}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                border: "1px solid var(--error-border, var(--status-error-text))",
-                background: "var(--surface-primary)",
-                color: "var(--error-text, var(--status-error-text))",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                transition: "all 0.15s ease",
-              }}
+              className="wap-action-btn wap-stop-btn"
               title="Stop generation"
             >
               <Square size={14} fill="currentColor" />
@@ -871,46 +495,14 @@ export function WorkflowAIPanel({
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                border: "none",
-                background: input.trim()
-                  ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
-                  : "var(--surface-tertiary)",
-                color: input.trim() ? "var(--button-primary-text, var(--surface-primary))" : "var(--text-muted)",
-                cursor: input.trim() ? "pointer" : "default",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                transition: "all 0.15s ease",
-              }}
+              className={`wap-action-btn ${input.trim() ? "wap-send-btn-active" : "wap-send-btn-disabled"}`}
             >
               <Send size={16} />
             </button>
           )}
         </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: "var(--text-muted)",
-            marginTop: 6,
-            textAlign: "right",
-          }}
-        >
-          ⌘+Enter to send
-        </div>
+        <div className="wap-shortcut-hint">⌘+Enter to send</div>
       </div>
-
-      {/* CSS animation for spinner */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

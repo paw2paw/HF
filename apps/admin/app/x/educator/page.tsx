@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import EducatorReadiness from "@/components/educator/EducatorReadiness";
+import "./educator.css";
 
 interface DashboardData {
   classrooms: {
@@ -122,16 +123,16 @@ export default function EducatorDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading your {lower("domain")}...</div>
+      <div className="edu-loading">
+        <div className="edu-loading-text">Loading your {lower("domain")}...</div>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ padding: 16, background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", color: "var(--status-error-text)", borderRadius: 12, fontSize: 14 }}>
+      <div className="edu-error">
+        <div className="edu-error-banner">
           {loadError}
         </div>
       </div>
@@ -141,56 +142,35 @@ export default function EducatorDashboard() {
   // Picker for ADMIN users
   if (needsSchoolPicker && !loading) {
     return (
-      <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
-        <div style={{ marginBottom: 32 }}>
-          <h1 className="hf-page-title" style={{ marginBottom: 8 }}>
+      <div data-tour="welcome" className="edu-page">
+        <div className="edu-header">
+          <h1 className="hf-page-title edu-header-title">
             Select a {terms.domain}
           </h1>
           <p className="hf-page-subtitle">
             As an admin, choose which {lower("domain")} dashboard to view.
           </p>
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: 16,
-          }}
-        >
+        <div className="edu-picker-grid">
           {institutions.map((inst) => (
             <button
               key={inst.id}
               onClick={() => handleSelectSchool(inst.id)}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                padding: 20,
-                background: selectedInstitutionId === inst.id
-                  ? "var(--surface-active)"
-                  : "var(--surface-primary)",
-                border: selectedInstitutionId === inst.id
-                  ? "2px solid var(--accent-primary)"
-                  : "1px solid var(--border-default)",
-                borderRadius: 12,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "all 0.2s",
-              }}
-              className="home-stat-card"
+              className={`edu-picker-card${selectedInstitutionId === inst.id ? " edu-picker-card-selected" : ""}`}
             >
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+              <div className="edu-picker-name">
                 {inst.name}
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              <div className="edu-picker-slug">
                 {inst.slug}
               </div>
             </button>
           ))}
         </div>
         {institutions.length === 0 && (
-          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16 }}>
+          <p className="edu-picker-empty">
             No {lowerPlural("domain")} found.{" "}
-            <Link href="/x/institutions/new" style={{ color: "var(--accent-primary)" }}>
+            <Link href="/x/institutions/new" className="edu-picker-empty-link">
               Create one
             </Link>{" "}
             to get started.
@@ -208,31 +188,18 @@ export default function EducatorDashboard() {
   const instQuery = selectedInstitutionId ? `?institutionId=${selectedInstitutionId}` : "";
 
   return (
-    <div data-tour="welcome" style={{ padding: "0 0 40px" }}>
+    <div data-tour="welcome" className="edu-page">
       {/* Welcome Header */}
-      <div style={{ marginBottom: 32 }}>
+      <div className="edu-header">
         {viewingSchoolName && (
           <button
             onClick={() => { setNeedsSchoolPicker(true); setData(null); }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 10px",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "var(--text-muted)",
-              background: "var(--surface-secondary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 6,
-              cursor: "pointer",
-              marginBottom: 12,
-            }}
+            className="edu-change-btn"
           >
             &larr; Change {terms.domain}
           </button>
         )}
-        <h1 className="hf-page-title flex items-center gap-2" style={{ marginBottom: 8 }}>
+        <h1 className="hf-page-title flex items-center gap-2 edu-header-title">
           {viewingSchoolName ?? `My ${terms.domain}`}
           <span className="hf-gf-badge">GF</span>
         </h1>
@@ -244,14 +211,7 @@ export default function EducatorDashboard() {
       </div>
 
       {/* Stats Row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
-          marginBottom: 32,
-        }}
-      >
+      <div className="edu-stats-grid">
         {[
           { label: plural("caller"), value: stats.totalStudents, color: "var(--button-primary-bg)" },
           { label: "Active This Week", value: stats.activeThisWeek, color: "var(--status-success-text)" },
@@ -259,8 +219,7 @@ export default function EducatorDashboard() {
         ].map((stat) => (
           <div
             key={stat.label}
-            className="hf-card-compact flex flex-col items-center justify-center"
-            style={{ padding: "20px 16px" }}
+            className="hf-card-compact flex flex-col items-center justify-center edu-stat-card"
           >
             <div className="hf-stat-value" style={{ color: stat.color }}>
               {stat.value}
@@ -278,17 +237,11 @@ export default function EducatorDashboard() {
       )}
 
       {/* Quick Actions */}
-      <div style={{ marginBottom: 32 }}>
-        <h2 className="hf-section-title" style={{ marginBottom: 12 }}>
+      <div className="edu-actions-section">
+        <h2 className="hf-section-title edu-actions-title">
           Quick Actions
         </h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 12,
-          }}
-        >
+        <div className="edu-actions-grid">
           {[
             {
               title: `Create ${terms.cohort}`,
@@ -318,13 +271,13 @@ export default function EducatorDashboard() {
             <Link
               key={action.title}
               href={action.href}
-              className="hf-card-compact home-stat-card flex flex-col"
-              style={{ padding: 16, borderLeft: `3px solid ${action.accent}`, textDecoration: "none" }}
+              className="hf-card-compact home-stat-card flex flex-col edu-action-card"
+              style={{ borderLeft: `3px solid ${action.accent}` }}
             >
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+              <div className="edu-action-title">
                 {action.title}
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              <div className="edu-action-desc">
                 {action.description}
               </div>
             </Link>
@@ -333,13 +286,12 @@ export default function EducatorDashboard() {
           {/* Invite Teacher Button */}
           <button
             onClick={() => { setShowInviteForm(!showInviteForm); setInviteResult(null); }}
-            className="hf-card-compact home-stat-card flex flex-col text-left cursor-pointer"
-            style={{ padding: 16, borderLeft: "3px solid var(--status-warning-text)" }}
+            className="hf-card-compact home-stat-card flex flex-col text-left cursor-pointer edu-action-card edu-action-invite"
           >
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+            <div className="edu-action-title">
               Invite a {terms.instructor}
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            <div className="edu-action-desc">
               Bring a colleague onto the platform
             </div>
           </button>
@@ -347,36 +299,24 @@ export default function EducatorDashboard() {
 
         {/* Inline Invite Form */}
         {showInviteForm && (
-          <div
-            className="hf-card-compact flex flex-wrap items-start gap-2"
-            style={{ marginTop: 12, padding: 16 }}
-          >
+          <div className="hf-card-compact flex flex-wrap items-start gap-2 edu-invite-form">
             <input
               type="email"
               placeholder="colleague@example.com"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleInviteTeacher()}
-              className="hf-input"
-              style={{ flex: 1, minWidth: 200 }}
+              className="hf-input edu-invite-input"
             />
             <button
               onClick={handleInviteTeacher}
               disabled={inviting || !inviteEmail.trim()}
-              className="hf-btn hf-btn-primary"
-              style={{ background: "var(--status-warning-text)", borderRadius: 6 }}
+              className="hf-btn hf-btn-primary edu-invite-btn"
             >
               {inviting ? "Sending..." : "Send Invite"}
             </button>
             {inviteResult && (
-              <div
-                style={{
-                  width: "100%",
-                  fontSize: 13,
-                  padding: "6px 0",
-                  color: inviteResult.ok ? "var(--status-success-text)" : "var(--status-error-text)",
-                }}
-              >
+              <div className={`edu-invite-result ${inviteResult.ok ? "edu-invite-result-success" : "edu-invite-result-error"}`}>
                 {inviteResult.message}
                 {inviteResult.url && (
                   <button
@@ -384,8 +324,7 @@ export default function EducatorDashboard() {
                       navigator.clipboard.writeText(inviteResult.url!);
                       setInviteResult({ ...inviteResult, message: "Link copied!" });
                     }}
-                    className="hf-btn hf-btn-secondary"
-                    style={{ marginLeft: 8, padding: "2px 8px", fontSize: 12 }}
+                    className="hf-btn hf-btn-secondary edu-copy-btn"
                   >
                     Copy Link
                   </button>
@@ -397,49 +336,29 @@ export default function EducatorDashboard() {
       </div>
 
       {/* Two Column: Recent Activity + Needs Attention */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: hasClassrooms ? "1fr 1fr" : "1fr",
-          gap: 20,
-        }}
-      >
+      <div className={`edu-two-col ${hasClassrooms ? "edu-two-col-half" : "edu-two-col-full"}`}>
         {/* Recent Activity */}
-        <div className="hf-card" style={{ padding: 20 }}>
-          <h3 className="hf-category-label" style={{ marginBottom: 16 }}>
+        <div className="hf-card edu-panel">
+          <h3 className="hf-category-label edu-panel-title">
             Recent Activity
           </h3>
           {(!data?.recentCalls || data.recentCalls.length === 0) ? (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            <p className="edu-empty-text">
               No calls yet. Invite {lowerPlural("caller")} to get started.
             </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="edu-list">
               {data.recentCalls.map((call) => (
-                <div
-                  key={call.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 0",
-                    borderBottom: "1px solid var(--border-subtle)",
-                  }}
-                >
+                <div key={call.id} className="edu-list-row">
                   <div>
                     <Link
                       href={`/x/educator/students/${call.studentId}`}
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "var(--text-primary)",
-                        textDecoration: "none",
-                      }}
+                      className="edu-row-link"
                     >
                       {call.studentName}
                     </Link>
                   </div>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  <span className="edu-row-date">
                     {new Date(call.createdAt).toLocaleDateString("en-GB", {
                       day: "numeric",
                       month: "short",
@@ -453,47 +372,25 @@ export default function EducatorDashboard() {
 
         {/* Needs Attention */}
         {hasClassrooms && (
-          <div className="hf-card" style={{ padding: 20 }}>
-            <h3 className="hf-category-label" style={{ marginBottom: 16 }}>
+          <div className="hf-card edu-panel">
+            <h3 className="hf-category-label edu-panel-title">
               Needs Attention
             </h3>
             {(!data?.needsAttention || data.needsAttention.length === 0) ? (
-              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              <p className="edu-empty-text">
                 All {lowerPlural("caller")} are active. Great work!
               </p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="edu-list">
                 {data.needsAttention.map((student) => (
-                  <div
-                    key={student.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "8px 0",
-                      borderBottom: "1px solid var(--border-subtle)",
-                    }}
-                  >
+                  <div key={student.id} className="edu-list-row">
                     <Link
                       href={`/x/educator/students/${student.id}`}
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "var(--text-primary)",
-                        textDecoration: "none",
-                      }}
+                      className="edu-row-link"
                     >
                       {student.name}
                     </Link>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        background: "var(--surface-secondary)",
-                        padding: "2px 8px",
-                        borderRadius: 6,
-                      }}
-                    >
+                    <span className="edu-classroom-badge">
                       {student.classroom}
                     </span>
                   </div>
@@ -506,21 +403,20 @@ export default function EducatorDashboard() {
 
       {/* Empty State CTA */}
       {!hasClassrooms && (
-        <div className="hf-card text-center" style={{ padding: "40px 20px", marginTop: 20 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>
+        <div className="hf-card text-center edu-empty-cta">
+          <div className="edu-empty-icon">
             <span role="img" aria-label="welcome">👋</span>
           </div>
-          <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+          <h3 className="edu-empty-title">
             Welcome to your {lower("domain")}
           </h3>
-          <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 400, margin: "0 auto 20px" }}>
+          <p className="edu-empty-desc">
             Create your first {lower("cohort")}, invite {lowerPlural("caller")}, and start tracking
             their learning journey.
           </p>
           <Link
             href="/x/educator/classrooms/new"
-            className="hf-btn hf-btn-primary"
-            style={{ textDecoration: "none" }}
+            className="hf-btn hf-btn-primary edu-empty-cta-link"
           >
             Create {terms.cohort}
           </Link>

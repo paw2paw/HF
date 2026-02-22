@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import "./content-review.css";
 
 type ContentSource = {
   id: string;
@@ -36,12 +37,8 @@ function TrustBadge({ level }: { level: string }) {
   const config = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
   return (
     <span
+      className="cr-trust-badge"
       style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 11,
-        fontWeight: 600,
         color: config.color,
         backgroundColor: config.bg,
         border: `1px solid color-mix(in srgb, ${config.color} 20%, transparent)`,
@@ -53,24 +50,24 @@ function TrustBadge({ level }: { level: string }) {
 }
 
 function FreshnessBadge({ validUntil }: { validUntil: string | null }) {
-  if (!validUntil) return <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>No expiry</span>;
+  if (!validUntil) return <span className="cr-freshness-none">No expiry</span>;
   const days = Math.floor((new Date(validUntil).getTime() - Date.now()) / 86400000);
   if (days < 0) {
     return (
-      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--status-error-text)", background: "var(--status-error-bg)", padding: "2px 6px", borderRadius: 4 }}>
+      <span className="cr-freshness-expired">
         Expired {Math.abs(days)}d ago
       </span>
     );
   }
   if (days <= 60) {
     return (
-      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--status-warning-text)", background: "var(--status-warning-bg)", padding: "2px 6px", borderRadius: 4 }}>
+      <span className="cr-freshness-expiring">
         Expires in {days}d
       </span>
     );
   }
   return (
-    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+    <span className="cr-freshness-valid">
       Valid until {new Date(validUntil).toLocaleDateString()}
     </span>
   );
@@ -148,93 +145,51 @@ export default function ContentReviewPage() {
     }
   };
 
+  const isDisabled = !newTrustLevel || !notes.trim() || saving;
+
   return (
     <div>
       <AdvancedBanner />
       {/* Header */}
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="cr-header">
+        <div className="hf-flex hf-items-center hf-flex-between">
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+            <h1 className="cr-header-title">
               Content Review Queue
             </h1>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+            <p className="cr-header-desc">
               Review and verify content sources. Promote trust levels with audit trail.
             </p>
           </div>
-          <Link
-            href="/x/content-sources"
-            style={{
-              padding: "6px 12px",
-              background: "var(--surface-secondary)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--input-border)",
-              borderRadius: 6,
-              fontWeight: 500,
-              fontSize: 12,
-              textDecoration: "none",
-            }}
-          >
+          <Link href="/x/content-sources" className="cr-header-link">
             Source Registry
           </Link>
         </div>
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <div
-          style={{
-            flex: 1,
-            padding: "12px 16px",
-            background: needsReview.length > 0 ? "var(--status-error-bg)" : "var(--surface-primary)",
-            border: `1px solid ${needsReview.length > 0 ? "var(--status-error-border)" : "var(--border-default)"}`,
-            borderRadius: 8,
-          }}
-        >
-          <div style={{ fontSize: 24, fontWeight: 700, color: needsReview.length > 0 ? "var(--status-error-text)" : "var(--text-primary)" }}>
+      <div className="cr-summary-row">
+        <div className={`cr-stat-card ${needsReview.length > 0 ? "cr-stat-card-error" : "cr-stat-card-default"}`}>
+          <div className={`cr-stat-value ${needsReview.length > 0 ? "cr-stat-value-error" : ""}`}>
             {needsReview.length}
           </div>
-          <div style={{ fontSize: 11, color: needsReview.length > 0 ? "var(--status-error-text)" : "var(--text-muted)", fontWeight: 500 }}>
+          <div className={`cr-stat-label ${needsReview.length > 0 ? "cr-stat-label-error" : ""}`}>
             Needs Review (L0/L1)
           </div>
         </div>
-        <div
-          style={{
-            flex: 1,
-            padding: "12px 16px",
-            background: expired.length > 0 ? "var(--status-warning-bg)" : "var(--surface-primary)",
-            border: `1px solid ${expired.length > 0 ? "var(--status-warning-border)" : "var(--border-default)"}`,
-            borderRadius: 8,
-          }}
-        >
-          <div style={{ fontSize: 24, fontWeight: 700, color: expired.length > 0 ? "var(--status-warning-text)" : "var(--text-primary)" }}>
+        <div className={`cr-stat-card ${expired.length > 0 ? "cr-stat-card-warning" : "cr-stat-card-default"}`}>
+          <div className={`cr-stat-value ${expired.length > 0 ? "cr-stat-value-warning" : ""}`}>
             {expired.length}
           </div>
-          <div style={{ fontSize: 11, color: expired.length > 0 ? "var(--status-warning-text)" : "var(--text-muted)", fontWeight: 500 }}>
+          <div className={`cr-stat-label ${expired.length > 0 ? "cr-stat-label-warning" : ""}`}>
             Expired / Expiring
           </div>
         </div>
-        <div
-          style={{
-            flex: 1,
-            padding: "12px 16px",
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-          }}
-        >
-          <div style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
+        <div className="cr-stat-card cr-stat-card-default">
+          <div className="cr-stat-value">
             {sources.length}
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>
+          <div className="cr-stat-label">
             Total Sources
           </div>
         </div>
@@ -242,24 +197,13 @@ export default function ContentReviewPage() {
 
       {/* Success/Error banner */}
       {saveMessage && (
-        <div
-          style={{
-            padding: "8px 14px",
-            marginBottom: 12,
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 500,
-            background: saveMessage.type === "success" ? "var(--status-success-bg)" : "var(--status-error-bg)",
-            color: saveMessage.type === "success" ? "var(--status-success-text)" : "var(--status-error-text)",
-            border: `1px solid ${saveMessage.type === "success" ? "var(--status-success-border)" : "var(--status-error-border)"}`,
-          }}
-        >
+        <div className={`cr-save-banner ${saveMessage.type === "success" ? "cr-save-banner-success" : "cr-save-banner-error"}`}>
           {saveMessage.text}
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+      <div className="cr-tabs">
         {([
           { key: "needs-review", label: "Needs Review", count: needsReview.length },
           { key: "expired", label: "Expired/Expiring", count: expired.length },
@@ -268,16 +212,7 @@ export default function ContentReviewPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: "6px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              border: activeTab === tab.key ? "1px solid var(--accent-primary)" : "1px solid var(--input-border)",
-              borderRadius: 6,
-              cursor: "pointer",
-              background: activeTab === tab.key ? "var(--surface-selected)" : "var(--surface-primary)",
-              color: activeTab === tab.key ? "var(--accent-primary)" : "var(--text-muted)",
-            }}
+            className={`cr-tab ${activeTab === tab.key ? "cr-tab-active" : "cr-tab-inactive"}`}
           >
             {tab.label}{tab.count >= 0 ? ` (${tab.count})` : ""}
           </button>
@@ -286,59 +221,43 @@ export default function ContentReviewPage() {
 
       {/* Source list */}
       {(
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div className="cr-list">
         {loading ? (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+          <div className="cr-loading">Loading...</div>
         ) : displayed.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>
+          <div className="cr-empty">
+            <div className="cr-empty-icon">
               {activeTab === "needs-review" ? "\u2705" : activeTab === "expired" ? "\u2705" : "\u2728"}
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+            <div className="cr-empty-title">
               {activeTab === "needs-review"
                 ? "No sources need review"
                 : activeTab === "expired"
                 ? "No expired sources"
                 : "No content sources yet"}
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+            <div className="cr-empty-hint">
               {activeTab === "all" && (
-                <Link href="/x/content-sources" style={{ color: "var(--accent-primary)" }}>
+                <Link href="/x/content-sources" className="cr-link-accent">
                   Add sources in the registry
                 </Link>
               )}
             </div>
           </div>
         ) : (
-          displayed.map((source, i) => (
-            <div
-              key={source.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 16px",
-                borderBottom: i < displayed.length - 1 ? "1px solid var(--border-default)" : "none",
-              }}
-            >
+          displayed.map((source) => (
+            <div key={source.id} className="cr-source-row">
               {/* Source info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="cr-source-info">
+                <div className="cr-source-name-row">
+                  <span className="cr-source-name">
                     {source.name}
                   </span>
                   <TrustBadge level={source.trustLevel} />
                   <FreshnessBadge validUntil={source.validUntil} />
                 </div>
-                <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
-                  <span style={{ fontFamily: "ui-monospace, monospace" }}>{source.slug}</span>
+                <div className="cr-source-meta">
+                  <span className="cr-source-slug">{source.slug}</span>
                   {source.publisherOrg && <span>{source.publisherOrg}</span>}
                   {source.qualificationRef && <span>{source.qualificationRef}</span>}
                   {source._count.assertions > 0 && (
@@ -346,7 +265,7 @@ export default function ContentReviewPage() {
                   )}
                 </div>
                 {source.verifiedAt && (
-                  <div style={{ fontSize: 10, color: "var(--text-placeholder)", marginTop: 2 }}>
+                  <div className="cr-source-verified">
                     Verified {new Date(source.verifiedAt).toLocaleDateString()}
                     {source.verificationNotes && ` — ${source.verificationNotes.substring(0, 80)}${source.verificationNotes.length > 80 ? "..." : ""}`}
                   </div>
@@ -354,7 +273,7 @@ export default function ContentReviewPage() {
               </div>
 
               {/* Actions */}
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <div className="cr-actions">
                 <button
                   onClick={() => {
                     setPromotingSource(source);
@@ -365,16 +284,7 @@ export default function ContentReviewPage() {
                     setNotes("");
                     setSaveMessage(null);
                   }}
-                  style={{
-                    padding: "4px 10px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: "var(--status-success-bg)",
-                    color: "var(--status-success-text)",
-                    border: "1px solid var(--status-success-border)",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                  }}
+                  className="cr-btn-review"
                 >
                   Review
                 </button>
@@ -388,80 +298,46 @@ export default function ContentReviewPage() {
       {/* Promotion Modal */}
       {promotingSource && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+          className="hf-modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) setPromotingSource(null);
           }}
         >
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-              padding: 24,
-              width: 480,
-              maxHeight: "80vh",
-              overflowY: "auto",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            }}
-          >
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>
+          <div className="cr-modal-content">
+            <h2 className="cr-modal-title">
               Review Source
             </h2>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" }}>
+            <p className="cr-modal-desc">
               Verify and update trust level for this content source.
             </p>
 
             {/* Source details */}
-            <div
-              style={{
-                background: "var(--surface-secondary)",
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+            <div className="cr-detail-card">
+              <div className="cr-detail-name">
                 {promotingSource.name}
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "ui-monospace, monospace" }}>{promotingSource.slug}</span>
+              <div className="cr-detail-meta-row">
+                <span className="cr-detail-slug">{promotingSource.slug}</span>
                 <TrustBadge level={promotingSource.trustLevel} />
               </div>
               {promotingSource.publisherOrg && (
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Publisher: {promotingSource.publisherOrg}</div>
+                <div className="cr-detail-field">Publisher: {promotingSource.publisherOrg}</div>
               )}
               {promotingSource.qualificationRef && (
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Qualification: {promotingSource.qualificationRef}</div>
+                <div className="cr-detail-field">Qualification: {promotingSource.qualificationRef}</div>
               )}
               <FreshnessBadge validUntil={promotingSource.validUntil} />
             </div>
 
             {/* Trust level selector */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>
+            <div className="cr-field">
+              <label className="cr-field-label">
                 New Trust Level
               </label>
               <select
                 value={newTrustLevel}
                 onChange={(e) => setNewTrustLevel(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  fontSize: 12,
-                  border: "1px solid var(--input-border)",
-                  borderRadius: 6,
-                  background: "var(--surface-primary)",
-                  color: "var(--text-primary)",
-                }}
+                className="cr-select"
               >
                 <option value="">Select trust level...</option>
                 {TRUST_LEVELS.map((tl) => (
@@ -477,68 +353,40 @@ export default function ContentReviewPage() {
             </div>
 
             {/* Verification notes */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: 4 }}>
+            <div className="cr-field-lg">
+              <label className="cr-field-label">
                 Verification Notes *
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Describe why this trust level is appropriate. E.g., 'Verified against CII accreditation register - qualification R04 confirmed active for 2025/26 academic year.'"
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  fontSize: 12,
-                  border: "1px solid var(--input-border)",
-                  borderRadius: 6,
-                  minHeight: 80,
-                  resize: "vertical",
-                  background: "var(--surface-primary)",
-                  color: "var(--text-primary)",
-                }}
+                className="cr-textarea"
               />
-              <div style={{ fontSize: 10, color: "var(--text-placeholder)", marginTop: 2 }}>
+              <div className="cr-field-hint">
                 Required. Explain how you verified this source against the original material.
               </div>
             </div>
 
             {/* Error from save */}
             {saveMessage?.type === "error" && (
-              <div style={{ padding: "6px 10px", background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 6, fontSize: 11, marginBottom: 12 }}>
+              <div className="cr-modal-error">
                 {saveMessage.text}
               </div>
             )}
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="cr-modal-actions">
               <button
                 onClick={() => setPromotingSource(null)}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-secondary)",
-                  border: "1px solid var(--input-border)",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
+                className="cr-btn-cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={handlePromote}
-                disabled={!newTrustLevel || !notes.trim() || saving}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: !newTrustLevel || !notes.trim() || saving ? "var(--surface-secondary)" : "var(--status-success-text)",
-                  color: !newTrustLevel || !notes.trim() || saving ? "var(--text-muted)" : "white",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: !newTrustLevel || !notes.trim() || saving ? "not-allowed" : "pointer",
-                }}
+                disabled={isDisabled}
+                className="cr-btn-save"
               >
                 {saving ? "Saving..." : "Update Trust Level"}
               </button>

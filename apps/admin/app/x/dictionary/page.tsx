@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
+import "./dictionary.css";
 
 // ── Types matching /api/data-dictionary/parameters response ──
 
@@ -118,18 +119,9 @@ function domainColor(group: string | null): string {
 
 function StatCard({ label, value, accent }: { label: string; value: number; accent?: string }) {
   return (
-    <div
-      style={{
-        padding: "14px 16px",
-        border: "1px solid var(--border-default)",
-        borderRadius: 10,
-        background: "var(--surface-primary)",
-      }}
-    >
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4, fontWeight: 500 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: accent || "var(--button-primary-bg)" }}>
+    <div className="dict-stat-card">
+      <div className="dict-stat-label">{label}</div>
+      <div className="dict-stat-value" style={{ color: accent || "var(--button-primary-bg)" }}>
         {value}
       </div>
     </div>
@@ -142,22 +134,15 @@ function Pill({ label, count, color }: { label: string; count: number; color: st
   if (count === 0) return null;
   return (
     <span
+      className="dict-pill"
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "2px 8px",
-        fontSize: 11,
-        fontWeight: 500,
-        borderRadius: 10,
         color,
         background: `color-mix(in srgb, ${color} 12%, transparent)`,
         border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
-        whiteSpace: "nowrap",
       }}
     >
       {label}
-      <span style={{ fontWeight: 700 }}>{count}</span>
+      <span className="dict-pill-count">{count}</span>
     </span>
   );
 }
@@ -166,19 +151,8 @@ function Pill({ label, count, color }: { label: string; count: number; color: st
 
 function RelSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: "var(--text-muted)",
-          marginBottom: 6,
-        }}
-      >
-        {title}
-      </div>
+    <div className="dict-rel-section">
+      <div className="dict-rel-title">{title}</div>
       {children}
     </div>
   );
@@ -187,24 +161,16 @@ function RelSection({ title, children }: { title: string; children: React.ReactN
 function RelChip({ label, sub, color }: { label: string; sub?: string; color: string }) {
   return (
     <span
+      className="dict-rel-chip"
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "3px 10px",
-        fontSize: 12,
-        fontWeight: 500,
-        borderRadius: 6,
         color,
         background: `color-mix(in srgb, ${color} 10%, transparent)`,
         border: `1px solid color-mix(in srgb, ${color} 20%, transparent)`,
-        marginRight: 6,
-        marginBottom: 4,
       }}
     >
       {label}
       {sub && (
-        <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 400 }}>{sub}</span>
+        <span className="dict-rel-chip-sub">{sub}</span>
       )}
     </span>
   );
@@ -287,31 +253,16 @@ export default function DictionaryPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+      <div className="dict-header">
         <div>
-          <h1 className="hf-page-title">
-            Data Dictionary
-          </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+          <h1 className="hf-page-title">Data Dictionary</h1>
+          <p className="dict-subtitle">
             Parameters, cross-references, and relationships across specs and playbooks
           </p>
         </div>
         <button
           onClick={() => assistant.open(undefined, { page: "/x/dictionary" })}
-          style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-            background: "var(--badge-purple-bg)",
-            color: "var(--badge-purple-text)",
-            border: "1px solid color-mix(in srgb, var(--badge-purple-text) 20%, transparent)",
-            borderRadius: 6,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            flexShrink: 0,
-          }}
+          className="hf-btn-ai hf-flex-shrink-0"
           title="Ask AI Assistant (Cmd+Shift+K)"
         >
           Ask AI
@@ -320,7 +271,7 @@ export default function DictionaryPage() {
 
       {/* Summary Stats */}
       {summary && !loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
+        <div className="dict-stats-grid">
           <StatCard label="Total" value={summary.total} />
           <StatCard label="Active" value={summary.active} accent="var(--status-success-text)" />
           <StatCard label="With Specs" value={summary.withSpecs} accent="var(--accent-primary)" />
@@ -331,23 +282,13 @@ export default function DictionaryPage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+      <div className="dict-filters">
         <input
           type="text"
           placeholder="Search keys, names, or definitions..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 200,
-            padding: "8px 12px",
-            fontSize: 14,
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            outline: "none",
-          }}
+          className="dict-search-input"
         />
         <FancySelect
           value={filterDomain}
@@ -361,17 +302,7 @@ export default function DictionaryPage() {
             ...domainGroups.map((g) => ({ value: g, label: g })),
           ]}
         />
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13,
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <label className="dict-filter-label">
           <input
             type="checkbox"
             checked={showOrphans}
@@ -380,17 +311,7 @@ export default function DictionaryPage() {
           />
           Orphans only
         </label>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13,
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <label className="dict-filter-label">
           <input
             type="checkbox"
             checked={showActiveOnly}
@@ -403,7 +324,7 @@ export default function DictionaryPage() {
 
       {/* Results count */}
       {!loading && (
-        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+        <div className="dict-results-count">
           {filtered.length} parameter{filtered.length !== 1 ? "s" : ""}
           {(search || filterDomain || showOrphans || showActiveOnly) && ` (filtered from ${parameters.length})`}
         </div>
@@ -411,82 +332,53 @@ export default function DictionaryPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
-          {error}
-        </div>
+        <div className="dict-error">{error}</div>
       )}
 
       {/* Loading */}
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading parameters...</div>
+        <div className="dict-loading">Loading parameters...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>
+        <div className="dict-empty">
+          <div className="dict-empty-icon">
             {showOrphans ? "\u26A0\uFE0F" : "\uD83D\uDD0D"}
           </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
+          <div className="dict-empty-title">
             {search || filterDomain || showOrphans || showActiveOnly
               ? "No parameters match filters"
               : "No parameters found"}
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
+          <div className="dict-empty-desc">
             {showOrphans ? "All parameters have at least one relationship" : "Try adjusting your search or filters"}
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="dict-groups">
           {Object.entries(grouped)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([category, items]) => (
               <div key={category}>
                 {/* Category header */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <div className="dict-category-header">
                   <h2
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: domainColor(category === "Uncategorized" ? null : category),
-                      margin: 0,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
+                    className="dict-category-title"
+                    style={{ color: domainColor(category === "Uncategorized" ? null : category) }}
                   >
                     {category}
                   </h2>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>
+                  <span className="dict-category-count">
                     {items.length}
                   </span>
                 </div>
 
                 {/* Table */}
-                <div
-                  style={{
-                    background: "var(--surface-primary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="dict-table">
                   {/* Header row */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "24px minmax(180px, 1fr) minmax(200px, 2fr) auto",
-                      gap: 8,
-                      padding: "8px 12px",
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "var(--text-muted)",
-                      background: "var(--surface-secondary)",
-                      borderBottom: "1px solid var(--border-default)",
-                    }}
-                  >
+                  <div className="dict-table-header">
                     <div />
                     <div>Key</div>
                     <div>Name</div>
-                    <div style={{ textAlign: "right" }}>Links</div>
+                    <div className="dict-table-header-links">Links</div>
                   </div>
 
                   {/* Data rows */}
@@ -499,124 +391,56 @@ export default function DictionaryPage() {
                         {/* Row */}
                         <div
                           onClick={() => setExpandedId(isExpanded ? null : param.id)}
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "24px minmax(180px, 1fr) minmax(200px, 2fr) auto",
-                            gap: 8,
-                            padding: "10px 12px",
-                            fontSize: 13,
-                            cursor: "pointer",
-                            background: isExpanded
-                              ? "color-mix(in srgb, var(--text-primary) 5%, transparent)"
-                              : "var(--surface-primary)",
-                            borderBottom: isExpanded ? "none" : "1px solid var(--border-subtle)",
-                            transition: "background 0.1s",
-                            alignItems: "center",
-                          }}
+                          className={`dict-row${isExpanded ? " dict-row-expanded" : ""}`}
                         >
                           {/* Active indicator */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div className="dict-active-cell">
                             <span
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: "50%",
-                                background: param.isActive ? "var(--status-success-text)" : "var(--border-default)",
-                                flexShrink: 0,
-                              }}
+                              className={`dict-active-dot ${param.isActive ? "dict-active-dot-on" : "dict-active-dot-off"}`}
                               title={param.isActive ? "Active" : "Inactive"}
                             />
                           </div>
 
                           {/* Key */}
-                          <div
-                            style={{
-                              fontFamily: "monospace",
-                              fontSize: 12,
-                              color: "var(--button-primary-bg)",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                            title={`{{${param.parameterId}}}`}
-                          >
+                          <div className="dict-param-key" title={`{{${param.parameterId}}}`}>
                             {"{{"}
                             {param.parameterId}
                             {"}}"}
                           </div>
 
                           {/* Name + definition preview */}
-                          <div style={{ overflow: "hidden" }}>
-                            <div
-                              style={{
-                                color: "var(--text-primary)",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                fontWeight: 500,
-                              }}
-                            >
-                              {param.name}
-                            </div>
+                          <div className="dict-name-cell">
+                            <div className="dict-name">{param.name}</div>
                             {param.definition && !isExpanded && (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "var(--text-muted)",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  marginTop: 2,
-                                }}
-                              >
-                                {param.definition}
-                              </div>
+                              <div className="dict-definition-preview">{param.definition}</div>
                             )}
                           </div>
 
                           {/* Relationship pills */}
-                          <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
+                          <div className="dict-pills">
                             <Pill label="Specs" count={param._counts.specs} color="var(--accent-primary)" />
                             <Pill label="Playbooks" count={param._counts.playbooks} color="var(--accent-primary)" />
                             <Pill label="Targets" count={param._counts.behaviorTargets} color="var(--badge-yellow-text)" />
                             <Pill label="Slugs" count={param._counts.promptSlugs} color="var(--badge-cyan-text)" />
                             <Pill label="Anchors" count={param._counts.scoringAnchors} color="var(--badge-purple-text)" />
                             {relCount === 0 && (
-                              <span style={{ fontSize: 11, color: "var(--status-error-text)", fontWeight: 500 }}>
-                                orphan
-                              </span>
+                              <span className="dict-orphan-label">orphan</span>
                             )}
                           </div>
                         </div>
 
                         {/* Expanded detail */}
                         {isExpanded && (
-                          <div
-                            style={{
-                              padding: "16px 16px 16px 44px",
-                              background: "color-mix(in srgb, var(--text-primary) 3%, transparent)",
-                              borderBottom: "1px solid var(--border-default)",
-                            }}
-                          >
+                          <div className="dict-detail">
                             {/* Definition */}
                             {param.definition && (
-                              <div
-                                style={{
-                                  fontSize: 13,
-                                  color: "var(--text-secondary)",
-                                  marginBottom: 16,
-                                  lineHeight: 1.5,
-                                  maxWidth: 700,
-                                }}
-                              >
-                                {param.definition}
-                              </div>
+                              <div className="dict-definition">{param.definition}</div>
                             )}
 
                             {/* Specs */}
                             {param.specs.length > 0 && (
                               <RelSection title={`Specs (${param.specs.length})`}>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                <div className="dict-rel-chips">
                                   {param.specs.map((s) => (
                                     <RelChip
                                       key={s.id}
@@ -632,7 +456,7 @@ export default function DictionaryPage() {
                             {/* Playbooks */}
                             {param.playbooks.length > 0 && (
                               <RelSection title={`Playbooks (${param.playbooks.length})`}>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                <div className="dict-rel-chips">
                                   {param.playbooks.map((pb) => (
                                     <RelChip
                                       key={pb.id}
@@ -648,7 +472,7 @@ export default function DictionaryPage() {
                             {/* Prompt Slugs */}
                             {param.promptSlugs.length > 0 && (
                               <RelSection title={`Prompt Slugs (${param.promptSlugs.length})`}>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                <div className="dict-rel-chips">
                                   {param.promptSlugs.map((ps) => (
                                     <RelChip
                                       key={ps.id}
@@ -664,33 +488,18 @@ export default function DictionaryPage() {
                             {/* Behavior Targets */}
                             {param.behaviorTargets.length > 0 && (
                               <RelSection title={`Behavior Targets (${param.behaviorTargets.length})`}>
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                                    gap: 8,
-                                  }}
-                                >
+                                <div className="dict-targets-grid">
                                   {param.behaviorTargets.map((bt) => (
-                                    <div
-                                      key={bt.id}
-                                      style={{
-                                        padding: "8px 10px",
-                                        fontSize: 12,
-                                        borderRadius: 6,
-                                        border: "1px solid color-mix(in srgb, var(--badge-yellow-text) 20%, transparent)",
-                                        background: "color-mix(in srgb, var(--badge-yellow-text) 5%, transparent)",
-                                      }}
-                                    >
-                                      <div style={{ fontWeight: 600, color: "var(--badge-yellow-text)" }}>
+                                    <div key={bt.id} className="dict-target-card">
+                                      <div className="dict-target-value">
                                         Target: {bt.targetValue}
                                         {bt.confidence != null && (
-                                          <span style={{ fontWeight: 400, marginLeft: 6, opacity: 0.7 }}>
+                                          <span className="dict-target-conf">
                                             ({Math.round(bt.confidence * 100)}% conf)
                                           </span>
                                         )}
                                       </div>
-                                      <div style={{ color: "var(--text-muted)", marginTop: 2 }}>
+                                      <div className="dict-target-meta">
                                         {bt.scope}
                                         {bt.playbook && <> &middot; {bt.playbook.name}</>}
                                       </div>
@@ -703,44 +512,15 @@ export default function DictionaryPage() {
                             {/* Scoring Anchors */}
                             {param.scoringAnchors.length > 0 && (
                               <RelSection title={`Scoring Anchors (${param.scoringAnchors.length})`}>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                <div className="dict-anchors-list">
                                   {param.scoringAnchors.map((sa) => (
-                                    <div
-                                      key={sa.id}
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "baseline",
-                                        gap: 8,
-                                        fontSize: 12,
-                                        padding: "4px 0",
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          fontWeight: 700,
-                                          color: "var(--badge-purple-text)",
-                                          minWidth: 20,
-                                          textAlign: "right",
-                                        }}
-                                      >
-                                        {sa.score}
-                                      </span>
+                                    <div key={sa.id} className="dict-anchor-row">
+                                      <span className="dict-anchor-score">{sa.score}</span>
                                       {sa.isGold && (
-                                        <span
-                                          style={{
-                                            fontSize: 10,
-                                            fontWeight: 600,
-                                            color: "var(--trust-l5-text)",
-                                            background: "color-mix(in srgb, var(--trust-l5-text) 12%, transparent)",
-                                            padding: "1px 5px",
-                                            borderRadius: 4,
-                                          }}
-                                        >
-                                          GOLD
-                                        </span>
+                                        <span className="dict-anchor-gold">GOLD</span>
                                       )}
-                                      <span style={{ color: "var(--text-secondary)" }}>
-                                        {sa.example || sa.rationale || "—"}
+                                      <span className="dict-anchor-text">
+                                        {sa.example || sa.rationale || "\u2014"}
                                       </span>
                                     </div>
                                   ))}
@@ -750,16 +530,7 @@ export default function DictionaryPage() {
 
                             {/* No relationships */}
                             {relCount === 0 && (
-                              <div
-                                style={{
-                                  fontSize: 13,
-                                  color: "var(--status-error-text)",
-                                  padding: "8px 12px",
-                                  background: "var(--status-error-bg)",
-                                  borderRadius: 6,
-                                  fontWeight: 500,
-                                }}
-                              >
+                              <div className="dict-orphan-warning">
                                 Orphaned parameter — not referenced by any spec, playbook, prompt slug, or target
                               </div>
                             )}
