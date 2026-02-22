@@ -605,7 +605,7 @@ export default function PlaybooksPage() {
             <div className="pb-detail-loading">Loading playbook...</div>
           ) : detailError || !playbook ? (
             <div className="pb-detail-error">
-              {detailError || "Playbook not found"}
+              {detailError || `${terms.playbook} not found`}
             </div>
           ) : (
             <>

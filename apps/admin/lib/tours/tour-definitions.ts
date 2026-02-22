@@ -69,13 +69,13 @@ export const TOUR_DEFINITIONS: TourDefinition[] = [
       {
         id: "admin-domains",
         title: "Domains",
-        description: "Domains define what your AI teaches. Each domain has its own curriculum, playbooks, and identity.",
+        description: "Domains define what your AI teaches. Each domain has its own curriculum, subjects, and identity.",
         manifestItem: "domains",
       },
       {
         id: "admin-playbooks",
-        title: "Playbooks",
-        description: "Playbooks bundle specs and templates together. Publish a playbook to activate it for a domain.",
+        title: "Subjects",
+        description: "Subjects bundle specs and templates together. Publish a subject to activate it for a domain.",
         manifestItem: "playbooks",
       },
       {

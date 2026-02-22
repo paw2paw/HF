@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface PromptPreviewData {
   promptSummary: string;
@@ -25,6 +26,7 @@ export function PromptPreviewContent({
   callerId,
   open,
 }: PromptPreviewContentProps) {
+  const { plural } = useTerminology();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PromptPreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export function PromptPreviewContent({
               <> &middot; Content: <strong style={{ color: "var(--text-primary)" }}>{data.metadata.contentSpec}</strong></>
             )}
             {data.metadata.playbooksUsed.length > 0 && (
-              <> &middot; Playbooks: {data.metadata.playbooksUsed.join(", ")}</>
+              <> &middot; {plural("playbook")}: {data.metadata.playbooksUsed.join(", ")}</>
             )}
             <> &middot; {data.metadata.loadTimeMs}ms load, {data.metadata.transformTimeMs}ms transform</>
             {data.createdPreviewCaller && (

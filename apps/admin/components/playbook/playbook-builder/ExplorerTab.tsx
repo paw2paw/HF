@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import Link from "next/link";
 import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
 import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
@@ -60,6 +61,7 @@ export function ExplorerTabContent({
   items,
   outputTypeBadge,
 }: ExplorerTabProps) {
+  const { terms } = useTerminology();
   return (
         <div className="exp-root">
           {explorerLoading ? (
@@ -76,7 +78,7 @@ export function ExplorerTabContent({
               <div className="exp-tree-panel">
                 {/* Tree Header */}
                 <div className="exp-tree-header">
-                  <span className="exp-tree-header-title">Playbook Structure</span>
+                  <span className="exp-tree-header-title">{terms.playbook} Structure</span>
                   <div className="exp-tree-header-actions">
                     <button
                       onClick={expandAllNodes}

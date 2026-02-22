@@ -247,7 +247,7 @@ export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybo
                   type="text"
                   value={newPlaybook.name}
                   onChange={(e) => setNewPlaybook({ ...newPlaybook, name: e.target.value })}
-                  placeholder="e.g., Default Tutor Playbook"
+                  placeholder={`e.g., Default Tutor ${terms.playbook}`}
                   style={{
                     width: "100%",
                     padding: "8px 12px",
