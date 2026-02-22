@@ -132,7 +132,8 @@
       { "id": "debug", "href": "/x/debug", "label": "Debug", "icon": "Bug" },
       { "id": "e2e-tests", "href": "/x/admin/tests", "label": "E2E Tests", "icon": "TestTube" },
       { "id": "seed-data", "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
-      { "id": "snapshots", "href": "/x/snapshots", "label": "Snapshots", "icon": "Camera" }
+      { "id": "snapshots", "href": "/x/snapshots", "label": "Snapshots", "icon": "Camera" },
+      { "id": "smoke-test", "href": "/x/smoke-test", "label": "Smoke Test", "icon": "ClipboardCheck" }
     ]
   }
 ]

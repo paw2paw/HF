@@ -161,7 +161,7 @@ const InputField = ({
   children: React.ReactNode;
 }) => (
   <div>
-    <label className="hf-label" style={{ marginBottom: 8, letterSpacing: "0.02em" }}>
+    <label className="hf-label hf-mb-sm" style={{ letterSpacing: "0.02em" }}>
       {label}
       {required && <span className="hf-text-error" style={{ marginLeft: 4 }}>*</span>}
     </label>
@@ -649,7 +649,7 @@ export default function CreateSpecPage() {
               >
                 📝
               </div>
-              <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+              <h3 className="hf-text-primary hf-mb-sm" style={{ fontSize: 20, fontWeight: 700 }}>
                 Restore Draft?
               </h3>
               <p className="hf-text-md hf-text-muted" style={{ marginBottom: 24, lineHeight: 1.5 }}>
@@ -687,7 +687,7 @@ export default function CreateSpecPage() {
                 <span style={{ fontSize: 28 }}>✨</span>
                 Create New Spec
               </h1>
-              <p className="hf-text-md hf-text-muted" style={{ margin: "4px 0 0" }}>
+              <p className="hf-text-md hf-text-muted hf-mt-xs" style={{ marginBottom: 0 }}>
                 Define a new behavior specification for your AI system
               </p>
             </div>
@@ -719,11 +719,12 @@ export default function CreateSpecPage() {
         <div className="hf-banner hf-banner-error hf-mb-lg" style={{ justifyContent: "space-between" }}>
           <div className="hf-flex hf-gap-md">
             <span style={{ fontSize: 20 }}>⚠️</span>
-            <span className="hf-text-md" style={{ fontWeight: 500 }}>{error}</span>
+            <span className="hf-text-md hf-text-500">{error}</span>
           </div>
           <button
             onClick={() => setError(null)}
-            style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", padding: 4 }}
+            className="hf-p-xs"
+            style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer" }}
           >
             <X size={20} />
           </button>
@@ -759,7 +760,7 @@ export default function CreateSpecPage() {
               <h2 className="hf-ai-title">
                 AI Spec Builder
               </h2>
-              <p className="hf-text-md hf-text-muted" style={{ margin: "4px 0 0" }}>
+              <p className="hf-text-md hf-text-muted hf-mt-xs" style={{ marginBottom: 0 }}>
                 Describe what you want to measure, and I&apos;ll build the spec for you
               </p>
               <div className="hf-mt-sm">
@@ -792,7 +793,7 @@ export default function CreateSpecPage() {
 
         {/* Chat Input - ALWAYS VISIBLE AT TOP */}
         <div className="hf-p-lg" style={{ background: "var(--surface-primary)" }}>
-          <div className="hf-flex hf-gap-md" style={{ alignItems: "flex-start" }}>
+          <div className="hf-flex hf-gap-md hf-items-start">
             <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
@@ -804,9 +805,8 @@ export default function CreateSpecPage() {
               }}
               placeholder="Tell me what you want to measure... (e.g., 'I want to track how curious someone is during conversations')"
               rows={4}
-              className="hf-input"
+              className="hf-input hf-flex-1"
               style={{
-                flex: 1,
                 padding: 16,
                 fontSize: 15,
                 borderRadius: 12,
@@ -970,7 +970,7 @@ export default function CreateSpecPage() {
             </div>
 
             {/* Form Content */}
-            <div style={{ padding: 24, maxHeight: "calc(100vh - 340px)", overflowY: "auto" }}>
+            <div className="hf-p-lg" style={{ maxHeight: "calc(100vh - 340px)", overflowY: "auto" }}>
               {/* Step 1: Basics */}
               <section style={{ marginBottom: 32 }}>
                 <div className="hf-flex hf-gap-md" style={{ marginBottom: 20 }}>
@@ -1234,9 +1234,9 @@ export default function CreateSpecPage() {
                             onChange={(e) => updateForm({
                               metadata: { curriculum: { ...formData.metadata!.curriculum!, masteryThreshold: parseFloat(e.target.value) } },
                             })}
-                            style={{ flex: 1 }}
+                            className="hf-flex-1"
                           />
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", minWidth: 44, textAlign: "right" }}>
+                          <span className="hf-text-md hf-text-primary hf-text-right" style={{ fontWeight: 700, minWidth: 44 }}>
                             {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%
                           </span>
                         </div>
@@ -1269,13 +1269,11 @@ export default function CreateSpecPage() {
                   </div>
                   <button
                     onClick={addParameter}
-                    className="hf-btn"
+                    className="hf-btn hf-text-sm hf-text-bold"
                     style={{
                       background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                       color: "white",
                       boxShadow: "0 2px 8px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)",
-                      fontSize: 13,
-                      fontWeight: 600,
                     }}
                   >
                     <Plus size={16} />
@@ -1315,7 +1313,7 @@ export default function CreateSpecPage() {
                             <div className="hf-param-index">
                               {index + 1}
                             </div>
-                            <span className="hf-text-md hf-text-bold" style={{ color: "var(--text-primary)" }}>
+                            <span className="hf-text-md hf-text-bold hf-text-primary">
                               Parameter
                             </span>
                           </div>
@@ -1341,8 +1339,7 @@ export default function CreateSpecPage() {
                               value={param.id}
                               onChange={(e) => updateParameter(index, { id: e.target.value.toUpperCase() })}
                               placeholder={formData.specRole === "CONTENT" ? "e.g., MOD-1" : "e.g., OPENNESS"}
-                              className="hf-input"
-                              style={{ fontSize: 13 }}
+                              className="hf-input hf-text-sm"
                             />
                           </InputField>
                           <InputField label="Name">
@@ -1351,8 +1348,7 @@ export default function CreateSpecPage() {
                               value={param.name}
                               onChange={(e) => updateParameter(index, { name: e.target.value })}
                               placeholder={formData.specRole === "CONTENT" ? "e.g., Food Hygiene Legislation" : "e.g., Openness to Experience"}
-                              className="hf-input"
-                              style={{ fontSize: 13 }}
+                              className="hf-input hf-text-sm"
                             />
                           </InputField>
                           <div style={{ gridColumn: "span 2" }}>
@@ -1362,8 +1358,8 @@ export default function CreateSpecPage() {
                                 onChange={(e) => updateParameter(index, { description: e.target.value })}
                                 placeholder={formData.specRole === "CONTENT" ? "What does this module cover?" : "What does this parameter measure?"}
                                 rows={2}
-                                className="hf-input"
-                                style={{ fontSize: 13, resize: "vertical" }}
+                                className="hf-input hf-text-sm"
+                                style={{ resize: "vertical" }}
                               />
                             </InputField>
                           </div>
@@ -1383,8 +1379,7 @@ export default function CreateSpecPage() {
                                   step="0.1"
                                   min="0"
                                   max="1"
-                                  className="hf-input"
-                                  style={{ fontSize: 13 }}
+                                  className="hf-input hf-text-sm"
                                 />
                               </InputField>
                               <InputField label="Target Max">
@@ -1399,8 +1394,7 @@ export default function CreateSpecPage() {
                                   step="0.1"
                                   min="0"
                                   max="1"
-                                  className="hf-input"
-                                  style={{ fontSize: 13 }}
+                                  className="hf-input hf-text-sm"
                                 />
                               </InputField>
                             </>
@@ -1433,6 +1427,7 @@ export default function CreateSpecPage() {
                                           const updated = (param.learningOutcomes || []).filter((_, i) => i !== loIdx);
                                           updateParameter(index, { learningOutcomes: updated });
                                         }}
+                                        className="hf-flex-shrink-0"
                                         style={{
                                           background: "none",
                                           border: "none",
@@ -1440,7 +1435,6 @@ export default function CreateSpecPage() {
                                           color: "var(--error-text)",
                                           fontSize: 16,
                                           padding: "2px 6px",
-                                          flexShrink: 0,
                                         }}
                                       >
                                         <X size={14} />

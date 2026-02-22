@@ -339,7 +339,7 @@ export default function DomainsPage() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <AdvancedBanner />
       {/* Header */}
-      <div className="hf-card-compact" style={{ borderRadius: 8, marginBottom: 16 }}>
+      <div className="hf-card-compact hf-mb-md" style={{ borderRadius: 8 }}>
         <div className="hf-flex hf-flex-between" style={{ marginBottom: 10 }}>
           <h1 className="hf-section-title">{plural("domain")}</h1>
           <div className="hf-flex hf-gap-md hf-items-center">
@@ -451,7 +451,7 @@ export default function DomainsPage() {
                   className={`hf-master-item${selectedId === d.id ? " hf-master-item-selected" : ""}${!d.isActive ? " hf-master-item-inactive" : ""}`}
                 >
                   <div className="hf-flex hf-gap-sm hf-mb-sm hf-items-center">
-                    <h3 className="hf-heading-sm" style={{ marginBottom: 0 }}>{d.name}</h3>
+                    <h3 className="hf-heading-sm hf-mb-0">{d.name}</h3>
                     {statusBadge(d)}
                   </div>
                   <p className="hf-text-xs hf-text-muted" style={{ margin: 0, marginBottom: 10, lineHeight: 1.4 }}>
@@ -498,7 +498,7 @@ export default function DomainsPage() {
         {/* Detail Panel */}
         <div className="hf-master-detail-right">
           {!selectedId ? (
-            <div className="hf-flex-center" style={{ height: "100%", color: "var(--text-placeholder)" }}>
+            <div className="hf-flex-center hf-text-placeholder" style={{ height: "100%" }}>
               <div className="hf-text-center">
                 <div style={{ fontSize: 48 }} className="hf-mb-md">🌐</div>
                 <div className="hf-text-md">Select a domain to view details</div>
@@ -544,7 +544,7 @@ export default function DomainsPage() {
                     <ReadinessBadge domainId={domain.id} onScaffold={fetchDomains} />
                   </div>
                   {domain.description && (
-                    <p className="hf-text-sm hf-text-muted" style={{ marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
+                    <p className="hf-text-sm hf-text-muted hf-mt-xs hf-mb-0">{domain.description}</p>
                   )}
                 </div>
                 {!domain.isDefault && isOperator && (
@@ -605,11 +605,10 @@ export default function DomainsPage() {
                         <button
                           onClick={handleDeleteDomain}
                           disabled={deleting}
-                          className="hf-btn-sm"
+                          className="hf-btn-sm hf-text-bold"
                           style={{
                             background: "var(--status-error-text)",
                             color: "white",
-                            fontWeight: 600,
                             opacity: deleting ? 0.7 : 1,
                             cursor: deleting ? "not-allowed" : "pointer",
                           }}
@@ -730,7 +729,7 @@ export default function DomainsPage() {
                               <div className="hf-flex hf-gap-sm hf-flex-wrap hf-items-center" style={{ marginBottom: 2 }}>
                                 <PlaybookPill label={playbook.name} size="compact" />
                                 {playbookStatusBadge(playbook.status)}
-                                <span className="hf-text-xs" style={{ color: "var(--text-placeholder)" }}>v{playbook.version}</span>
+                                <span className="hf-text-xs hf-text-placeholder">v{playbook.version}</span>
                               </div>
                               <div className="hf-text-xs hf-text-muted">
                                 {playbook._count?.items || 0} specs
@@ -773,7 +772,7 @@ export default function DomainsPage() {
                               </div>
                             )}
 
-                            <Link href={`/x/playbooks/${playbook.id}`} className="hf-link-plain hf-flex-shrink-0" style={{ color: "var(--text-placeholder)" }}>
+                            <Link href={`/x/playbooks/${playbook.id}`} className="hf-link-plain hf-flex-shrink-0 hf-text-placeholder">
                               →
                             </Link>
                           </div>
@@ -870,13 +869,12 @@ export default function DomainsPage() {
                               <div>
                                 <Link
                                   href={`/x/subjects?id=${subj.id}`}
-                                  className="hf-link-plain hf-heading-sm"
-                                  style={{ marginBottom: 0, color: "var(--text-primary)" }}
+                                  className="hf-link-plain hf-heading-sm hf-text-primary hf-mb-0"
                                 >
                                   {subj.name}
                                 </Link>
                                 {subj.qualificationRef && (
-                                  <span className="hf-text-xs hf-text-muted hf-mono" style={{ marginLeft: 8 }}>
+                                  <span className="hf-text-xs hf-text-muted hf-mono hf-ml-sm">
                                     {subj.qualificationRef}
                                   </span>
                                 )}
@@ -921,7 +919,7 @@ export default function DomainsPage() {
                                       {idx === subj.sources.length - 1 ? "└" : "├"}
                                     </span>
                                     {ss.tags?.length > 0 && (
-                                      <span className="hf-micro-badge" style={{ textTransform: "uppercase" }}>
+                                      <span className="hf-micro-badge hf-uppercase">
                                         {ss.tags[0]}
                                       </span>
                                     )}
@@ -933,7 +931,7 @@ export default function DomainsPage() {
                                       {ss.source.name}
                                     </Link>
                                     <TrustBadge level={ss.source.trustLevel} />
-                                    <span className="hf-text-xs hf-text-muted" style={{ minWidth: 80, textAlign: "right" }}>
+                                    <span className="hf-text-xs hf-text-muted hf-text-right" style={{ minWidth: 80 }}>
                                       {ss.source._count.assertions} assertion{ss.source._count.assertions !== 1 ? "s" : ""}
                                     </span>
                                   </div>

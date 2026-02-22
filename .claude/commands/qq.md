@@ -34,7 +34,8 @@ Then execute the chosen command using the Skill tool (e.g. `skill: "check"`). Ea
 Options:
 1. **/deploy** — Production deploy menu (pre-flight, quick, full, rollback)
 2. **/vm** — VM workflow (pull, start, commit, push, status)
-3. **/vm-seed** — Run full seed on hf-dev VM (all 9 seed scripts)
+3. **/zmb** — Kill zombies + restart dev server + open tunnel (all-in-one)
+4. **/vm-seed** — Run full seed on hf-dev VM (all 9 seed scripts)
 
 Then execute using the Skill tool. Each has its own sub-picker.
 

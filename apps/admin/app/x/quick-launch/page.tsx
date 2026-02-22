@@ -1,5 +1,6 @@
 "use client";
 
+import "./quick-launch.css";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";

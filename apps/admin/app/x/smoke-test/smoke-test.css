@@ -1,0 +1,349 @@
+/* ── Smoke Test Page ────────────────────────────────── */
+
+.st-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Header */
+.st-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.st-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.st-header-icon {
+  color: var(--accent-primary);
+}
+
+.st-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Run bar */
+.st-run-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.st-run-selector {
+  flex: 1;
+  min-width: 200px;
+}
+
+.st-run-select {
+  max-width: 400px;
+  font-size: 13px;
+}
+
+.st-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.st-stat-pass { color: var(--status-success-text); }
+.st-stat-fail { color: var(--status-error-text); }
+.st-stat-skip { color: var(--text-tertiary); }
+.st-stat-untested { color: var(--text-muted); }
+
+.st-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.st-copy-btn:hover {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+/* Empty state */
+.st-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.st-empty-icon { color: var(--text-tertiary); }
+.st-empty-text { color: var(--text-muted); font-size: 14px; }
+
+/* Checklist */
+.st-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Group */
+.st-group {
+  padding: 0;
+  overflow: hidden;
+}
+
+.st-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.1s;
+}
+.st-group-header:hover {
+  background: var(--surface-secondary);
+}
+
+.st-group-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.st-group-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.st-group-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.st-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.st-badge-count {
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+}
+
+.st-badge-done {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.st-badge-fail {
+  background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
+  color: var(--status-error-text);
+}
+
+/* Items */
+.st-group-items {
+  border-top: 1px solid var(--border-default);
+}
+
+.st-item {
+  padding: 10px 16px 10px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 50%, transparent);
+  transition: background 0.1s;
+}
+.st-item:last-child { border-bottom: none; }
+.st-item:hover { background: color-mix(in srgb, var(--surface-secondary) 50%, transparent); }
+
+.st-item-pass { background: color-mix(in srgb, var(--status-success-text) 4%, transparent); }
+.st-item-fail { background: color-mix(in srgb, var(--status-error-text) 4%, transparent); }
+
+.st-item-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.st-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.st-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.st-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.st-item-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.st-item-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--status-error-text);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--status-error-text) 8%, transparent);
+}
+.st-item-note:hover {
+  background: color-mix(in srgb, var(--status-error-text) 14%, transparent);
+}
+
+/* Status icons */
+.st-icon-pass { color: var(--status-success-text); flex-shrink: 0; }
+.st-icon-fail { color: var(--status-error-text); flex-shrink: 0; }
+.st-icon-skip { color: var(--text-tertiary); flex-shrink: 0; }
+.st-icon-untested { color: var(--border-default); flex-shrink: 0; }
+
+/* Action buttons */
+.st-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.st-status-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.st-status-btn:hover {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.st-status-btn-active-pass {
+  color: var(--status-success-text);
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+}
+.st-status-btn-active-fail {
+  color: var(--status-error-text);
+  background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
+}
+.st-status-btn-active-skip {
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+.st-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  transition: all 0.1s;
+}
+.st-link-btn:hover {
+  background: var(--surface-secondary);
+  color: var(--accent-primary);
+}
+
+/* Note editor */
+.st-note-editor {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 28px;
+}
+
+.st-note-input {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.st-note-save {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+/* Workflow card */
+.st-workflow {
+  margin-top: 8px;
+}
+
+.st-workflow-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.st-workflow-list code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-secondary);
+  font-size: 12px;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .st-page { padding: 16px 12px; }
+  .st-header { flex-direction: column; }
+  .st-run-bar { flex-direction: column; align-items: stretch; }
+  .st-stats { justify-content: center; }
+  .st-item-main { flex-direction: column; gap: 8px; }
+  .st-item-actions { align-self: flex-end; }
+}

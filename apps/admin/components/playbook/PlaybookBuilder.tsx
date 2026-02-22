@@ -1384,7 +1384,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
     };
     const s = styles[scope] || styles.SYSTEM;
     return (
-      <span className="hf-micro-badge-sm" style={{ background: s.bg, color: s.color, fontWeight: 500 }}>
+      <span className="hf-micro-badge-sm hf-text-500" style={{ background: s.bg, color: s.color }}>
         {scope}
       </span>
     );
@@ -2163,7 +2163,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                           >
                             <div className="hf-flex-between hf-items-start hf-gap-sm">
                               <div className="hf-flex-1" style={{ minWidth: 0 }}>
-                                <div className="hf-flex-wrap hf-gap-xs" style={{ alignItems: "center", marginBottom: 2 }}>
+                                <div className="hf-flex-wrap hf-gap-xs hf-items-center" style={{ marginBottom: 2 }}>
                                   <SpecRoleBadge role={spec.specRole} size="sm" showIcon={false} />
                                   {!isGloballyActive && (
                                     <span className="hf-micro-badge-sm" style={{ background: "var(--button-destructive-bg)", color: "white", textTransform: "uppercase" }}>
@@ -2213,7 +2213,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                       }}
                                       title={specHasOverride ? "Config overridden - click to edit" : "Configure spec settings"}
                                     >
-                                      <span style={{ fontSize: 14 }}>⚙️</span>
+                                      <span className="hf-text-md">⚙️</span>
                                     </button>
                                   )}
 
@@ -2264,8 +2264,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               {filteredSystemAgentSpecs.length > 0 && (
                 <button
                   onClick={() => setShowSystemInColumns(prev => ({ ...prev, agent: !prev.agent }))}
-                  className="hf-btn-reset-tiny hf-text-muted"
-                  style={{ whiteSpace: "nowrap", background: showSystemInColumns.agent ? "var(--surface-secondary)" : "var(--surface-primary)" }}
+                  className="hf-btn-reset-tiny hf-text-muted hf-nowrap"
+                  style={{ background: showSystemInColumns.agent ? "var(--surface-secondary)" : "var(--surface-primary)" }}
                   title={showSystemInColumns.agent ? "Hide system specs" : "Show system specs"}
                 >
                   ⚙️ {showSystemInColumns.agent ? "Hide" : "Show"}
@@ -2311,7 +2311,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
           {filteredAgentItems.length === 0 && (!showSystemInColumns.agent || filteredSystemAgentSpecs.length === 0) ? (
             <div className="hf-empty hf-text-center hf-p-lg" style={{ background: "var(--status-info-bg)", border: "2px dashed var(--status-info-border)" }}>
-              <p className="hf-text-bold" style={{ color: "var(--status-info-text)", marginBottom: 4 }}>{specSearch ? "No matching specs" : "No Agent Specs"}</p>
+              <p className="hf-text-bold hf-mb-xs" style={{ color: "var(--status-info-text)" }}>{specSearch ? "No matching specs" : "No Agent Specs"}</p>
               <p className="hf-text-xs hf-text-muted">
                 {specSearch ? "Try a different search term" : isEditable ? "Click specs above to define agent identity" : "No agent identity configured"}
               </p>
@@ -2353,15 +2353,14 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   {/* Header - always visible */}
                   <div
                     onClick={() => item.spec && toggleItemExpanded(item.id, item.specId)}
-                    className="hf-flex"
+                    className="hf-flex hf-items-start"
                     style={{
                       padding: "10px 12px",
                       cursor: item.spec ? "pointer" : "default",
                       justifyContent: "space-between",
-                      alignItems: "flex-start",
                     }}
                   >
-                    <div className="hf-flex hf-gap-sm" style={{ alignItems: "flex-start", flex: 1 }}>
+                    <div className="hf-flex hf-gap-sm hf-items-start hf-flex-1">
                       {/* Expand/collapse indicator for specs */}
                       {item.spec && (
                         <span className="hf-text-xs hf-text-placeholder" style={{ minWidth: 16, marginTop: 1 }}>
@@ -2374,7 +2373,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         </span>
                       )}
                       <div className="hf-flex-1" style={{ minWidth: 0 }}>
-                        <div className="hf-flex-wrap hf-gap-xs" style={{ alignItems: "center", marginBottom: 2 }}>
+                        <div className="hf-flex-wrap hf-gap-xs hf-items-center" style={{ marginBottom: 2 }}>
                           {item.spec && (
                             <>
                               <SpecRoleBadge role={item.spec.specRole} size="sm" showIcon={false} />
@@ -2386,8 +2385,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                               <Link
                                 href={`${routePrefix}/specs/${item.specId}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="hf-text-bold hf-text-xs hf-truncate"
-                                style={{ color: "var(--text-primary)", textDecoration: "none" }}
+                                className="hf-text-bold hf-text-xs hf-truncate hf-text-primary"
+                                style={{ textDecoration: "none" }}
                               >
                                 {item.spec.name}
                               </Link>
@@ -2515,11 +2514,11 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                   <div style={{ borderTop: "1px solid var(--border-default)", padding: 12 }}>
                                     {/* Given/When/Then */}
                                     <div className="hf-mono hf-mb-md hf-p-sm" style={{ background: "var(--background)", borderRadius: 6 }}>
-                                      <div style={{ marginBottom: 4 }}>
+                                      <div className="hf-mb-xs">
                                         <span className="hf-text-bold" style={{ color: "var(--badge-purple-text)" }}>Given</span>{" "}
                                         <span>{trigger.given}</span>
                                       </div>
-                                      <div style={{ marginBottom: 4 }}>
+                                      <div className="hf-mb-xs">
                                         <span className="hf-text-bold" style={{ color: "var(--status-info-text)" }}>When</span>{" "}
                                         <span>{trigger.when}</span>
                                       </div>
@@ -2552,7 +2551,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                             </div>
                                             <div className="hf-flex hf-gap-sm">
                                               {action.parameter && (
-                                                <span className="hf-micro-badge" style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", fontSize: 10 }}>
+                                                <span className="hf-micro-badge hf-text-xxs" style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" }}>
                                                   {action.parameter.parameterId}
                                                 </span>
                                               )}
@@ -2755,7 +2754,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
           {filteredCallerItems.length === 0 && (!showSystemInColumns.caller || filteredSystemCallerSpecs.length === 0) ? (
             <div className="hf-empty hf-text-center hf-p-lg" style={{ background: "var(--status-warning-bg)", border: "2px dashed var(--status-warning-border)" }}>
-              <p className="hf-text-bold" style={{ color: "var(--status-warning-text)", marginBottom: 4 }}>{specSearch ? "No matching specs" : "No Caller Specs"}</p>
+              <p className="hf-text-bold hf-mb-xs" style={{ color: "var(--status-warning-text)" }}>{specSearch ? "No matching specs" : "No Caller Specs"}</p>
               <p className="hf-text-xs hf-text-muted">
                 {specSearch ? "Try a different search term" : isEditable ? "Click specs above to add caller analysis" : "No caller analysis configured"}
               </p>
@@ -2795,18 +2794,17 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       }}
                       onClick={() => item.specId && toggleItemExpanded(item.id, item.specId)}
                     >
-                      <div className="hf-flex hf-gap-sm" style={{ flex: 1, minWidth: 0 }}>
+                      <div className="hf-flex hf-gap-sm hf-flex-1" style={{ minWidth: 0 }}>
                         {item.spec && (
                           <>
                             {outputTypeBadge(item.spec.outputType)}
                             <Link
                               href={`${routePrefix}/specs/${item.specId}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="hf-text-bold hf-text-xs hf-truncate"
-                              style={{ textDecoration: "none", color: "inherit" }}
+                              className="hf-text-bold hf-text-xs hf-truncate hf-link-plain"
                             >{item.spec.name}</Link>
                             {item.spec.scope === "SYSTEM" && (
-                              <span className="hf-text-xs hf-text-placeholder" style={{ flexShrink: 0 }}>⚙️</span>
+                              <span className="hf-text-xs hf-text-placeholder hf-flex-shrink-0">⚙️</span>
                             )}
                           </>
                         )}
@@ -2910,7 +2908,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
           {filteredContentItems.length === 0 && (!showSystemInColumns.content || filteredSystemContentSpecs.length === 0) ? (
             <div className="hf-empty hf-text-center hf-p-lg" style={{ background: "var(--status-success-bg)", border: "2px dashed var(--status-success-border)" }}>
-              <p className="hf-text-bold" style={{ color: "var(--status-success-text)", marginBottom: 4 }}>{specSearch ? "No matching specs" : "No Content Specs"}</p>
+              <p className="hf-text-bold hf-mb-xs" style={{ color: "var(--status-success-text)" }}>{specSearch ? "No matching specs" : "No Content Specs"}</p>
               <p className="hf-text-xs hf-text-muted">
                 {specSearch ? "Try a different search term" : isEditable ? "Click specs above to add domain content analysis" : "No content analysis configured"}
               </p>
@@ -2951,18 +2949,17 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                       }}
                       onClick={() => item.specId && toggleItemExpanded(item.id, item.specId)}
                     >
-                      <div className="hf-flex hf-gap-sm" style={{ flex: 1, minWidth: 0 }}>
+                      <div className="hf-flex hf-gap-sm hf-flex-1" style={{ minWidth: 0 }}>
                         {item.spec && (
                           <>
                             {outputTypeBadge(item.spec.outputType)}
                             <Link
                               href={`${routePrefix}/specs/${item.specId}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="hf-text-bold hf-text-xs hf-truncate"
-                              style={{ textDecoration: "none", color: "inherit" }}
+                              className="hf-text-bold hf-text-xs hf-truncate hf-link-plain"
                             >{item.spec.name}</Link>
                             {item.spec.scope === "SYSTEM" && (
-                              <span className="hf-text-xs hf-text-placeholder" style={{ flexShrink: 0 }}>⚙️</span>
+                              <span className="hf-text-xs hf-text-placeholder hf-flex-shrink-0">⚙️</span>
                             )}
                           </>
                         )}
@@ -3020,18 +3017,18 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
           ) : !targetsData || targetsData.parameters.length === 0 ? (
             <div className="hf-empty hf-text-center" style={{ padding: 48 }}>
               <div style={{ fontSize: 48 }} className="hf-mb-md">⚙️</div>
-              <p className="hf-text-bold" style={{ color: "var(--text-secondary)", marginBottom: 8, fontSize: 16 }}>
+              <p className="hf-text-bold hf-text-secondary hf-mb-sm" style={{ fontSize: 16 }}>
                 Configure Behavior Dimensions
               </p>
-              <p className="hf-text-muted hf-mb-md" style={{ fontSize: 13 }}>
+              <p className="hf-text-muted hf-mb-md hf-text-sm">
                 Behavior dimensions control how the agent communicates with callers in this domain.
               </p>
               {isEditable && (
                 <button
                   onClick={handleCompileTargets}
                   disabled={compilingTargets}
-                  className="hf-btn hf-btn-primary"
-                  style={{ padding: "10px 20px", fontSize: 14, background: "var(--badge-purple-text)" }}
+                  className="hf-btn hf-btn-primary hf-text-md"
+                  style={{ padding: "10px 20px", background: "var(--badge-purple-text)" }}
                 >
                   {compilingTargets ? "Loading..." : "Load Behavior Dimensions"}
                 </button>
@@ -3043,7 +3040,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               {playbook?.status === "PUBLISHED" && pendingTargetChanges.size > 0 && (
                 <div className="hf-banner hf-banner-warning hf-flex hf-gap-md hf-mb-md">
                   <span >✏️</span>
-                  <span className="hf-text-bold" style={{ fontSize: 13, color: "var(--status-warning-text)" }}>
+                  <span className="hf-text-bold hf-text-sm" style={{ color: "var(--status-warning-text)" }}>
                     Editing a published playbook — saving will switch to draft mode
                   </span>
                 </div>
@@ -3057,7 +3054,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                   </h3>
                   <p className="hf-text-sm hf-text-muted hf-mt-xs" style={{ margin: 0 }}>
                     Adjust sliders to configure agent behavior for the {playbook.domain.name} domain.
-                    <span className="hf-text-placeholder" style={{ marginLeft: 8 }}>
+                    <span className="hf-text-placeholder hf-ml-sm">
                       {targetsData.counts.withPlaybookOverride} customized, {targetsData.counts.withSystemDefault} using defaults
                     </span>
                   </p>
@@ -3102,7 +3099,7 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                         <h3 className="hf-text-bold" style={{ margin: 0, fontSize: 18 }}>
                           Modify Published Playbook?
                         </h3>
-                        <p className="hf-text-muted" style={{ margin: "4px 0 0 0", fontSize: 13 }}>
+                        <p className="hf-text-muted hf-text-sm" style={{ margin: "4px 0 0 0" }}>
                           This playbook is currently active
                         </p>
                       </div>
@@ -3110,8 +3107,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
 
                     <div className="hf-card-compact hf-mb-lg hf-info-box">
                       <p className="hf-text-md hf-text-secondary" style={{ margin: 0, lineHeight: 1.6 }}>
-                        Saving these changes will <strong style={{ color: "var(--text-primary)" }}>switch the playbook to draft mode</strong>.
-                        The updated behavior targets will apply to <strong style={{ color: "var(--text-primary)" }}>all future prompt runs</strong> once you republish.
+                        Saving these changes will <strong className="hf-text-primary">switch the playbook to draft mode</strong>.
+                        The updated behavior targets will apply to <strong className="hf-text-primary">all future prompt runs</strong> once you republish.
                       </p>
                     </div>
 
@@ -3159,10 +3156,9 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                     <button
                       onClick={() => handleSuggestPills("initial")}
                       disabled={!intentText.trim() || suggesting}
-                      className={`hf-btn ${!intentText.trim() || suggesting ? "" : "hf-btn-primary"}`}
+                      className={`hf-btn hf-nowrap ${!intentText.trim() || suggesting ? "" : "hf-btn-primary"}`}
                       style={{
                         borderRadius: 8,
-                        whiteSpace: "nowrap",
                         ...(!intentText.trim() || suggesting ? { background: "var(--surface-secondary)", color: "var(--text-muted)" } : {}),
                       }}
                     >
@@ -3221,9 +3217,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                               }}
                             />
                             <span
-                              className="hf-text-bold"
+                              className="hf-text-bold hf-text-md"
                               style={{
-                                fontSize: 14,
                                 color: ps.active ? "var(--text-primary)" : "var(--text-muted)",
                               }}
                               title={ps.pill.description}
@@ -3246,19 +3241,17 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
                                 )
                               }
                               disabled={!ps.active || !isEditable}
+                              className="hf-flex-1"
                               style={{
-                                flex: 1,
                                 accentColor: "var(--accent-primary)",
                                 cursor: ps.active ? "pointer" : "default",
                               }}
                             />
                             <span
-                              className="hf-text-bold hf-mono"
+                              className="hf-text-bold hf-mono hf-text-xs hf-text-right"
                               style={{
-                                fontSize: 11,
                                 color: ps.active ? "var(--text-secondary)" : "var(--text-muted)",
                                 minWidth: 28,
-                                textAlign: "right",
                               }}
                             >
                               {Math.round(ps.intensity * 100)}
@@ -3320,8 +3313,8 @@ export function PlaybookBuilder({ playbookId, routePrefix = "" }: PlaybookBuilde
               {pillStates.length > 0 && (
                 <button
                   onClick={() => setShowAdvancedSliders(!showAdvancedSliders)}
-                  className="hf-btn hf-flex hf-gap-xs hf-text-muted hf-text-bold hf-mb-md"
-                  style={{ background: "none", border: "none", padding: "8px 0", fontSize: 13 }}
+                  className="hf-btn hf-flex hf-gap-xs hf-text-muted hf-text-bold hf-mb-md hf-text-sm"
+                  style={{ background: "none", border: "none", padding: "8px 0" }}
                 >
                   <span
                     style={{

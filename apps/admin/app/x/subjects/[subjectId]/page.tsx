@@ -75,7 +75,7 @@ function TagPills({ tags }: { tags: string[] }) {
         );
       })}
       {tags.length === 0 && (
-        <span className="hf-text-xs hf-text-muted" style={{ fontStyle: "italic" }}>no tags</span>
+        <span className="hf-text-xs hf-text-muted hf-text-italic">no tags</span>
       )}
     </span>
   );
@@ -702,7 +702,7 @@ export default function SubjectDetailPage() {
   const curriculumModules: CurriculumModule[] = curriculum?.notableInfo?.modules || [];
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto", color: "var(--text-primary)" }}>
+    <div className="hf-p-lg hf-text-primary" style={{ maxWidth: 1200, margin: "0 auto" }}>
       {/* Back link */}
       <button
         onClick={() => router.push("/x/subjects")}
@@ -721,7 +721,7 @@ export default function SubjectDetailPage() {
 
       {/* Header */}
       <div className="hf-mb-lg" style={{ paddingBottom: 16, borderBottom: "1px solid var(--border-default)" }}>
-        <div className="hf-flex hf-gap-md hf-mb-sm" style={{ alignItems: "center" }}>
+        <div className="hf-flex hf-gap-md hf-mb-sm hf-items-center">
           {editingName ? (
             <input
               value={editName}
@@ -781,8 +781,8 @@ export default function SubjectDetailPage() {
         )}
 
         {/* Trust level selector + stats + actions */}
-        <div className="hf-flex hf-gap-lg hf-mt-md" style={{ alignItems: "center" }}>
-          <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+        <div className="hf-flex hf-gap-lg hf-mt-md hf-items-center">
+          <div className="hf-flex hf-gap-sm hf-items-center">
             <span className="hf-text-xs hf-text-bold">Default trust:</span>
             <select
               value={subject.defaultTrustLevel}
@@ -802,8 +802,7 @@ export default function SubjectDetailPage() {
             onClick={() => {
               router.push(`/x/content-sources`);
             }}
-            className="hf-btn hf-btn-secondary hf-text-xs hf-text-bold"
-            style={{ marginLeft: "auto" }}
+            className="hf-btn hf-btn-secondary hf-text-xs hf-text-bold hf-ml-auto"
           >
             Content Wizard
           </button>
@@ -872,7 +871,7 @@ export default function SubjectDetailPage() {
                   >
                     {/* Row 1: badges + name + stats */}
                     <div className="hf-flex-between">
-                      <div className="hf-flex hf-gap-sm" style={{ alignItems: "center", flex: 1 }}>
+                      <div className="hf-flex hf-gap-sm hf-items-center hf-flex-1">
                         <TagPills tags={ss.tags || []} />
                         <DocumentTypeBadge type={ss.source.documentType} source={ss.source.documentTypeSource} />
                         <span className="hf-text-md hf-text-bold">{ss.source.name}</span>
@@ -881,7 +880,7 @@ export default function SubjectDetailPage() {
                           {ss.source._count.assertions} assertions
                         </span>
                       </div>
-                      <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+                      <div className="hf-flex hf-gap-sm hf-items-center">
                         {isAdvanced && SOURCE_TAGS.map((tag) => {
                           const active = ss.tags?.includes(tag.value);
                           return (
@@ -919,7 +918,7 @@ export default function SubjectDetailPage() {
 
                     {/* Row 2: Classification actions (awaiting sources — file stored, ready to extract) */}
                     {isAdvanced && awaiting && (
-                      <div className="hf-flex hf-gap-sm hf-mt-sm" style={{ alignItems: "center", paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
+                      <div className="hf-flex hf-gap-sm hf-mt-sm hf-items-center" style={{ paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
                         <span className="hf-text-xs hf-text-bold hf-text-muted">Type:</span>
                         <select
                           value={ss.source.documentType}
@@ -964,9 +963,8 @@ export default function SubjectDetailPage() {
             {uploadResults.map((r, i) => (
               <div
                 key={i}
-                className="hf-text-sm hf-mb-xs"
+                className="hf-text-sm hf-mb-xs hf-p-sm"
                 style={{
-                  padding: 8,
                   borderRadius: 4,
                   background: r.ok ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : "var(--status-error-bg)",
                   color: r.ok ? "var(--text-primary)" : "var(--status-error-text)",
@@ -1018,7 +1016,7 @@ export default function SubjectDetailPage() {
             onChange={handleFileInput}
             style={{ display: "none" }}
           />
-          <div style={{ fontSize: 28, marginBottom: 8 }}>{isDragging ? "+" : ""}</div>
+          <div className="hf-mb-sm" style={{ fontSize: 28 }}>{isDragging ? "+" : ""}</div>
           <p className="hf-text-bold" style={{ fontSize: 15, margin: "0 0 4px", color: isDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
             {isDragging ? "Drop files here" : "Drag documents here or click to upload"}
           </p>
@@ -1033,7 +1031,7 @@ export default function SubjectDetailPage() {
         <div className="hf-flex-between hf-mb-md">
           <h2 className="hf-section-title">Curriculum</h2>
           {isAdvanced && (
-            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+            <div className="hf-flex hf-gap-sm hf-items-center">
               {generatingCurriculum && (
                 <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
                   Generating in background...
@@ -1119,7 +1117,7 @@ export default function SubjectDetailPage() {
         <section id="section-lesson-plan" style={{ marginBottom: 32 }}>
           <div className="hf-flex-between hf-mb-md">
             <h2 className="hf-section-title">Lesson Plan</h2>
-            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+            <div className="hf-flex hf-gap-sm hf-items-center">
               {lessonPlanGenerating && (
                 <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
                   Generating...
@@ -1133,7 +1131,7 @@ export default function SubjectDetailPage() {
             <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
           )}
 
-          <div className="hf-flex hf-gap-sm hf-mb-md" style={{ alignItems: "center" }}>
+          <div className="hf-flex hf-gap-sm hf-mb-md hf-items-center">
               <button
                 onClick={generateLessonPlan}
                 disabled={lessonPlanGenerating}
@@ -1160,7 +1158,7 @@ export default function SubjectDetailPage() {
 
           {/* AI reasoning */}
           {lessonPlanReasoning && lessonPlanEditing && (
-            <div className="hf-banner hf-banner-info hf-mb-md" style={{ fontStyle: "italic" }}>
+            <div className="hf-banner hf-banner-info hf-mb-md hf-text-italic">
               AI reasoning: {lessonPlanReasoning}
             </div>
           )}
@@ -1207,9 +1205,8 @@ export default function SubjectDetailPage() {
             {subject.domains.map((sd) => (
               <div
                 key={sd.id}
-                className="hf-flex hf-gap-sm hf-text-sm"
+                className="hf-flex hf-gap-sm hf-text-sm hf-items-center"
                 style={{
-                  alignItems: "center",
                   padding: "6px 12px",
                   borderRadius: 6,
                   border: "1px solid var(--border-default)",
@@ -1232,7 +1229,7 @@ export default function SubjectDetailPage() {
 
         {/* Add domain */}
         {availableDomains.length > 0 && (
-          <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+          <div className="hf-flex hf-gap-sm hf-items-center">
             <select
               id="link-domain-select"
               defaultValue=""
@@ -1269,7 +1266,7 @@ export default function SubjectDetailPage() {
       <section style={{ marginBottom: 32 }}>
         <div className="hf-flex-between hf-mb-md">
           <h2 className="hf-section-title">Media Library</h2>
-          <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+          <div className="hf-flex hf-gap-sm hf-items-center">
             {/* Type filter */}
             {["all", "image", "pdf", "audio"].map((f) => (
               <button
@@ -1415,7 +1412,7 @@ export default function SubjectDetailPage() {
 function CurriculumView({ modules, name, description }: { modules: CurriculumModule[]; name?: string; description?: string }) {
   return (
     <div>
-      {name && <h3 className="hf-heading-md" style={{ marginTop: 0, marginBottom: 4 }}>{name}</h3>}
+      {name && <h3 className="hf-heading-md hf-mb-xs" style={{ marginTop: 0 }}>{name}</h3>}
       {description && <p className="hf-text-sm hf-text-muted" style={{ margin: "0 0 12px" }}>{description}</p>}
 
       {modules.length === 0 ? (
@@ -1424,7 +1421,7 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
         <div style={{ display: "grid", gap: 8 }}>
           {modules.map((mod) => (
             <div key={mod.id} className="hf-card-compact">
-              <div className="hf-flex hf-gap-sm hf-mb-sm" style={{ alignItems: "center" }}>
+              <div className="hf-flex hf-gap-sm hf-mb-sm hf-items-center">
                 <span className="hf-text-xs hf-mono" style={{ fontWeight: 700, color: "var(--accent-primary)" }}>{mod.id}</span>
                 <span className="hf-text-md hf-text-bold">{mod.title}</span>
                 {mod.estimatedDurationMinutes && (
@@ -1441,7 +1438,7 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
                   </span>
                   <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
                     {mod.learningOutcomes.map((lo, i) => (
-                      <li key={i} style={{ marginBottom: 2, color: "var(--text-primary)" }}>{lo}</li>
+                      <li key={i} className="hf-text-primary" style={{ marginBottom: 2 }}>{lo}</li>
                     ))}
                   </ul>
                 </div>
@@ -1449,7 +1446,7 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
               {mod.keyTerms && mod.keyTerms.length > 0 && (
                 <div className="hf-flex hf-flex-wrap hf-gap-xs hf-mt-sm">
                   {mod.keyTerms.map((t, i) => (
-                    <span key={i} className="hf-micro-pill" style={{ background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
+                    <span key={i} className="hf-micro-pill hf-text-muted" style={{ background: "var(--surface-secondary)" }}>
                       {t}
                     </span>
                   ))}
@@ -1500,10 +1497,10 @@ function LessonPlanView({ entries }: { entries: any[] }) {
       <div style={{ display: "grid", gap: 4 }}>
         {entries.map((e: any) => (
           <div key={e.session} className="hf-plan-row" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
-            <span className="hf-text-xs hf-text-bold hf-text-muted" style={{ minWidth: 24, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+            <span className="hf-text-xs hf-text-bold hf-text-muted hf-text-right" style={{ minWidth: 24, fontVariantNumeric: "tabular-nums" }}>
               {e.session}.
             </span>
-            <span className="hf-text-sm" style={{ fontWeight: 500, color: "var(--text-primary)", flex: 1 }}>
+            <span className="hf-text-sm hf-text-500 hf-text-primary hf-flex-1">
               {e.label}
             </span>
             <SessionTypeBadge type={e.type} />
@@ -1577,8 +1574,8 @@ function LessonPlanEditor({
           addLabel="+ Add Session"
           emptyLabel="No sessions. Click + Add Session to begin."
           renderCard={(e, index) => (
-            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center", flex: 1 }}>
-              <span className="hf-text-xs hf-text-bold hf-text-muted" style={{ minWidth: 20, textAlign: "right" }}>
+            <div className="hf-flex hf-gap-sm hf-items-center hf-flex-1">
+              <span className="hf-text-xs hf-text-bold hf-text-muted hf-text-right" style={{ minWidth: 20 }}>
                 {index + 1}
               </span>
               <input
@@ -1620,7 +1617,7 @@ function LessonPlanEditor({
         />
       </div>
 
-      <div className="hf-flex hf-gap-sm" style={{ alignItems: "center", justifyContent: "flex-end" }}>
+      <div className="hf-flex hf-gap-sm hf-items-center" style={{ justifyContent: "flex-end" }}>
         <button onClick={onCancel} className="hf-btn hf-btn-secondary hf-text-sm">
           Cancel
         </button>

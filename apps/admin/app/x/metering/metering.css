@@ -1,0 +1,257 @@
+/* ── Metering Page ────────────────────────── */
+/* Extracted from globals.css — imported by metering/page.tsx */
+
+.metering-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.metering-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+.metering-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.metering-stat-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+}
+.metering-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.metering-stat-sublabel {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.metering-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border-default);
+}
+.metering-tab {
+  padding: 10px 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+}
+.metering-tab-active {
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom-color: var(--button-primary-bg);
+}
+.metering-period-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.metering-period-btn-active {
+  border: 2px solid var(--button-primary-bg);
+  background: var(--status-info-bg);
+  font-weight: 600;
+}
+.metering-table-header {
+  display: grid;
+  gap: 12px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-default);
+}
+.metering-table-row {
+  display: grid;
+  gap: 12px;
+  padding: 10px 12px;
+  align-items: center;
+  border-radius: 4px;
+  position: relative;
+}
+.metering-table-row-alt {
+  background: var(--surface-secondary);
+}
+.metering-bar-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  opacity: 0.3;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.metering-dot {
+  display: inline-block;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.metering-category-tag {
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.metering-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.metering-callpoint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+}
+.metering-callpoint-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+}
+.metering-provider-card {
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 140px;
+}
+.metering-progress-track {
+  height: 6px;
+  background: var(--surface-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.metering-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+.metering-event-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.metering-event-tag {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.metering-op-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+}
+.metering-legend {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+.metering-category-card {
+  border-radius: 10px;
+  padding: 16px;
+}
+.metering-section-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+}
+.metering-ai-section {
+  background: var(--surface-primary);
+  border: 1px solid var(--status-info-border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.metering-code {
+  background: var(--surface-secondary);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.metering-link {
+  font-size: 12px;
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+.metering-events-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.metering-cols-expensive {
+  grid-template-columns: 40px 100px 1fr 100px 100px 100px;
+}
+.metering-cols-used {
+  grid-template-columns: 40px 100px 1fr 100px 100px;
+}
+.metering-cols-caller {
+  grid-template-columns: 40px 1fr 140px 100px 100px;
+}
+.metering-cols-domain {
+  grid-template-columns: 40px 1fr 100px 100px 120px;
+}
+.metering-full-span {
+  grid-column: 1 / -1;
+}
+.metering-unattr-row {
+  display: grid;
+  gap: 12px;
+  padding: 10px 12px;
+  align-items: center;
+  border-top: 1px solid var(--border-default);
+  margin-top: 8px;
+  opacity: 0.6;
+}
+.metering-cell-rel {
+  position: relative;
+}
+.metering-cell-right {
+  text-align: right;
+  position: relative;
+}
+.metering-h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.metering-h2-lg {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.metering-h2-accent {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--accent-primary);
+}
+.metering-sub-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.metering-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 40px;
+}

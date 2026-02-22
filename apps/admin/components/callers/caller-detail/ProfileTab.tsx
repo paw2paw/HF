@@ -95,12 +95,12 @@ export function MemoriesSection({
                   </div>
                   <div className="hf-flex hf-gap-sm">
                     {memory.decayFactor != null && memory.decayFactor < 1 && (
-                      <span className="hf-text-placeholder" style={{ fontSize: 10, opacity: 0.8 }} title={`Decay: ${memory.decayFactor.toFixed(2)}`}>
+                      <span className="hf-text-placeholder hf-text-xxs" style={{ opacity: 0.8 }} title={`Decay: ${memory.decayFactor.toFixed(2)}`}>
                         {memory.decayFactor >= 0.8 ? "●" : memory.decayFactor >= 0.5 ? "◐" : "○"}
                       </span>
                     )}
-                    <span className="hf-text-placeholder" style={{ fontSize: 10 }}>{(memory.confidence * 100).toFixed(0)}%</span>
-                    <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
+                    <span className="hf-text-placeholder hf-text-xxs">{(memory.confidence * 100).toFixed(0)}%</span>
+                    <span className="hf-text-placeholder hf-text-xxs">
                       {(() => {
                         const d = new Date(memory.extractedAt);
                         const now = new Date();
@@ -111,15 +111,15 @@ export function MemoriesSection({
                         return `${Math.floor(days / 30)}mo ago`;
                       })()}
                     </span>
-                    <span className="hf-text-placeholder" style={{ fontSize: 12 }}>{isExpanded ? "▼" : "▶"}</span>
+                    <span className="hf-text-placeholder">{isExpanded ? "▼" : "▶"}</span>
                   </div>
                 </button>
                 {isAdvanced && isExpanded && (
-                  <div className="hf-text-sm" style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
+                  <div className="hf-text-sm hf-p-md" style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
                     {memory.evidence && (
                       <>
-                        <div className="hf-text-muted hf-mb-xs" style={{ fontWeight: 500 }}>Evidence:</div>
-                        <div className="hf-text-secondary hf-mb-sm" style={{ fontStyle: "italic" }}>&quot;{memory.evidence}&quot;</div>
+                        <div className="hf-text-muted hf-mb-xs hf-text-500">Evidence:</div>
+                        <div className="hf-text-secondary hf-mb-sm hf-text-italic">&quot;{memory.evidence}&quot;</div>
                       </>
                     )}
                     <div className="hf-flex hf-flex-wrap hf-gap-lg hf-text-xs hf-text-placeholder">
@@ -184,7 +184,7 @@ export function PersonalitySection({
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
       {/* Aggregated Profile - FULLY DYNAMIC from database */}
       {personality && personality.parameterValues && Object.keys(personality.parameterValues).length > 0 && (
-        <div className="hf-card-compact" style={{ padding: 20, marginBottom: 0 }}>
+        <div className="hf-card-compact hf-p-20" style={{ marginBottom: 0 }}>
           <h3 className="hf-text-md hf-text-bold hf-text-secondary hf-mb-md">
             Measured Traits
             <span className="hf-text-placeholder" style={{ fontWeight: 400, marginLeft: 8 }}>
@@ -232,7 +232,7 @@ export function PersonalitySection({
                       return (
                         <div key={param.parameterId}>
                           <div className="hf-flex-between hf-mb-xs">
-                            <span className="hf-text-sm" style={{ fontWeight: 500 }}>{param.label}</span>
+                            <span className="hf-text-sm hf-text-500">{param.label}</span>
                             <span className="hf-text-sm hf-text-bold">{value !== null ? (value * 100).toFixed(0) : "—"}</span>
                           </div>
                           <div className="hf-progress-track">
@@ -264,7 +264,7 @@ export function PersonalitySection({
 
       {/* Trait History with Sparklines - Fully Dynamic */}
       {observations.length > 1 && personality && personality.parameterValues && paramConfig && (
-        <div className="hf-card-compact" style={{ padding: 20, marginBottom: 0 }}>
+        <div className="hf-card-compact hf-p-20" style={{ marginBottom: 0 }}>
           <h3 className="hf-text-md hf-text-bold hf-text-secondary hf-mb-xs">
             📈 Trait History
           </h3>
@@ -322,9 +322,9 @@ export function PersonalitySection({
                     }).join(" ");
 
                     return (
-                      <div key={param.parameterId} style={{ padding: 12, background: "var(--surface-secondary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+                      <div key={param.parameterId} className="hf-p-12" style={{ background: "var(--surface-secondary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
                         <div className="hf-flex-between hf-mb-sm">
-                          <span style={{ fontSize: 12, fontWeight: 500 }}>{param.label}</span>
+                          <span className="hf-text-500" style={{ fontSize: 12 }}>{param.label}</span>
                           <span className="hf-text-md hf-text-bold" style={{ color: param.color }}>
                             {((currentValue || 0) * 100).toFixed(0)}%
                           </span>
@@ -346,7 +346,7 @@ export function PersonalitySection({
                             fill={param.color}
                           />
                         </svg>
-                        <div className="hf-text-placeholder hf-mt-xs" style={{ fontSize: 10 }}>
+                        <div className="hf-text-placeholder hf-mt-xs hf-text-xxs">
                           {history.length} observations · Range: {(min * 100).toFixed(0)}%-{(max * 100).toFixed(0)}%
                         </div>
                       </div>
@@ -364,13 +364,13 @@ export function PersonalitySection({
       {/* Observations Timeline - DEPRECATED: Legacy OCEAN data only */}
       {/* TODO: Simplify display, enhance with history sparklines showing parameter trends over time */}
       {isAdvanced && observations.length > 0 && (
-        <details style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
+        <details className="hf-p-20" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12 }}>
           <summary className="hf-flex hf-gap-sm hf-text-md hf-text-bold hf-text-muted" style={{ cursor: "pointer", listStyle: "none" }}>
             <span className="hf-badge hf-badge-warning">DEPRECATED</span>
             Observation History ({observations.length}) - Legacy Big Five Only
-            <span className="hf-text-xs hf-text-placeholder" style={{ marginLeft: "auto" }}>Click to expand</span>
+            <span className="hf-text-xs hf-text-placeholder hf-ml-auto">Click to expand</span>
           </summary>
-          <div className="hf-text-xs hf-text-placeholder" style={{ marginTop: 12, marginBottom: 16, padding: 12, background: "var(--background)", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
+          <div className="hf-text-xs hf-text-placeholder hf-p-12" style={{ marginTop: 12, marginBottom: 16, background: "var(--background)", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
             ⚠️ <strong>Legacy data</strong> - This table stores only Big Five (OCEAN) traits in hardcoded columns.
             <br />Current system uses dynamic <code className="hf-mono" style={{ background: "var(--surface-secondary)", padding: "2px 4px", borderRadius: 3 }}>CallerPersonalityProfile.parameterValues</code> which measures all parameters shown above.
             <br />See TODO in API route: Migrate PersonalityObservation to dynamic storage.
@@ -379,7 +379,7 @@ export function PersonalitySection({
           {/* OCEAN Header Row */}
           <div className="hf-flex hf-gap-lg hf-mb-sm" style={{ padding: "8px 0", borderBottom: "2px solid var(--border-default)" }}>
             <span className="hf-text-xs hf-text-bold hf-text-secondary" style={{ width: 140 }}>Date/Time</span>
-            <div className="hf-flex hf-gap-sm" style={{ flex: 1 }}>
+            <div className="hf-flex hf-gap-sm hf-flex-1">
               {[
                 { label: "O", title: "Openness", color: "var(--trait-openness)" },
                 { label: "C", title: "Conscientiousness", color: "var(--trait-conscientiousness)" },
@@ -393,14 +393,14 @@ export function PersonalitySection({
                 </div>
               ))}
             </div>
-            <span style={{ fontSize: 10, fontWeight: 600 }} className="hf-text-secondary">Conf</span>
+            <span className="hf-text-secondary hf-text-xxs hf-text-bold">Conf</span>
           </div>
 
           <div className="hf-flex-col hf-gap-sm">
             {observations.slice(0, 10).map((obs) => (
               <div key={obs.id} className="hf-flex hf-gap-lg" style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                 <span className="hf-text-xs hf-text-placeholder" style={{ width: 140 }}>{new Date(obs.observedAt).toLocaleString()}</span>
-                <div className="hf-flex hf-gap-sm" style={{ flex: 1 }}>
+                <div className="hf-flex hf-gap-sm hf-flex-1">
                   {/* Legacy observations use old field names */}
                   {[
                     { key: "openness", label: "O", color: "var(--trait-openness)" },
@@ -412,7 +412,7 @@ export function PersonalitySection({
                     const value = obs[trait.key as keyof PersonalityObservation] as number | null;
                     return (
                       <div key={trait.key} className="hf-flex hf-gap-xs">
-                        <span className="hf-text-placeholder" style={{ fontSize: 10 }}>{trait.label}</span>
+                        <span className="hf-text-placeholder hf-text-xxs">{trait.label}</span>
                         <div style={{ width: 40, height: 6, background: "var(--border-default)", borderRadius: 3, overflow: "hidden" }}>
                           <div
                             style={{
@@ -426,7 +426,7 @@ export function PersonalitySection({
                     );
                   })}
                 </div>
-                <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
+                <span className="hf-text-placeholder hf-text-xxs">
                   {obs.confidence !== null ? `${(obs.confidence * 100).toFixed(0)}% conf` : ""}
                 </span>
               </div>
@@ -547,9 +547,8 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
     <div className="hf-flex-col hf-gap-lg">
       {/* Header with context */}
       <div
-        className="hf-flex-between"
+        className="hf-flex-between hf-p-12"
         style={{
-          padding: 12,
           background: "var(--background)",
           borderRadius: 8,
           border: "1px solid var(--border-default)",
@@ -571,8 +570,8 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
         {slugsData.playbook && (
           <Link
             href={`/x/playbooks/${slugsData.playbook.id}`}
+            className="hf-text-xs"
             style={{
-              fontSize: 11,
               padding: "4px 8px",
               background: "var(--status-info-bg)",
               color: "var(--button-primary-bg)",
@@ -670,23 +669,22 @@ function SlugSpecNode({
         }}
       >
         {hasChildren ? (
-          <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
+          <span className="hf-text-placeholder hf-text-xxs">
             {isExpanded ? "▼" : "▶"}
           </span>
         ) : (
           <span style={{ width: 10 }} />
         )}
         <span style={{ fontSize: 12 }}>📄</span>
-        <span className="hf-text-sm hf-text-secondary" style={{ fontWeight: 500 }}>
+        <span className="hf-text-sm hf-text-secondary hf-text-500">
           {spec.name}
         </span>
         {spec.specSlug && (
           <Link
             href={`/analysis-specs?slug=${spec.specSlug}`}
             onClick={(e) => e.stopPropagation()}
-            className="hf-text-muted"
+            className="hf-text-muted hf-text-xxs"
             style={{
-              fontSize: 10,
               textDecoration: "none",
             }}
           >
@@ -694,7 +692,7 @@ function SlugSpecNode({
           </Link>
         )}
         {spec.meta?.count !== undefined && (
-          <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
+          <span className="hf-text-placeholder hf-text-xxs">
             ({spec.meta.count} items)
           </span>
         )}
@@ -722,29 +720,26 @@ function SlugVariableNode({ variable }: { variable: SlugNode }) {
 
   return (
     <div
-      className="hf-flex hf-gap-sm"
+      className="hf-flex hf-gap-sm hf-items-start"
       style={{
-        alignItems: "flex-start",
         padding: "6px 16px 6px 56px",
         background: "var(--background)",
         borderBottom: "1px solid var(--border-subtle)",
         fontSize: 12,
       }}
     >
-      <code className="hf-mono" style={{
+      <code className="hf-mono hf-nowrap" style={{
         padding: "2px 6px",
         background: "var(--border-default)",
         borderRadius: 4,
         color: "var(--text-secondary)",
-        whiteSpace: "nowrap",
       }}>
         {variable.path || variable.name}
       </code>
       <span className="hf-text-placeholder">=</span>
       <span
-        className="hf-text-secondary"
+        className="hf-text-secondary hf-flex-1"
         style={{
-          flex: 1,
           wordBreak: "break-word",
           cursor: isLong ? "pointer" : "default",
         }}
@@ -891,7 +886,7 @@ export function CallerEnrollmentsSection({
 
   if (enrollments.length === 0 && !showEnroll) {
     return (
-      <div className="hf-empty-state hf-mt-sm" style={{ padding: 24 }}>
+      <div className="hf-empty-state hf-mt-sm hf-p-lg">
         <div className="hf-text-md hf-text-bold hf-text-secondary hf-mb-xs">No enrolled playbooks</div>
         <div className="hf-section-desc hf-mb-md" style={{ marginBottom: 12 }}>
           This caller is not enrolled in any specific playbooks.
@@ -984,15 +979,14 @@ export function CallerEnrollmentsSection({
                 borderRadius: 8,
               }}
             >
-              <Link href={`/x/playbooks/${enr.playbook.id}`} style={{ flex: 1, textDecoration: "none", color: "var(--text-primary)", fontWeight: 500 }}>
+              <Link href={`/x/playbooks/${enr.playbook.id}`} className="hf-flex-1 hf-text-500" style={{ textDecoration: "none", color: "var(--text-primary)" }}>
                 {enr.playbook.name}
                 <span className="hf-text-xs hf-text-muted" style={{ marginLeft: 4 }}>v{enr.playbook.version}</span>
               </Link>
               <span
+                className="hf-text-xxs hf-text-bold"
                 style={{
                   padding: "2px 8px",
-                  fontSize: 10,
-                  fontWeight: 600,
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
                   borderRadius: 10,
@@ -1003,7 +997,7 @@ export function CallerEnrollmentsSection({
                 {enr.status}
               </span>
               {enr.enrolledBy && (
-                <span className="hf-text-placeholder" style={{ fontSize: 10 }}>{enr.enrolledBy}</span>
+                <span className="hf-text-placeholder hf-text-xxs">{enr.enrolledBy}</span>
               )}
               {/* Status actions */}
               {!isUpdating && enr.status === "ACTIVE" && (

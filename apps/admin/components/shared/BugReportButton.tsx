@@ -160,6 +160,49 @@ export function BugReportButton() {
 
   const recentErrors = getRecentErrors();
 
+  // Build full context markdown for Claude Code
+  const buildFullContext = useCallback(() => {
+    const lines: string[] = [
+      `## Bug Report — ${pathname || window.location.pathname}`,
+      `**Time:** ${new Date().toLocaleString()}`,
+      `**Viewport:** ${typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "N/A"}`,
+      `**Browser:** ${typeof navigator !== "undefined" ? navigator.userAgent : "N/A"}`,
+    ];
+
+    // Entity breadcrumbs
+    const crumbs = entityContext.breadcrumbs;
+    if (crumbs && crumbs.length > 0) {
+      lines.push(`**Entity context:** ${crumbs.map((b: { type?: string; label?: string }) => `${b.type || "?"}:${b.label || "?"}`).join(" → ")}`);
+    }
+
+    // JS errors
+    const errors = getRecentErrors();
+    if (errors.length > 0) {
+      lines.push("", "### Captured JS Errors");
+      for (const err of errors) {
+        lines.push(`- \`${err.message}\`${err.source ? ` (${err.source})` : ""}`);
+      }
+    }
+
+    // Conversation
+    if (conversationHistory.length > 0 || description.trim()) {
+      lines.push("", "### Conversation");
+      for (const msg of conversationHistory) {
+        lines.push(`**${msg.role === "user" ? "User" : "AI"}:** ${msg.content}`);
+      }
+      if (description.trim()) {
+        lines.push(`**User (draft):** ${description.trim()}`);
+      }
+    }
+
+    // Latest AI response (if not already in history)
+    if (response && conversationHistory.length === 0) {
+      lines.push("", "### AI Diagnosis", response);
+    }
+
+    return lines.join("\n");
+  }, [pathname, entityContext.breadcrumbs, getRecentErrors, conversationHistory, description, response]);
+
   // Register opener so StatusBar can trigger expansion
   useEffect(() => {
     registerBugReportOpener(() => setExpanded(true));
@@ -219,24 +262,28 @@ export function BugReportButton() {
               )}
             </div>
             <div style={{ display: "flex", gap: 4 }}>
-              {response && !isStreaming && (
-                <button
-                  onClick={() => copyToClipboard(`Bug reporter:\n\n${response}`)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 4,
-                    borderRadius: 6,
-                    color: copied ? "var(--status-success-text)" : "var(--text-tertiary)",
-                    display: "flex",
-                    transition: "color 0.15s",
-                  }}
-                  title={copied ? "Copied!" : "Copy diagnosis to clipboard"}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                </button>
-              )}
+              {/* Copy full context (always available once expanded) */}
+              <button
+                onClick={() => copyToClipboard(buildFullContext())}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 4,
+                  borderRadius: 6,
+                  color: copied ? "var(--status-success-text)" : "var(--accent-primary)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  transition: "color 0.15s",
+                }}
+                title={copied ? "Copied!" : "Copy full context (URL, errors, conversation) for Claude Code"}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                <span>{copied ? "Copied" : "Copy Context"}</span>
+              </button>
               {(response || conversationHistory.length > 0) && (
                 <button
                   onClick={handleReset}

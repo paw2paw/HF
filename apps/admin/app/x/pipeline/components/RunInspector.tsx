@@ -1,5 +1,6 @@
 "use client";
 
+import "./run-inspector.css";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   ExpandMore,
