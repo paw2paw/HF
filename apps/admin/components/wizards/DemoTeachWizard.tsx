@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * DemoTeachWizard — shared 5-step wizard for Demonstrate and Teach flows.
+ * DemoTeachWizard — shared 6-step wizard for Demonstrate and Teach flows.
  *
  * Config-driven: the page wrapper passes a DemoTeachConfig that controls
  * flowId, labels, API filters, and terminology. All state, effects, and
  * rendering live here — the pages are thin wrappers.
  *
- * Steps: Select Institution & Caller → Set Your Goal → Readiness Checks → Preview First Prompt → Launch
+ * Steps: Select Institution & Caller → Set Your Goal → Upload Content → Readiness Checks → Preview First Prompt → Launch
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -32,6 +32,9 @@ import {
   User,
   Target,
   PlayCircle,
+  Upload,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
 import { PromptPreviewContent } from "@/app/x/domains/components/PromptPreviewModal";
@@ -171,6 +174,20 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [savingGoal, setSavingGoal] = useState(false);
 
   const currentStep = state?.currentStep ?? 0;
+
+  // Content upload step
+  type ContentPhase = "loading" | "has-content" | "no-content" | "uploading" | "extracting" | "done" | "error";
+  const [contentPhase, setContentPhase] = useState<ContentPhase>("loading");
+  const [contentCount, setContentCount] = useState(0);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadDragOver, setUploadDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [extractProgress, setExtractProgress] = useState({ current: 0, total: 0, extracted: 0 });
+  const [extractElapsed, setExtractElapsed] = useState(0);
+  const extractPollRef = useRef<NodeJS.Timeout | null>(null);
+  const extractTickRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadFileRef = useRef<HTMLInputElement>(null);
+  const UPLOAD_ACCEPTED = [".pdf", ".txt", ".md", ".markdown", ".json"];
 
   // Expandable sections on Launch step
   const [onboardingExpanded, setOnboardingExpanded] = useState(false);
@@ -513,12 +530,12 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   }, [selectedDomainId, selectedCallerId, config.headerTitle]);
 
   useEffect(() => {
-    if (currentStep === 2 && selectedDomainId) fetchReadiness();
+    if (currentStep === 3 && selectedDomainId) fetchReadiness();
   }, [currentStep, selectedDomainId, selectedCallerId, fetchReadiness]);
 
-  // Poll readiness every 10s while on step 2 (with timeout guard)
+  // Poll readiness every 10s while on step 3 (with timeout guard)
   useEffect(() => {
-    if (currentStep !== 2 || !selectedDomainId) return;
+    if (currentStep !== 3 || !selectedDomainId) return;
     const startedAt = Date.now();
     const interval = setInterval(() => {
       if (Date.now() - startedAt > POLL_TIMEOUT_MS) {

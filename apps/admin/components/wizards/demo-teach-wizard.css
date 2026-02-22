@@ -149,6 +149,60 @@
 .dtw-tp-text { flex: 1; font-size: 13px; color: var(--text-primary); line-height: 1.5; }
 .dtw-tp-type { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 10%, transparent); padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
 
+/* ── Content upload step ── */
+
+@keyframes dtw-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes dtw-indeterminate {
+  0% { margin-left: 0; }
+  50% { margin-left: 70%; }
+  100% { margin-left: 0; }
+}
+
+/* Drag-drop zone */
+.dtw-dropzone { padding: 40px; border-radius: 12px; border: 2px dashed var(--border-default); background: var(--surface-secondary); text-align: center; cursor: pointer; transition: all 0.2s; }
+.dtw-dropzone--active { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 8%, transparent); }
+.dtw-dropzone-icon { font-size: 32px; margin-bottom: 12px; }
+.dtw-dropzone-filename { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.dtw-dropzone-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.dtw-file-input-hidden { display: none; }
+
+/* Content summary (when content already exists) */
+.dtw-content-summary { display: flex; align-items: center; gap: 12px; padding: 20px; border-radius: 12px; background: color-mix(in srgb, var(--status-success-bg) 50%, transparent); border: 1px solid var(--status-success-border); }
+.dtw-content-summary-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--status-success-text); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+.dtw-content-summary-text { flex: 1; }
+.dtw-content-summary-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.dtw-content-summary-detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Upload actions row */
+.dtw-upload-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+.dtw-btn-upload { padding: 10px 24px; font-size: 13px; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; background: var(--accent-primary); color: white; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent); }
+.dtw-btn-upload:hover { filter: brightness(1.1); }
+.dtw-btn-upload:disabled { background: var(--surface-tertiary); color: var(--text-muted); cursor: default; box-shadow: none; filter: none; }
+.dtw-btn-skip { padding: 10px 20px; font-size: 13px; font-weight: 600; border-radius: 10px; border: 1px solid var(--border-default); background: var(--surface-secondary); color: var(--text-secondary); cursor: pointer; }
+
+/* Progress section */
+.dtw-extract-status { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.dtw-pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-primary); animation: dtw-pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
+.dtw-extract-label { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.dtw-extract-elapsed { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* Progress bar */
+.dtw-progress-track { height: 6px; border-radius: 3px; background: var(--surface-tertiary); overflow: hidden; margin-bottom: 8px; }
+.dtw-progress-fill { height: 100%; border-radius: 3px; background: var(--accent-primary); transition: width 0.5s ease-out; }
+.dtw-progress-fill--done { background: var(--status-success-text); width: 100%; }
+.dtw-progress-fill--indeterminate { width: 30%; animation: dtw-indeterminate 1.5s ease-in-out infinite; }
+.dtw-progress-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Done badge */
+.dtw-done-badge { width: 20px; height: 20px; border-radius: 6px; background: var(--status-success-text); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+
+/* Upload error */
+.dtw-upload-error { padding: 10px 14px; border-radius: 8px; background: var(--status-error-bg); border: 1px solid var(--status-error-border); color: var(--status-error-text); font-size: 13px; margin-top: 12px; }
+
 /* Quick actions footer */
 .dtw-quick-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .dtw-btn-quick { padding: 8px 16px; border-radius: 8px; background: transparent; border: 1px solid var(--border-default); font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-secondary); }

@@ -1619,60 +1619,22 @@ export default function QuickLaunchPage() {
             )}
           </div>
 
-          {/* ── Get Learners In ── */}
+          {/* ── Test Call ── */}
           <div className="ql-result-card">
             <div className="ql-result-title">
-              Get Learners In
+              Test Call
             </div>
-
-            {/* 3-step visual explainer */}
-            <div className="ql-explainer">
-              <div className="ql-explainer-step">
-                <span>&#128279;</span>
-                <span>Share link</span>
-              </div>
-              <span className="ql-explainer-arrow">&rarr;</span>
-              <div className="ql-explainer-step">
-                <span>&#9997;</span>
-                <span>They enter name</span>
-              </div>
-              <span className="ql-explainer-arrow">&rarr;</span>
-              <div className="ql-explainer-step">
-                <span>&#9989;</span>
-                <span>They&apos;re in</span>
-              </div>
+            <div className="ql-result-desc">
+              Try a conversation with your AI companion to see how it responds.
             </div>
-
-            {!classroom ? (
-              <button
-                onClick={handleCreateClassroom}
-                disabled={creatingClassroom}
-                className={`ql-classroom-btn ${creatingClassroom ? "ql-classroom-btn-loading" : "ql-classroom-btn-active"}`}
-              >
-                {creatingClassroom ? "Creating..." : "Create Classroom"}
-              </button>
-            ) : (
-              <div className="hf-flex-col" style={{ gap: 10 }}>
-                <div className="ql-join-row">
-                  <code className="ql-join-code">
-                    {classroom.joinUrl}
-                  </code>
-                  <button
-                    onClick={handleCopyJoinLink}
-                    className="ql-join-copy-btn"
-                    style={{ color: copied ? "var(--status-success-text)" : "var(--text-secondary)" }}
-                  >
-                    {copied ? "\u2713 Copied" : "Copy"}
-                  </button>
-                </div>
-                <button
-                  onClick={() => window.open(classroom.joinUrl, "_blank")}
-                  className="ql-open-preview-btn"
-                >
-                  Open Preview
-                </button>
-              </div>
-            )}
+            <button
+              onClick={() => router.push(`/x/sim/${result.callerId}`)}
+              className="ql-classroom-btn ql-classroom-btn-active"
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <PlayCircle className="w-5 h-5" />
+              Start Test Call
+            </button>
           </div>
 
           {/* Launch Another is in WizardSummary secondary actions */}
