@@ -1054,7 +1054,7 @@ export default function QuickLaunchPage() {
         <p className="ql-hero-subtitle">
           {phase === "form" && (communityMode
             ? "Create a community for individuals to have meaningful conversations with an AI guide."
-            : "Describe what you want to build and launch a working AI agent in one click.")}
+            : "Describe what you want to build and launch a working AI agent in minutes.")}
           {phase === "building" && (communityMode ? "Setting up your community..." : "Building your agent...")}
           {phase === "review" && "Review what AI created and customize before finalizing."}
           {phase === "committing" && (communityMode ? "Creating your community..." : "Creating your agent...")}

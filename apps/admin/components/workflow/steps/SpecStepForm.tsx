@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { StepFormProps } from "@/lib/workflow/types";
+import "./spec-step-form.css";
 
 // ── Sub-step navigation ──────────────────────────────────
 
@@ -257,54 +258,19 @@ export function SpecStepForm({
     setParameters((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // ── Styles ──────────────────────────────────────────────
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 14px",
-    fontSize: 14,
-    borderRadius: 10,
-    border: "1px solid var(--border-default)",
-    background: "var(--surface-secondary)",
-    color: "var(--text-primary)",
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    color: "var(--text-secondary)",
-    marginBottom: 6,
-  };
-
-  const errorStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "var(--error-text)",
-    margin: "4px 0 0",
-  };
-
   // ── Render ──────────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 16,
-        padding: 24,
-      }}
-    >
-      <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>
+    <div className="hf-card">
+      <h3 className="ssf-title">
         {step.title}
       </h3>
-      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" }}>
+      <p className="ssf-desc">
         {step.description}
       </p>
 
       {/* Sub-step navigation pills */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 24 }}>
+      <div className="ssf-pills">
         {SUB_STEPS.map((ss, i) => {
           const isCurrent = ss.key === subStep;
           const isPast = i < subStepIndex;
@@ -312,22 +278,7 @@ export function SpecStepForm({
             <button
               key={ss.key}
               onClick={() => setSubStep(ss.key)}
-              style={{
-                flex: 1,
-                padding: "8px 4px",
-                fontSize: 12,
-                fontWeight: isCurrent ? 700 : 500,
-                borderRadius: 8,
-                border: "1px solid",
-                borderColor: isCurrent ? "var(--accent-primary)" : "var(--border-default)",
-                background: isCurrent
-                  ? "color-mix(in srgb, var(--accent-primary) 12%, transparent)"
-                  : isPast
-                    ? "color-mix(in srgb, var(--success-bg) 50%, transparent)"
-                    : "var(--surface-secondary)",
-                color: isCurrent ? "var(--accent-primary)" : isPast ? "var(--success-text)" : "var(--text-muted)",
-                cursor: "pointer",
-              }}
+              className={`ssf-pill${isCurrent ? " ssf-pill-current" : isPast ? " ssf-pill-past" : ""}`}
             >
               {isPast ? "\u2713 " : ""}
               {ss.label}
@@ -338,57 +289,57 @@ export function SpecStepForm({
 
       {/* ─── Basics ─── */}
       {subStep === "basics" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="ssf-grid-2col">
           <div>
-            <label style={labelStyle}>
-              Spec ID <span style={{ color: "var(--error-text)" }}>*</span>
+            <label className="hf-label">
+              Spec ID <span className="ssf-required">*</span>
             </label>
             <input
               type="text"
               value={specId}
               onChange={(e) => setSpecId(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))}
               placeholder="e.g., PERS-001"
-              style={{ ...inputStyle, ...(errors.specId ? { borderColor: "var(--error-text)" } : {}) }}
+              className={`hf-input${errors.specId ? " ssf-input-error" : ""}`}
             />
-            {errors.specId && <p style={errorStyle}>{errors.specId}</p>}
-            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0" }}>
+            {errors.specId && <p className="ssf-error-text">{errors.specId}</p>}
+            <p className="ssf-hint">
               Pattern: PREFIX-NNN (e.g., PERS-001, CURR-FS-001)
             </p>
           </div>
 
           <div>
-            <label style={labelStyle}>
-              Title <span style={{ color: "var(--error-text)" }}>*</span>
+            <label className="hf-label">
+              Title <span className="ssf-required">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Food Safety L2 Tutor Identity"
-              style={{ ...inputStyle, ...(errors.title ? { borderColor: "var(--error-text)" } : {}) }}
+              className={`hf-input${errors.title ? " ssf-input-error" : ""}`}
             />
-            {errors.title && <p style={errorStyle}>{errors.title}</p>}
+            {errors.title && <p className="ssf-error-text">{errors.title}</p>}
           </div>
 
           <div>
-            <label style={labelStyle}>Version</label>
+            <label className="hf-label">Version</label>
             <input
               type="text"
               value={version}
               onChange={(e) => setVersion(e.target.value)}
               placeholder="1.0"
-              style={inputStyle}
+              className="hf-input"
             />
           </div>
 
           <div>
-            <label style={labelStyle}>Domain</label>
+            <label className="hf-label">Domain</label>
             <input
               type="text"
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               placeholder="e.g., food-safety, personality"
-              style={inputStyle}
+              className="hf-input"
             />
           </div>
         </div>
@@ -396,13 +347,13 @@ export function SpecStepForm({
 
       {/* ─── Classification ─── */}
       {subStep === "classification" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+        <div className="ssf-grid-3col">
           <div>
-            <label style={labelStyle}>Spec Type</label>
+            <label className="hf-label">Spec Type</label>
             <select
               value={specType}
               onChange={(e) => setSpecType(e.target.value)}
-              style={{ ...inputStyle, cursor: "pointer" }}
+              className="hf-input ssf-select"
             >
               {SPEC_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -411,11 +362,11 @@ export function SpecStepForm({
           </div>
 
           <div>
-            <label style={labelStyle}>Spec Role</label>
+            <label className="hf-label">Spec Role</label>
             <select
               value={specRole}
               onChange={(e) => setSpecRole(e.target.value)}
-              style={{ ...inputStyle, cursor: "pointer" }}
+              className="hf-input ssf-select"
             >
               {SPEC_ROLES.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
@@ -424,11 +375,11 @@ export function SpecStepForm({
           </div>
 
           <div>
-            <label style={labelStyle}>Output Type</label>
+            <label className="hf-label">Output Type</label>
             <select
               value={outputType}
               onChange={(e) => setOutputType(e.target.value)}
-              style={{ ...inputStyle, cursor: "pointer" }}
+              className="hf-input ssf-select"
             >
               {OUTPUT_TYPES.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -440,47 +391,47 @@ export function SpecStepForm({
 
       {/* ─── Story ─── */}
       {subStep === "story" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="ssf-flex-col">
           <div>
-            <label style={labelStyle}>
-              As a... <span style={{ color: "var(--error-text)" }}>*</span>
+            <label className="hf-label">
+              As a... <span className="ssf-required">*</span>
             </label>
             <input
               type="text"
               value={asA}
               onChange={(e) => setAsA(e.target.value)}
               placeholder="e.g., Food Safety training system"
-              style={{ ...inputStyle, ...(errors.asA ? { borderColor: "var(--error-text)" } : {}) }}
+              className={`hf-input${errors.asA ? " ssf-input-error" : ""}`}
             />
-            {errors.asA && <p style={errorStyle}>{errors.asA}</p>}
+            {errors.asA && <p className="ssf-error-text">{errors.asA}</p>}
           </div>
 
           <div>
-            <label style={labelStyle}>
-              I want... <span style={{ color: "var(--error-text)" }}>*</span>
+            <label className="hf-label">
+              I want... <span className="ssf-required">*</span>
             </label>
             <textarea
               value={iWant}
               onChange={(e) => setIWant(e.target.value)}
               placeholder="e.g., to define the tutor's identity, personality, and teaching approach"
               rows={2}
-              style={{ ...inputStyle, ...(errors.iWant ? { borderColor: "var(--error-text)" } : {}), resize: "vertical", fontFamily: "inherit" }}
+              className={`hf-input ssf-textarea${errors.iWant ? " ssf-input-error" : ""}`}
             />
-            {errors.iWant && <p style={errorStyle}>{errors.iWant}</p>}
+            {errors.iWant && <p className="ssf-error-text">{errors.iWant}</p>}
           </div>
 
           <div>
-            <label style={labelStyle}>
-              So that... <span style={{ color: "var(--error-text)" }}>*</span>
+            <label className="hf-label">
+              So that... <span className="ssf-required">*</span>
             </label>
             <textarea
               value={soThat}
               onChange={(e) => setSoThat(e.target.value)}
               placeholder="e.g., callers receive consistent, warm, expert-level food safety tutoring"
               rows={2}
-              style={{ ...inputStyle, ...(errors.soThat ? { borderColor: "var(--error-text)" } : {}), resize: "vertical", fontFamily: "inherit" }}
+              className={`hf-input ssf-textarea${errors.soThat ? " ssf-input-error" : ""}`}
             />
-            {errors.soThat && <p style={errorStyle}>{errors.soThat}</p>}
+            {errors.soThat && <p className="ssf-error-text">{errors.soThat}</p>}
           </div>
         </div>
       )}
@@ -488,72 +439,55 @@ export function SpecStepForm({
       {/* ─── Parameters ─── */}
       {subStep === "parameters" && (
         <div>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
+          <p className="ssf-param-intro">
             Define what this spec measures or controls. Parameters are optional for non-MEASURE specs.
           </p>
 
           {parameters.map((param, i) => (
-            <div
-              key={i}
-              style={{
-                padding: 16,
-                borderRadius: 12,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+            <div key={i} className="ssf-param-card">
+              <div className="ssf-param-header">
+                <span className="ssf-param-title">
                   Parameter {i + 1}
                 </span>
                 <button
                   onClick={() => removeParameter(i)}
-                  style={{
-                    padding: "4px 10px",
-                    fontSize: 11,
-                    borderRadius: 6,
-                    border: "1px solid var(--error-border)",
-                    background: "var(--error-bg)",
-                    color: "var(--error-text)",
-                    cursor: "pointer",
-                  }}
+                  className="ssf-btn-remove-param"
                 >
                   Remove
                 </button>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, marginBottom: 8 }}>
+              <div className="ssf-param-grid">
                 <div>
-                  <label style={{ ...labelStyle, fontSize: 11 }}>ID</label>
+                  <label className="ssf-label-sm">ID</label>
                   <input
                     type="text"
                     value={param.id}
                     onChange={(e) => updateParameter(i, "id", e.target.value)}
                     placeholder="PARAM-1"
-                    style={{ ...inputStyle, fontSize: 13, padding: "8px 10px" }}
+                    className="ssf-input-sm"
                   />
                 </div>
                 <div>
-                  <label style={{ ...labelStyle, fontSize: 11 }}>Name</label>
+                  <label className="ssf-label-sm">Name</label>
                   <input
                     type="text"
                     value={param.name}
                     onChange={(e) => updateParameter(i, "name", e.target.value)}
                     placeholder="e.g., Openness to Experience"
-                    style={{ ...inputStyle, fontSize: 13, padding: "8px 10px" }}
+                    className="ssf-input-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ ...labelStyle, fontSize: 11 }}>Description</label>
+                <label className="ssf-label-sm">Description</label>
                 <input
                   type="text"
                   value={param.description}
                   onChange={(e) => updateParameter(i, "description", e.target.value)}
                   placeholder="What does this parameter measure?"
-                  style={{ ...inputStyle, fontSize: 13, padding: "8px 10px" }}
+                  className="ssf-input-sm"
                 />
               </div>
             </div>
@@ -561,17 +495,7 @@ export function SpecStepForm({
 
           <button
             onClick={addParameter}
-            style={{
-              padding: "10px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 10,
-              border: "1px dashed var(--border-default)",
-              background: "var(--surface-secondary)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              width: "100%",
-            }}
+            className="ssf-btn-add-param"
           >
             + Add Parameter
           </button>
@@ -581,41 +505,34 @@ export function SpecStepForm({
       {/* ─── Review ─── */}
       {subStep === "review" && (
         <div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 16,
-              marginBottom: 20,
-            }}
-          >
+          <div className="ssf-review-grid">
             {[
               { label: "Spec ID", value: specId },
               { label: "Title", value: title },
               { label: "Version", value: version || "1.0" },
-              { label: "Domain", value: domain || "—" },
+              { label: "Domain", value: domain || "\u2014" },
               { label: "Type", value: specType },
-              { label: "Role", value: specRole || "—" },
-              { label: "Output", value: outputType || "—" },
+              { label: "Role", value: specRole || "\u2014" },
+              { label: "Output", value: outputType || "\u2014" },
               { label: "Parameters", value: `${parameters.length} defined` },
             ].map((item) => (
               <div key={item.label}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                <span className="ssf-review-label">
                   {item.label}
                 </span>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", margin: "2px 0 0" }}>
+                <p className="ssf-review-value">
                   {item.value}
                 </p>
               </div>
             ))}
           </div>
 
-          <div style={{ padding: 16, borderRadius: 12, border: "1px solid var(--border-default)", background: "var(--surface-secondary)" }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <div className="ssf-story-card">
+            <span className="ssf-review-label">
               User Story
             </span>
-            <p style={{ fontSize: 13, color: "var(--text-primary)", margin: "8px 0 0", lineHeight: 1.6 }}>
-              <strong>As a</strong> {asA || "—"}, <strong>I want</strong> {iWant || "—"}, <strong>so that</strong> {soThat || "—"}.
+            <p className="ssf-story-text">
+              <strong>As a</strong> {asA || "\u2014"}, <strong>I want</strong> {iWant || "\u2014"}, <strong>so that</strong> {soThat || "\u2014"}.
             </p>
           </div>
         </div>
@@ -623,57 +540,29 @@ export function SpecStepForm({
 
       {/* Error banner */}
       {errors.submit && (
-        <div
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "var(--error-bg)",
-            border: "1px solid var(--error-border)",
-            color: "var(--error-text)",
-            fontSize: 13,
-            marginTop: 16,
-          }}
-        >
+        <div className="hf-banner hf-banner-error ssf-error-banner">
           {errors.submit}
         </div>
       )}
 
       {/* Navigation + Actions */}
-      <div style={{ display: "flex", gap: 12, justifyContent: "space-between", marginTop: 24 }}>
-        <div style={{ display: "flex", gap: 12 }}>
+      <div className="ssf-nav-bar">
+        <div className="ssf-nav-group">
           {subStepIndex > 0 && (
             <button
               onClick={handlePrev}
-              style={{
-                padding: "10px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 10,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-secondary ssf-btn-nav"
             >
               Back
             </button>
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 12 }}>
+        <div className="ssf-nav-group">
           {/* Specs are always skippable — can be created later via /x/specs/new */}
           <button
             onClick={onSkip}
-            style={{
-              padding: "10px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 10,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-secondary)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary ssf-btn-nav"
           >
             Skip — create later
           </button>
@@ -681,17 +570,7 @@ export function SpecStepForm({
           {subStep !== "review" ? (
             <button
               onClick={handleNext}
-              style={{
-                padding: "10px 24px",
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 10,
-                border: "none",
-                background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-                color: "var(--surface-primary)",
-                cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-              }}
+              className="hf-btn hf-btn-gradient-primary ssf-btn-action"
             >
               Next
             </button>
@@ -699,19 +578,7 @@ export function SpecStepForm({
             <button
               onClick={handleCreate}
               disabled={creating}
-              style={{
-                padding: "10px 24px",
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 10,
-                border: "none",
-                background: creating
-                  ? "var(--surface-tertiary)"
-                  : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-                color: creating ? "var(--text-muted)" : "var(--surface-primary)",
-                cursor: creating ? "default" : "pointer",
-                boxShadow: creating ? "none" : "0 4px 12px rgba(99, 102, 241, 0.3)",
-              }}
+              className={`hf-btn ssf-btn-action${creating ? " ssf-btn-creating" : " hf-btn-gradient-primary"}`}
             >
               {creating ? "Creating..." : "Create Spec"}
             </button>

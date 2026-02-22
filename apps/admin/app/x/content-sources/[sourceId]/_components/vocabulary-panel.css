@@ -1,0 +1,426 @@
+/* VocabularyPanel — companion styles (vp-* prefix) */
+
+/* ── Progress bar ────────────────────────────── */
+.vp-progress-section {
+  margin-bottom: 12px;
+}
+
+.vp-progress-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.vp-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.vp-all-reviewed {
+  font-size: 11px;
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+
+.vp-progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-tertiary);
+  overflow: hidden;
+}
+
+.vp-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary));
+  transition: width 0.3s ease-out;
+}
+
+.vp-progress-fill-complete {
+  background: var(--status-success-text);
+}
+
+/* ── Feedback banner ─────────────────────────── */
+.vp-feedback {
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vp-feedback-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--status-success-border);
+}
+
+.vp-feedback-error {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-border);
+}
+
+/* ── Filters row ─────────────────────────────── */
+.vp-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.vp-search-input {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 220px;
+}
+
+.vp-filter-select {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.vp-bulk-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--status-success-text);
+  color: var(--button-primary-text, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vp-bulk-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.vp-term-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── Empty / loading state ───────────────────── */
+.vp-empty-text {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Table ───────────────────────────────────── */
+.vp-table-wrap {
+  overflow-x: auto;
+}
+
+.vp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.vp-thead-row {
+  border-bottom: 2px solid var(--border-default);
+}
+
+.vp-th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.vp-th-checkbox {
+  width: 36px;
+  padding: 8px 4px 8px 8px;
+}
+
+.vp-th-topic {
+  width: 100px;
+}
+
+.vp-th-review {
+  width: 80px;
+  text-align: center;
+}
+
+/* ── Table rows ──────────────────────────────── */
+.vp-row {
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.vp-row-expanded {
+  border-bottom: none;
+}
+
+.vp-row-selected {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.vp-row-active {
+  background: color-mix(in srgb, var(--accent-primary) 3%, transparent);
+}
+
+.vp-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+.vp-td-checkbox {
+  padding: 8px 4px 8px 8px;
+  width: 36px;
+}
+
+.vp-td-term {
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.vp-part-of-speech {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.vp-td-definition {
+  padding: 8px 10px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.vp-td-topic {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.vp-td-review {
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.vp-status-reviewed {
+  font-size: 11px;
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+
+.vp-status-pending {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Expanded detail row ─────────────────────── */
+.vp-detail-row {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.vp-detail-cell {
+  padding: 0 10px 16px 46px;
+}
+
+/* ── Detail content ──────────────────────────── */
+.vp-detail {
+  padding-top: 8px;
+}
+
+.vp-detail-heading {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.vp-detail-heading-muted {
+  color: var(--text-muted);
+}
+
+.vp-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 20px;
+  margin-bottom: 12px;
+}
+
+.vp-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.vp-detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.vp-detail-value-italic {
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.vp-span-2 {
+  grid-column: span 2;
+}
+
+/* ── Tags ────────────────────────────────────── */
+.vp-tags {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.vp-tag {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  color: var(--text-secondary);
+}
+
+/* ── Review status in detail ─────────────────── */
+.vp-review-info {
+  font-size: 12px;
+}
+
+.vp-review-done {
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+
+.vp-review-meta {
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.vp-review-pending {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Action buttons ──────────────────────────── */
+.vp-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.vp-btn-review {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--status-success-text);
+  color: var(--button-primary-text, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vp-btn-review:hover {
+  filter: brightness(1.1);
+}
+
+.vp-btn-delete {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--status-error-border);
+  background: var(--surface-primary);
+  color: var(--status-error-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vp-btn-delete:hover {
+  background: var(--status-error-bg);
+}
+
+.vp-btn-confirm-delete {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--status-error-text);
+  color: var(--button-primary-text, #fff);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vp-btn-confirm-delete:hover {
+  filter: brightness(1.1);
+}
+
+.vp-btn-cancel {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.vp-btn-cancel:hover {
+  background: var(--surface-secondary);
+}
+
+.vp-delete-confirm {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.vp-delete-confirm-text {
+  font-size: 12px;
+  color: var(--status-error-text);
+}
+
+/* ── Pagination ──────────────────────────────── */
+.vp-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.vp-pagination-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.vp-pagination-btn:disabled {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.vp-pagination-btn:not(:disabled):hover {
+  background: var(--surface-secondary);
+}
+
+.vp-pagination-info {
+  font-size: 12px;
+  color: var(--text-muted);
+}

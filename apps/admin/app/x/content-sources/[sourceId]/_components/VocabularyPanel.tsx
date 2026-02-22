@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import './vocabulary-panel.css';
 
 type VocabEntry = {
   id: string;
@@ -150,80 +151,74 @@ export default function VocabularyPanel({
   return (
     <div>
       {/* Review progress */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+      <div className="vp-progress-section">
+        <div className="vp-progress-header">
+          <span className="vp-progress-label">
             {reviewedCount}/{total} reviewed ({reviewPct}%)
           </span>
           {reviewPct === 100 && total > 0 && (
-            <span style={{ fontSize: 11, color: "var(--status-success-text, #16a34a)", fontWeight: 600 }}>{"\u2713"} All reviewed</span>
+            <span className="vp-all-reviewed">{"\u2713"} All reviewed</span>
           )}
         </div>
-        <div style={{ height: 4, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
-          <div style={{
-            height: "100%", borderRadius: 2,
-            background: reviewPct === 100 ? "var(--status-success-text)" : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
-            width: `${reviewPct}%`, transition: "width 0.3s ease-out",
-          }} />
+        <div className="vp-progress-track">
+          <div
+            className={`vp-progress-fill${reviewPct === 100 ? " vp-progress-fill-complete" : ""}`}
+            style={{ width: `${reviewPct}%` }}
+          />
         </div>
       </div>
 
       {/* Feedback */}
       {feedback && (
-        <div style={{
-          padding: "8px 16px", marginBottom: 12, borderRadius: 8, fontSize: 13, fontWeight: 500,
-          ...(feedback.type === "error"
-            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid var(--status-error-border, #FFCDD2)" }
-            : { background: "var(--status-success-bg)", color: "var(--status-success-text)", border: "1px solid var(--status-success-border, #C8E6C9)" }),
-        }}>
+        <div className={`vp-feedback ${feedback.type === "error" ? "vp-feedback-error" : "vp-feedback-success"}`}>
           {feedback.message}
         </div>
       )}
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="vp-filters">
         <input
           type="text" placeholder="Search terms..." value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 220 }}
+          className="vp-search-input"
         />
         <select value={filterReview} onChange={(e) => setFilterReview(e.target.value)}
-          style={{ padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13 }}>
+          className="vp-filter-select">
           <option value="">All review status</option>
           <option value="true">Reviewed</option>
           <option value="false">Pending review</option>
         </select>
         {selected.size > 0 && (
           <button onClick={handleBulkReview} disabled={bulkLoading}
-            style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "var(--status-success-text)", color: "var(--button-primary-text, #fff)", fontSize: 12, fontWeight: 600, cursor: bulkLoading ? "not-allowed" : "pointer", opacity: bulkLoading ? 0.6 : 1 }}>
+            className="vp-bulk-btn">
             {bulkLoading ? "Reviewing..." : `Mark ${selected.size} Reviewed`}
           </button>
         )}
-        <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+        <span className="vp-term-count">
           {total} term{total !== 1 ? "s" : ""}
         </span>
       </div>
 
       {/* Table */}
       {loading && vocabulary.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading vocabulary...</p>
+        <p className="vp-empty-text">Loading vocabulary...</p>
       ) : vocabulary.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+        <p className="vp-empty-text">
           {search || filterReview ? "No terms match your filters." : "No vocabulary extracted yet."}
         </p>
       ) : (
         <>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <div className="vp-table-wrap">
+            <table className="vp-table">
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
-                  <th style={{ width: 36, padding: "8px 4px 8px 8px" }}>
+                <tr className="vp-thead-row">
+                  <th className="vp-th vp-th-checkbox">
                     <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} />
                   </th>
-                  <th style={thStyle}>Term</th>
-                  <th style={thStyle}>Definition</th>
-                  <th style={{ ...thStyle, width: 100 }}>Topic</th>
-                  <th style={{ ...thStyle, width: 80, textAlign: "center" }}>Review</th>
+                  <th className="vp-th">Term</th>
+                  <th className="vp-th">Definition</th>
+                  <th className="vp-th vp-th-topic">Topic</th>
+                  <th className="vp-th vp-th-review">Review</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,12 +242,12 @@ export default function VocabularyPanel({
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
+            <div className="vp-pagination">
               <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}
-                style={paginationBtnStyle(page === 0)}>Prev</button>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Page {page + 1} of {totalPages}</span>
+                className="vp-pagination-btn">Prev</button>
+              <span className="vp-pagination-info">Page {page + 1} of {totalPages}</span>
               <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1}
-                style={paginationBtnStyle(page >= totalPages - 1)}>Next</button>
+                className="vp-pagination-btn">Next</button>
             </div>
           )}
         </>
@@ -269,37 +264,38 @@ function VocabRow({ entry: v, isExpanded, isSelected, isReviewed, onToggleSelect
 }) {
   const defTruncated = v.definition.length > 80 ? v.definition.slice(0, 80) + "..." : v.definition;
 
+  const rowClass = [
+    "vp-row",
+    isExpanded ? "vp-row-expanded" : "",
+    isSelected ? "vp-row-selected" : isExpanded ? "vp-row-active" : "",
+  ].filter(Boolean).join(" ");
+
   return (
     <>
       <tr
         onClick={(e) => { if ((e.target as HTMLElement).closest("input, button")) return; onToggleExpand(); }}
-        style={{
-          borderBottom: isExpanded ? "none" : "1px solid var(--border-subtle)",
-          cursor: "pointer",
-          background: isSelected ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
-            : isExpanded ? "color-mix(in srgb, var(--accent-primary) 3%, transparent)" : "transparent",
-        }}
+        className={rowClass}
       >
-        <td style={{ padding: "8px 4px 8px 8px", width: 36 }}>
+        <td className="vp-td-checkbox">
           <input type="checkbox" checked={isSelected} onChange={onToggleSelect} />
         </td>
-        <td style={{ padding: "8px 10px", color: "var(--text-primary)", fontWeight: 600 }}>
+        <td className="vp-td-term">
           {v.term}
           {v.partOfSpeech && (
-            <span style={{ fontWeight: 400, fontSize: 12, color: "var(--text-muted)", marginLeft: 6 }}>({v.partOfSpeech})</span>
+            <span className="vp-part-of-speech">({v.partOfSpeech})</span>
           )}
         </td>
-        <td style={{ padding: "8px 10px", color: "var(--text-secondary)", lineHeight: 1.4 }}>{defTruncated}</td>
-        <td style={{ padding: "8px 10px", fontSize: 12, color: "var(--text-muted)" }}>{v.topic || "\u2014"}</td>
-        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+        <td className="vp-td-definition">{defTruncated}</td>
+        <td className="vp-td-topic">{v.topic || "\u2014"}</td>
+        <td className="vp-td-review">
           {isReviewed
-            ? <span style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
-            : <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Pending</span>}
+            ? <span className="vp-status-reviewed">Reviewed</span>
+            : <span className="vp-status-pending">Pending</span>}
         </td>
       </tr>
       {isExpanded && (
-        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-          <td colSpan={5} style={{ padding: "0 10px 16px 46px" }}>
+        <tr className="vp-detail-row">
+          <td colSpan={5} className="vp-detail-cell">
             <VocabDetail entry={v} onMarkReviewed={onMarkReviewed} onDelete={onDelete} />
           </td>
         </tr>
@@ -311,97 +307,91 @@ function VocabRow({ entry: v, isExpanded, isSelected, isReviewed, onToggleSelect
 function VocabDetail({ entry: v, onMarkReviewed, onDelete }: { entry: VocabEntry; onMarkReviewed: () => void; onDelete: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isReviewed = !!v.reviewedAt;
-  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 };
-  const valueStyle: React.CSSProperties = { fontSize: 13, color: "var(--text-primary)" };
 
   return (
-    <div style={{ paddingTop: 8 }}>
-      <div style={{ ...valueStyle, lineHeight: 1.5, marginBottom: 12 }}>
+    <div className="vp-detail">
+      <div className="vp-detail-heading">
         <strong>{v.term}</strong>
-        {v.partOfSpeech && <span style={{ color: "var(--text-muted)" }}> ({v.partOfSpeech})</span>}
+        {v.partOfSpeech && <span className="vp-detail-heading-muted"> ({v.partOfSpeech})</span>}
         : {v.definition}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "8px 20px", marginBottom: 12 }}>
+      <div className="vp-detail-grid">
         {v.exampleUsage && (
-          <div style={{ gridColumn: "span 2" }}>
-            <div style={labelStyle}>Example Usage</div>
-            <div style={{ ...valueStyle, fontStyle: "italic", lineHeight: 1.5 }}>{v.exampleUsage}</div>
+          <div className="vp-span-2">
+            <div className="vp-detail-label">Example Usage</div>
+            <div className="vp-detail-value vp-detail-value-italic">{v.exampleUsage}</div>
           </div>
         )}
         {v.pronunciation && (
           <div>
-            <div style={labelStyle}>Pronunciation</div>
-            <div style={valueStyle}>{v.pronunciation}</div>
+            <div className="vp-detail-label">Pronunciation</div>
+            <div className="vp-detail-value">{v.pronunciation}</div>
           </div>
         )}
         {v.difficulty && (
           <div>
-            <div style={labelStyle}>Difficulty</div>
-            <div style={valueStyle}>{v.difficulty}/5</div>
+            <div className="vp-detail-label">Difficulty</div>
+            <div className="vp-detail-value">{v.difficulty}/5</div>
           </div>
         )}
         {v.topic && (
           <div>
-            <div style={labelStyle}>Topic</div>
-            <div style={valueStyle}>{v.topic}</div>
+            <div className="vp-detail-label">Topic</div>
+            <div className="vp-detail-value">{v.topic}</div>
           </div>
         )}
         {(v.chapter || v.pageRef) && (
           <div>
-            <div style={labelStyle}>Location</div>
-            <div style={valueStyle}>{[v.chapter, v.pageRef].filter(Boolean).join(" / ")}</div>
+            <div className="vp-detail-label">Location</div>
+            <div className="vp-detail-value">{[v.chapter, v.pageRef].filter(Boolean).join(" / ")}</div>
           </div>
         )}
         {v.tags.length > 0 && (
           <div>
-            <div style={labelStyle}>Tags</div>
-            <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+            <div className="vp-detail-label">Tags</div>
+            <div className="vp-tags">
               {v.tags.map((t) => (
-                <span key={t} style={{ fontSize: 11, padding: "1px 5px", borderRadius: 3, background: "var(--surface-tertiary)", color: "var(--text-secondary)" }}>{t}</span>
+                <span key={t} className="vp-tag">{t}</span>
               ))}
             </div>
           </div>
         )}
         <div>
-          <div style={labelStyle}>Review Status</div>
+          <div className="vp-detail-label">Review Status</div>
           {v.reviewedAt ? (
-            <div style={{ fontSize: 12 }}>
-              <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
-              <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>
+            <div className="vp-review-info">
+              <span className="vp-review-done">Reviewed</span>
+              <span className="vp-review-meta">
                 by {v.reviewer?.name || v.reviewer?.email || "unknown"} on {new Date(v.reviewedAt).toLocaleDateString()}
               </span>
             </div>
           ) : (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Pending</span>
+            <span className="vp-review-pending">Pending</span>
           )}
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="vp-actions">
         {!isReviewed && (
-          <button onClick={onMarkReviewed}
-            style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "var(--status-success-text)", color: "var(--button-primary-text, #fff)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={onMarkReviewed} className="vp-btn-review">
             Mark Reviewed
           </button>
         )}
-        <div style={{ marginLeft: "auto" }}>
+        <div className="hf-ml-auto">
           {confirmDelete ? (
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "var(--status-error-text)" }}>Delete permanently?</span>
-              <button onClick={onDelete}
-                style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "var(--status-error-text)", color: "var(--button-primary-text, #fff)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+            <span className="vp-delete-confirm">
+              <span className="vp-delete-confirm-text">Delete permanently?</span>
+              <button onClick={onDelete} className="vp-btn-confirm-delete">
                 Confirm
               </button>
-              <button onClick={() => setConfirmDelete(false)}
-                style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid var(--border-default)", background: "var(--surface-primary)", color: "var(--text-primary)", fontSize: 11, cursor: "pointer" }}>
+              <button onClick={() => setConfirmDelete(false)} className="vp-btn-cancel">
                 Cancel
               </button>
             </span>
           ) : (
-            <button onClick={() => setConfirmDelete(true)}
-              style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid var(--status-error-border, #FFCDD2)", background: "var(--surface-primary)", color: "var(--status-error-text)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            <button onClick={() => setConfirmDelete(true)} className="vp-btn-delete">
               Delete
             </button>
           )}
@@ -409,17 +399,4 @@ function VocabDetail({ entry: v, onMarkReviewed, onDelete }: { entry: VocabEntry
       </div>
     </div>
   );
-}
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left", padding: "8px 10px", color: "var(--text-muted)", fontWeight: 600, fontSize: 12, whiteSpace: "nowrap",
-};
-
-function paginationBtnStyle(disabled: boolean): React.CSSProperties {
-  return {
-    padding: "6px 14px", borderRadius: 6, border: "1px solid var(--border-default)",
-    background: disabled ? "transparent" : "var(--surface-primary)",
-    color: disabled ? "var(--text-muted)" : "var(--text-primary)",
-    fontSize: 12, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1,
-  };
 }

@@ -1,0 +1,392 @@
+/* ── QuestionsPanel (Content Sources) ─────────────────── */
+/* Companion CSS — imported by QuestionsPanel.tsx */
+
+/* ── Review progress bar ── */
+.qp-progress-section {
+  margin-bottom: 12px;
+}
+.qp-progress-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.qp-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.qp-all-reviewed {
+  font-size: 11px;
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+.qp-progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-tertiary);
+  overflow: hidden;
+}
+.qp-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary));
+  transition: width 0.3s ease-out;
+}
+.qp-progress-fill-complete {
+  background: var(--status-success-text);
+}
+
+/* ── Feedback banner ── */
+.qp-feedback {
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.qp-feedback-error {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-border);
+}
+.qp-feedback-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--status-success-border);
+}
+
+/* ── Filters row ── */
+.qp-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.qp-search-input {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 220px;
+}
+.qp-filter-select {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.qp-bulk-review-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--status-success-text);
+  color: var(--button-primary-text, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qp-bulk-review-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.qp-total-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── Loading / empty state ── */
+.qp-empty-text {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Table ── */
+.qp-table-wrap {
+  overflow-x: auto;
+}
+.qp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.qp-thead-row {
+  border-bottom: 2px solid var(--border-default);
+}
+.qp-th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.qp-th-checkbox {
+  width: 36px;
+  padding: 8px 4px 8px 8px;
+}
+.qp-th-type {
+  width: 100px;
+}
+.qp-th-answer {
+  width: 100px;
+}
+.qp-th-diff {
+  width: 60px;
+  text-align: center;
+}
+.qp-th-review {
+  width: 80px;
+  text-align: center;
+}
+
+/* ── Table rows ── */
+.qp-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.qp-row-expanded {
+  border-bottom: none;
+}
+.qp-row-selected {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+.qp-row-expanded-bg {
+  background: color-mix(in srgb, var(--accent-primary) 3%, transparent);
+}
+.qp-td-checkbox {
+  padding: 8px 4px 8px 8px;
+  width: 36px;
+}
+.qp-td {
+  padding: 8px 10px;
+}
+.qp-td-question {
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.qp-type-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  text-transform: uppercase;
+}
+.qp-td-answer {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.qp-td-center {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.qp-review-status-reviewed {
+  font-size: 11px;
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+.qp-review-status-pending {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Expanded detail row ── */
+.qp-expanded-row {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.qp-expanded-cell {
+  padding: 0 10px 16px 46px;
+}
+
+/* ── Question detail ── */
+.qp-detail {
+  padding-top: 8px;
+}
+.qp-detail-question-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.qp-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.qp-detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* ── Options list ── */
+.qp-options-section {
+  margin-bottom: 12px;
+}
+.qp-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qp-option {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font-weight: 400;
+}
+.qp-option-correct {
+  background: color-mix(in srgb, var(--status-success-text) 10%, transparent);
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+
+/* ── Metadata grid ── */
+.qp-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 20px;
+  margin-bottom: 12px;
+}
+.qp-meta-span-2 {
+  grid-column: span 2;
+}
+.qp-correct-answer-value {
+  font-size: 13px;
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+.qp-detail-value-relaxed {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ── Tags ── */
+.qp-tags {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.qp-tag {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  color: var(--text-secondary);
+}
+
+/* ── Review status detail ── */
+.qp-review-detail {
+  font-size: 12px;
+}
+.qp-review-detail-reviewed {
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+.qp-review-detail-by {
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.qp-review-detail-pending {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Action buttons ── */
+.qp-actions {
+  display: flex;
+  gap: 8px;
+}
+.qp-btn-mark-reviewed {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--status-success-text);
+  color: var(--button-primary-text, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qp-delete-area {
+  margin-left: auto;
+}
+.qp-confirm-group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.qp-confirm-label {
+  font-size: 12px;
+  color: var(--status-error-text);
+}
+.qp-btn-confirm-delete {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--status-error-text);
+  color: var(--button-primary-text, #fff);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qp-btn-cancel {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.qp-btn-delete {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--status-error-border);
+  background: var(--surface-primary);
+  color: var(--status-error-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Pagination ── */
+.qp-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.qp-pagination-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.qp-pagination-btn:disabled {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+.qp-pagination-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}

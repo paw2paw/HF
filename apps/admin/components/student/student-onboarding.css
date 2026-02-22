@@ -1,0 +1,376 @@
+/* StudentOnboarding — so-* prefix */
+
+.so-container {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Step progress indicators */
+.so-progress-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.so-progress-segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+.so-progress-segment-active {
+  background: var(--button-primary-bg);
+}
+
+.so-progress-segment-inactive {
+  background: var(--border-default);
+}
+
+/* Step card — shared panel styling */
+.so-step-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.so-step-card-centered {
+  padding: 32px;
+  text-align: center;
+}
+
+/* Institution logo */
+.so-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+/* Typography */
+.so-welcome-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.so-instructor-text {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.so-domain-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.so-welcome-body {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.so-section-heading {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.so-hint-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.so-how-intro {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+/* Section headers with icon */
+.so-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.so-icon-accent {
+  color: var(--accent-primary);
+}
+
+/* Primary full-width button */
+.so-btn-primary-full {
+  width: 100%;
+  padding: 12px 24px;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.so-btn-primary-full:hover {
+  opacity: 0.9;
+}
+
+/* Goals list */
+.so-goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Goal checkbox item — dynamic border/bg handled inline (depends on confirmedGoals state) */
+.so-goal-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.so-goal-item-selected {
+  border: 1px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.so-goal-item-unselected {
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+}
+
+/* Custom checkbox */
+.so-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.so-checkbox-checked {
+  border: 2px solid var(--accent-primary);
+  background: var(--accent-primary);
+}
+
+.so-checkbox-unchecked {
+  border: 2px solid var(--border-default);
+  background: transparent;
+}
+
+/* Goal text */
+.so-goal-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.so-goal-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Add goal row */
+.so-add-goal-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.so-add-goal-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.so-add-goal-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.so-add-goal-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.so-add-goal-btn:enabled {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.so-add-goal-btn:disabled {
+  background: var(--border-default);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* Navigation button row */
+.so-nav-row {
+  display: flex;
+  gap: 12px;
+}
+
+.so-btn-back {
+  flex: 1;
+  padding: 10px 20px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.so-btn-back:hover {
+  background: var(--border-default);
+}
+
+.so-btn-continue {
+  flex: 2;
+  padding: 10px 20px;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.so-btn-continue:hover {
+  opacity: 0.9;
+}
+
+/* Feature cards (How It Works) */
+.so-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.so-feature-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+}
+
+.so-feature-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.so-feature-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.so-feature-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Ready step (step 4) */
+.so-ready-icon-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.so-ready-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.so-ready-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.so-btn-start {
+  width: 100%;
+  padding: 14px 24px;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.so-btn-start:hover {
+  opacity: 0.9;
+}
+
+.so-btn-skip {
+  width: 100%;
+  padding: 10px 24px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.so-btn-skip:hover {
+  color: var(--text-secondary);
+}
+
+/* Step counter */
+.so-step-counter {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import { Sparkles, Target, MessageCircle, Rocket } from "lucide-react";
+import "./student-onboarding.css";
 
 interface GoalData {
   id: string;
@@ -70,106 +71,47 @@ export default function StudentOnboarding({
   const totalSteps = 4;
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px" }}>
+    <div className="so-container">
       {/* Step indicators */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
+      <div className="so-progress-bar">
         {[1, 2, 3, 4].map((s) => (
           <div
             key={s}
-            style={{
-              flex: 1,
-              height: 4,
-              borderRadius: 2,
-              background:
-                s <= step
-                  ? "var(--button-primary-bg)"
-                  : "var(--border-default)",
-              transition: "background 0.3s",
-            }}
+            className={`so-progress-segment ${s <= step ? "so-progress-segment-active" : "so-progress-segment-inactive"}`}
           />
         ))}
       </div>
 
       {/* Step 1: Welcome */}
       {step === 1 && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 32,
-            textAlign: "center",
-          }}
-        >
+        <div className="so-step-card so-step-card-centered">
           {institutionLogo && (
             <img
               src={institutionLogo}
               alt={institutionName ?? ""}
-              style={{
-                width: 64,
-                height: 64,
-                objectFit: "contain",
-                marginBottom: 16,
-                borderRadius: 8,
-              }}
+              className="so-logo"
             />
           )}
-          <h1
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              color: "var(--text-primary)",
-              marginBottom: 8,
-            }}
-          >
+          <h1 className="so-welcome-title">
             Welcome{institutionName ? ` to ${institutionName}` : ""}!
           </h1>
           {teacherName && (
-            <p
-              style={{
-                fontSize: 15,
-                color: "var(--text-secondary)",
-                marginBottom: 8,
-              }}
-            >
+            <p className="so-instructor-text">
               Your {lower("instructor")}: {teacherName}
             </p>
           )}
           {domain && (
-            <p
-              style={{
-                fontSize: 14,
-                color: "var(--text-muted)",
-                marginBottom: 16,
-              }}
-            >
+            <p className="so-domain-text">
               {domain}
             </p>
           )}
-          <p
-            style={{
-              fontSize: 15,
-              color: "var(--text-secondary)",
-              lineHeight: 1.6,
-              marginBottom: 24,
-            }}
-          >
+          <p className="so-welcome-body">
             {welcomeMessage ??
               "You're about to start a personalised learning journey. Let's get you set up in just a few steps."}
           </p>
           <button
             onClick={() => setStep(2)}
-            style={{
-              width: "100%",
-              padding: "12px 24px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="so-btn-primary-full"
           >
             Get Started
           </button>
@@ -178,212 +120,98 @@ export default function StudentOnboarding({
 
       {/* Step 2: Your Goals */}
       {step === 2 && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 24,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-            <Target size={20} style={{ color: "var(--accent-primary)" }} />
-            <h2
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-              }}
-            >
+        <div className="so-step-card">
+          <div className="so-section-header">
+            <Target size={20} className="so-icon-accent" />
+            <h2 className="so-section-heading">
               Your Goals
             </h2>
           </div>
 
           {goals.length > 0 ? (
             <>
-              <p
-                style={{
-                  fontSize: 14,
-                  color: "var(--text-muted)",
-                  marginBottom: 16,
-                }}
-              >
+              <p className="so-hint-text">
                 These goals have been set for your learning journey. You can confirm or adjust them.
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                {goals.map((goal) => (
-                  <button
-                    key={goal.id}
-                    onClick={() => {
-                      setConfirmedGoals((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(goal.id)) next.delete(goal.id);
-                        else next.add(goal.id);
-                        return next;
-                      });
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: 12,
-                      border: `1px solid ${
-                        confirmedGoals.has(goal.id)
-                          ? "var(--accent-primary)"
-                          : "var(--border-default)"
-                      }`,
-                      borderRadius: 8,
-                      background: confirmedGoals.has(goal.id)
-                        ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
-                        : "var(--surface-secondary)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 4,
-                        border: `2px solid ${
-                          confirmedGoals.has(goal.id)
-                            ? "var(--accent-primary)"
-                            : "var(--border-default)"
-                        }`,
-                        background: confirmedGoals.has(goal.id)
-                          ? "var(--accent-primary)"
-                          : "transparent",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
+              <div className="so-goals-list">
+                {goals.map((goal) => {
+                  const selected = confirmedGoals.has(goal.id);
+                  return (
+                    <button
+                      key={goal.id}
+                      onClick={() => {
+                        setConfirmedGoals((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(goal.id)) next.delete(goal.id);
+                          else next.add(goal.id);
+                          return next;
+                        });
                       }}
+                      className={`so-goal-item ${selected ? "so-goal-item-selected" : "so-goal-item-unselected"}`}
                     >
-                      {confirmedGoals.has(goal.id) && (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M2.5 6L5 8.5L9.5 4"
-                            stroke="white"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        {goal.name}
+                      <div className={`so-checkbox ${selected ? "so-checkbox-checked" : "so-checkbox-unchecked"}`}>
+                        {selected && (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path
+                              d="M2.5 6L5 8.5L9.5 4"
+                              stroke="white"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
                       </div>
-                      {goal.description && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--text-muted)",
-                            marginTop: 2,
-                          }}
-                        >
-                          {goal.description}
+                      <div>
+                        <div className="so-goal-name">
+                          {goal.name}
                         </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                        {goal.description && (
+                          <div className="so-goal-desc">
+                            {goal.description}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </>
           ) : (
-            <p
-              style={{
-                fontSize: 14,
-                color: "var(--text-muted)",
-                marginBottom: 16,
-              }}
-            >
+            <p className="so-hint-text">
               What would you like to learn or achieve? Add a goal below.
             </p>
           )}
 
           {/* Add custom goal */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          <div className="so-add-goal-row">
             <input
               type="text"
               value={customGoal}
               onChange={(e) => setCustomGoal(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddGoal()}
               placeholder="Add a personal goal..."
-              style={{
-                flex: 1,
-                padding: "8px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 14,
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                outline: "none",
-              }}
+              className="so-add-goal-input"
             />
             <button
               onClick={handleAddGoal}
               disabled={!customGoal.trim() || addingGoal}
-              style={{
-                padding: "8px 16px",
-                background:
-                  !customGoal.trim() || addingGoal
-                    ? "var(--border-default)"
-                    : "var(--accent-primary)",
-                color:
-                  !customGoal.trim() || addingGoal
-                    ? "var(--text-muted)"
-                    : "white",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor:
-                  !customGoal.trim() || addingGoal ? "not-allowed" : "pointer",
-              }}
+              className="so-add-goal-btn"
             >
               {addingGoal ? "..." : "Add"}
             </button>
           </div>
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="so-nav-row">
             <button
               onClick={() => setStep(1)}
-              style={{
-                flex: 1,
-                padding: "10px 20px",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+              className="so-btn-back"
             >
               Back
             </button>
             <button
               onClick={() => setStep(3)}
-              style={{
-                flex: 2,
-                padding: "10px 20px",
-                background: "var(--button-primary-bg)",
-                color: "var(--button-primary-text)",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className="so-btn-continue"
             >
               Continue
             </button>
@@ -393,39 +221,19 @@ export default function StudentOnboarding({
 
       {/* Step 3: How It Works */}
       {step === 3 && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 24,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-            <MessageCircle size={20} style={{ color: "var(--accent-primary)" }} />
-            <h2
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-              }}
-            >
+        <div className="so-step-card">
+          <div className="so-section-header">
+            <MessageCircle size={20} className="so-icon-accent" />
+            <h2 className="so-section-heading">
               How It Works
             </h2>
           </div>
 
-          <p
-            style={{
-              fontSize: 14,
-              color: "var(--text-secondary)",
-              marginBottom: 20,
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="so-how-intro">
             You'll have voice conversations with an AI tutor that adapts to you.
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+          <div className="so-features-list">
             {[
               {
                 icon: Sparkles,
@@ -443,52 +251,15 @@ export default function StudentOnboarding({
                 desc: "Just talk naturally. The AI will guide the learning through dialogue.",
               },
             ].map((item) => (
-              <div
-                key={item.title}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  padding: 12,
-                  background: "var(--surface-secondary)",
-                  borderRadius: 8,
-                }}
-              >
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    background:
-                      "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <item.icon
-                    size={18}
-                    style={{ color: "var(--accent-primary)" }}
-                  />
+              <div key={item.title} className="so-feature-card">
+                <div className="so-feature-icon-box">
+                  <item.icon size={18} className="so-icon-accent" />
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div className="so-feature-title">
                     {item.title}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--text-muted)",
-                      lineHeight: 1.4,
-                    }}
-                  >
+                  <div className="so-feature-desc">
                     {item.desc}
                   </div>
                 </div>
@@ -496,36 +267,16 @@ export default function StudentOnboarding({
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="so-nav-row">
             <button
               onClick={() => setStep(2)}
-              style={{
-                flex: 1,
-                padding: "10px 20px",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+              className="so-btn-back"
             >
               Back
             </button>
             <button
               onClick={() => setStep(4)}
-              style={{
-                flex: 2,
-                padding: "10px 20px",
-                background: "var(--button-primary-bg)",
-                color: "var(--button-primary-text)",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className="so-btn-continue"
             >
               Continue
             </button>
@@ -535,64 +286,20 @@ export default function StudentOnboarding({
 
       {/* Step 4: Ready */}
       {step === 4 && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 32,
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              background:
-                "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 20px",
-            }}
-          >
-            <Rocket size={32} style={{ color: "var(--accent-primary)" }} />
+        <div className="so-step-card so-step-card-centered">
+          <div className="so-ready-icon-box">
+            <Rocket size={32} className="so-icon-accent" />
           </div>
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: "var(--text-primary)",
-              marginBottom: 8,
-            }}
-          >
+          <h2 className="so-ready-title">
             You're All Set!
           </h2>
-          <p
-            style={{
-              fontSize: 15,
-              color: "var(--text-secondary)",
-              marginBottom: 24,
-              lineHeight: 1.6,
-            }}
-          >
+          <p className="so-ready-desc">
             Start your first conversation and your AI tutor will take it from there.
           </p>
 
           <button
             onClick={handleFinish}
-            style={{
-              width: "100%",
-              padding: "14px 24px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            className="so-btn-start"
           >
             Start Your First Conversation
           </button>
@@ -601,17 +308,7 @@ export default function StudentOnboarding({
               localStorage.setItem("onboarding-seen", "true");
               onComplete();
             }}
-            style={{
-              width: "100%",
-              padding: "10px 24px",
-              background: "transparent",
-              color: "var(--text-muted)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 13,
-              cursor: "pointer",
-              marginTop: 8,
-            }}
+            className="so-btn-skip"
           >
             Skip for now
           </button>
@@ -619,14 +316,7 @@ export default function StudentOnboarding({
       )}
 
       {/* Step counter */}
-      <div
-        style={{
-          textAlign: "center",
-          marginTop: 16,
-          fontSize: 12,
-          color: "var(--text-muted)",
-        }}
-      >
+      <div className="so-step-counter">
         Step {step} of {totalSteps}
       </div>
     </div>

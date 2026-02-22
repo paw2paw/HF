@@ -8,6 +8,7 @@ import type { ComposedPrompt, CallerIdentity, CallerProfile, Memory } from "./ty
 import { useEffect } from "react";
 import { CATEGORY_COLORS } from "./constants";
 import type { Call } from "./types";
+import "./prompts-section.css";
 
 export function UnifiedPromptSection({
   prompts,
@@ -140,11 +141,8 @@ export function UnifiedPromptSection({
           <div className="hf-flex hf-gap-sm">
             <button
               onClick={() => copyToClipboard(activePrompt.prompt, "active-prompt")}
-              className="hf-btn-copy"
-              style={{
-                background: copiedButton === "active-prompt" ? "var(--button-success-bg)" : "var(--button-primary-bg)",
-                boxShadow: copiedButton === "active-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
-              }}
+              className="hf-btn-copy ps-btn-copy-dynamic"
+              data-copied={copiedButton === "active-prompt" ? "true" : undefined}
             >
               {copiedButton === "active-prompt" ? "✓ Copied" : "📋 Copy Prompt"}
             </button>
@@ -166,11 +164,7 @@ export function UnifiedPromptSection({
                     <div className="hf-flex-between">
                       <div className="hf-flex hf-gap-sm">
                         <span
-                          className="hf-micro-badge hf-uppercase"
-                          style={{
-                            background: p.status === "active" ? "var(--status-success-bg)" : "var(--border-default)",
-                            color: p.status === "active" ? "var(--status-success-text)" : "var(--text-muted)",
-                          }}
+                          className={`hf-micro-badge hf-uppercase ${p.status === "active" ? "ps-status-badge-active" : "ps-status-badge-default"}`}
                         >
                           {p.status}
                         </span>
@@ -182,8 +176,7 @@ export function UnifiedPromptSection({
                     </div>
                     {expandedPrompt === p.id && (
                       <div
-                        className="hf-code-block-sm hf-mt-md"
-                        style={{ maxHeight: 200, fontSize: 12 }}
+                        className="hf-code-block-sm hf-mt-md ps-history-code"
                       >
                         {p.prompt}
                       </div>
@@ -227,13 +220,8 @@ export function UnifiedPromptSection({
                   </div>
                   <button
                     onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-2")}
-                    className="hf-btn hf-btn-xs"
-                    style={{
-                      background: copiedButton === "llm-json-2" ? "var(--button-success-bg)" : "var(--surface-secondary)",
-                      color: copiedButton === "llm-json-2" ? "white" : "var(--text-secondary)",
-                      transition: "all 0.2s ease",
-                      boxShadow: copiedButton === "llm-json-2" ? "0 0 12px var(--button-success-bg)" : "none",
-                    }}
+                    className="hf-btn hf-btn-xs ps-btn-json-copy"
+                    data-copied={copiedButton === "llm-json-2" ? "true" : undefined}
                   >
                     {copiedButton === "llm-json-2" ? "✓ Copied" : "📋 Copy JSON"}
                   </button>
@@ -249,7 +237,7 @@ export function UnifiedPromptSection({
                   {/* Memories */}
                   {llm.memories && llm.memories.totalCount > 0 && (
                     <div className="hf-card-compact hf-mb-0">
-                      <h4 className="hf-heading-sm" style={{ color: "var(--badge-cyan-text)" }}>
+                      <h4 className="hf-heading-sm ps-heading-cyan">
                         💭 Memories ({llm.memories.totalCount})
                       </h4>
                       <div className="hf-flex-col hf-gap-md">
@@ -290,17 +278,11 @@ export function UnifiedPromptSection({
                         {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
                           <div
                             key={i}
-                            className="hf-info-cell"
-                            style={{
-                              background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                            }}
+                            className={`hf-info-cell ${t.targetLevel === "HIGH" ? "ps-target-high" : t.targetLevel === "LOW" ? "ps-target-low" : "ps-target-neutral"}`}
                           >
                             <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
                             <div
-                              className="hf-text-sm hf-text-bold"
-                              style={{
-                                color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
-                              }}
+                              className={`hf-text-sm hf-text-bold ${t.targetLevel === "HIGH" ? "ps-target-text-high" : t.targetLevel === "LOW" ? "ps-target-text-low" : "ps-target-text-neutral"}`}
                             >
                               {t.targetLevel}
                             </div>
@@ -316,7 +298,7 @@ export function UnifiedPromptSection({
                   {/* Call History Summary */}
                   {llm.callHistory && llm.callHistory.totalCalls > 0 && (
                     <div className="hf-card-compact hf-mb-0">
-                      <h4 className="hf-heading-sm" style={{ color: "var(--badge-indigo-text)" }}>
+                      <h4 className="hf-heading-sm ps-heading-indigo">
                         📞 Call History ({llm.callHistory.totalCalls} calls)
                       </h4>
                       <div className="hf-text-sm hf-text-muted">
@@ -341,7 +323,7 @@ export function UnifiedPromptSection({
                         {llm.instructions.personality_adaptation?.length > 0 && (
                           <div>
                             <strong>Personality Adaptation:</strong>
-                            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                            <ul className="ps-adaptation-list">
                               {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
                                 <li key={i} className="hf-mb-xs">{tip}</li>
                               ))}
@@ -417,10 +399,7 @@ function PromptsSection({
           <button
             onClick={onCompose}
             disabled={composing}
-            className="hf-btn hf-btn-primary hf-btn-sm"
-            style={{
-              background: composing ? "var(--text-placeholder)" : undefined,
-            }}
+            className={`hf-btn hf-btn-primary hf-btn-sm ${composing ? "ps-btn-compose-disabled" : ""}`}
           >
             {composing ? "Composing..." : "Compose New Prompt"}
           </button>
@@ -429,7 +408,7 @@ function PromptsSection({
 
       {prompts.length === 0 ? (
         <div className="hf-empty-dashed">
-          <div className="hf-empty-state-icon" style={{ fontSize: 32 }}>📝</div>
+          <div className="hf-empty-state-icon ps-empty-icon-lg">📝</div>
           <div className="hf-text-md hf-text-muted">No prompts composed yet</div>
           <div className="hf-text-sm hf-text-placeholder hf-mt-xs">
             Click &quot;Compose New Prompt&quot; to generate a personalized next-call guidance prompt using AI
@@ -453,11 +432,7 @@ function PromptsSection({
                 >
                   <div className="hf-flex hf-gap-md">
                     <span
-                      className="hf-micro-pill hf-uppercase"
-                      style={{
-                        background: statusColors.bg,
-                        color: statusColors.text,
-                      }}
+                      className={`hf-micro-pill hf-uppercase ${prompt.status === "active" ? "ps-status-badge-active" : prompt.status === "expired" ? "ps-status-badge-expired" : "ps-status-badge-default"}`}
                     >
                       {prompt.status}
                     </span>
@@ -531,11 +506,8 @@ function PromptsSection({
                           e.stopPropagation();
                           copyToClipboard(prompt.prompt, `history-prompt-${prompt.id}`);
                         }}
-                        className="hf-btn-copy"
-                        style={{
-                          background: copiedButton === `history-prompt-${prompt.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
-                          boxShadow: copiedButton === `history-prompt-${prompt.id}` ? "0 0 12px var(--button-success-bg)" : "none",
-                        }}
+                        className="hf-btn-copy ps-btn-copy-dynamic"
+                        data-copied={copiedButton === `history-prompt-${prompt.id}` ? "true" : undefined}
                       >
                         {copiedButton === `history-prompt-${prompt.id}` ? "✓ Copied" : "Copy to Clipboard"}
                       </button>
@@ -596,10 +568,7 @@ function LlmPromptSection({
           <button
             onClick={onCompose}
             disabled={composing}
-            className="hf-btn hf-btn-primary hf-mt-md"
-            style={{
-              background: composing ? "var(--text-placeholder)" : undefined,
-            }}
+            className={`hf-btn hf-btn-primary hf-mt-md ${composing ? "ps-btn-compose-disabled" : ""}`}
           >
             {composing ? "Composing..." : "Compose New Prompt"}
           </button>
@@ -637,23 +606,15 @@ function LlmPromptSection({
           </div>
           <button
             onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-3")}
-            className="hf-btn hf-btn-xs"
-            style={{
-              background: copiedButton === "llm-json-3" ? "var(--button-success-bg)" : "var(--surface-secondary)",
-              color: copiedButton === "llm-json-3" ? "white" : "var(--text-secondary)",
-              transition: "all 0.2s ease",
-              boxShadow: copiedButton === "llm-json-3" ? "0 0 12px var(--button-success-bg)" : "none",
-            }}
+            className="hf-btn hf-btn-xs ps-btn-json-copy"
+            data-copied={copiedButton === "llm-json-3" ? "true" : undefined}
           >
             {copiedButton === "llm-json-3" ? "✓ Copied" : "📋 Copy JSON"}
           </button>
           <button
             onClick={onCompose}
             disabled={composing}
-            className="hf-btn hf-btn-primary hf-btn-xs"
-            style={{
-              background: composing ? "var(--text-placeholder)" : undefined,
-            }}
+            className={`hf-btn hf-btn-primary hf-btn-xs ${composing ? "ps-btn-compose-disabled" : ""}`}
           >
             {composing ? "..." : "Refresh"}
           </button>
@@ -671,24 +632,24 @@ function LlmPromptSection({
           {/* Caller Info */}
           {llm.caller && (
             <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm" style={{ color: "var(--button-primary-bg)" }}>
+              <h4 className="hf-heading-sm ps-heading-primary">
                 👤 Caller
               </h4>
               <div className="hf-grid-3 hf-gap-md">
                 {llm.caller.name && (
-                  <div className="hf-info-cell" style={{ background: "var(--status-info-bg)" }}>
+                  <div className="hf-info-cell ps-cell-info">
                     <div className="hf-info-cell-label">Name</div>
                     <div className="hf-text-sm hf-text-bold">{llm.caller.name}</div>
                   </div>
                 )}
                 {llm.caller.contactInfo?.email && (
-                  <div className="hf-info-cell" style={{ background: "var(--status-info-bg)" }}>
+                  <div className="hf-info-cell ps-cell-info">
                     <div className="hf-info-cell-label">Email</div>
                     <div className="hf-text-sm hf-text-bold">{llm.caller.contactInfo.email}</div>
                   </div>
                 )}
                 {llm.caller.contactInfo?.phone && (
-                  <div className="hf-info-cell" style={{ background: "var(--status-info-bg)" }}>
+                  <div className="hf-info-cell ps-cell-info">
                     <div className="hf-info-cell-label">Phone</div>
                     <div className="hf-text-sm hf-text-bold">{llm.caller.contactInfo.phone}</div>
                   </div>
@@ -700,7 +661,7 @@ function LlmPromptSection({
           {/* Personality */}
           {llm.personality && (
             <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm" style={{ color: "var(--trait-neuroticism)" }}>
+              <h4 className="hf-heading-sm ps-heading-personality">
                 🧠 Personality Profile
               </h4>
               {llm.personality.traits && (
@@ -708,19 +669,13 @@ function LlmPromptSection({
                   {Object.entries(llm.personality.traits).map(([trait, data]: [string, any]) => (
                     <div
                       key={trait}
-                      className="hf-info-cell hf-text-center"
-                      style={{
-                        background: data.level === "HIGH" ? "var(--status-success-bg)" : data.level === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                      }}
+                      className={`hf-info-cell hf-text-center ${data.level === "HIGH" ? "ps-trait-high" : data.level === "LOW" ? "ps-trait-low" : "ps-trait-neutral"}`}
                     >
                       <div className="hf-text-xs hf-text-bold hf-mb-xs hf-capitalize">
                         {trait}
                       </div>
                       <div
-                        className="hf-text-md hf-text-bold"
-                        style={{
-                          color: data.level === "HIGH" ? "var(--status-success-text)" : data.level === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
-                        }}
+                        className={`hf-text-md hf-text-bold ${data.level === "HIGH" ? "ps-trait-text-high" : data.level === "LOW" ? "ps-trait-text-low" : "ps-trait-text-neutral"}`}
                       >
                         {data.level || "—"}
                       </div>
@@ -744,7 +699,7 @@ function LlmPromptSection({
                     </span>
                   )}
                   {llm.personality.preferences.technicalLevel && (
-                    <span className="hf-badge" style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" }}>
+                    <span className="hf-badge ps-badge-purple">
                       Tech: {llm.personality.preferences.technicalLevel}
                     </span>
                   )}
@@ -756,7 +711,7 @@ function LlmPromptSection({
           {/* Memories */}
           {llm.memories && llm.memories.totalCount > 0 && (
             <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm" style={{ color: "var(--badge-cyan-text)" }}>
+              <h4 className="hf-heading-sm ps-heading-cyan">
                 💭 Memories ({llm.memories.totalCount})
               </h4>
               <div className="hf-flex-col hf-gap-md">
@@ -797,17 +752,11 @@ function LlmPromptSection({
                 {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
                   <div
                     key={i}
-                    className="hf-info-cell"
-                    style={{
-                      background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                    }}
+                    className={`hf-info-cell ${t.targetLevel === "HIGH" ? "ps-target-high" : t.targetLevel === "LOW" ? "ps-target-low" : "ps-target-neutral"}`}
                   >
                     <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
                     <div
-                      className="hf-text-sm hf-text-bold"
-                      style={{
-                        color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
-                      }}
+                      className={`hf-text-sm hf-text-bold ${t.targetLevel === "HIGH" ? "ps-target-text-high" : t.targetLevel === "LOW" ? "ps-target-text-low" : "ps-target-text-neutral"}`}
                     >
                       {t.targetLevel}
                     </div>
@@ -839,7 +788,7 @@ function LlmPromptSection({
                 {llm.instructions.personality_adaptation?.length > 0 && (
                   <div>
                     <strong>Personality Adaptation:</strong>
-                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                    <ul className="ps-adaptation-list">
                       {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
                         <li key={i} className="hf-mb-xs">{tip}</li>
                       ))}
@@ -882,25 +831,25 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
           <h4 className="hf-heading-sm hf-mb-md">Caller Identification</h4>
           <div className="hf-grid-2">
             {caller.phone && (
-              <div className="hf-info-cell-lg" style={{ background: "var(--status-success-bg)" }}>
+              <div className="hf-info-cell-lg ps-cell-success">
                 <div className="hf-text-xs hf-text-success hf-text-bold">Phone</div>
                 <div className="hf-text-md hf-text-bold hf-text-success hf-mt-xs">{caller.phone}</div>
               </div>
             )}
             {caller.email && (
-              <div className="hf-info-cell-lg" style={{ background: "var(--status-info-bg)" }}>
-                <div className="hf-text-xs hf-text-bold" style={{ color: "var(--status-info-text)" }}>Email</div>
-                <div className="hf-text-md hf-text-bold hf-mt-xs" style={{ color: "var(--status-info-text)" }}>{caller.email}</div>
+              <div className="hf-info-cell-lg ps-cell-info">
+                <div className="hf-text-xs hf-text-bold ps-text-info">Email</div>
+                <div className="hf-text-md hf-text-bold hf-mt-xs ps-text-info">{caller.email}</div>
               </div>
             )}
             {caller.externalId && (
-              <div className="hf-info-cell-lg" style={{ background: "var(--badge-purple-bg)" }}>
-                <div className="hf-text-xs hf-text-bold" style={{ color: "var(--badge-purple-text)" }}>External ID</div>
-                <div className="hf-text-md hf-text-bold hf-mt-xs" style={{ color: "var(--badge-purple-text)" }}>{caller.externalId}</div>
+              <div className="hf-info-cell-lg ps-cell-purple">
+                <div className="hf-text-xs hf-text-bold ps-text-purple">External ID</div>
+                <div className="hf-text-md hf-text-bold hf-mt-xs ps-text-purple">{caller.externalId}</div>
               </div>
             )}
             {caller.name && (
-              <div className="hf-info-cell-lg" style={{ background: "var(--status-warning-bg)" }}>
+              <div className="hf-info-cell-lg ps-cell-warning">
                 <div className="hf-text-xs hf-text-bold hf-text-warning">Name</div>
                 <div className="hf-text-md hf-text-bold hf-text-warning hf-mt-xs">{caller.name}</div>
               </div>

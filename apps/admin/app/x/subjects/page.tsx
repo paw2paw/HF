@@ -6,6 +6,7 @@ import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
 import { useSession } from "next-auth/react";
+import "./subjects.css";
 
 const TRUST_LEVELS = [
   { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
@@ -20,12 +21,8 @@ function TrustBadge({ level }: { level: string }) {
   const config = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
   return (
     <span
+      className="subj-trust-badge"
       style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: 11,
-        fontWeight: 600,
         color: config.color,
         backgroundColor: config.bg,
         border: `1px solid color-mix(in srgb, ${config.color} 20%, transparent)`,
@@ -220,7 +217,7 @@ export default function SubjectsPage() {
   }, [subjects, search, selectedDomain, sortBy, sortDir]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+    <div className="hf-page-container">
       <SourcePageHeader
         title="Subjects"
         description="Group content sources under teaching topics. Upload documents, set trust, generate curricula."
@@ -229,44 +226,23 @@ export default function SubjectsPage() {
 
       {/* Error */}
       {error && (
-        <div style={{
-          padding: "12px 16px",
-          background: "var(--status-error-bg)",
-          color: "var(--status-error-text)",
-          borderRadius: 8,
-          marginBottom: 20,
-          border: "1px solid var(--status-error-border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
+        <div className="subj-error-banner">
           <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", textDecoration: "underline" }}
-          >
+          <button onClick={() => setError(null)} className="subj-error-dismiss">
             Dismiss
           </button>
         </div>
       )}
 
       {/* Filter bar */}
-      <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="subj-filter-bar">
         <input
           ref={searchRef}
           type="text"
           placeholder="Search subjects..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            fontSize: 13,
-            width: 260,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-          }}
+          className="subj-search-input"
         />
 
         <FancySelect
@@ -296,22 +272,10 @@ export default function SubjectsPage() {
           options={sortOptions}
         />
 
-        <div style={{ flex: 1 }} />
+        <div className="subj-spacer" />
 
         {isOperator && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            style={{
-              padding: "8px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              background: "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={() => setShowCreateModal(true)} className="subj-create-btn">
             + New Subject
           </button>
         )}
@@ -319,46 +283,29 @@ export default function SubjectsPage() {
 
       {/* Content */}
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+        <div className="subj-loading">Loading...</div>
       ) : filteredAndSorted.length === 0 ? (
-        <div style={{
-          padding: 40,
-          textAlign: "center",
-          borderRadius: 12,
-          border: "1px solid var(--border-default)",
-        }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
+        <div className="subj-empty">
+          <div className="subj-empty-title">
             {search || selectedDomain ? "No subjects match your filters" : "No subjects yet"}
           </div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <div className="subj-empty-desc">
             {search || selectedDomain
               ? "Try different search terms or filters"
               : "Create a subject to start grouping your content sources."}
           </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+        <div className="subj-grid">
           {filteredAndSorted.map((s) => (
             <div
               key={s.id}
               onClick={() => router.push(`/x/subjects/${s.id}`)}
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 10,
-                padding: 12,
-                cursor: "pointer",
-                transition: "border-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--button-primary-bg)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+              className="subj-card"
             >
               {/* Name + Trust Badge */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{
-                  fontSize: 14, fontWeight: 600, color: "var(--text-primary)",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
-                }}>
+              <div className="subj-card-header">
+                <span className="subj-card-name">
                   {s.name}
                 </span>
                 <TrustBadge level={s.defaultTrustLevel} />
@@ -366,7 +313,7 @@ export default function SubjectsPage() {
 
               {/* Qualification info */}
               {s.qualificationLevel && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
+                <div className="subj-card-qual">
                   {s.qualificationLevel}
                   {s.qualificationBody && ` \u2014 ${s.qualificationBody}`}
                 </div>
@@ -374,21 +321,14 @@ export default function SubjectsPage() {
 
               {/* Description */}
               {s.description && (
-                <p style={{
-                  margin: "0 0 8px",
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}>
+                <p className="subj-card-desc">
                   {s.description}
                 </p>
               )}
 
               {/* Domain pills */}
               {s.domains.length > 0 && (
-                <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+                <div className="subj-card-domains">
                   {s.domains.map((d) => (
                     <DomainPill key={d.domain.id} label={d.domain.name} size="compact" />
                   ))}
@@ -396,42 +336,33 @@ export default function SubjectsPage() {
               )}
 
               {/* Stats row */}
-              <div style={{
-                display: "flex",
-                gap: 12,
-                paddingTop: 8,
-                borderTop: "1px solid var(--border-default)",
-                fontSize: 11,
-                color: "var(--text-muted)",
-              }}>
-                <span><strong style={{ color: "var(--text-primary)" }}>{s._count.sources}</strong> sources</span>
-                <span><strong style={{ color: "var(--text-primary)" }}>{s._count.curricula}</strong> curricula</span>
+              <div className="subj-card-stats">
+                <span><strong>{s._count.sources}</strong> sources</span>
+                <span><strong>{s._count.curricula}</strong> curricula</span>
                 {s.lessonPlanSessions > 0 && (
-                  <span><strong style={{ color: "var(--text-primary)" }}>{s.lessonPlanSessions}</strong> sessions</span>
+                  <span><strong>{s.lessonPlanSessions}</strong> sessions</span>
                 )}
               </div>
 
               {/* Deactivate action */}
               {isOperator && s.isActive && (
                 <div
-                  style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border-default)" }}
+                  className="subj-card-actions"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {confirmDeactivateId === s.id ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                      <span style={{ color: "var(--status-error-text)" }}>Deactivate?</span>
+                    <div className="subj-deactivate-confirm">
+                      <span className="subj-deactivate-label">Deactivate?</span>
                       <button
                         onClick={() => handleDeactivate(s.id)}
                         disabled={deactivating}
-                        className="hf-btn hf-btn-destructive"
-                        style={{ padding: "2px 8px", fontSize: 11 }}
+                        className="hf-btn hf-btn-destructive subj-deactivate-yes"
                       >
                         {deactivating ? "..." : "Yes"}
                       </button>
                       <button
                         onClick={() => setConfirmDeactivateId(null)}
-                        className="hf-btn hf-btn-secondary"
-                        style={{ padding: "2px 8px", fontSize: 11 }}
+                        className="hf-btn hf-btn-secondary subj-deactivate-cancel"
                       >
                         Cancel
                       </button>
@@ -439,8 +370,7 @@ export default function SubjectsPage() {
                   ) : (
                     <button
                       onClick={() => setConfirmDeactivateId(s.id)}
-                      className="hf-btn-ghost"
-                      style={{ padding: 0, fontSize: 11 }}
+                      className="hf-btn-ghost subj-deactivate-trigger"
                     >
                       Deactivate
                     </button>
@@ -455,37 +385,23 @@ export default function SubjectsPage() {
       {/* Create Subject Modal */}
       {showCreateModal && (
         <div
-          style={{
-            position: "fixed",
-            top: 0, left: 0, right: 0, bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1001,
-          }}
+          className="subj-modal-overlay"
           onClick={() => !creating && setShowCreateModal(false)}
         >
           <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 12,
-              padding: 24,
-              width: 500,
-              maxWidth: "90vw",
-            }}
+            className="subj-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 4px 0", fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>
+            <h3 className="subj-modal-title">
               New Subject
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
+            <p className="subj-modal-desc">
               Create a new teaching subject
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="subj-modal-grid">
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Name *</label>
+                <label className="subj-modal-label">Name *</label>
                 <input
                   value={newName}
                   onChange={(e) => {
@@ -493,50 +409,34 @@ export default function SubjectsPage() {
                     if (!newSlug || newSlug === autoSlug(newName)) setNewSlug(autoSlug(e.target.value));
                   }}
                   placeholder="Food Safety Level 2"
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)",
-                  }}
+                  className="subj-modal-input"
                 />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Slug</label>
+                <label className="subj-modal-label">Slug</label>
                 <input
                   value={newSlug}
                   onChange={(e) => setNewSlug(e.target.value)}
                   placeholder="food-safety-l2"
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)",
-                  }}
+                  className="subj-modal-input"
                 />
               </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Description</label>
+              <div className="subj-modal-full">
+                <label className="subj-modal-label">Description</label>
                 <textarea
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="What this subject covers..."
                   rows={2}
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)", resize: "vertical",
-                  }}
+                  className="subj-modal-textarea"
                 />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Default Trust Level</label>
+                <label className="subj-modal-label">Default Trust Level</label>
                 <select
                   value={newTrustLevel}
                   onChange={(e) => setNewTrustLevel(e.target.value)}
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)",
-                  }}
+                  className="subj-modal-select"
                 >
                   {TRUST_LEVELS.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -544,67 +444,46 @@ export default function SubjectsPage() {
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Qualification Level</label>
+                <label className="subj-modal-label">Qualification Level</label>
                 <input
                   value={newQualLevel}
                   onChange={(e) => setNewQualLevel(e.target.value)}
                   placeholder="Level 2"
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)",
-                  }}
+                  className="subj-modal-input"
                 />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Qualification Body</label>
+                <label className="subj-modal-label">Qualification Body</label>
                 <input
                   value={newQualBody}
                   onChange={(e) => setNewQualBody(e.target.value)}
                   placeholder="Highfield, CII"
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)",
-                  }}
+                  className="subj-modal-input"
                 />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 6, color: "var(--text-secondary)" }}>Qualification Ref</label>
+                <label className="subj-modal-label">Qualification Ref</label>
                 <input
                   value={newQualRef}
                   onChange={(e) => setNewQualRef(e.target.value)}
                   placeholder="Highfield L2 Food Safety"
-                  style={{
-                    width: "100%", padding: "10px 12px", borderRadius: 6,
-                    border: "1px solid var(--border-default)", fontSize: 14,
-                    background: "var(--surface-primary)", color: "var(--text-primary)",
-                  }}
+                  className="subj-modal-input"
                 />
               </div>
             </div>
 
-            <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="subj-modal-footer">
               <button
                 onClick={() => { setShowCreateModal(false); resetCreateForm(); }}
                 disabled={creating}
-                style={{
-                  padding: "10px 20px", borderRadius: 6,
-                  border: "1px solid var(--border-default)", background: "var(--surface-secondary)",
-                  color: "var(--text-primary)", fontWeight: 500, cursor: "pointer", fontSize: 14,
-                }}
+                className="subj-modal-cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={creating || !newName.trim()}
-                style={{
-                  padding: "10px 20px", borderRadius: 6,
-                  border: "none", background: "var(--button-primary-bg)",
-                  color: "white", fontWeight: 600, cursor: creating ? "wait" : "pointer",
-                  opacity: creating || !newName.trim() ? 0.5 : 1, fontSize: 14,
-                }}
+                className={`subj-modal-submit${creating ? " subj-modal-submit-creating" : ""}`}
               >
                 {creating ? "Creating..." : "Create & Open"}
               </button>

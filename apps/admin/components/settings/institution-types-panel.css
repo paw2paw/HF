@@ -1,0 +1,334 @@
+/* ── InstitutionTypesPanel — itp-* classes ── */
+
+/* Header row: icon + title + action button */
+.itp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.itp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.itp-header-icon {
+  color: var(--text-muted);
+}
+
+.itp-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  margin-top: 0;
+}
+
+/* Success banner icon */
+.itp-check-icon {
+  display: inline;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* Create / Edit form section */
+.itp-form-section {
+  padding-top: 16px;
+  margin-top: 4px;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.itp-form-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  margin-top: 0;
+}
+
+.itp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.itp-form-group {
+  margin-bottom: 16px;
+}
+
+.itp-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.itp-form-label-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.itp-form-label-terminology {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.itp-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.itp-input-readonly {
+  background: var(--surface-tertiary, var(--surface-secondary));
+  opacity: 0.7;
+}
+
+.itp-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+/* Terminology editor grid */
+.itp-term-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 14px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+}
+
+.itp-term-row {
+  display: contents;
+}
+
+.itp-term-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.itp-term-input {
+  padding: 5px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+/* Form action buttons */
+.itp-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.itp-btn-save {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.itp-btn-save:disabled {
+  background: var(--border-default);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.itp-btn-cancel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.itp-btn-cancel:hover {
+  background: var(--surface-tertiary, var(--border-default));
+}
+
+/* New Type button */
+.itp-btn-new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.itp-btn-new:hover {
+  filter: brightness(1.1);
+}
+
+/* Type list items */
+.itp-type-row {
+  padding: 14px 0;
+}
+
+.itp-type-row-border {
+  border-top: 1px solid var(--border-default);
+}
+
+.itp-type-row-inactive {
+  opacity: 0.5;
+}
+
+.itp-type-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.itp-type-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.itp-type-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.itp-type-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.itp-type-slug {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--accent-primary);
+}
+
+.itp-type-inactive-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.itp-type-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.itp-type-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+/* Terminology preview chips */
+.itp-term-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.itp-term-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.itp-term-chip-key {
+  color: var(--text-muted);
+}
+
+/* Config details row */
+.itp-config-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Action buttons (edit/deactivate) */
+.itp-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.itp-btn-action {
+  padding: 5px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.itp-btn-action:hover {
+  background: var(--surface-secondary);
+}
+
+.itp-btn-action-danger {
+  color: var(--status-error-text);
+}
+
+.itp-btn-action-danger:hover {
+  background: var(--status-error-bg);
+}
+
+/* Empty state */
+.itp-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border-default);
+}

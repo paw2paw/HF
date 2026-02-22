@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Building2, Plus, Pencil, Trash2, Save, X, Check } from "lucide-react";
 import { TERM_KEYS, TERM_KEY_LABELS } from "@/lib/terminology/types";
 import type { PanelProps } from "@/lib/settings-panels";
+import "./institution-types-panel.css";
 
 interface InstitutionType {
   id: string;
@@ -170,56 +171,36 @@ export function InstitutionTypesPanel(_props: PanelProps) {
   };
 
   return (
-    <div style={{
-      background: "var(--surface-primary)",
-      border: "1px solid var(--border-default)",
-      borderRadius: 16,
-      padding: 24,
-    }}>
+    <div className="hf-card">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ color: "var(--text-muted)" }}>
+      <div className="itp-header">
+        <div className="itp-header-left">
+          <div className="itp-header-icon">
             <Building2 size={18} strokeWidth={1.5} />
           </div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+          <h2 className="hf-section-title">
             Institution Types
           </h2>
         </div>
         {!creating && !editingId && (
-          <button
-            onClick={startCreate}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 14px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={startCreate} className="itp-btn-new">
             <Plus size={13} /> New Type
           </button>
         )}
       </div>
-      <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, marginTop: 0 }}>
+      <p className="itp-desc">
         Each type defines what labels users see throughout the app. Admin roles always see technical terms.
       </p>
 
       {/* Messages */}
       {error && (
-        <div style={{ padding: "10px 16px", background: "var(--status-error-bg)", border: "1px solid var(--status-error-border)", borderRadius: 8, color: "var(--status-error-text)", fontSize: 13, marginBottom: 16 }}>
+        <div className="hf-banner hf-banner-compact hf-banner-error">
           {error}
         </div>
       )}
       {success && (
-        <div style={{ padding: "10px 16px", background: "var(--status-success-bg)", border: "1px solid var(--status-success-border)", borderRadius: 8, color: "var(--status-success-text)", fontSize: 13, marginBottom: 16 }}>
-          <Check size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
+        <div className="hf-banner hf-banner-compact hf-banner-success">
+          <Check size={14} className="itp-check-icon" />
           {success}
         </div>
       )}
@@ -234,19 +215,14 @@ export function InstitutionTypesPanel(_props: PanelProps) {
 
       {/* Create/Edit Form */}
       {(creating || editingId) && (
-        <div style={{
-          paddingTop: 16,
-          marginTop: 4,
-          marginBottom: 16,
-          borderTop: "1px solid var(--border-default)",
-        }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14, marginTop: 0 }}>
+        <div className="itp-form-section">
+          <h3 className="itp-form-title">
             {creating ? "Create New Type" : "Edit Type"}
           </h3>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div className="itp-form-grid">
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              <label className="itp-form-label">
                 Name
               </label>
               <input
@@ -256,78 +232,44 @@ export function InstitutionTypesPanel(_props: PanelProps) {
                   if (creating) setFormSlug(autoSlug(e.target.value));
                 }}
                 placeholder="e.g. University"
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                }}
+                className="itp-input"
               />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                Slug {!creating && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>(read-only)</span>}
+              <label className="itp-form-label">
+                Slug {!creating && <span className="itp-form-label-hint">(read-only)</span>}
               </label>
               <input
                 value={formSlug}
                 onChange={(e) => creating && setFormSlug(e.target.value)}
                 readOnly={!creating}
                 placeholder="e.g. university"
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  background: creating ? "var(--surface-secondary)" : "var(--surface-tertiary, var(--surface-secondary))",
-                  color: "var(--text-primary)",
-                  opacity: creating ? 1 : 0.7,
-                }}
+                className={`itp-input${!creating ? " itp-input-readonly" : ""}`}
               />
             </div>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+          <div className="itp-form-group">
+            <label className="itp-form-label">
               Description
             </label>
             <input
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
               placeholder="Optional description"
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 13,
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-              }}
+              className="itp-input"
             />
           </div>
 
           {/* Terminology Editor */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 8 }}>
+          <div className="itp-form-group">
+            <label className="itp-form-label-terminology">
               Terminology Map
             </label>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "110px 1fr",
-              gap: "6px 10px",
-              alignItems: "center",
-              padding: 14,
-              background: "var(--surface-secondary)",
-              borderRadius: 8,
-              border: "1px solid var(--border-default)",
-            }}>
+            <div className="itp-term-grid">
               {TERM_KEYS.map((key) => (
-                <div key={key} style={{ display: "contents" }}>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
+                <div key={key} className="itp-term-row">
+                  <span className="itp-term-label">
                     {TERM_KEY_LABELS[key]}
                   </span>
                   <input
@@ -336,14 +278,7 @@ export function InstitutionTypesPanel(_props: PanelProps) {
                       setFormTerminology((prev) => ({ ...prev, [key]: e.target.value }))
                     }
                     placeholder={`e.g. ${key === "domain" ? "School" : key === "playbook" ? "Lesson Plan" : key}`}
-                    style={{
-                      padding: "5px 10px",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      color: "var(--text-primary)",
-                    }}
+                    className="itp-term-input"
                   />
                 </div>
               ))}
@@ -351,42 +286,26 @@ export function InstitutionTypesPanel(_props: PanelProps) {
           </div>
 
           {/* Config row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div className="itp-form-grid">
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              <label className="itp-form-label">
                 Setup Wizard Spec
               </label>
               <input
                 value={formSetupSpec}
                 onChange={(e) => setFormSetupSpec(e.target.value)}
                 placeholder="e.g. COURSE-SETUP-001"
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                }}
+                className="itp-input"
               />
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              <label className="itp-form-label">
                 Default Domain Kind
               </label>
               <select
                 value={formDomainKind}
                 onChange={(e) => setFormDomainKind(e.target.value as "INSTITUTION" | "COMMUNITY")}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                }}
+                className="itp-select"
               >
                 <option value="INSTITUTION">Institution</option>
                 <option value="COMMUNITY">Community</option>
@@ -395,41 +314,17 @@ export function InstitutionTypesPanel(_props: PanelProps) {
           </div>
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="itp-form-actions">
             <button
               onClick={handleSave}
               disabled={saving || !formName.trim()}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "7px 18px",
-                background: saving ? "var(--border-default)" : "var(--button-primary-bg)",
-                color: saving ? "var(--text-muted)" : "var(--button-primary-text)",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
+              className="itp-btn-save"
             >
               <Save size={13} /> {saving ? "Saving..." : creating ? "Create" : "Save Changes"}
             </button>
             <button
               onClick={resetForm}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "7px 14px",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+              className="itp-btn-cancel"
             >
               <X size={13} /> Cancel
             </button>
@@ -443,72 +338,48 @@ export function InstitutionTypesPanel(_props: PanelProps) {
           {types.map((type, i) => (
             <div
               key={type.id}
-              style={{
-                padding: "14px 0",
-                borderTop: i === 0 && !creating && !editingId ? "1px solid var(--border-default)" : i > 0 ? "1px solid var(--border-default)" : undefined,
-                opacity: type.isActive ? 1 : 0.5,
-              }}
+              className={[
+                "itp-type-row",
+                (i === 0 && !creating && !editingId) || i > 0 ? "itp-type-row-border" : "",
+                !type.isActive ? "itp-type-row-inactive" : "",
+              ].filter(Boolean).join(" ")}
             >
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="itp-type-content">
+                <div className="itp-type-main">
+                  <div className="itp-type-name-row">
+                    <span className="itp-type-name">
                       {type.name}
                     </span>
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      padding: "2px 7px",
-                      borderRadius: 4,
-                      background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                      color: "var(--accent-primary)",
-                    }}>
+                    <span className="itp-type-slug">
                       {type.slug}
                     </span>
                     {!type.isActive && (
-                      <span style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: "2px 7px",
-                        borderRadius: 4,
-                        background: "var(--status-error-bg)",
-                        color: "var(--status-error-text)",
-                      }}>
+                      <span className="itp-type-inactive-badge">
                         Inactive
                       </span>
                     )}
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    <span className="itp-type-count">
                       {type._count.institutions} institution{type._count.institutions !== 1 ? "s" : ""}
                     </span>
                   </div>
                   {type.description && (
-                    <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+                    <p className="itp-type-desc">
                       {type.description}
                     </p>
                   )}
 
                   {/* Terminology preview */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                  <div className="itp-term-preview">
                     {TERM_KEYS.map((key) => (
-                      <span
-                        key={key}
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          background: "var(--surface-secondary)",
-                          color: "var(--text-secondary)",
-                          border: "1px solid var(--border-default)",
-                        }}
-                      >
-                        <span style={{ color: "var(--text-muted)" }}>{key}:</span>{" "}
+                      <span key={key} className="itp-term-chip">
+                        <span className="itp-term-chip-key">{key}:</span>{" "}
                         {type.terminology[key] || "\u2014"}
                       </span>
                     ))}
                   </div>
 
                   {/* Config details */}
-                  <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 11, color: "var(--text-muted)" }}>
+                  <div className="itp-config-row">
                     {type.setupSpecSlug && (
                       <span>Wizard: <strong>{type.setupSpecSlug}</strong></span>
                     )}
@@ -517,18 +388,11 @@ export function InstitutionTypesPanel(_props: PanelProps) {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+                <div className="itp-actions">
                   <button
                     onClick={() => startEdit(type)}
                     title="Edit"
-                    style={{
-                      padding: 5,
-                      background: "transparent",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      color: "var(--text-muted)",
-                    }}
+                    className="itp-btn-action"
                   >
                     <Pencil size={13} />
                   </button>
@@ -536,14 +400,7 @@ export function InstitutionTypesPanel(_props: PanelProps) {
                     <button
                       onClick={() => handleDeactivate(type.id, type.name)}
                       title="Deactivate"
-                      style={{
-                        padding: 5,
-                        background: "transparent",
-                        border: "1px solid var(--border-default)",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        color: "var(--status-error-text)",
-                      }}
+                      className="itp-btn-action itp-btn-action-danger"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -554,13 +411,7 @@ export function InstitutionTypesPanel(_props: PanelProps) {
           ))}
 
           {types.length === 0 && (
-            <div style={{
-              textAlign: "center",
-              padding: "32px 0",
-              color: "var(--text-muted)",
-              fontSize: 13,
-              borderTop: "1px solid var(--border-default)",
-            }}>
+            <div className="itp-empty">
               No institution types configured. Click &quot;New Type&quot; to create one.
             </div>
           )}

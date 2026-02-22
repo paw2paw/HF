@@ -1,0 +1,205 @@
+/* =============================================================
+   PromptsSection — companion styles (ps-* prefix)
+   All colors use CSS variables. No hardcoded hex.
+   ============================================================= */
+
+/* ── Expanded history code block ── */
+.ps-history-code {
+  max-height: 200px;
+  font-size: 12px;
+}
+
+/* ── Personality adaptation list ── */
+.ps-adaptation-list {
+  margin: 4px 0 0 16px;
+  padding: 0;
+}
+
+/* ── Empty state icon (large) ── */
+.ps-empty-icon-lg {
+  font-size: 32px;
+}
+
+/* ── Lightbulb / notice icon ── */
+.ps-notice-icon {
+  font-size: 24px;
+}
+
+/* ── Phone call icon ── */
+.ps-call-icon {
+  font-size: 20px;
+}
+
+/* ── Memories gap (6px) ── */
+.ps-gap-6 {
+  gap: 6px;
+}
+
+/* ── "More" overflow text ── */
+.ps-more-text {
+  padding: 4px 10px;
+}
+
+/* ── No-prompt centered empty state ── */
+.ps-empty-padded {
+  padding: 40px;
+}
+
+/* ── Section heading color accents ── */
+.ps-heading-cyan {
+  color: var(--badge-cyan-text);
+}
+
+.ps-heading-primary {
+  color: var(--button-primary-bg);
+}
+
+.ps-heading-personality {
+  color: var(--trait-neuroticism);
+}
+
+.ps-heading-indigo {
+  color: var(--badge-indigo-text);
+}
+
+/* ── Info cell background variants ── */
+.ps-cell-success {
+  background: var(--status-success-bg);
+}
+
+.ps-cell-info {
+  background: var(--status-info-bg);
+}
+
+.ps-cell-purple {
+  background: var(--badge-purple-bg);
+}
+
+.ps-cell-warning {
+  background: var(--status-warning-bg);
+}
+
+/* ── Caller info text colors ── */
+.ps-text-info {
+  color: var(--status-info-text);
+}
+
+.ps-text-purple {
+  color: var(--badge-purple-text);
+}
+
+/* ── Identity grid layout ── */
+.ps-identity-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+}
+
+/* ── Identity status indicator colors ── */
+.ps-status-ready {
+  color: var(--status-success-text);
+}
+
+.ps-status-none {
+  color: var(--text-placeholder);
+}
+
+/* ── Copy / action buttons — dynamic background states ──
+   These use data attributes so we can drive state from JS
+   without inline style={{}} while keeping the logic readable.
+   Apply data-copied="true" to the button element. */
+
+.ps-btn-copy-dynamic {
+  transition: all 0.2s ease;
+  background: var(--button-primary-bg);
+  box-shadow: none;
+}
+
+.ps-btn-copy-dynamic[data-copied="true"] {
+  background: var(--button-success-bg);
+  box-shadow: 0 0 12px var(--button-success-bg);
+}
+
+.ps-btn-json-copy {
+  transition: all 0.2s ease;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.ps-btn-json-copy[data-copied="true"] {
+  background: var(--button-success-bg);
+  color: white;
+  box-shadow: 0 0 12px var(--button-success-bg);
+}
+
+.ps-btn-compose-disabled {
+  background: var(--text-placeholder);
+}
+
+/* ── Status badge (history) — active vs default ── */
+.ps-status-badge-active {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.ps-status-badge-default {
+  background: var(--border-default);
+  color: var(--text-muted);
+}
+
+/* ── Behavior target level variants ── */
+.ps-target-high {
+  background: var(--status-success-bg);
+}
+
+.ps-target-low {
+  background: var(--status-error-bg);
+}
+
+.ps-target-neutral {
+  background: var(--surface-secondary);
+}
+
+.ps-target-text-high {
+  color: var(--status-success-text);
+}
+
+.ps-target-text-low {
+  color: var(--status-error-text);
+}
+
+.ps-target-text-neutral {
+  color: var(--text-muted);
+}
+
+/* ── Personality trait level backgrounds ── */
+.ps-trait-high {
+  background: var(--status-success-bg);
+}
+
+.ps-trait-low {
+  background: var(--status-error-bg);
+}
+
+.ps-trait-neutral {
+  background: var(--surface-secondary);
+}
+
+.ps-trait-text-high {
+  color: var(--status-success-text);
+}
+
+.ps-trait-text-low {
+  color: var(--status-error-text);
+}
+
+.ps-trait-text-neutral {
+  color: var(--text-muted);
+}
+
+/* ── Tech badge (purple) ── */
+.ps-badge-purple {
+  background: var(--badge-purple-bg);
+  color: var(--badge-purple-text);
+}

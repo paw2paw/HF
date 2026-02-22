@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
+import "./test-harness.css";
 
 // =============================================================================
 // TYPES
@@ -146,22 +147,14 @@ function HorizontalSlider({
   }, [isDragging, calcValue]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{label}</span>
-        <span
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            color: "var(--button-primary-bg)",
-            fontFamily: "ui-monospace, monospace",
-          }}
-        >
-          {value}
-        </span>
+    <div className="th-slider-wrap">
+      <div className="th-slider-header">
+        <span className="th-slider-label">{label}</span>
+        <span className="th-slider-value">{value}</span>
       </div>
       <div
         ref={trackRef}
+        className="th-slider-track"
         onMouseDown={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -171,58 +164,25 @@ function HorizontalSlider({
           setIsDragging(true);
           calcValue(e.touches[0].clientX);
         }}
-        style={{
-          position: "relative",
-          height: 28,
-          background: "var(--surface-secondary)",
-          borderRadius: 14,
-          border: "1px solid var(--border-default)",
-          cursor: "pointer",
-          touchAction: "none",
-          userSelect: "none",
-        }}
       >
         {/* Filled track */}
         <div
+          className="th-slider-fill"
           style={{
-            position: "absolute",
-            top: 3,
-            bottom: 3,
-            left: 3,
             width: `calc(${pct}% - 6px)`,
-            background: "var(--button-primary-bg)",
-            borderRadius: 11,
-            opacity: 0.2,
             transition: isDragging ? "none" : "width 0.1s ease-out",
           }}
         />
         {/* Thumb */}
         <div
+          className={`th-slider-thumb${isDragging ? " th-slider-thumb-dragging" : ""}`}
           style={{
-            position: "absolute",
-            top: 2,
             left: `calc(${pct}% - 12px)`,
-            width: 24,
-            height: 24,
-            borderRadius: "50%",
-            background: "var(--button-primary-bg)",
-            border: "3px solid var(--surface-primary)",
-            boxShadow: isDragging
-              ? "0 0 0 3px color-mix(in srgb, var(--button-primary-bg) 30%, transparent)"
-              : "0 2px 6px rgba(0,0,0,0.15)",
-            transition: isDragging ? "none" : "left 0.1s ease-out, box-shadow 0.2s",
+            transition: isDragging ? "none" : undefined,
           }}
         />
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 10,
-          color: "var(--text-muted)",
-          fontFamily: "ui-monospace, monospace",
-        }}
-      >
+      <div className="th-slider-range">
         <span>{min}</span>
         <span>{max}</span>
       </div>
@@ -246,24 +206,10 @@ function ActionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        padding: 24,
-        borderRadius: 12,
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        opacity: disabled ? 0.5 : 1,
-        pointerEvents: disabled ? "none" : "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
-    >
+    <div className={`th-action-card${disabled ? " th-action-card-disabled" : ""}`}>
       <div>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
-          {title}
-        </h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "4px 0 0" }}>{description}</p>
+        <h2 className="th-action-card-title">{title}</h2>
+        <p className="th-action-card-desc">{description}</p>
       </div>
       {children}
     </div>
@@ -462,52 +408,31 @@ export default function TestHarnessPage() {
   // ─── Render ───
   if (domainsLoading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "64px 0" }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            border: "3px solid var(--border-default)",
-            borderTopColor: "var(--button-primary-bg)",
-            animation: "spin 0.8s linear infinite",
-          }}
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="th-loading-wrap">
+        <div className="th-loading-spinner" />
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className="th-page">
       {/* Header */}
       <div>
-        <a href="/x/settings" style={{ fontSize: 13, color: "var(--accent-primary)", textDecoration: "none" }}>&larr; Back to Settings</a>
-        <h1 className="hf-page-title" style={{ marginTop: 4 }}>
+        <a href="/x/settings" className="th-back-link">&larr; Back to Settings</a>
+        <h1 className="hf-page-title hf-mt-xs">
           Test Harness
         </h1>
 
-        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+        <p className="th-subtitle">
           Generate test data and run automated AI simulations
         </p>
       </div>
 
       {/* Domain Selector */}
-      <div
-        style={{
-          padding: 20,
-          borderRadius: 12,
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-        }}
-      >
-        <label
-          style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", display: "block", marginBottom: 8 }}
-        >
-          Domain
-        </label>
+      <div className="th-domain-selector">
+        <label className="th-domain-label">Domain</label>
         {domains.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+          <p className="th-no-domains">
             No domains found. Run seed-domains first.
           </p>
         ) : (
@@ -524,7 +449,7 @@ export default function TestHarnessPage() {
       </div>
 
       {/* Action Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+      <div className="th-cards-grid">
         {/* Card 1: Generate Callers */}
         <ActionCard
           title="Generate Callers"
@@ -540,39 +465,19 @@ export default function TestHarnessPage() {
             onChange={setCallerCount}
           />
           <button
+            className="th-action-btn"
             onClick={handleGenerateCallers}
             disabled={generatingCallers}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              border: "none",
-              background: generatingCallers ? "var(--border-default)" : "var(--button-primary-bg)",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: generatingCallers ? "not-allowed" : "pointer",
-            }}
           >
             {generatingCallers ? "Generating..." : `Generate ${callerCount} Callers`}
           </button>
 
           {/* Progress */}
           {generateLog.length > 0 && (
-            <div
-              style={{
-                maxHeight: 160,
-                overflowY: "auto",
-                fontSize: 12,
-                fontFamily: "ui-monospace, monospace",
-                color: "var(--text-secondary)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-              }}
-            >
+            <div className="th-progress-log">
               {generateLog.map((evt, i) => (
-                <div key={i} style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
-                  <span style={{ color: evt.phase === "error" ? "var(--color-error)" : "var(--color-success)" }}>
+                <div key={i} className="th-progress-row">
+                  <span className={evt.phase === "error" ? "th-progress-icon-error" : "th-progress-icon-success"}>
                     {evt.phase === "error" ? "✗" : evt.phase === "complete" ? "✓" : "·"}
                   </span>
                   <span>{evt.message}</span>
@@ -582,13 +487,11 @@ export default function TestHarnessPage() {
           )}
 
           {generateError && (
-            <div style={{ fontSize: 13, color: "var(--color-error)", padding: 8, borderRadius: 8, background: "color-mix(in srgb, var(--color-error) 8%, transparent)" }}>
-              {generateError}
-            </div>
+            <div className="th-error">{generateError}</div>
           )}
 
           {genComplete && lastGenEvent?.detail && (
-            <div style={{ fontSize: 13, color: "var(--color-success)", fontWeight: 600 }}>
+            <div className="th-success-msg">
               Created {lastGenEvent.detail.created} callers in {selectedDomain?.name}
             </div>
           )}
@@ -601,21 +504,11 @@ export default function TestHarnessPage() {
           disabled={!domainSelected}
         >
           <div>
-            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-              Caller
-            </label>
+            <label className="th-select-label">Caller</label>
             <select
+              className="th-select"
               value={onboardCallerId}
               onChange={(e) => setOnboardCallerId(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-              }}
             >
               <option value="">Select a caller...</option>
               {callers.map((c) => (
@@ -625,66 +518,31 @@ export default function TestHarnessPage() {
               ))}
             </select>
             {callersLoading && (
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Loading callers...</span>
+              <span className="th-callers-loading">Loading callers...</span>
             )}
           </div>
 
           <button
+            className="th-action-btn"
             onClick={handleOnboardingCall}
             disabled={!onboardCallerId || generatingOnboarding}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              border: "none",
-              background:
-                !onboardCallerId || generatingOnboarding
-                  ? "var(--border-default)"
-                  : "var(--button-primary-bg)",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: !onboardCallerId || generatingOnboarding ? "not-allowed" : "pointer",
-            }}
           >
             {generatingOnboarding ? "Generating..." : "Generate Onboarding Call"}
           </button>
 
           {onboardingResult && (
-            <div
-              style={{
-                fontSize: 13,
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                color: "var(--text-secondary)",
-              }}
-            >
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span style={{ color: "var(--color-success)" }}>✓</span>
+            <div className="th-onboarding-result">
+              <div className="th-check-row">
+                <span className="th-check-icon">✓</span>
                 <span>Prompt composed</span>
               </div>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <span style={{ color: "var(--color-success)" }}>✓</span>
+              <div className="th-check-row">
+                <span className="th-check-icon">✓</span>
                 <span>Call #{onboardingResult.call?.callSequence} created</span>
               </div>
               {onboardingResult.greeting && (
-                <div
-                  style={{
-                    marginTop: 4,
-                    padding: 12,
-                    borderRadius: 8,
-                    background: "var(--surface-secondary)",
-                    fontSize: 13,
-                    color: "var(--text-primary)",
-                    borderLeft: "3px solid var(--button-primary-bg)",
-                    lineHeight: 1.5,
-                    maxHeight: 120,
-                    overflowY: "auto",
-                  }}
-                >
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                    AI Greeting:
-                  </span>
+                <div className="th-greeting-box">
+                  <span className="th-greeting-label">AI Greeting:</span>
                   {onboardingResult.greeting}
                 </div>
               )}
@@ -692,9 +550,7 @@ export default function TestHarnessPage() {
           )}
 
           {onboardingError && (
-            <div style={{ fontSize: 13, color: "var(--color-error)", padding: 8, borderRadius: 8, background: "color-mix(in srgb, var(--color-error) 8%, transparent)" }}>
-              {onboardingError}
-            </div>
+            <div className="th-error">{onboardingError}</div>
           )}
         </ActionCard>
 
@@ -705,21 +561,11 @@ export default function TestHarnessPage() {
           disabled={!domainSelected}
         >
           <div>
-            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-              Caller
-            </label>
+            <label className="th-select-label">Caller</label>
             <select
+              className="th-select"
               value={simCallerId}
               onChange={(e) => setSimCallerId(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-              }}
             >
               <option value="">Select a caller...</option>
               {callers.map((c) => (
@@ -739,71 +585,31 @@ export default function TestHarnessPage() {
             onChange={setSimTurnCount}
           />
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="th-sim-btn-row">
             <button
+              className={`th-action-btn hf-flex-1${runningSim ? " th-action-btn-stop" : ""}`}
               onClick={runningSim ? handleStopSim : handleRunSim}
               disabled={!simCallerId && !runningSim}
-              style={{
-                flex: 1,
-                padding: "10px 20px",
-                borderRadius: 8,
-                border: "none",
-                background:
-                  runningSim
-                    ? "var(--color-error)"
-                    : !simCallerId
-                      ? "var(--border-default)"
-                      : "var(--button-primary-bg)",
-                color: "white",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: !simCallerId && !runningSim ? "not-allowed" : "pointer",
-              }}
             >
               {runningSim ? "Stop" : `Run ${simTurnCount}-Turn Sim`}
             </button>
           </div>
 
           {simStatus && (
-            <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>{simStatus}</div>
+            <div className="th-sim-status">{simStatus}</div>
           )}
 
           {/* Live Transcript */}
           {simTranscript.length > 0 && (
-            <div
-              style={{
-                maxHeight: 320,
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                padding: 12,
-                borderRadius: 8,
-                background: "var(--surface-secondary)",
-              }}
-            >
+            <div className="th-transcript">
               {simTranscript.map((line, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <div key={i} className="th-transcript-line">
                   <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      background:
-                        line.role === "system"
-                          ? "color-mix(in srgb, var(--button-primary-bg) 15%, transparent)"
-                          : "color-mix(in srgb, var(--color-success) 15%, transparent)",
-                      color:
-                        line.role === "system" ? "var(--button-primary-bg)" : "var(--color-success)",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                      marginTop: 2,
-                    }}
+                    className={`th-role-badge ${line.role === "system" ? "th-role-badge-system" : "th-role-badge-caller"}`}
                   >
                     {line.role === "system" ? "AI" : "Caller"}
                   </span>
-                  <span style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                  <span className="th-transcript-content">
                     {line.content}
                   </span>
                 </div>
@@ -813,20 +619,9 @@ export default function TestHarnessPage() {
 
           {/* Pipeline Results */}
           {simPipelineResult && (
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 8,
-                background: "color-mix(in srgb, var(--color-success) 8%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--color-success) 20%, transparent)",
-                fontSize: 12,
-                color: "var(--text-secondary)",
-              }}
-            >
-              <div style={{ fontWeight: 600, color: "var(--color-success)", marginBottom: 6 }}>
-                Pipeline Complete
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+            <div className="th-pipeline-result">
+              <div className="th-pipeline-title">Pipeline Complete</div>
+              <div className="th-pipeline-grid">
                 {simPipelineResult.scoresCreated != null && (
                   <span>Scores: {simPipelineResult.scoresCreated}</span>
                 )}
@@ -844,14 +639,11 @@ export default function TestHarnessPage() {
           )}
 
           {simError && (
-            <div style={{ fontSize: 13, color: "var(--color-error)", padding: 8, borderRadius: 8, background: "color-mix(in srgb, var(--color-error) 8%, transparent)" }}>
-              {simError}
-            </div>
+            <div className="th-error">{simError}</div>
           )}
         </ActionCard>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

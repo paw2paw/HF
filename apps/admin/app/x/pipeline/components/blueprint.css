@@ -1,0 +1,311 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Blueprint — Pipeline composition visualization
+   Prefix: bp-*
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Loading / error states */
+.bp-loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-muted);
+}
+
+.bp-error {
+  text-align: center;
+  padding: 60px;
+  color: var(--status-error-text);
+}
+
+/* Two-column phase layout */
+.bp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+/* Phase panel (ADAPT / LEARN) */
+.bp-phase-panel {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.bp-phase-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+}
+
+.bp-phase-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.bp-phase-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.bp-phase-body {
+  padding: 20px;
+}
+
+/* Composition sections toggle button */
+.bp-sections-wrap {
+  margin-top: 20px;
+}
+
+.bp-sections-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.bp-sections-toggle:hover {
+  background: var(--surface-secondary);
+}
+
+.bp-sections-toggle-icon {
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.bp-sections-toggle-label {
+  flex: 1;
+  text-align: left;
+}
+
+.bp-sections-toggle-chevron {
+  color: var(--text-muted);
+}
+
+/* Sections grid */
+.bp-sections-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Step arrow separator */
+.bp-step-arrow {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.bp-step-arrow-icon {
+  font-size: 20px;
+  color: var(--border-strong);
+}
+
+/* ── StepNode ── */
+
+.bp-step {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.bp-step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bp-step-header-body {
+  flex: 1;
+}
+
+.bp-step-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.bp-step-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.bp-step-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Step details section */
+.bp-step-details {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.bp-step-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.bp-step-detail-icon {
+  font-size: 14px;
+}
+
+.bp-step-source-file {
+  font-family: monospace;
+}
+
+.bp-step-source-line {
+  color: var(--text-muted);
+}
+
+/* Spec key badges */
+.bp-spec-key {
+  background: var(--badge-yellow-bg);
+  color: var(--badge-yellow-text);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Config fields */
+.bp-step-config {
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+/* I/O row */
+.bp-step-io {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-default);
+}
+
+.bp-io-in {
+  color: var(--status-success-text);
+  font-weight: 500;
+}
+
+.bp-io-out {
+  color: var(--badge-purple-text);
+  font-weight: 500;
+}
+
+.bp-io-value {
+  color: var(--text-secondary);
+}
+
+/* ── SectionNode ── */
+
+.bp-section {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.bp-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bp-section-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.bp-section-status {
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.bp-section-active {
+  color: var(--status-success-text);
+}
+
+.bp-section-transform {
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Data Flow ── */
+
+.bp-dataflow {
+  margin-top: 32px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.bp-dataflow-title {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.bp-dataflow-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* DataFlowBox — background is dynamic (per-instance color prop) */
+.bp-flow-box {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+
+.bp-flow-box-highlight {
+  border: 2px solid var(--badge-purple-text);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--badge-purple-text) 30%, transparent);
+}
+
+/* Arrow between flow boxes */
+.bp-flow-arrow {
+  color: var(--border-strong);
+  font-size: 20px;
+}
+
+/* ── Legend ── */
+
+.bp-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 12px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+}
+
+.bp-legend-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}

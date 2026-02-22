@@ -1,5 +1,6 @@
 "use client";
 
+import "./blueprint.css";
 import { useState, useEffect } from "react";
 import { ArrowDownward, Code, Settings } from "@mui/icons-material";
 import {
@@ -42,7 +43,7 @@ export default function Blueprint() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
+      <div className="bp-loading">
         Loading blueprint...
       </div>
     );
@@ -50,7 +51,7 @@ export default function Blueprint() {
 
   if (!manifest) {
     return (
-      <div style={{ textAlign: "center", padding: 60, color: "var(--status-error-text)" }}>
+      <div className="bp-error">
         Failed to load composition blueprint
       </div>
     );
@@ -62,79 +63,36 @@ export default function Blueprint() {
   return (
     <div>
       {/* Two Column Layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 24,
-        }}
-      >
+      <div className="bp-grid">
         {/* ADAPT Phase */}
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "16px 20px",
-              borderBottom: "1px solid var(--border-default)",
-              background: "var(--surface-secondary)",
-            }}
-          >
-            <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>
-              ADAPT Phase (pre-call)
-            </div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-              {adaptPhase?.description}
-            </div>
+        <div className="bp-phase-panel">
+          <div className="bp-phase-header">
+            <div className="bp-phase-title">ADAPT Phase (pre-call)</div>
+            <div className="bp-phase-desc">{adaptPhase?.description}</div>
           </div>
 
-          <div style={{ padding: 20 }}>
+          <div className="bp-phase-body">
             {adaptPhase?.steps.map((step) => (
               <StepNode key={step.id} step={step} />
             ))}
 
             {/* Composition Sections */}
-            <div style={{ marginTop: 20 }}>
+            <div className="bp-sections-wrap">
               <button
                 onClick={() => setExpandedSections(!expandedSections)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  width: "100%",
-                  padding: "12px 16px",
-                  background: "var(--surface-tertiary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: "var(--text-primary)",
-                }}
+                className="bp-sections-toggle"
               >
-                <Settings style={{ fontSize: 18, color: "var(--text-muted)" }} />
-                <span style={{ flex: 1, textAlign: "left" }}>
+                <Settings className="bp-sections-toggle-icon" />
+                <span className="bp-sections-toggle-label">
                   Composition Sections ({manifest.compositionSections.length})
                 </span>
-                <span style={{ color: "var(--text-muted)" }}>
+                <span className="bp-sections-toggle-chevron">
                   {expandedSections ? "▲" : "▼"}
                 </span>
               </button>
 
               {expandedSections && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8,
-                  }}
-                >
+                <div className="bp-sections-grid">
                   {manifest.compositionSections.map((section) => (
                     <SectionNode key={section.id} section={section} />
                   ))}
@@ -145,44 +103,19 @@ export default function Blueprint() {
         </div>
 
         {/* LEARN Phase */}
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "16px 20px",
-              borderBottom: "1px solid var(--border-default)",
-              background: "var(--surface-secondary)",
-            }}
-          >
-            <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>
-              LEARN Phase (post-call)
-            </div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-              {learnPhase?.description}
-            </div>
+        <div className="bp-phase-panel">
+          <div className="bp-phase-header">
+            <div className="bp-phase-title">LEARN Phase (post-call)</div>
+            <div className="bp-phase-desc">{learnPhase?.description}</div>
           </div>
 
-          <div style={{ padding: 20 }}>
+          <div className="bp-phase-body">
             {learnPhase?.steps.map((step, idx) => (
               <div key={step.id}>
                 <StepNode step={step} />
                 {idx < (learnPhase?.steps.length ?? 0) - 1 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      padding: "8px 0",
-                    }}
-                  >
-                    <ArrowDownward
-                      style={{ fontSize: 20, color: "var(--border-strong)" }}
-                    />
+                  <div className="bp-step-arrow">
+                    <ArrowDownward className="bp-step-arrow-icon" />
                   </div>
                 )}
               </div>
@@ -192,27 +125,9 @@ export default function Blueprint() {
       </div>
 
       {/* Data Flow Diagram */}
-      <div
-        style={{
-          marginTop: 32,
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 12,
-          padding: 20,
-        }}
-      >
-        <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16, color: "var(--text-primary)" }}>
-          Data Flow
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
+      <div className="bp-dataflow">
+        <div className="bp-dataflow-title">Data Flow</div>
+        <div className="bp-dataflow-row">
           <DataFlowBox label="Transcript" color="var(--surface-secondary)" />
           <Arrow />
           <DataFlowBox label="CallScore" color="var(--badge-indigo-bg)" />
@@ -230,20 +145,8 @@ export default function Blueprint() {
       </div>
 
       {/* Legend */}
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          marginTop: 24,
-          padding: 12,
-          background: "var(--surface-secondary)",
-          borderRadius: 8,
-          border: "1px solid var(--border-default)",
-        }}
-      >
-        <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
-          Legend:
-        </span>
+      <div className="bp-legend">
+        <span className="bp-legend-label">Legend:</span>
         <ConfigBadge source="code" />
         <ConfigBadge source="spec" />
         <ConfigBadge source="hybrid" />
@@ -260,80 +163,39 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
   const configSource = step.configSource as "code" | "spec" | "hybrid";
 
   return (
-    <div
-      style={{
-        background: "var(--surface-secondary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 8,
-        padding: 16,
-      }}
-    >
+    <div className="bp-step">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <div className="bp-step-header">
         <StepIcon operation={step.id} size={20} />
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 4,
-            }}
-          >
-            <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>{step.label}</span>
+        <div className="bp-step-header-body">
+          <div className="bp-step-title-row">
+            <span className="bp-step-label">{step.label}</span>
             <ConfigBadge source={configSource} />
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-            {step.description}
-          </div>
+          <div className="bp-step-desc">{step.description}</div>
         </div>
       </div>
 
       {/* Details */}
-      <div style={{ marginTop: 12, fontSize: 12 }}>
+      <div className="bp-step-details">
         {/* Source File */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            color: "var(--text-secondary)",
-            marginBottom: 4,
-          }}
-        >
-          <Code style={{ fontSize: 14 }} />
-          <span style={{ fontFamily: "monospace" }}>{step.sourceFile}</span>
+        <div className="bp-step-detail-row">
+          <Code className="bp-step-detail-icon" />
+          <span className="bp-step-source-file">{step.sourceFile}</span>
           {step.sourceLine && (
-            <span style={{ color: "var(--text-muted)" }}>:{step.sourceLine}</span>
+            <span className="bp-step-source-line">:{step.sourceLine}</span>
           )}
         </div>
 
         {/* Spec Keys */}
         {step.specKeys && step.specKeys.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              color: "var(--text-secondary)",
-              marginBottom: 4,
-            }}
-          >
-            <Settings style={{ fontSize: 14 }} />
+          <div className="bp-step-detail-row">
+            <Settings className="bp-step-detail-icon" />
             <span>
               Spec:{" "}
               {step.specKeys.map((k, i) => (
                 <span key={k}>
-                  <code
-                    style={{
-                      background: "var(--badge-yellow-bg)",
-                      color: "var(--badge-yellow-text)",
-                      padding: "1px 4px",
-                      borderRadius: 3,
-                    }}
-                  >
-                    {k}
-                  </code>
+                  <code className="bp-spec-key">{k}</code>
                   {i < step.specKeys!.length - 1 && ", "}
                 </span>
               ))}
@@ -343,28 +205,20 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
 
         {/* Config Fields */}
         {step.configFields && step.configFields.length > 0 && (
-          <div style={{ color: "var(--text-muted)", marginBottom: 4 }}>
+          <div className="bp-step-config">
             Config: {step.configFields.join(", ")}
           </div>
         )}
 
         {/* I/O */}
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: "1px solid var(--border-default)",
-          }}
-        >
+        <div className="bp-step-io">
           <div>
-            <span style={{ color: "var(--status-success-text)", fontWeight: 500 }}>In:</span>{" "}
-            <span style={{ color: "var(--text-secondary)" }}>{step.inputs.join(", ")}</span>
+            <span className="bp-io-in">In:</span>{" "}
+            <span className="bp-io-value">{step.inputs.join(", ")}</span>
           </div>
           <div>
-            <span style={{ color: "var(--badge-purple-text)", fontWeight: 500 }}>Out:</span>{" "}
-            <span style={{ color: "var(--text-secondary)" }}>{step.outputs.join(", ")}</span>
+            <span className="bp-io-out">Out:</span>{" "}
+            <span className="bp-io-value">{step.outputs.join(", ")}</span>
           </div>
         </div>
       </div>
@@ -378,28 +232,20 @@ function StepNode({ step }: { step: PipelineStepManifest }) {
 
 function SectionNode({ section }: { section: CompositionSectionManifest }) {
   return (
-    <div
-      style={{
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 6,
-        padding: 10,
-        fontSize: 12,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="bp-section">
+      <div className="bp-section-header">
         <SectionIcon section={section.id} size={14} />
-        <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{section.label}</span>
+        <span className="bp-section-label">{section.label}</span>
       </div>
-      <div style={{ color: "var(--text-muted)", marginTop: 4 }}>
+      <div className="bp-section-status">
         {section.activateWhen === "always" ? (
-          <span style={{ color: "var(--status-success-text)" }}>Always active</span>
+          <span className="bp-section-active">Always active</span>
         ) : (
           <span>When: {section.activateWhen}</span>
         )}
       </div>
       {section.transform && (
-        <div style={{ color: "var(--text-secondary)", marginTop: 2 }}>
+        <div className="bp-section-transform">
           Transform: <code>{section.transform}</code>
         </div>
       )}
@@ -422,16 +268,8 @@ function DataFlowBox({
 }) {
   return (
     <div
-      style={{
-        padding: "8px 16px",
-        background: color,
-        borderRadius: 6,
-        fontSize: 13,
-        fontWeight: 500,
-        color: "var(--text-primary)",
-        border: highlight ? "2px solid var(--badge-purple-text)" : "1px solid var(--border-default)",
-        boxShadow: highlight ? "0 0 12px color-mix(in srgb, var(--badge-purple-text) 30%, transparent)" : undefined,
-      }}
+      className={`bp-flow-box${highlight ? " bp-flow-box-highlight" : ""}`}
+      style={{ background: color }}
     >
       {label}
     </div>
@@ -439,7 +277,5 @@ function DataFlowBox({
 }
 
 function Arrow() {
-  return (
-    <div style={{ color: "var(--border-strong)", fontSize: 20 }}>→</div>
-  );
+  return <div className="bp-flow-arrow">&rarr;</div>;
 }

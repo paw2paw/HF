@@ -1,0 +1,290 @@
+/* SpecStepForm — companion styles
+   Prefix: ssf-*
+   Uses CSS vars from globals.css — no hardcoded hex.
+   Alpha via color-mix() only. */
+
+/* ── Step title + description ─────────────────────────── */
+
+.ssf-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.ssf-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+
+/* ── Sub-step pill navigation ─────────────────────────── */
+
+.ssf-pills {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+.ssf-pill {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ssf-pill:hover {
+  background: var(--surface-tertiary);
+}
+
+.ssf-pill-current {
+  font-weight: 700;
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.ssf-pill-current:hover {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
+.ssf-pill-past {
+  background: color-mix(in srgb, var(--status-success-bg) 50%, transparent);
+  color: var(--status-success-text);
+}
+
+.ssf-pill-past:hover {
+  background: color-mix(in srgb, var(--status-success-bg) 70%, transparent);
+}
+
+/* ── Grids ────────────────────────────────────────────── */
+
+.ssf-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.ssf-grid-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+.ssf-flex-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Form elements ────────────────────────────────────── */
+
+.ssf-required {
+  color: var(--status-error-text);
+}
+
+.ssf-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.ssf-error-text {
+  font-size: 12px;
+  color: var(--status-error-text);
+  margin: 4px 0 0;
+}
+
+.ssf-input-error {
+  border-color: var(--status-error-text);
+}
+
+.ssf-select {
+  cursor: pointer;
+}
+
+.ssf-textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* ── Parameters section ───────────────────────────────── */
+
+.ssf-param-intro {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.ssf-param-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  margin-bottom: 12px;
+}
+
+.ssf-param-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ssf-param-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ssf-btn-remove-param {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--status-error-border);
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ssf-btn-remove-param:hover {
+  background: color-mix(in srgb, var(--status-error-bg) 80%, var(--status-error-text));
+}
+
+.ssf-param-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ssf-label-sm {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ssf-input-sm {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ssf-input-sm:focus {
+  border-color: var(--accent-primary);
+}
+
+.ssf-btn-add-param {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px dashed var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s ease;
+}
+
+.ssf-btn-add-param:hover {
+  background: var(--surface-tertiary);
+  border-color: var(--border-strong);
+}
+
+/* ── Review section ───────────────────────────────────── */
+
+.ssf-review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ssf-review-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ssf-review-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 2px 0 0;
+}
+
+.ssf-story-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+}
+
+.ssf-story-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin: 8px 0 0;
+  line-height: 1.6;
+}
+
+/* ── Error banner override ─────────────────────────────── */
+
+.ssf-error-banner {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+
+/* ── Bottom navigation ────────────────────────────────── */
+
+.ssf-nav-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.ssf-nav-group {
+  display: flex;
+  gap: 12px;
+}
+
+/* ── Button overrides ─────────────────────────────────── */
+
+/* "Next" / "Create Spec" primary action — uses hf-btn + hf-btn-gradient-primary
+   but needs font-size 13 and font-weight 700 overrides */
+.ssf-btn-action {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 24px;
+}
+
+/* Disabled/creating state */
+.ssf-btn-creating {
+  background: var(--surface-tertiary);
+  color: var(--text-muted);
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Secondary nav buttons (Back, Skip) — font-size 13 override */
+.ssf-btn-nav {
+  font-size: 13px;
+  font-weight: 600;
+}
