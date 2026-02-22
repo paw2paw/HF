@@ -36,11 +36,11 @@
         "steps": [
           {
             "id": "create_domain",
-            "name": "Create Domain & Subject",
+            "name": "Create Institution & Subject",
             "operation": "create_domain",
             "order": 1,
             "onError": "abort",
-            "progressMessage": "Setting up domain..."
+            "progressMessage": "Setting up institution..."
           },
           {
             "id": "extract_content",
@@ -74,7 +74,7 @@
           },
           {
             "id": "scaffold_domain",
-            "name": "Scaffold Domain",
+            "name": "Set Up Institution",
             "operation": "scaffold_domain",
             "order": 5,
             "onError": "abort",

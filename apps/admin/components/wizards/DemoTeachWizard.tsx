@@ -690,7 +690,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                     className="dtw-inline-link"
                     onClick={() =>
                       router.push(
-                        `/x/domains?selected=${selectedDomainId}`,
+                        `/x/domains?id=${selectedDomainId}`,
                       )
                     }
                   >
@@ -1053,7 +1053,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                 ? [
                     {
                       label: `View ${t.domain}`,
-                      href: `/x/domains?selected=${selectedDomainId}`,
+                      href: `/x/domains?id=${selectedDomainId}`,
                     },
                   ]
                 : []),
@@ -1076,7 +1076,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         <div className="dtw-quick-actions">
           <button
             onClick={() => {
-              router.push(`/x/domains?selected=${selectedDomainId}`);
+              router.push(`/x/domains?id=${selectedDomainId}`);
             }}
             className="dtw-btn-quick"
           >

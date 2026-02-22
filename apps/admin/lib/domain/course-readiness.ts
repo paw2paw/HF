@@ -100,7 +100,7 @@ export async function loadCourseReadinessChecks(): Promise<CourseReadinessCheck[
       description: "Check the generated lesson plan structure",
       severity: "recommended",
       query: "lesson_plan",
-      fixAction: { label: "Review Plan", hrefTemplate: "/x/domains/${domainId}?tab=onboarding" },
+      fixAction: { label: "Review Plan", hrefTemplate: "/x/domains?id=${domainId}&tab=content" },
     },
     {
       id: "onboarding_configured",
@@ -108,7 +108,7 @@ export async function loadCourseReadinessChecks(): Promise<CourseReadinessCheck[
       description: "Set the welcome message and flow for the first call",
       severity: "recommended",
       query: "onboarding",
-      fixAction: { label: "Configure", hrefTemplate: "/x/domains/${domainId}?tab=onboarding" },
+      fixAction: { label: "Configure", hrefTemplate: "/x/domains?id=${domainId}&tab=onboarding" },
     },
     {
       id: "prompt_composed",
@@ -116,7 +116,7 @@ export async function loadCourseReadinessChecks(): Promise<CourseReadinessCheck[
       description: "Preview what the AI tutor will say in the first lesson",
       severity: "critical",
       query: "prompt_composed",
-      fixAction: { label: "Preview Prompt", hrefTemplate: "/x/callers/${callerId}?tab=prompt" },
+      fixAction: { label: "Preview Prompt", hrefTemplate: "/x/callers/${callerId}" },
     },
   ];
 }
@@ -156,7 +156,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
         where: { sourceId: ctx.sourceId },
       });
       if (total === 0) {
-        return { passed: false, detail: "No teaching points extracted yet" };
+        return { passed: true, detail: "No teaching points to review" };
       }
       const reviewed = await prisma.contentAssertion.count({
         where: { sourceId: ctx.sourceId, reviewedAt: { not: null } },
@@ -182,7 +182,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
     const reviewed = await prisma.contentAssertion.count({
       where: { sourceId: { in: ids }, reviewedAt: { not: null } },
     });
-    if (total === 0) return { passed: false, detail: "No teaching points extracted" };
+    if (total === 0) return { passed: true, detail: "No teaching points to review" };
     if (reviewed > 0) return { passed: true, detail: `${reviewed}/${total} reviewed` };
     return { passed: false, detail: `${total} teaching points awaiting review` };
   },

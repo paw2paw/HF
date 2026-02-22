@@ -70,8 +70,8 @@ function getResultPath(task: UserTask): string {
   const summary = ctx?.summary;
   switch (task.taskType) {
     case 'quick_launch':
-      if (summary?.domain?.id) return `/x/domains/${summary.domain.id}`;
-      if (ctx?.domainId) return `/x/domains/${ctx.domainId}`;
+      if (summary?.domain?.id) return `/x/domains?id=${summary.domain.id}`;
+      if (ctx?.domainId) return `/x/domains?id=${ctx.domainId}`;
       break;
     case 'extraction':
       if (summary?.sourceId) return `/x/content-sources/${summary.sourceId}`;
@@ -83,7 +83,7 @@ function getResultPath(task: UserTask): string {
       break;
     case 'content_wizard':
       if (summary?.subject?.id) return `/x/subjects/${summary.subject.id}`;
-      if (summary?.domain?.id) return `/x/domains/${summary.domain.id}`;
+      if (summary?.domain?.id) return `/x/domains?id=${summary.domain.id}`;
       if (ctx?.subjectId) return `/x/subjects/${ctx.subjectId}`;
       break;
     case 'configure_caller':
@@ -95,7 +95,7 @@ function getResultPath(task: UserTask): string {
       if (ctx?.specId) return `/x/specs/${ctx.specId}`;
       break;
     case 'course_setup':
-      if (summary?.domain?.id) return `/x/domains/${summary.domain.id}`;
+      if (summary?.domain?.id) return `/x/domains?id=${summary.domain.id}`;
       break;
     case 'classroom_setup':
       if (ctx?.created?.id) return `/x/educator/classrooms/${ctx.created.id}`;

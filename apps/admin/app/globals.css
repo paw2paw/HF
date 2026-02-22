@@ -2649,13 +2649,13 @@ html.light {
 .hf-status-cluster {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
 }
 .hf-status-cluster-right {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   flex-shrink: 0;
 }
 .hf-status-bold {
@@ -2877,6 +2877,231 @@ html.light {
 }
 .jobs-popup-viewall:hover {
   opacity: 0.8;
+}
+
+/* Institution name — truncate long org names */
+.hf-status-institution-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Subtle vertical separator between left and right clusters */
+.hf-status-bar > .hf-status-cluster-right::before {
+  content: '';
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+.hf-status-bar-masquerade > .hf-status-cluster-right::before {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Health Popup ────────────────────────────── */
+.health-popup {
+  position: fixed;
+  bottom: 38px;
+  left: 8px;
+  width: 380px;
+  max-height: 460px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  animation: jobs-popup-in 150ms ease-out;
+}
+.health-popup-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.health-popup-rag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.health-popup-rag-green {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+.health-popup-rag-amber {
+  background: color-mix(in srgb, var(--status-warning-text) 12%, transparent);
+  color: var(--status-warning-text);
+}
+.health-popup-rag-red {
+  background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
+  color: var(--status-error-text);
+}
+.health-popup-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 14px;
+}
+.health-popup-check-row:hover {
+  background: color-mix(in srgb, var(--text-muted) 5%, transparent);
+}
+.health-popup-check-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.health-popup-dot-pass { background: var(--status-success-text); }
+.health-popup-dot-warn { background: var(--status-warning-text); }
+.health-popup-dot-fail { background: var(--status-error-text); }
+.health-popup-check-content {
+  flex: 1;
+  min-width: 0;
+}
+.health-popup-check-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.health-popup-check-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.health-popup-sev-pill {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.health-popup-sev-critical { color: var(--status-error-text); }
+.health-popup-sev-recommended { color: var(--status-warning-text); }
+.health-popup-sev-optional { color: var(--text-muted); }
+.health-popup-check-message {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.health-popup-remediation {
+  font-size: 10px;
+  color: var(--status-warning-text);
+  margin-top: 2px;
+  font-style: italic;
+}
+.health-popup-no-data {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.health-popup-footer-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+/* ── Calls Popup ────────────────────────────── */
+.calls-popup {
+  position: fixed;
+  bottom: 38px;
+  left: 8px;
+  width: 320px;
+  max-height: 380px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  animation: jobs-popup-in 150ms ease-out;
+}
+.calls-popup-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  gap: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.calls-popup-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+.calls-popup-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.calls-popup-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.calls-popup-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-subtle);
+}
+
+/* ── Version Popup ────────────────────────────── */
+.version-popup {
+  position: fixed;
+  bottom: 38px;
+  right: 8px;
+  width: 260px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  animation: jobs-popup-in 150ms ease-out;
+}
+.version-popup-rows {
+  padding: 8px 14px;
+}
+.version-popup-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.version-popup-row:last-child {
+  border-bottom: none;
+}
+.version-popup-row-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.version-popup-row-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* ── Agent Tuner ────────────────────────────── */

@@ -288,16 +288,39 @@ export default function QuickLaunchPage() {
   // ── Check for resumable task ──────────────────────
 
   useEffect(() => {
-    // Check both in_progress (building) and completed with review phase (review overrides)
+    // Check both in_progress (building) and completed with review/result phase
     fetch("/api/tasks?status=in_progress,completed&taskType=quick_launch&limit=1&sort=recent")
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.tasks) {
-          // Prefer in_progress tasks; fall back to recently completed ones in review phase
+          // Prefer in_progress tasks; fall back to recently completed ones
           const inProgress = data.tasks.find((t: any) => t.taskType === "quick_launch" && t.status === "in_progress");
           const reviewPhase = data.tasks.find(
             (t: any) => t.taskType === "quick_launch" && t.status === "completed" && t.context?.phase === "review"
           );
+          const resultPhase = data.tasks.find(
+            (t: any) => t.taskType === "quick_launch" && t.status === "completed" && t.context?.phase === "result" && t.context?.result
+          );
+
+          // Auto-restore summary mode (no banner — completed launches just show)
+          if (!inProgress && !reviewPhase && resultPhase && resultPhase.context?.result) {
+            const ctx = resultPhase.context;
+            setTaskId(resultPhase.id);
+            try { localStorage.setItem("ql-active-task", resultPhase.id); } catch {}
+            if (ctx.input) {
+              setSubjectName(ctx.input.subjectName || "");
+              setBrief(ctx.input.brief || "");
+              setNameManuallyEdited(true);
+              setPersona(ctx.input.persona || "");
+              setGoals(ctx.input.learningGoals || []);
+            }
+            if (ctx.mode) setLaunchMode(ctx.mode);
+            setResult(ctx.result as LaunchResult);
+            setPhase("result");
+            return;
+          }
+
+          // For in_progress/review, show resume banner
           const qlTask = inProgress || reviewPhase;
           // Skip if another tab already claimed this task
           const claimedId = localStorage.getItem("ql-active-task");
@@ -348,6 +371,14 @@ export default function QuickLaunchPage() {
     // Restore overrides
     if (ctx.overrides) {
       setOverrides(ctx.overrides);
+    }
+
+    // If result phase, restore summary directly
+    if (ctx.phase === "result" && ctx.result) {
+      setResult(ctx.result as LaunchResult);
+      setPhase("result");
+      setResumeTask(null);
+      return;
     }
 
     // If still building (extraction in progress), resume polling instead of going to form
@@ -1007,6 +1038,14 @@ export default function QuickLaunchPage() {
   // ── Reset all ─────────────────────────────────────
 
   const handleReset = () => {
+    // Archive the completed task so it doesn't trigger summary mode on next mount
+    if (taskId) {
+      fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds: [taskId], action: "archive" }),
+      }).catch(() => {});
+    }
     setPhase("form");
     setResult(null);
     try { localStorage.removeItem("ql-active-task"); } catch {}
@@ -1208,7 +1247,7 @@ export default function QuickLaunchPage() {
                   icon: <Building2 className="w-5 h-5" />,
                   label: terms.domain,
                   name: result.domainName,
-                  href: `/x/domains?selected=${result.domainId}`,
+                  href: `/x/domains?id=${result.domainId}`,
                 },
                 {
                   icon: <User className="w-5 h-5" />,

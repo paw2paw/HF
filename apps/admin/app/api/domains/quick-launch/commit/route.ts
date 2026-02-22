@@ -122,6 +122,8 @@ export async function POST(req: NextRequest) {
         if (taskId) {
           await updateTaskProgress(taskId, {
             context: {
+              phase: "result",
+              result,
               summary: {
                 domain: { id: result.domainId, name: result.domainName, slug: result.domainSlug },
                 caller: { id: result.callerId, name: result.callerName },

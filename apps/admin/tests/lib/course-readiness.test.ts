@@ -161,7 +161,7 @@ describe("checkCourseReadiness", () => {
     expect(assertionCheck?.fixAction?.href).toBe("/x/content-sources/src-1");
 
     const promptCheck = result.checks.find((c) => c.id === "prompt_composed");
-    expect(promptCheck?.fixAction?.href).toBe("/x/callers/caller-1?tab=prompt");
+    expect(promptCheck?.fixAction?.href).toBe("/x/callers/caller-1");
   });
 
   it("handles missing callerId gracefully for prompt check", async () => {
@@ -180,6 +180,27 @@ describe("checkCourseReadiness", () => {
     const promptCheck = result.checks.find((c) => c.id === "prompt_composed");
     expect(promptCheck?.passed).toBe(false);
     expect(promptCheck?.detail).toContain("No test caller");
+  });
+
+  it("auto-passes assertions_reviewed when source has 0 teaching points", async () => {
+    // Source exists but has 0 assertions (questions/exercises document)
+    mockPrisma.contentAssertion.count.mockImplementation(async (args: any) => {
+      const where = args?.where || {};
+      if (where.sourceId === "src-1") return 0; // 0 assertions for the source
+      if (where.source) return 0; // lesson_plan check
+      return 0;
+    });
+    mockPrisma.domain.findUnique.mockResolvedValue({
+      onboardingIdentitySpecId: null,
+      onboardingFlowPhases: null,
+    });
+    mockPrisma.composedPrompt.findFirst.mockResolvedValue(null);
+
+    const result = await checkCourseReadiness(CTX);
+
+    const assertionCheck = result.checks.find((c) => c.id === "assertions_reviewed");
+    expect(assertionCheck?.passed).toBe(true);
+    expect(assertionCheck?.detail).toContain("No teaching points to review");
   });
 
   it("falls back to domain-wide assertion check when no sourceId", async () => {

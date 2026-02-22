@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { VerticalSlider } from "@/components/shared/VerticalSlider";
 import { AIConfigButton } from "@/components/shared/AIConfigButton";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
@@ -505,6 +505,49 @@ export function CallsSection({
       loadCallDetails(expandedCall);
     }
   }, [expandedCall]);
+
+  // Invalidate cached call details when pipeline completes (status flags change)
+  // Without this, expanding a call before pipeline finishes caches empty data permanently
+  const prevCallFlagsRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const newFlags: Record<string, string> = {};
+    const staleIds: string[] = [];
+
+    for (const call of calls) {
+      const key = [call.hasScores, call.hasMemories, call.hasBehaviorMeasurements, call.hasRewardScore, call.hasPrompt].join("|");
+      newFlags[call.id] = key;
+
+      const prev = prevCallFlagsRef.current[call.id];
+      if (prev && prev !== key) {
+        staleIds.push(call.id);
+      }
+    }
+
+    prevCallFlagsRef.current = newFlags;
+
+    if (staleIds.length > 0) {
+      // Clear stale cache entries
+      setCallDetails((prev) => {
+        const next = { ...prev };
+        for (const id of staleIds) delete next[id];
+        return next;
+      });
+
+      // Re-fetch expanded call if it was invalidated
+      if (expandedCall && staleIds.includes(expandedCall)) {
+        setLoadingDetails((prev) => ({ ...prev, [expandedCall]: true }));
+        fetch(`/api/calls/${expandedCall}`)
+          .then((r) => r.json())
+          .then((result) => {
+            if (result.ok) {
+              setCallDetails((prev) => ({ ...prev, [expandedCall!]: result }));
+            }
+          })
+          .catch((err) => console.error("Failed to reload call details:", err))
+          .finally(() => setLoadingDetails((prev) => ({ ...prev, [expandedCall!]: false })));
+      }
+    }
+  }, [calls, expandedCall]);
 
   // Bulk operation state
   const [bulkRunning, setBulkRunning] = useState<PipelineMode | null>(null);

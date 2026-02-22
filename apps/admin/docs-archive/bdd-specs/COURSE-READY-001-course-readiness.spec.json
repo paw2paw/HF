@@ -50,7 +50,7 @@
             "description": "Check the generated lesson plan — session types, order, and module mapping",
             "severity": "recommended",
             "query": "lesson_plan",
-            "fixAction": { "label": "Review Plan", "hrefTemplate": "/x/domains/${domainId}?tab=onboarding" }
+            "fixAction": { "label": "Review Plan", "hrefTemplate": "/x/domains?id=${domainId}&tab=content" }
           },
           {
             "id": "onboarding_configured",
@@ -58,7 +58,7 @@
             "description": "Set the welcome message and flow for the student's first call",
             "severity": "recommended",
             "query": "onboarding",
-            "fixAction": { "label": "Configure", "hrefTemplate": "/x/domains/${domainId}?tab=onboarding" }
+            "fixAction": { "label": "Configure", "hrefTemplate": "/x/domains?id=${domainId}&tab=onboarding" }
           },
           {
             "id": "prompt_composed",

@@ -65,6 +65,7 @@
   - [Sim](#sim)
   - [Snapshots](#snapshots)
   - [Specs](#specs)
+  - [Status](#status)
   - [Subjects](#subjects)
   - [System](#system)
   - [Tasks](#tasks)
@@ -9756,6 +9757,26 @@ Returns a hierarchical tree structure of ALL specs grouped by Domain > Scope > O
 
 ---
 
+## Status
+
+### `GET` /api/status/bar
+
+Lightweight status bar data — call activity (OPERATOR+) and AI spend (ADMIN+).
+
+**Auth**: Session · **Scope**: `status:read`
+
+**Response** `200`
+```json
+{ ok: true, activity?: { callsToday, activeCallers7d, totalCallers, recentCalls[] }, spend?: { todayCostDollars, mtdCostDollars } }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ## Subjects
 
 ### `GET` /api/subjects
@@ -11218,8 +11239,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 304 |
-| Files with annotations | 303 |
+| Route files found | 305 |
+| Files with annotations | 304 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

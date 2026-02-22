@@ -172,8 +172,8 @@ function getResultPath(task: UserTask): string {
 
   switch (task.taskType) {
     case "quick_launch":
-      if (summary?.domain?.id) return `/x/domains/${summary.domain.id}`;
-      if (ctx?.domainId) return `/x/domains/${ctx.domainId}`;
+      if (summary?.domain?.id) return `/x/domains?id=${summary.domain.id}`;
+      if (ctx?.domainId) return `/x/domains?id=${ctx.domainId}`;
       break;
     case "extraction":
       if (summary?.sourceId) return `/x/content-sources/${summary.sourceId}`;
@@ -185,7 +185,7 @@ function getResultPath(task: UserTask): string {
       break;
     case "content_wizard":
       if (summary?.subject?.id) return `/x/subjects/${summary.subject.id}`;
-      if (summary?.domain?.id) return `/x/domains/${summary.domain.id}`;
+      if (summary?.domain?.id) return `/x/domains?id=${summary.domain.id}`;
       if (ctx?.subjectId) return `/x/subjects/${ctx.subjectId}`;
       break;
     case "configure_caller":
@@ -197,7 +197,7 @@ function getResultPath(task: UserTask): string {
       if (ctx?.specId) return `/x/specs/${ctx.specId}`;
       break;
     case "course_setup":
-      if (summary?.domain?.id) return `/x/domains/${summary.domain.id}`;
+      if (summary?.domain?.id) return `/x/domains?id=${summary.domain.id}`;
       break;
     case "classroom_setup":
       if (ctx?.created?.id) return `/x/educator/classrooms/${ctx.created.id}`;
@@ -283,7 +283,7 @@ function JobSummary({ task }: { task: UserTask }) {
     return (
       <div className="jobs-summary-badges">
         {summary.domain?.name && (
-          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains/${summary.domain.id}`} />
+          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains?id=${summary.domain.id}`} />
         )}
         {summary.caller?.name && (
           <EntityLink label="Caller" name={summary.caller.name} href={`/x/callers/${summary.caller.id}`} />
@@ -328,7 +328,7 @@ function JobSummary({ task }: { task: UserTask }) {
           <EntityLink label="Subject" name={summary.subject.name} href={`/x/subjects/${summary.subject.id}`} />
         )}
         {summary.domain?.name && (
-          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains/${summary.domain.id}`} />
+          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains?id=${summary.domain.id}`} />
         )}
         {summary.counts?.assertions > 0 && <CountBadge label="assertions" count={summary.counts.assertions} />}
         {summary.counts?.sessions > 0 && <CountBadge label="sessions" count={summary.counts.sessions} />}
@@ -340,7 +340,7 @@ function JobSummary({ task }: { task: UserTask }) {
     return (
       <div className="jobs-summary-badges">
         {summary?.domain?.name && (
-          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains/${summary.domain.id}`} />
+          <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains?id=${summary.domain.id}`} />
         )}
         {summary?.playbook?.name && <CountBadge label={summary.playbook.name} count={1} />}
         {summary?.invitationCount > 0 && <CountBadge label="students" count={summary.invitationCount} />}
