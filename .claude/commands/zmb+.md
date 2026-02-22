@@ -9,7 +9,7 @@ Full nuclear reset: kill all zombie processes on hf-dev VM, restart the Next.js 
 ## Step 1: Kill zombies and clean cache
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; rm -rf ~/HF/apps/admin/.next; rm -f /tmp/hf-dev.log; echo ZOMBIES_KILLED"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; fuser -k 3001/tcp 2>/dev/null; sleep 1; rm -rf ~/HF/apps/admin/.next; rm -f /tmp/hf-dev.log; echo ZOMBIES_KILLED"
 ```
 
 If exit code 255, wait 5 seconds and retry once. If still failing, stop and suggest IAP troubleshooting (see bottom).

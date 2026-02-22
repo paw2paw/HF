@@ -367,12 +367,6 @@ function PromptsSection({
     setCopiedButton(buttonId);
     setTimeout(() => setCopiedButton(null), 1500);
   };
-  const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    active: { bg: "var(--status-success-bg)", text: "var(--status-success-text)" },
-    superseded: { bg: "var(--surface-secondary)", text: "var(--text-muted)" },
-    expired: { bg: "var(--status-error-bg)", text: "var(--status-error-text)" },
-  };
-
   if (loading) {
     return (
       <div className="hf-empty hf-text-muted">Loading prompts...</div>
@@ -418,7 +412,6 @@ function PromptsSection({
         <div className="hf-flex-col hf-gap-md">
           {prompts.map((prompt) => {
             const isExpanded = expandedPrompt === prompt.id;
-            const statusColors = STATUS_COLORS[prompt.status] || STATUS_COLORS.superseded;
 
             return (
               <div
@@ -874,7 +867,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                   >
                     {category} ({mems.length})
                   </div>
-                  <div className="hf-flex-col" style={{ gap: 6 }}>
+                  <div className="hf-flex-col ps-gap-6">
                     {mems.slice(0, 5).map((m) => (
                       <div
                         key={m.id}
@@ -888,7 +881,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                       </div>
                     ))}
                     {mems.length > 5 && (
-                      <div className="hf-text-xs hf-text-placeholder" style={{ padding: "4px 10px" }}>
+                      <div className="hf-text-xs hf-text-placeholder ps-more-text">
                         + {mems.length - 5} more
                       </div>
                     )}
@@ -902,7 +895,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
         {/* Prompt Composition Notice */}
         <div className="hf-callout-warning hf-p-lg">
           <div className="hf-flex hf-gap-md hf-items-start">
-            <span style={{ fontSize: 24 }}>💡</span>
+            <span className="ps-notice-icon">💡</span>
             <div>
               <div className="hf-text-md hf-text-bold hf-text-warning">No composed prompt yet</div>
               <div className="hf-text-sm hf-text-warning hf-mt-xs">
@@ -923,7 +916,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
+    <div className="ps-identity-grid">
       {/* Identity List */}
       <div className="hf-card-compact">
         <h4 className="hf-text-sm hf-text-bold hf-mb-md">Identities ({identities.length})</h4>
@@ -942,7 +935,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
                   {identity.segment.name}
                 </div>
               )}
-              <div className="hf-text-xs hf-mt-xs" style={{ color: identity.nextPrompt ? "var(--status-success-text)" : "var(--text-placeholder)" }}>
+              <div className={`hf-text-xs hf-mt-xs ${identity.nextPrompt ? "ps-status-ready" : "ps-status-none"}`}>
                 {identity.nextPrompt ? "✓ Prompt ready" : "No prompt"}
               </div>
             </button>
@@ -953,7 +946,7 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
       {/* Prompt Display */}
       <div className="hf-card-compact hf-p-lg">
         {!selectedIdentity?.nextPrompt ? (
-          <div className="hf-text-center" style={{ padding: 40 }}>
+          <div className="hf-text-center ps-empty-padded">
             <div className="hf-empty-state-icon hf-mb-md">✨</div>
             <div className="hf-empty-state-title">No prompt composed</div>
             <div className="hf-text-md hf-text-muted hf-mt-xs">
@@ -979,13 +972,8 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
               </div>
               <button
                 onClick={() => copyToClipboard(selectedIdentity.nextPrompt || "", "next-prompt")}
-                className="hf-btn hf-btn-sm"
-                style={{
-                  background: copiedButton === "next-prompt" ? "var(--button-success-bg)" : "var(--surface-secondary)",
-                  color: copiedButton === "next-prompt" ? "white" : "inherit",
-                  transition: "all 0.2s ease",
-                  boxShadow: copiedButton === "next-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
-                }}
+                className="hf-btn hf-btn-sm ps-btn-json-copy"
+                data-copied={copiedButton === "next-prompt" ? "true" : undefined}
               >
                 {copiedButton === "next-prompt" ? "✓ Copied" : "📋 Copy"}
               </button>
@@ -1045,7 +1033,7 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
               className="hf-transcript-header-btn hf-flex-between"
             >
               <div className="hf-flex hf-gap-md">
-                <span style={{ fontSize: 20 }}>📞</span>
+                <span className="ps-call-icon">📞</span>
                 <div>
                   <div className="hf-text-md hf-text-bold">
                     {new Date(call.createdAt).toLocaleDateString()} at {new Date(call.createdAt).toLocaleTimeString()}
@@ -1083,11 +1071,8 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
                 <div className="hf-flex hf-gap-sm hf-mt-sm">
                   <button
                     onClick={() => copyToClipboard(call.transcript || "", `transcript-${call.id}`)}
-                    className="hf-btn-copy"
-                    style={{
-                      background: copiedButton === `transcript-${call.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
-                      boxShadow: copiedButton === `transcript-${call.id}` ? "0 0 12px var(--button-success-bg)" : "none",
-                    }}
+                    className="hf-btn-copy ps-btn-copy-dynamic"
+                    data-copied={copiedButton === `transcript-${call.id}` ? "true" : undefined}
                   >
                     {copiedButton === `transcript-${call.id}` ? "✓ Copied" : "Copy Transcript"}
                   </button>

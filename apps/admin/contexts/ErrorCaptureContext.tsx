@@ -76,9 +76,29 @@ export function ErrorCaptureProvider({ children }: { children: React.ReactNode }
                 : input.url;
           // Don't log auth-related 401s (normal session expiry)
           if (response.status !== 401) {
+            // Clone response to read error body without consuming the original
+            let errorDetail = "";
+            try {
+              const clone = response.clone();
+              const body = await clone.text();
+              if (body) {
+                try {
+                  const json = JSON.parse(body);
+                  errorDetail = json.error || json.message || "";
+                } catch {
+                  // Not JSON — use first 200 chars of text
+                  errorDetail = body.slice(0, 200);
+                }
+              }
+            } catch {
+              // Clone/read failed — proceed without detail
+            }
+            const msg = errorDetail
+              ? `Fetch ${response.status}: ${errorDetail}`
+              : `Fetch failed: ${response.status} ${response.statusText}`;
             pushError({
               timestamp: Date.now(),
-              message: `Fetch failed: ${response.status} ${response.statusText}`,
+              message: msg,
               source: "fetch",
               url: reqUrl,
               status: response.status,

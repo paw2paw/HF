@@ -148,6 +148,11 @@
   color: var(--text-muted);
 }
 
+.ps-status-badge-expired {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
 /* ── Behavior target level variants ── */
 .ps-target-high {
   background: var(--status-success-bg);
