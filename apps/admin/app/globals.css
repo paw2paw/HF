@@ -2940,11 +2940,12 @@ html.light {
   font-size: 13px;
 }
 .hf-tuning-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
 }
 .hf-tuning-grid-compact {
-  flex-direction: column;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 .hf-tuning-matrix-item {
