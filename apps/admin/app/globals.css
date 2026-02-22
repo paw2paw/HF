@@ -2534,7 +2534,7 @@ html.light {
   font-size: 11px;
   color: var(--text-muted);
   gap: 4px;
-  z-index: 20;
+  z-index: 60;
 }
 .hf-status-bar-masquerade {
   background: var(--masquerade-color);
