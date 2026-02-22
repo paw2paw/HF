@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 interface Student {
   id: string;
@@ -26,12 +27,13 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCalls, setActiveCalls] = useState<Map<string, string>>(new Map());
+  const { plural, lower, lowerPlural } = useTerminology();
 
   useEffect(() => {
     const instQuery = institutionId ? `?institutionId=${institutionId}` : "";
     Promise.all([
       fetch(`/api/educator/students${instQuery}`).then((r) => r.json()),
-      fetch("/api/educator/active-calls").then((r) => r.json()),
+      fetch(`/api/educator/active-calls${instQuery}`).then((r) => r.json()),
     ])
       .then(([studentsRes, callsRes]: [{ ok: boolean; students: Student[] }, { ok: boolean; activeCalls: ActiveCall[] }]) => {
         if (studentsRes?.ok) setStudents(studentsRes.students);
@@ -61,7 +63,7 @@ export default function StudentsPage() {
   if (loading) {
     return (
       <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading students...</div>
+        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading...</div>
       </div>
     );
   }
@@ -78,10 +80,10 @@ export default function StudentsPage() {
       >
         <div>
           <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
-            Students
+            {plural("caller")}
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-            {students.length} student{students.length !== 1 ? "s" : ""}
+            {students.length} {students.length !== 1 ? lowerPlural("caller") : lower("caller")}
             {students.some((s) => !s.classroom) && (
               <> &middot; {students.filter((s) => !s.classroom).length} unassigned</>
             )}
@@ -91,7 +93,7 @@ export default function StudentsPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search students..."
+          placeholder={`Search ${lowerPlural("caller")}...`}
           style={{
             padding: "8px 14px",
             border: "1px solid var(--border-default)",
@@ -114,7 +116,7 @@ export default function StudentsPage() {
             fontSize: 14,
           }}
         >
-          {search ? "No students match your search." : "No students yet. Invite them via your classrooms."}
+          {search ? `No ${lowerPlural("caller")} match your search.` : `No ${lowerPlural("caller")} yet. Invite them via your ${lowerPlural("cohort")}.`}
         </div>
       ) : (
         <div

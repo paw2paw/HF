@@ -5154,7 +5154,7 @@ Teacher sends a message into an active student call. Verifies the call is active
 
 ### `GET` /api/educator/active-calls
 
-List active calls across the educator's students. Active = endedAt is null AND createdAt within last 2 hours.
+List active calls across the educator's students. Active = endedAt is null AND createdAt within last 2 hours. ADMIN+ users see all active learner calls (optionally scoped by institutionId).
 
 **Auth**: Bearer token · **Scope**: `educator:read`
 

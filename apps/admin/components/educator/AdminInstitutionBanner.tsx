@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { Eye } from "lucide-react";
+import { useTerminology } from "@/contexts/TerminologyContext";
 
 const STORAGE_KEY = "hf.educator-view.institutionId";
 
@@ -26,6 +27,7 @@ export function AdminInstitutionBanner() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const { terms } = useTerminology();
 
   const role = session?.user?.role;
   const isEducator = role === "EDUCATOR";
@@ -116,7 +118,7 @@ export function AdminInstitutionBanner() {
           whiteSpace: "nowrap",
         }}
       >
-        Viewing school:
+        Viewing {terms.domain.toLowerCase()}:
       </span>
       {loading ? (
         <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
@@ -138,7 +140,7 @@ export function AdminInstitutionBanner() {
             cursor: "pointer",
           }}
         >
-          <option value="">Select a school...</option>
+          <option value="">Select a {terms.domain.toLowerCase()}...</option>
           {institutions.map((inst) => (
             <option key={inst.id} value={inst.id}>
               {inst.name}
