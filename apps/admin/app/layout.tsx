@@ -314,15 +314,17 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main content */}
-        <main
-          className="h-full min-w-0 overflow-auto transition-all duration-200 flex flex-col"
-          style={getMainStyle()}
-        >
+        <div className="h-full min-w-0 flex flex-col">
           <TopBar />
-          <div className="py-6" style={{ paddingLeft: 32, paddingRight: 32, flex: 1 }}>
-            {children}
-          </div>
-        </main>
+          <main
+            className="flex-1 overflow-auto min-h-0 transition-all duration-200"
+            style={getMainStyle()}
+          >
+            <div className="py-6" style={{ paddingLeft: 32, paddingRight: 32 }}>
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
 
       <StatusBar />

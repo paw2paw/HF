@@ -3,7 +3,7 @@ import Link from "next/link";
 import AskAISearchBar from "@/components/shared/AskAISearchBar";
 
 const TASK_LABELS: Record<string, string> = {
-  quick_launch: "Quick Launch",
+  quick_launch: "Community",
   content_wizard: "Content Wizard",
   create_spec: "Create Spec",
   configure_caller: "Configure Caller",

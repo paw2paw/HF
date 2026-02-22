@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     overrides: CommitOverrides;
     input: {
       subjectName: string;
+      brief?: string;
       persona: string;
       learningGoals: string[];
       qualificationRef?: string;
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
           overrides,
           {
             subjectName: input.subjectName,
+            brief: input.brief,
             persona: input.persona,
             learningGoals: overrides.learningGoals ?? input.learningGoals,
             qualificationRef: input.qualificationRef,

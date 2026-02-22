@@ -27,6 +27,7 @@ import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curricu
 import { generateSkeletonCurriculum } from "@/lib/content-trust/generate-skeleton-curriculum";
 import { startCurriculumEnrichment } from "@/lib/jobs/curriculum-enricher";
 import { enrollCaller } from "@/lib/enrollment";
+import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { loadComposeConfig, executeComposition, persistComposedPrompt } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
 import type { SpecConfig } from "@/lib/types/json-fields";
@@ -130,6 +131,73 @@ export async function loadLaunchSteps(): Promise<LaunchStep[]> {
 
   // Sort by order and cast
   return (steps as LaunchStep[]).sort((a, b) => a.order - b.order);
+}
+
+// ── Auto-generate goals ───────────────────────────────
+
+/**
+ * Generate learning goals from curriculum modules or AI when user didn't provide any.
+ * Tries module-based extraction first (instant), falls back to AI.
+ */
+async function autoGenerateGoals(ctx: LaunchContext): Promise<string[]> {
+  const { subjectName, persona, brief } = ctx.input;
+
+  // Strategy 1: Derive from curriculum modules (instant, no AI call)
+  if (ctx.results.contentSpecId) {
+    try {
+      const spec = await prisma.analysisSpec.findUnique({
+        where: { id: ctx.results.contentSpecId },
+        select: { config: true },
+      });
+      const modules = ((spec?.config as any)?.modules || []) as Array<{ title: string }>;
+      if (modules.length >= 2) {
+        return modules
+          .slice(0, 4)
+          .map((m) => m.title);
+      }
+    } catch {
+      // Fall through to AI
+    }
+  }
+
+  // Strategy 2: AI-generated goals from subject + persona + brief
+  try {
+    // @ai-call quick-launch.auto-goals — Generate learning goals when user didn't provide any | config: /x/ai-config
+    const response = await getConfiguredMeteredAICompletion(
+      {
+        callPoint: "quick-launch.auto-goals",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at defining learning goals. Given a subject and teaching style, return 3 concise learning goals.\n\nReturn ONLY a JSON array of strings. Each goal should be 3-10 words, actionable, and specific.\nExample: ["Master algebraic equations", "Build inference skills", "Write creative responses confidently"]`,
+          },
+          {
+            role: "user",
+            content: `Subject: ${subjectName}\nStyle: ${persona}${brief ? `\nDescription: ${brief}` : ""}`,
+          },
+        ],
+        temperature: 0.3,
+        maxTokens: 200,
+      },
+      { sourceOp: "quick-launch:auto-goals" },
+    );
+
+    const text = (response.content || "").trim().replace(/^```json\s*/i, "").replace(/```\s*$/, "");
+    const match = text.match(/\[[\s\S]*?\]/);
+    if (match) {
+      const parsed: unknown = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) {
+        const goals = (parsed as unknown[])
+          .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+          .slice(0, 4);
+        if (goals.length > 0) return goals;
+      }
+    }
+  } catch (err: any) {
+    console.warn("[quick-launch] Auto-goal generation failed:", err.message);
+  }
+
+  return [];
 }
 
 // ── Step Executor Registry ─────────────────────────────
@@ -595,10 +663,12 @@ const stepExecutors: Record<string, StepExecutor> = {
 
   /**
    * Step 7: Create test caller + Goals
+   * Auto-generates goals from curriculum modules if none were provided.
    */
   create_caller: async (ctx) => {
     const domainId = ctx.results.domainId!;
-    const { subjectName, learningGoals } = ctx.input;
+    const { subjectName } = ctx.input;
+    let { learningGoals } = ctx.input;
 
     // Create test caller
     const caller = await prisma.caller.create({
@@ -611,31 +681,23 @@ const stepExecutors: Record<string, StepExecutor> = {
     ctx.results.callerId = caller.id;
     ctx.results.callerName = caller.name || "Test Caller";
 
+    // Auto-generate goals if none provided
+    if (learningGoals.length === 0) {
+      learningGoals = await autoGenerateGoals(ctx);
+    }
+
     // Create Goal records for each learning goal
-    if (learningGoals.length > 0 && ctx.results.contentSpecId) {
-      for (const goalName of learningGoals) {
-        await prisma.goal.create({
-          data: {
-            callerId: caller.id,
-            type: "LEARN",
-            name: goalName,
-            contentSpecId: ctx.results.contentSpecId,
-            priority: 5,
-          },
-        });
-      }
-    } else if (learningGoals.length > 0) {
-      // No content spec — create goals without link
-      for (const goalName of learningGoals) {
-        await prisma.goal.create({
-          data: {
-            callerId: caller.id,
-            type: "LEARN",
-            name: goalName,
-            priority: 5,
-          },
-        });
-      }
+    const contentSpecId = ctx.results.contentSpecId || undefined;
+    for (const goalName of learningGoals) {
+      await prisma.goal.create({
+        data: {
+          callerId: caller.id,
+          type: "LEARN",
+          name: goalName,
+          ...(contentSpecId ? { contentSpecId } : {}),
+          priority: 5,
+        },
+      });
     }
 
     ctx.results.goalCount = learningGoals.length;
@@ -1170,7 +1232,7 @@ export async function quickLaunchCommit(
     playbookId: ctx.results.playbookId,
     assertionCount: preview.assertionCount,
     moduleCount: ctx.results.moduleCount || 0,
-    goalCount: effectiveGoals.length,
+    goalCount: ctx.results.goalCount ?? effectiveGoals.length,
     enrichmentTaskId: ctx.results.enrichmentTaskId,
     warnings: ctx.results.warnings || [],
     documentStructure: preview.documentStructure,

@@ -28,8 +28,8 @@ interface UserTask {
 
 const JOB_TYPE_LABELS: Record<string, { label: string; icon: string; resumePath: string; isBackground?: boolean }> = {
   quick_launch: {
-    label: "Quick Launch",
-    icon: "Zap",
+    label: "Community",
+    icon: "Users",
     resumePath: "/x/quick-launch",
   },
   create_spec: {
@@ -685,7 +685,7 @@ export default function JobsPage() {
           {filteredActive.length === 0 ? (
             <div className="hf-empty jobs-empty">
               {filterType === "all"
-                ? "No jobs in progress. Start one from Quick Launch or other tools."
+                ? "No jobs in progress. Start one from Community or Teach."
                 : `No ${JOB_TYPE_LABELS[filterType]?.label || filterType} jobs in progress.`}
             </div>
           ) : (

@@ -29,11 +29,10 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 w-full h-12 flex items-center justify-between border-b flex-shrink-0"
+      className="w-full h-12 flex items-center justify-between border-b flex-shrink-0"
       style={{
         background: "var(--surface-primary)",
         borderColor: "var(--border-subtle)",
-        zIndex: 25,
         paddingLeft: 32,
         paddingRight: 40,
       }}

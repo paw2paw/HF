@@ -20,7 +20,10 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import {
   Building2, BookOpen, User, FileText, PlayCircle, Target,
   HelpCircle, PenLine, Lightbulb, Eye, FileQuestion, Info,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
+import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
+import type { DomainDetail } from "@/app/x/domains/components/types";
 
 // ── Types ──────────────────────────────────────────
 
@@ -164,7 +167,8 @@ export default function QuickLaunchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { terms, lower } = useTerminology();
-  const communityMode = searchParams.get("mode") === "community";
+  // Community mode is now the default — this page is the Community launcher
+  const communityMode = true;
 
   // ── Phase state machine ────────────────────────────
   const [phase, setPhase] = useState<Phase>("form");
@@ -293,11 +297,11 @@ export default function QuickLaunchPage() {
       })
       .catch(() => {});
 
-    // Load institutions for institution picker
-    fetch("/api/institutions")
+    // Load institutions for institution picker (user-scoped — works for all roles)
+    fetch("/api/user/institutions")
       .then((r) => r.json())
       .then((data) => {
-        if (data.ok && data.institutions) {
+        if (data.institutions) {
           setInstitutions(data.institutions.map((i: any) => ({
             id: i.id,
             name: i.name,
@@ -680,7 +684,7 @@ export default function QuickLaunchPage() {
   // ── Build (Analyze) ─────────────────────────────
 
   // In community mode, content is optional; in institution mode, content is required
-  const hasInstitution = communityMode || selectedInstitutionId === "__new__" ? !!newInstitutionName.trim() : !!selectedInstitutionId;
+  const hasInstitution = communityMode || (selectedInstitutionId === "__new__" ? !!newInstitutionName.trim() : !!selectedInstitutionId);
   const canLaunch = subjectName.trim() && persona && hasInstitution && (communityMode || launchMode === "generate" || !!file) && phase === "form";
 
   const handleBuild = async () => {
@@ -965,6 +969,13 @@ export default function QuickLaunchPage() {
   const [courseReady, setCourseReady] = useState(false);
   const [checksLoading, setChecksLoading] = useState(false);
 
+  // Accordion state (result phase)
+  const [tunePersonaExpanded, setTunePersonaExpanded] = useState(false);
+  const [onboardingExpanded, setOnboardingExpanded] = useState(false);
+  const [domainDetail, setDomainDetail] = useState<DomainDetail | null>(null);
+  const [domainDetailLoading, setDomainDetailLoading] = useState(false);
+  const [savingPersona, setSavingPersona] = useState(false);
+
   // Fetch course readiness checks + onboarding data when result screen appears
   const fetchCourseReadiness = useCallback(async () => {
     if (!result) return;
@@ -986,6 +997,69 @@ export default function QuickLaunchPage() {
     }
   }, [result]);
 
+  // Fetch full domain detail for onboarding accordion
+  const fetchDomainDetail = useCallback(async () => {
+    if (!result) return;
+    setDomainDetailLoading(true);
+    try {
+      const res = await fetch(`/api/domains/${result.domainId}`);
+      const data = await res.json();
+      if (data.ok && data.domain) {
+        setDomainDetail(data.domain as DomainDetail);
+      }
+    } catch (e) {
+      console.warn("[QuickLaunch] Failed to fetch domain detail:", e);
+    } finally {
+      setDomainDetailLoading(false);
+    }
+  }, [result]);
+
+  const handleToggleOnboarding = useCallback(() => {
+    const willExpand = !onboardingExpanded;
+    setOnboardingExpanded(willExpand);
+    if (willExpand && !domainDetail && !domainDetailLoading) {
+      fetchDomainDetail();
+    }
+  }, [onboardingExpanded, domainDetail, domainDetailLoading, fetchDomainDetail]);
+
+  const handleToggleTunePersona = useCallback(() => {
+    const willExpand = !tunePersonaExpanded;
+    setTunePersonaExpanded(willExpand);
+    if (willExpand && !domainDetail && !domainDetailLoading) {
+      fetchDomainDetail();
+    }
+  }, [tunePersonaExpanded, domainDetail, domainDetailLoading, fetchDomainDetail]);
+
+  // Save persona tuning changes to domain
+  const handlePersonaTuningChange = useCallback(async (output: AgentTuningPanelOutput) => {
+    if (!result) return;
+    setSavingPersona(true);
+    try {
+      const targets: Record<string, any> = {};
+      for (const [paramId, value] of Object.entries(output.parameterMap)) {
+        targets[paramId] = { value, confidence: 0.5 };
+      }
+      targets._matrixPositions = output.matrixPositions;
+      targets._traits = output.traits;
+      await fetch(`/api/domains/${result.domainId}/onboarding`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingDefaultTargets: targets }),
+      });
+    } catch (e) {
+      console.warn("[Community] Failed to save persona tuning:", e);
+    } finally {
+      setSavingPersona(false);
+    }
+  }, [result]);
+
+  // Sync inline welcome when domainDetail refreshes (after OnboardingTabContent save)
+  useEffect(() => {
+    if (domainDetail?.onboardingWelcome !== undefined) {
+      setEditWelcome(domainDetail.onboardingWelcome || "");
+    }
+  }, [domainDetail?.onboardingWelcome]);
+
   useEffect(() => {
     if (phase === "result" && result) {
       setEditDomainName(result.domainName);
@@ -998,8 +1072,14 @@ export default function QuickLaunchPage() {
           }
         })
         .catch((e) => console.warn("[QuickLaunch] Failed to load domain welcome:", e));
+
+      // Auto-expand onboarding in community mode
+      if (communityMode) {
+        setOnboardingExpanded(true);
+        fetchDomainDetail();
+      }
     }
-  }, [phase, result, fetchCourseReadiness]);
+  }, [phase, result, fetchCourseReadiness, communityMode, fetchDomainDetail]);
 
   // Poll readiness every 10s while on result page (admin may complete steps in other tabs)
   useEffect(() => {
@@ -1077,35 +1157,69 @@ export default function QuickLaunchPage() {
         body: JSON.stringify({ taskIds: [taskId], action: "archive" }),
       }).catch(() => {});
     }
+    // Stop any in-flight extraction polling
+    if (jobPollRef.current) {
+      clearInterval(jobPollRef.current);
+      jobPollRef.current = null;
+    }
+    // Reset phase + result
     setPhase("form");
     setResult(null);
     try { localStorage.removeItem("ql-active-task"); } catch {}
     setCommitTimeline([]);
-    setFile(null);
+    setTaskId(null);
+    setError(null);
+    // Reset form inputs
+    setBrief("");
     setSubjectName("");
     setSuggestedName(null);
     setSuggestedPersona(null);
     setSuggestedGoals(null);
     setNameManuallyEdited(false);
+    setPersona("");
     setGoals([]);
+    setGoalInput("");
+    setFile(null);
+    setQualificationRef("");
+    setLaunchMode("generate");
+    setShowAdvanced(false);
+    setSelectedDomainId("");
+    // Reset tuning state
+    setTunerPills([]);
+    setBehaviorTargets({});
+    setMatrixTargets({});
+    setMatrixTraits([]);
+    setMatrixPositions({});
+    // Reset analysis/preview
     setPreview({});
     setOverrides({});
     setAnalysisComplete(false);
     setAnalysisProgress(0);
-    setTaskId(null);
-    setError(null);
+    setAnalysisLabel("Starting analysis...");
+    setExtractionJobId(null);
+    setExtractionSourceId(null);
+    // Reset result screen state
     setEnriching(false);
     setEnrichedModuleCount(null);
     setClassroom(null);
     setEditDomainName("");
     setEditWelcome("");
     setNewInstitutionName("");
+    setCourseChecks([]);
+    setCourseReady(false);
+    setTunePersonaExpanded(false);
+    setOnboardingExpanded(false);
+    setDomainDetail(null);
+    setDomainDetailLoading(false);
+    setSavingPersona(false);
   };
 
   // ── Form completion ───────────────────────────────
 
   // In community mode, institution is not required; in institution mode, it is
-  const formSteps = [!!subjectName.trim(), !!persona, hasInstitution, communityMode || launchMode === "generate" || !!file];
+  const formSteps = communityMode
+    ? [!!subjectName.trim(), !!persona, hasInstitution]
+    : [!!subjectName.trim(), !!persona, hasInstitution, launchMode === "generate" || !!file];
   const completedSteps = formSteps.filter(Boolean).length;
   const totalRequired = formSteps.length;
 
@@ -1118,19 +1232,17 @@ export default function QuickLaunchPage() {
       {/* ── Header ── */}
       <div className="ql-hero">
         <div className="ql-hero-icon">
-          <span>&#9889;</span>
+          <span>&#x1F465;</span>
         </div>
         <h1 className="ql-hero-title">
-          {communityMode ? "Create Community" : "Quick Launch"}
+          Create Community
         </h1>
         <p className="ql-hero-subtitle">
-          {phase === "form" && (communityMode
-            ? "Create a community for individuals to have meaningful conversations with an AI guide."
-            : "Describe what you want to build and launch a working AI agent in minutes.")}
-          {phase === "building" && (communityMode ? "Setting up your community..." : "Building your agent...")}
+          {phase === "form" && "Create a community for individuals to have meaningful conversations with an AI companion."}
+          {phase === "building" && "Setting up your community..."}
           {phase === "review" && "Review what AI created and customize before finalizing."}
-          {phase === "committing" && (communityMode ? "Creating your community..." : "Creating your agent...")}
-          {phase === "result" && (communityMode ? "Your community is ready!" : "Your agent is ready!")}
+          {phase === "committing" && "Creating your community..."}
+          {phase === "result" && "Your community is ready!"}
         </p>
       </div>
 
@@ -1142,7 +1254,7 @@ export default function QuickLaunchPage() {
               Resume previous launch?
             </div>
             <div className="ql-resume-detail">
-              You have an in-progress Quick Launch
+              You have an in-progress community setup
               {resumeTask.context?.input?.subjectName &&
                 ` for "${resumeTask.context.input.subjectName}"`}
               {" "}started {new Date(resumeTask.startedAt).toLocaleString()}
@@ -1226,7 +1338,7 @@ export default function QuickLaunchPage() {
       {phase === "committing" && (
         <div className="ql-commit-panel">
           <div className="ql-commit-title">
-            Creating your agent...
+            Creating your community...
           </div>
           {commitTimeline.map((step, i) => (
             <div
@@ -1264,8 +1376,12 @@ export default function QuickLaunchPage() {
         <div className="hf-flex-col" style={{ gap: 20 }}>
           {/* ── Summary ── */}
           <WizardSummary
-            title={communityMode ? "Your Community is Ready!" : "Your Agent is Ready!"}
-            subtitle={`${result.assertionCount} teaching points${(enrichedModuleCount ?? result.moduleCount) > 0 ? `, ${enrichedModuleCount ?? result.moduleCount} modules${enriching ? " (enriching...)" : ""}` : ""}${result.goalCount > 0 ? `, ${result.goalCount} goals` : ""}`}
+            title="Your Community is Ready!"
+            subtitle={[
+              ...(result.assertionCount > 0 ? [`${result.assertionCount} teaching points`] : []),
+              ...((enrichedModuleCount ?? result.moduleCount) > 0 ? [`${enrichedModuleCount ?? result.moduleCount} modules${enriching ? " (enriching...)" : ""}`] : []),
+              ...(result.goalCount > 0 ? [`${result.goalCount} goals`] : []),
+            ].join(", ") || undefined}
             intent={{
               items: [
                 { icon: <BookOpen className="w-4 h-4" />, label: "Subject", value: subjectName || "—" },
@@ -1297,7 +1413,7 @@ export default function QuickLaunchPage() {
               ],
             }}
             stats={[
-              { label: "Teaching Points", value: result.assertionCount },
+              ...(result.assertionCount > 0 ? [{ label: "Teaching Points", value: result.assertionCount }] : []),
               ...((enrichedModuleCount ?? result.moduleCount) > 0 ? [{ label: enriching ? "Modules (enriching...)" : "Modules", value: enrichedModuleCount ?? result.moduleCount }] : []),
               ...(result.goalCount > 0 ? [{ label: "Goals", value: result.goalCount }] : []),
             ]}
@@ -1410,8 +1526,55 @@ export default function QuickLaunchPage() {
             )}
           </WizardSummary>
 
-          {/* ── Onboarding Welcome ── */}
+          {/* ── Tune Persona (Boston Matrix) ── */}
           <div className="ql-result-card">
+            <button
+              onClick={handleToggleTunePersona}
+              className="ql-accordion-toggle"
+              style={{ borderTop: "none", paddingTop: 0, marginTop: 0 }}
+            >
+              {tunePersonaExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span>Tune Persona</span>
+              {savingPersona && (
+                <span className="ql-saving-indicator">&mdash; saving...</span>
+              )}
+            </button>
+            <div className="ql-accordion-hint">
+              Drag the dots to adjust your companion&apos;s voice and personality.
+            </div>
+            {tunePersonaExpanded && (
+              <div className="ql-accordion-content">
+                {domainDetailLoading && !domainDetail ? (
+                  <div className="hf-flex hf-gap-sm" style={{ justifyContent: "center", padding: 24 }}>
+                    <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                    <span className="hf-text-sm hf-text-muted">Loading persona settings...</span>
+                  </div>
+                ) : (
+                  <AgentTuningPanel
+                    initialPositions={
+                      (domainDetail?.onboardingDefaultTargets as any)?._matrixPositions
+                      || (Object.keys(matrixPositions).length > 0 ? matrixPositions : undefined)
+                    }
+                    existingParams={
+                      domainDetail?.onboardingDefaultTargets
+                        ? Object.fromEntries(
+                            Object.entries(domainDetail.onboardingDefaultTargets as Record<string, any>)
+                              .filter(([k]) => !k.startsWith("_"))
+                              .map(([k, v]) => [k, typeof v === "object" && v !== null ? (v as any).value : v])
+                          )
+                        : undefined
+                    }
+                    onChange={handlePersonaTuningChange}
+                    compact
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Onboarding Configuration ── */}
+          <div className="ql-result-card">
+            {/* Always-visible: Welcome message quick edit */}
             <div className="ql-result-section-label">
               Onboarding Welcome {savingWelcome && <span className="ql-saving-indicator">&mdash; saving...</span>}
             </div>
@@ -1426,6 +1589,34 @@ export default function QuickLaunchPage() {
               rows={2}
               className="ql-result-textarea"
             />
+
+            {/* Accordion: Full onboarding flow planner */}
+            <button
+              onClick={handleToggleOnboarding}
+              className="ql-accordion-toggle"
+            >
+              {onboardingExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span>Customise Onboarding Flow</span>
+              {domainDetailLoading && !domainDetail && (
+                <div className="hf-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+              )}
+            </button>
+
+            {onboardingExpanded && (
+              <div className="ql-accordion-content">
+                {domainDetailLoading && !domainDetail ? (
+                  <div className="hf-flex hf-gap-sm" style={{ justifyContent: "center", padding: 24 }}>
+                    <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                    <span className="hf-text-sm hf-text-muted">Loading onboarding configuration...</span>
+                  </div>
+                ) : domainDetail ? (
+                  <OnboardingTabContent
+                    domain={domainDetail}
+                    onDomainRefresh={fetchDomainDetail}
+                  />
+                ) : null}
+              </div>
+            )}
           </div>
 
           {/* ── Get Learners In ── */}
@@ -1493,7 +1684,7 @@ export default function QuickLaunchPage() {
         <>
           {/* Step 1: Describe what you're building */}
           <FormCard>
-            <StepMarker number={1} label={communityMode ? "Describe your community" : "Describe what you're building"} completed={!!subjectName.trim()} />
+            <StepMarker number={1} label="Describe your community" completed={!!subjectName.trim()} />
 
             {/* Institution picker */}
             {!communityMode && (
@@ -1663,7 +1854,7 @@ export default function QuickLaunchPage() {
                 Teaching style
               </div>
               <div className="hf-text-xs hf-text-muted hf-mb-md">
-                Place the dots to set your agent&apos;s personality. Click a preset to start from a known style.
+                Place the dots to set your companion&apos;s personality. Click a preset to start from a known style.
               </div>
               <AgentTuningPanel
                 onChange={handleMatrixChange}
@@ -1755,8 +1946,8 @@ export default function QuickLaunchPage() {
             )}
           </FormCard>
 
-          {/* Step 4: Curriculum Source */}
-          <FormCard>
+          {/* Step 4: Curriculum Source — hidden in community mode */}
+          {!communityMode && <FormCard>
             <StepMarker
               number={4}
               label="Content source"
@@ -1884,7 +2075,7 @@ export default function QuickLaunchPage() {
                 />
               </>
             )}
-          </FormCard>
+          </FormCard>}
 
           {/* Advanced Options */}
           <div style={{ padding: "16px 0 0" }}>
@@ -1954,7 +2145,7 @@ export default function QuickLaunchPage() {
             </div>
 
             <p className="ql-form-footer">
-              Creates an agent, extracts content, configures the persona, and sets up a test caller.
+              Creates a community, configures the companion persona, and sets up a test caller.
             </p>
           </div>
         </>

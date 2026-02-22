@@ -22,6 +22,7 @@ import { useTerminology } from "@/contexts/TerminologyContext";
 import {
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Pencil,
   Trash2,
   Save,
@@ -32,6 +33,9 @@ import {
   Target,
   PlayCircle,
 } from "lucide-react";
+import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
+import type { DomainDetail } from "@/app/x/domains/components/types";
+import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
@@ -166,6 +170,16 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [savingGoal, setSavingGoal] = useState(false);
 
   const currentStep = state?.currentStep ?? 0;
+
+  // Expandable sections on Launch step
+  const [onboardingExpanded, setOnboardingExpanded] = useState(false);
+  const [teachingPointsExpanded, setTeachingPointsExpanded] = useState(false);
+  const [domainDetail, setDomainDetail] = useState<DomainDetail | null>(null);
+  const [domainDetailLoading, setDomainDetailLoading] = useState(false);
+  const [teachingPoints, setTeachingPoints] = useState<Array<{ id: string; text: string; type: string; reviewed: boolean }>>([]);
+  const [teachingPointsLoading, setTeachingPointsLoading] = useState(false);
+  const [tunePersonaExpanded, setTunePersonaExpanded] = useState(false);
+  const [savingPersona, setSavingPersona] = useState(false);
 
   // Warn on browser refresh/close when user has started filling in data
   useUnsavedGuard(goalText.trim().length > 0 || !!selectedDomainId);
@@ -576,6 +590,110 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     router.push(url);
   };
 
+  // Fetch full domain detail for onboarding accordion
+  const fetchDomainDetail = useCallback(async () => {
+    if (!selectedDomainId) return;
+    setDomainDetailLoading(true);
+    try {
+      const res = await fetch(`/api/domains/${selectedDomainId}`);
+      const data = await res.json();
+      if (data.ok && data.domain) {
+        setDomainDetail(data.domain as DomainDetail);
+      }
+    } catch (e) {
+      console.warn("[Teach] Failed to fetch domain detail:", e);
+    } finally {
+      setDomainDetailLoading(false);
+    }
+  }, [selectedDomainId]);
+
+  // Fetch teaching points for selected domain (via domain's content sources)
+  const fetchTeachingPoints = useCallback(async () => {
+    if (!selectedDomainId) return;
+    setTeachingPointsLoading(true);
+    try {
+      // Get domain's sources through subjects
+      const domRes = await fetch(`/api/domains/${selectedDomainId}`);
+      const domData = await domRes.json();
+      if (!domData.ok) { setTeachingPointsLoading(false); return; }
+
+      const subjects = domData.domain?.subjects || [];
+      const sourceIds: string[] = [];
+      for (const s of subjects) {
+        for (const src of s.subject?.sources || []) {
+          if (src.source?.id) sourceIds.push(src.source.id);
+        }
+      }
+
+      if (sourceIds.length === 0) { setTeachingPointsLoading(false); return; }
+
+      // Fetch assertions from first source (demo)
+      const aRes = await fetch(`/api/content-sources/${sourceIds[0]}/assertions?limit=50`);
+      const aData = await aRes.json();
+      if (aData.ok) {
+        setTeachingPoints(
+          (aData.assertions || []).map((a: any) => ({
+            id: a.id,
+            text: a.text || a.assertion,
+            type: a.assertionType || a.category || "FACT",
+            reviewed: !!a.reviewedAt,
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("[Teach] Failed to fetch teaching points:", e);
+    } finally {
+      setTeachingPointsLoading(false);
+    }
+  }, [selectedDomainId]);
+
+  const handleToggleOnboarding = useCallback(() => {
+    const willExpand = !onboardingExpanded;
+    setOnboardingExpanded(willExpand);
+    if (willExpand && !domainDetail && !domainDetailLoading) {
+      fetchDomainDetail();
+    }
+  }, [onboardingExpanded, domainDetail, domainDetailLoading, fetchDomainDetail]);
+
+  const handleToggleTeachingPoints = useCallback(() => {
+    const willExpand = !teachingPointsExpanded;
+    setTeachingPointsExpanded(willExpand);
+    if (willExpand && teachingPoints.length === 0 && !teachingPointsLoading) {
+      fetchTeachingPoints();
+    }
+  }, [teachingPointsExpanded, teachingPoints.length, teachingPointsLoading, fetchTeachingPoints]);
+
+  const handleToggleTunePersona = useCallback(() => {
+    const willExpand = !tunePersonaExpanded;
+    setTunePersonaExpanded(willExpand);
+    if (willExpand && !domainDetail && !domainDetailLoading) {
+      fetchDomainDetail();
+    }
+  }, [tunePersonaExpanded, domainDetail, domainDetailLoading, fetchDomainDetail]);
+
+  // Save persona tuning changes to domain
+  const handlePersonaTuningChange = useCallback(async (output: AgentTuningPanelOutput) => {
+    if (!selectedDomainId) return;
+    setSavingPersona(true);
+    try {
+      const targets: Record<string, any> = {};
+      for (const [paramId, value] of Object.entries(output.parameterMap)) {
+        targets[paramId] = { value, confidence: 0.5 };
+      }
+      targets._matrixPositions = output.matrixPositions;
+      targets._traits = output.traits;
+      await fetch(`/api/domains/${selectedDomainId}/onboarding`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingDefaultTargets: targets }),
+      });
+    } catch (e) {
+      console.warn("[Teach] Failed to save persona tuning:", e);
+    } finally {
+      setSavingPersona(false);
+    }
+  }, [selectedDomainId]);
+
   // ── Render ────────────────────────────────────────
 
   return (
@@ -636,7 +754,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                 className="dtw-inline-link"
                 onClick={() => router.push("/x/quick-launch")}
               >
-                Create one with Quick Launch
+                Create one with Community
               </span>
             </div>
           ) : (
@@ -1068,6 +1186,110 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             ]}
             onBack={handlePrev}
           />
+
+          {/* ── Teaching Points (expandable) ── */}
+          <div className="dtw-accordion-card">
+            <button onClick={handleToggleTeachingPoints} className="dtw-accordion-toggle">
+              {teachingPointsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span>Review Teaching Points</span>
+              {teachingPointsLoading && (
+                <div className="hf-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+              )}
+              {teachingPoints.length > 0 && (
+                <span className="dtw-accordion-badge">{teachingPoints.length}</span>
+              )}
+            </button>
+            {teachingPointsExpanded && (
+              <div className="dtw-accordion-content">
+                {teachingPointsLoading ? (
+                  <div className="hf-flex hf-gap-sm" style={{ justifyContent: "center", padding: 24 }}>
+                    <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                    <span className="hf-text-sm hf-text-muted">Loading teaching points...</span>
+                  </div>
+                ) : teachingPoints.length === 0 ? (
+                  <div className="hf-text-sm hf-text-muted" style={{ padding: 16, textAlign: "center" }}>
+                    No teaching points found. Upload content to extract key facts and concepts.
+                  </div>
+                ) : (
+                  <div className="dtw-teaching-points">
+                    {teachingPoints.map((point) => (
+                      <div key={point.id} className="dtw-teaching-point">
+                        <div className={`dtw-tp-indicator ${point.reviewed ? "dtw-tp-reviewed" : "dtw-tp-pending"}`}>
+                          {point.reviewed ? "\u2713" : "\u2022"}
+                        </div>
+                        <div className="dtw-tp-text">{point.text}</div>
+                        <span className="dtw-tp-type">{point.type}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Tune Persona (Boston Matrix) ── */}
+          <div className="dtw-accordion-card">
+            <button onClick={handleToggleTunePersona} className="dtw-accordion-toggle">
+              {tunePersonaExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span>Tune Persona</span>
+              {savingPersona && (
+                <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>&mdash; saving...</span>
+              )}
+            </button>
+            {tunePersonaExpanded && (
+              <div className="dtw-accordion-content">
+                {domainDetailLoading && !domainDetail ? (
+                  <div className="hf-flex hf-gap-sm" style={{ justifyContent: "center", padding: 24 }}>
+                    <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                    <span className="hf-text-sm hf-text-muted">Loading persona settings...</span>
+                  </div>
+                ) : (
+                  <AgentTuningPanel
+                    initialPositions={
+                      (domainDetail?.onboardingDefaultTargets as any)?._matrixPositions
+                    }
+                    existingParams={
+                      domainDetail?.onboardingDefaultTargets
+                        ? Object.fromEntries(
+                            Object.entries(domainDetail.onboardingDefaultTargets as Record<string, any>)
+                              .filter(([k]) => !k.startsWith("_"))
+                              .map(([k, v]) => [k, typeof v === "object" && v !== null ? (v as any).value : v])
+                          )
+                        : undefined
+                    }
+                    onChange={handlePersonaTuningChange}
+                    compact
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Customise Onboarding (expandable) ── */}
+          <div className="dtw-accordion-card">
+            <button onClick={handleToggleOnboarding} className="dtw-accordion-toggle">
+              {onboardingExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span>Customise Onboarding</span>
+              {domainDetailLoading && !domainDetail && (
+                <div className="hf-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+              )}
+            </button>
+            {onboardingExpanded && (
+              <div className="dtw-accordion-content">
+                {domainDetailLoading && !domainDetail ? (
+                  <div className="hf-flex hf-gap-sm" style={{ justifyContent: "center", padding: 24 }}>
+                    <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                    <span className="hf-text-sm hf-text-muted">Loading configuration...</span>
+                  </div>
+                ) : domainDetail ? (
+                  <OnboardingTabContent
+                    domain={domainDetail}
+                    onDomainRefresh={fetchDomainDetail}
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1098,7 +1320,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             }}
             className="dtw-btn-quick"
           >
-            Quick Launch
+            Community
           </button>
         </div>
       )}

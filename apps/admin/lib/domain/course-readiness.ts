@@ -88,16 +88,16 @@ export async function loadCourseReadinessChecks(): Promise<CourseReadinessCheck[
   return [
     {
       id: "assertions_reviewed",
-      name: "Review Teaching Points",
-      description: "Review AI-extracted teaching points for accuracy",
+      name: "Review Content",
+      description: "Review AI-extracted content for accuracy",
       severity: "recommended",
       query: "assertions_reviewed",
       fixAction: { label: "Review Points", hrefTemplate: "/x/content-sources/${sourceId}" },
     },
     {
       id: "lesson_plan_set",
-      name: "Review Lesson Plan",
-      description: "Check the generated lesson plan structure",
+      name: "Review Curriculum",
+      description: "Check the generated curriculum structure",
       severity: "recommended",
       query: "lesson_plan",
       fixAction: { label: "Review Plan", hrefTemplate: "/x/domains?id=${domainId}&tab=content" },
@@ -156,15 +156,15 @@ const checkExecutors: Record<string, CheckExecutor> = {
         where: { sourceId: ctx.sourceId },
       });
       if (total === 0) {
-        return { passed: true, detail: "No teaching points to review" };
+        return { passed: true, detail: "No content to review" };
       }
       const reviewed = await prisma.contentAssertion.count({
         where: { sourceId: ctx.sourceId, reviewedAt: { not: null } },
       });
       if (reviewed > 0) {
-        return { passed: true, detail: `${reviewed}/${total} teaching points reviewed` };
+        return { passed: true, detail: `${reviewed}/${total} content items reviewed` };
       }
-      return { passed: false, detail: `${total} teaching points awaiting review` };
+      return { passed: false, detail: `${total} content items awaiting review` };
     }
 
     // Fallback: check domain-wide via subject chain
@@ -182,9 +182,9 @@ const checkExecutors: Record<string, CheckExecutor> = {
     const reviewed = await prisma.contentAssertion.count({
       where: { sourceId: { in: ids }, reviewedAt: { not: null } },
     });
-    if (total === 0) return { passed: true, detail: "No teaching points to review" };
+    if (total === 0) return { passed: true, detail: "No content to review" };
     if (reviewed > 0) return { passed: true, detail: `${reviewed}/${total} reviewed` };
-    return { passed: false, detail: `${total} teaching points awaiting review` };
+    return { passed: false, detail: `${total} content items awaiting review` };
   },
 
   /**
@@ -207,7 +207,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
     });
 
     if (subjectAssertionCount > 0) {
-      return { passed: true, detail: `${subjectAssertionCount} teaching point(s) extracted` };
+      return { passed: true, detail: `${subjectAssertionCount} content item(s) extracted` };
     }
 
     // Fallback: check for CONTENT spec in any playbook (published or draft)
@@ -242,7 +242,7 @@ const checkExecutors: Record<string, CheckExecutor> = {
       return { passed: true, detail: `${modules.length} module(s) configured` };
     }
 
-    return { passed: false, detail: "Lesson plan not yet generated" };
+    return { passed: false, detail: "Curriculum not yet generated" };
   },
 
   /**

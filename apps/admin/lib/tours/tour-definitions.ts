@@ -278,8 +278,8 @@ export const TOUR_DEFINITIONS: TourDefinition[] = [
       },
       {
         id: "demo-ql",
-        title: "Quick Launch",
-        description: "Quick Launch gives you one-click access to start a conversation.",
+        title: "Community",
+        description: "Create a community and start conversations with an AI companion.",
         manifestItem: "quick-launch",
       },
       {
@@ -291,7 +291,7 @@ export const TOUR_DEFINITIONS: TourDefinition[] = [
       },
     ],
     actions: [
-      { label: "Quick Launch", description: "Start a conversation now", icon: "Zap", href: "/x/quick-launch" },
+      { label: "Community", description: "Create a community now", icon: "Users", href: "/x/quick-launch" },
       { label: "Explore demos", description: "Try different scenarios", icon: "Presentation", href: "/x/demos" },
     ],
   },

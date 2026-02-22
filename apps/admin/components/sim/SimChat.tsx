@@ -568,6 +568,7 @@ export function SimChat({
           setShowMediaLibrary(prev => !prev);
           setShowContentPicker(false);
         }}
+        onAvatarClick={() => window.open(`/x/callers/${callerId}`, '_blank')}
         mediaLibraryActive={showMediaLibrary}
         callActive={messages.length > 0 && !callEnded}
         avatarColor={hashColor(callerId)}

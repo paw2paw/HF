@@ -47,7 +47,7 @@ export async function GET() {
     // Other users see only their assigned institution
     if (!session.user.institutionId) {
       // No institution assigned — return empty list
-      return NextResponse.json({ institutions: [] });
+      return NextResponse.json({ ok: true, institutions: [] });
     }
 
     institutions = await prisma.institution.findMany({
@@ -62,5 +62,5 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ institutions });
+  return NextResponse.json({ ok: true, institutions });
 }

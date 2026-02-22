@@ -3,8 +3,8 @@
     "id": "start",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Quick Launch", "icon": "Zap", "highlighted": true, "wizard": true },
-      { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "PlayCircle", "wizard": true, "terminologyLabel": "teach_action" },
+      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Community", "icon": "Users", "highlighted": true, "wizard": true },
+      { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "GraduationCap", "wizard": true, "terminologyLabel": "teach_action" },
       { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" }
     ]
   },

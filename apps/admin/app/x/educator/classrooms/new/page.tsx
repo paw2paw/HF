@@ -341,7 +341,7 @@ export default function NewClassroomPage() {
                   style={{ color: "var(--accent-primary)", cursor: "pointer", fontWeight: 600 }}
                   onClick={() => router.push("/x/quick-launch")}
                 >
-                  Create one with Quick Launch
+                  Create one with Community
                 </span>
               </p>
             ) : (

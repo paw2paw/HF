@@ -8,12 +8,13 @@ interface WhatsAppHeaderProps {
   onBack?: () => void;
   onEndCall?: () => void;
   onMediaLibrary?: () => void;
+  onAvatarClick?: () => void;
   mediaLibraryActive?: boolean;
   callActive?: boolean;
   avatarColor?: string;
 }
 
-export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, mediaLibraryActive, callActive, avatarColor = 'var(--text-muted)' }: WhatsAppHeaderProps) {
+export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, onAvatarClick, mediaLibraryActive, callActive, avatarColor = 'var(--text-muted)' }: WhatsAppHeaderProps) {
   const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
@@ -23,10 +24,16 @@ export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibr
           <ArrowLeft size={24} />
         </button>
       )}
-      <div className="wa-avatar" style={{ background: avatarColor }}>
+      <div
+        className="wa-avatar"
+        style={{ background: avatarColor, cursor: onAvatarClick ? 'pointer' : undefined }}
+        onClick={onAvatarClick}
+        role={onAvatarClick ? 'button' : undefined}
+        aria-label={onAvatarClick ? `View ${title} details` : undefined}
+      >
         {initials}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, cursor: onAvatarClick ? 'pointer' : undefined }} onClick={onAvatarClick}>
         <div className="wa-header-title">{title}</div>
         {subtitle && <div className="wa-header-subtitle">{subtitle}</div>}
       </div>
