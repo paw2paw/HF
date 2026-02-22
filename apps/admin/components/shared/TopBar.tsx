@@ -29,11 +29,13 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 w-full h-12 flex items-center justify-between pl-6 pr-8 border-b flex-shrink-0"
+      className="sticky top-0 w-full h-12 flex items-center justify-between border-b flex-shrink-0"
       style={{
         background: "var(--surface-primary)",
         borderColor: "var(--border-subtle)",
         zIndex: 25,
+        paddingLeft: 32,
+        paddingRight: 40,
       }}
     >
       {/* Left: masquerade status chip */}
@@ -96,6 +98,7 @@ export function TopBar() {
         >
           <UserAvatar
             name={session.user.name || session.user.email || "?"}
+            initials={session.user.avatarInitials}
             role={realRole}
             size={32}
           />

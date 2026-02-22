@@ -299,6 +299,15 @@ export const config = {
     },
 
     /**
+     * Community Setup Wizard Spec (default: COMMUNITY-SETUP-001)
+     * Defines community hub creation wizard steps.
+     * Can be overridden via COMMUNITY_SETUP_SPEC_SLUG env var.
+     */
+    get communitySetup(): string {
+      return optional("COMMUNITY_SETUP_SPEC_SLUG", "COMMUNITY-SETUP-001");
+    },
+
+    /**
      * Classroom Setup Wizard Spec (default: CLASSROOM-SETUP-001)
      * Defines classroom creation wizard steps: name, courses, review, invite.
      * Can be overridden via CLASSROOM_SETUP_SPEC_SLUG env var.

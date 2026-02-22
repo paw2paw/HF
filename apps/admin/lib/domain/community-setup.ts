@@ -8,6 +8,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
 
@@ -67,7 +68,7 @@ export type ProgressCallback = (event: ProgressEvent) => void;
 async function loadCommunitySetupSteps(): Promise<CommunitySetupStep[]> {
   const spec = await prisma.analysisSpec.findFirst({
     where: {
-      slug: { contains: "community-setup-001", mode: "insensitive" },
+      slug: { contains: config.specs.communitySetup.toLowerCase(), mode: "insensitive" },
       isActive: true,
     },
     select: { slug: true, config: true },

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { Sparkline } from "@/components/shared/Sparkline";
+import { PersonalityRadar, type RadarTrait } from "@/components/shared/PersonalityRadar";
 import { SpecPill, GoalPill, PlaybookPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import Link from "next/link";
 import type { Memory, MemorySummary, PersonalityProfile, PersonalityObservation, ParamConfig } from "./types";
@@ -155,8 +156,8 @@ export function PersonalitySection({
   personality: PersonalityProfile | null;
   observations: PersonalityObservation[];
   paramConfig: {
-    grouped: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }[]>;
-    params: Record<string, { parameterId: string; label: string; description: string; color: string; section: string }>;
+    grouped: Record<string, { parameterId: string; label: string; description: string; color: string; section: string; interpretationHigh?: string; interpretationLow?: string }[]>;
+    params: Record<string, { parameterId: string; label: string; description: string; color: string; section: string; interpretationHigh?: string; interpretationLow?: string }>;
   } | null;
 }) {
   const { isAdvanced } = useViewMode();
@@ -192,6 +193,27 @@ export function PersonalitySection({
               ({Object.keys(personality.parameterValues).length} parameters across {Object.keys(paramConfig.grouped).length} groups)
             </span>
           </h3>
+
+          {/* Radar chart for Big Five personality fingerprint */}
+          {(() => {
+            const bigFiveParams = paramConfig.grouped["Big Five"] || [];
+            const radarTraits: RadarTrait[] = bigFiveParams
+              .filter(p => personality.parameterValues[p.parameterId] !== undefined)
+              .map(p => ({
+                id: p.parameterId,
+                label: p.label,
+                value: personality.parameterValues[p.parameterId],
+                color: p.color,
+                interpretationHigh: p.interpretationHigh,
+                interpretationLow: p.interpretationLow,
+              }));
+            if (radarTraits.length < 3) return null;
+            return (
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+                <PersonalityRadar traits={radarTraits} />
+              </div>
+            );
+          })()}
 
           {/* Dynamically render all parameter groups from paramConfig.grouped */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>

@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const authResult = await requireAuth("VIEWER");
+    const authResult = await requireAuth("ADMIN");
     if (isAuthError(authResult)) return authResult.error;
 
     const body = await request.json();
@@ -119,7 +119,7 @@ export async function PATCH(request: NextRequest) {
  */
 export async function DELETE() {
   try {
-    const authResult = await requireAuth("VIEWER");
+    const authResult = await requireAuth("ADMIN");
     if (isAuthError(authResult)) return authResult.error;
 
     if (existsSync(LOG_FILE)) {

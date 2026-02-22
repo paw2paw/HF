@@ -40,6 +40,7 @@ interface InstitutionOption {
 export default function EducatorDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { terms, plural, lower, lowerPlural } = useTerminology();
 
   // School picker for ADMIN users without an educator profile
@@ -104,7 +105,7 @@ export default function EducatorDashboard() {
         setNeedsSchoolPicker(false);
       }
     } catch {
-      // Network error — leave in loading/empty state
+      setLoadError("Failed to load dashboard. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -123,6 +124,16 @@ export default function EducatorDashboard() {
     return (
       <div style={{ padding: 32 }}>
         <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading your {lower("domain")}...</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ padding: 32 }}>
+        <div style={{ padding: 16, background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", color: "var(--status-error-text)", borderRadius: 12, fontSize: 14 }}>
+          {loadError}
+        </div>
       </div>
     );
   }
@@ -178,7 +189,11 @@ export default function EducatorDashboard() {
         </div>
         {institutions.length === 0 && (
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16 }}>
-            No {lowerPlural("domain")} found. Create an {lower("domain")} first.
+            No {lowerPlural("domain")} found.{" "}
+            <Link href="/x/institutions/new" style={{ color: "var(--accent-primary)" }}>
+              Create one
+            </Link>{" "}
+            to get started.
           </p>
         )}
       </div>

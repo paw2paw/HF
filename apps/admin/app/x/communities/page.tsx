@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Users } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 type Community = {
   id: string;
@@ -19,6 +20,26 @@ export default function CommunitiesPage() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
+
+  const handleDeactivate = async (id: string) => {
+    setDeactivating(true);
+    try {
+      const res = await fetch(`/api/communities/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to deactivate");
+      setCommunities((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to deactivate");
+    } finally {
+      setDeactivating(false);
+      setConfirmDeactivateId(null);
+    }
+  };
 
   // Load communities on mount
   useEffect(() => {
@@ -60,13 +81,15 @@ export default function CommunitiesPage() {
             Create purpose-led groups for individuals to learn together
           </p>
         </div>
-        <button
-          onClick={handleNewCommunity}
-          className="hf-btn hf-btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          New Community
-        </button>
+        {isOperator && (
+          <button
+            onClick={handleNewCommunity}
+            className="hf-btn hf-btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            New Community
+          </button>
+        )}
       </div>
 
       {/* Error Banner */}
@@ -90,13 +113,15 @@ export default function CommunitiesPage() {
           <p className="text-[var(--text-secondary)] mb-6 max-w-md">
             Create your first community to bring together a group of individuals with a shared purpose.
           </p>
-          <button
-            onClick={handleNewCommunity}
-            className="hf-btn hf-btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Create First Community
-          </button>
+          {isOperator && (
+            <button
+              onClick={handleNewCommunity}
+              className="hf-btn hf-btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Create First Community
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -135,6 +160,43 @@ export default function CommunitiesPage() {
                   {new Date(community.createdAt).toLocaleDateString()}
                 </div>
               </div>
+
+              {/* Deactivate action */}
+              {isOperator && (
+                <div
+                  className="pt-3 mt-3 border-t border-[var(--border-subtle)]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {confirmDeactivateId === community.id ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-[var(--status-error-text)]">Deactivate?</span>
+                      <button
+                        onClick={() => handleDeactivate(community.id)}
+                        disabled={deactivating}
+                        className="hf-btn hf-btn-destructive"
+                        style={{ padding: "2px 10px", fontSize: 12 }}
+                      >
+                        {deactivating ? "..." : "Yes"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeactivateId(null)}
+                        className="hf-btn hf-btn-secondary"
+                        style={{ padding: "2px 10px", fontSize: 12 }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeactivateId(community.id)}
+                      className="hf-btn-ghost"
+                      style={{ padding: 0, fontSize: 12 }}
+                    >
+                      Deactivate
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

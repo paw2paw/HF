@@ -49,8 +49,11 @@ function getTypeLabel(type: string): string {
 // ── Component ──────────────────────────────────────────
 
 export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) {
-  // Phase tracking
-  const [phase, setPhase] = useState<Phase>("intents");
+  // Restore task state from data bag (survives browser refresh)
+  const restoredTaskId = getData<string>("planTaskId") || null;
+
+  // Phase tracking — resume generating if task was in progress
+  const [phase, setPhase] = useState<Phase>(restoredTaskId ? "generating" : "intents");
 
   // Intent inputs
   const [sessionCount, setSessionCount] = useState<number | null>(null);
@@ -59,7 +62,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
   const [assessments, setAssessments] = useState<typeof ASSESSMENT_OPTIONS[number]>("light");
 
   // Generation
-  const [taskId, setTaskId] = useState<string | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(restoredTaskId);
   const [error, setError] = useState<string | null>(null);
 
   // Lesson plan editing
@@ -111,6 +114,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
         setError(ctx.error);
         setPhase("intents");
         setTaskId(null);
+        setData("planTaskId", null);
         return;
       }
       setError(null);
@@ -125,12 +129,14 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
         setPhase("intents");
       }
       setTaskId(null);
-    }, []),
+      setData("planTaskId", null);
+    }, [setData]),
     onError: useCallback((message: string) => {
       setError(message);
       setPhase("intents");
       setTaskId(null);
-    }, []),
+      setData("planTaskId", null);
+    }, [setData]),
   });
 
   // ── Intent helpers ────────────────────────────────────
@@ -168,6 +174,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
   // ── "Generate & Review" — full path ───────────────────
 
   async function handleGenerate() {
+    if (taskId || phase === "generating") return;
     savePlanIntents();
     setError(null);
     setPhase("generating");
@@ -196,6 +203,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
         throw new Error(data.error || "Failed to start plan generation");
       }
       setTaskId(data.taskId);
+      setData("planTaskId", data.taskId);
     } catch (err: any) {
       setError(err.message || "Failed to start plan generation");
       setPhase("intents");
@@ -627,6 +635,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
           onClick={() => {
             if (phase === "generating") {
               setTaskId(null);
+              setData("planTaskId", null);
               setPhase("intents");
               setError(null);
             } else {

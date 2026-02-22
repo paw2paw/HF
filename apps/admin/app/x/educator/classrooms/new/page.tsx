@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import { ProgressStepper } from "@/components/shared/ProgressStepper";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { Building2, Users, BookOpen, ExternalLink } from "lucide-react";
 
@@ -70,6 +71,9 @@ export default function NewClassroomPage() {
     joinToken: string;
   } | null>(null);
   const [error, setError] = useState("");
+
+  // Warn on browser refresh/close when user has started filling in data
+  useUnsavedGuard(name.trim().length > 0 && !created);
   // Steps are managed by StepFlowContext; FALLBACK_STEPS used as reference for labels
   const flowSteps = state?.steps || FALLBACK_STEPS;
 
@@ -104,9 +108,13 @@ export default function NewClassroomPage() {
         const savedName = flowGetData<string>("name");
         const savedDesc = flowGetData<string>("description");
         const savedDomainId = flowGetData<string>("domainId");
+        const savedCreated = flowGetData<{ id: string; joinToken: string }>("created");
+        const savedPlaybooks = flowGetData<string[]>("selectedPlaybooks");
         if (savedName) setName(savedName);
         if (savedDesc) setDescription(savedDesc);
         if (savedDomainId) setDomainId(savedDomainId);
+        if (savedCreated) setCreated(savedCreated);
+        if (savedPlaybooks) setSelectedPlaybooks(new Set(savedPlaybooks));
       }
     };
     init();
@@ -161,11 +169,11 @@ export default function NewClassroomPage() {
 
       if (res?.ok) {
         sessionStorage.removeItem("classroom-draft"); // clean up legacy
-        setCreated({
-          id: res.classroom.id,
-          joinToken: res.classroom.joinToken,
-        });
-        flowSetStep(3);
+        const createdData = { id: res.classroom.id, joinToken: res.classroom.joinToken };
+        setCreated(createdData);
+        flowSetData("created", createdData);
+        const inviteIdx = state?.steps.findIndex(s => s.id === "invite") ?? 3;
+        flowSetStep(inviteIdx >= 0 ? inviteIdx : 3);
       } else {
         setError(res?.error ?? `Failed to create ${lower("cohort")}`);
       }
@@ -377,13 +385,19 @@ export default function NewClassroomPage() {
 
           <div className="flex gap-3">
             <button
-              onClick={() => flowSetStep(0)}
+              onClick={() => {
+                flowSetData("selectedPlaybooks", [...selectedPlaybooks]);
+                flowSetStep(0);
+              }}
               className="hf-btn hf-btn-secondary flex-1"
             >
               Back
             </button>
             <button
-              onClick={() => flowSetStep(2)}
+              onClick={() => {
+                flowSetData("selectedPlaybooks", [...selectedPlaybooks]);
+                flowSetStep(2);
+              }}
               className="hf-btn hf-btn-primary"
               style={{ flex: 2 }}
             >
@@ -514,6 +528,12 @@ export default function NewClassroomPage() {
                 setDomainId(domains.length === 1 ? domains[0].id : "");
                 setCreated(null);
                 setSelectedPlaybooks(new Set());
+                // Clear stale bag data so the new flow starts fresh
+                flowSetData("name", undefined);
+                flowSetData("description", undefined);
+                flowSetData("domainId", undefined);
+                flowSetData("created", undefined);
+                flowSetData("selectedPlaybooks", undefined);
                 flowSetStep(0);
               },
             },

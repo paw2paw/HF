@@ -32,8 +32,21 @@ export function getAvatarGradient(id: string): string {
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
 }
 
+/** Compute default initials from a name (first letter of first + last word) */
+export function computeInitials(name: string | null, maxChars: number = 2): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return parts
+    .slice(0, maxChars)
+    .map((p) => p[0].toUpperCase())
+    .join("");
+}
+
 interface UserAvatarProps {
   name: string | null;
+  initials?: string | null;
   role?: string;
   userId?: string;
   image?: string | null;
@@ -45,6 +58,7 @@ interface UserAvatarProps {
 
 export function UserAvatar({
   name,
+  initials,
   role,
   userId,
   image,
@@ -53,8 +67,13 @@ export function UserAvatar({
   className,
   style,
 }: UserAvatarProps) {
-  const initial = ((name || "?")[0] || "?").toUpperCase();
-  const fontSize = Math.round(size * 0.4);
+  // Custom initials take priority, then auto-compute from name
+  const displayInitials = initials?.trim() || computeInitials(name);
+
+  // Scale font size based on character count
+  const charCount = displayInitials.length;
+  const fontScale = charCount <= 1 ? 0.4 : charCount === 2 ? 0.34 : 0.28;
+  const fontSize = Math.round(size * fontScale);
 
   const bg =
     useGradient && userId
@@ -94,9 +113,10 @@ export function UserAvatar({
         color: "var(--surface-primary)",
         fontSize,
         fontWeight: 700,
+        letterSpacing: charCount > 1 ? "-0.02em" : undefined,
       }}
     >
-      {initial}
+      {displayInitials}
     </div>
   );
 }

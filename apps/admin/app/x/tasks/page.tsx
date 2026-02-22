@@ -54,7 +54,7 @@ const TASK_TYPE_LABELS: Record<string, { label: string; icon: string; resumePath
   content_wizard: {
     label: "Content Wizard",
     icon: "BookPlus",
-    resumePath: "/x/content-wizard",
+    resumePath: "/x/subjects",
   },
 };
 
@@ -82,7 +82,7 @@ function getResumePath(task: UserTask): string {
     return `/x/subjects/${ctx.subjectId}`;
   }
   if (task.taskType === "content_wizard" && ctx?.subjectId) {
-    return `/x/content-wizard?subjectId=${ctx.subjectId}${ctx?.domainId ? `&domainId=${ctx.domainId}` : ""}`;
+    return `/x/subjects/${ctx.subjectId}`;
   }
   return TASK_TYPE_LABELS[task.taskType]?.resumePath || "/x";
 }
@@ -280,6 +280,7 @@ export default function TasksPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Archive state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -308,7 +309,7 @@ export default function TasksPage() {
         setHasMore(completedData.hasMore ?? false);
       }
     } catch {
-      // Ignore
+      setError("Failed to load tasks. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -482,8 +483,14 @@ export default function TasksPage() {
         </div>
       )}
 
+      {error && !loading && (
+        <div style={{ padding: 16, background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", color: "var(--status-error-text)", borderRadius: 12, fontSize: 14, marginBottom: 24 }}>
+          {error}
+        </div>
+      )}
+
       {/* In Progress */}
-      {!loading && (
+      {!loading && !error && (
         <section style={{ marginBottom: 40 }}>
           <h2
             style={{

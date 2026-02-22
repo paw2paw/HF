@@ -252,7 +252,7 @@ export default function CallerGraphPage() {
         router.push(`/x/callers/${callerId}?tab=goals`);
         break;
       case "param":
-        router.push(`/data-dictionary?search=${encodeURIComponent(node.slug || node.label)}`);
+        router.push(`/x/dictionary?search=${encodeURIComponent(node.slug || node.label)}`);
         break;
       default:
         // For memory, target, identity, group nodes — stay on graph

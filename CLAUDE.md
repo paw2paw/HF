@@ -2,8 +2,8 @@
 
 > **Configuration over Code. Database over Filesystem. Evidence over Assumption. Reuse over Reinvention.**
 
-@../skills/dev-principles-SKILL.md
-@../skills/hf-nextjs-patterns-SKILL.md
+@/Users/paulwander/projects/skills/dev-principles-SKILL.md
+@/Users/paulwander/projects/skills/hf-nextjs-patterns-SKILL.md
 
 ---
 

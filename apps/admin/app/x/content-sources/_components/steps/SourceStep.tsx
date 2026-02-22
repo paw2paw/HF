@@ -194,6 +194,13 @@ function UploadNewSourceSection({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Clear stale hasFile flag after refresh (File objects can't survive sessionStorage)
+  useEffect(() => {
+    if (getData<boolean>("hasFile") && !file && !sourceCreated) {
+      setData("hasFile", false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Poll classification task
   useEffect(() => {
     if (!classifyTaskId) return;

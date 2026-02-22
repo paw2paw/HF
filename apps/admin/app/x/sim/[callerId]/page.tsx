@@ -23,6 +23,7 @@ export default function SimConversationPage() {
   const searchParams = useSearchParams();
   const { isDesktop } = useResponsive();
   const sessionGoal = searchParams.get('goal') || undefined;
+  const expectedDomainId = searchParams.get('domainId') || undefined;
 
   const [caller, setCaller] = useState<CallerInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +40,17 @@ export default function SimConversationPage() {
           return;
         }
         if (!cancelled) {
+          // Validate domain matches expected (from wizard navigation)
+          const callerDomainId = data.caller.domain?.id || data.caller.domainId;
+          if (expectedDomainId && callerDomainId && expectedDomainId !== callerDomainId) {
+            setError('Caller is no longer in the expected institution. Please re-select from the wizard.');
+            return;
+          }
+          if (!callerDomainId) {
+            setError('Caller has no institution assigned. Please assign one before simulating.');
+            return;
+          }
+
           const calls = (data.calls || [])
             .filter((c: any) => c.transcript?.trim())
             .map((c: any) => ({ transcript: c.transcript, createdAt: c.createdAt }))
@@ -56,7 +68,7 @@ export default function SimConversationPage() {
 
     fetchCaller();
     return () => { cancelled = true; };
-  }, [callerId]);
+  }, [callerId, expectedDomainId]);
 
   if (error) {
     return (

@@ -181,6 +181,7 @@ export function ConversationList() {
             >
               <UserAvatar
                 name={session?.user?.name || session?.user?.email || '?'}
+                initials={session?.user?.avatarInitials}
                 role={session?.user?.role}
                 size={28}
               />

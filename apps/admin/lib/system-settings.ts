@@ -18,6 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 
 // ── Cache ──────────────────────────────────────────────
 
@@ -339,7 +340,7 @@ export interface VoiceCallSettings {
 
 export const VOICE_CALL_DEFAULTS: VoiceCallSettings = {
   provider: "openai",
-  model: "gpt-4o",
+  model: config.ai.openai.model,
   knowledgePlanEnabled: false,
   autoPipeline: true,
   toolLookupTeachingPoint: true,
@@ -542,7 +543,7 @@ export interface DefaultsSettings {
 }
 
 export const DEFAULTS_DEFAULTS: DefaultsSettings = {
-  defaultArchetype: "TUT-001",
+  defaultArchetype: config.specs.defaultArchetype,
 };
 
 const DEFAULTS_KEYS: Record<keyof DefaultsSettings, string> = {

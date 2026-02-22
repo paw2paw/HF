@@ -470,14 +470,6 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
 
   const users = usersData?.users || [];
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log("[CreateTicketModal] Users loading:", usersLoading);
-    console.log("[CreateTicketModal] Users error:", usersError);
-    console.log("[CreateTicketModal] Users data:", usersData);
-    console.log("[CreateTicketModal] Users count:", users.length);
-  }, [usersData, usersLoading, usersError, users]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;

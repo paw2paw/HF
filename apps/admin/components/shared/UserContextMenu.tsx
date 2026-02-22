@@ -171,6 +171,7 @@ export function UserContextMenu({
           <div className="flex items-center gap-3">
             <UserAvatar
               name={userName}
+              initials={session.user.avatarInitials}
               role={userRole}
               size={44}
             />

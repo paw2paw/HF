@@ -22,7 +22,7 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
   const domainId = getData<string>('domainId');
   const hasDomain = !!domainId;
 
-  // If no domainId, only email mode is available
+  // If no domainId, only individual/email modes are available (groups need a domain)
   const [mode, setMode] = useState<EnrollMode>(hasDomain ? 'group' : 'email');
 
   // Group mode state
@@ -188,6 +188,11 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
           <p className="text-[var(--text-secondary)]">
             Enroll students now, or skip and add them later
           </p>
+          {!hasDomain && (
+            <p className="text-xs text-[var(--text-muted)] mt-2">
+              Group enrollment will be available after the course is created.
+            </p>
+          )}
         </div>
 
         {/* Mode tabs */}

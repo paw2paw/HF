@@ -16,7 +16,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useTheme, usePalette, type ThemePreference } from "@/contexts";
-import { UserAvatar, ROLE_COLORS } from "@/components/shared/UserAvatar";
+import { UserAvatar, ROLE_COLORS, computeInitials } from "@/components/shared/UserAvatar";
 
 const ROLE_LABELS: Record<string, string> = {
   SUPERADMIN: "Super Admin",
@@ -58,6 +58,7 @@ interface AccountUser {
   email: string;
   name: string | null;
   displayName: string | null;
+  avatarInitials: string | null;
   image: string | null;
   role: string;
   isActive: boolean;
@@ -67,7 +68,7 @@ interface AccountUser {
 }
 
 export default function AccountPage() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const { preference, setPreference, resolvedTheme } = useTheme();
   const {
     lightPalette,
@@ -82,6 +83,7 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
   const [name, setName] = useState("");
+  const [avatarInitials, setAvatarInitials] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -94,6 +96,7 @@ export default function AccountPage() {
           setUser(data.user);
           setDisplayName(data.user.displayName || "");
           setName(data.user.name || "");
+          setAvatarInitials(data.user.avatarInitials || "");
         }
       })
       .finally(() => setLoading(false));
@@ -104,7 +107,7 @@ export default function AccountPage() {
   }, []);
 
   const save = useCallback(
-    (fields: { displayName?: string; name?: string }) => {
+    (fields: { displayName?: string; name?: string; avatarInitials?: string }, refreshSession = false) => {
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
       saveTimeout.current = setTimeout(async () => {
         setSaving(true);
@@ -119,13 +122,15 @@ export default function AccountPage() {
             setUser((prev) => (prev ? { ...prev, ...data.user } : prev));
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
+            // Refresh JWT so TopBar avatar picks up changes immediately
+            if (refreshSession) await updateSession();
           }
         } finally {
           setSaving(false);
         }
       }, 600);
     },
-    [],
+    [updateSession],
   );
 
   const handleDisplayNameChange = (val: string) => {
@@ -136,6 +141,12 @@ export default function AccountPage() {
   const handleNameChange = (val: string) => {
     setName(val);
     save({ name: val });
+  };
+
+  const handleInitialsChange = (val: string) => {
+    const cleaned = val.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
+    setAvatarInitials(cleaned);
+    save({ avatarInitials: cleaned }, true);
   };
 
   if (loading) {
@@ -235,7 +246,7 @@ export default function AccountPage() {
           Your identity and how the system addresses you
         </p>
 
-        {/* Avatar + role badge */}
+        {/* Avatar + role badge + initials editor */}
         <div
           style={{
             display: "flex",
@@ -247,12 +258,44 @@ export default function AccountPage() {
             borderRadius: 12,
           }}
         >
-          <UserAvatar
-            name={user.displayName || user.name || user.email}
-            role={user.role}
-            userId={user.id}
-            size={64}
-          />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <UserAvatar
+              name={user.displayName || user.name || user.email}
+              initials={avatarInitials || undefined}
+              role={user.role}
+              userId={user.id}
+              size={64}
+            />
+            <input
+              type="text"
+              value={avatarInitials}
+              onChange={(e) => handleInitialsChange(e.target.value)}
+              placeholder={computeInitials(user.displayName || user.name || user.email)}
+              maxLength={3}
+              style={{
+                width: 56,
+                padding: "4px 6px",
+                borderRadius: 8,
+                border: "1px solid var(--border-default)",
+                background: "var(--surface-primary)",
+                color: "var(--text-primary)",
+                fontSize: 13,
+                fontWeight: 600,
+                textAlign: "center",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                outline: "none",
+                transition: "border-color 0.15s ease",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "var(--accent-primary)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-default)";
+              }}
+              title="Custom avatar initials (max 3 letters)"
+            />
+          </div>
           <div style={{ flex: 1 }}>
             <div
               style={{

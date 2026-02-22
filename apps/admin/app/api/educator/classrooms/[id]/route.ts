@@ -75,6 +75,35 @@ export async function GET(
 }
 
 /**
+ * @api DELETE /api/educator/classrooms/[id]
+ * @visibility internal
+ * @scope educator:write
+ * @auth bearer
+ * @tags educator, classrooms
+ * @description Soft-delete a classroom by setting isActive to false. Requires educator ownership of the cohort.
+ * @response 200 { ok: true }
+ * @response 403 { ok: false, error: "Not authorized" }
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireEducator();
+  if (isEducatorAuthError(auth)) return auth.error;
+
+  const { id } = await params;
+  const ownership = await requireEducatorCohortOwnership(id, auth.callerId);
+  if ("error" in ownership) return ownership.error;
+
+  await prisma.cohortGroup.update({
+    where: { id },
+    data: { isActive: false },
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
+/**
  * @api PATCH /api/educator/classrooms/[id]
  * @visibility internal
  * @scope educator:write

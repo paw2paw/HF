@@ -208,6 +208,8 @@ export type ParamDisplayInfo = {
   description: string;
   color: string;
   section: string;
+  interpretationHigh?: string;
+  interpretationLow?: string;
 };
 
 export type ParamConfig = {

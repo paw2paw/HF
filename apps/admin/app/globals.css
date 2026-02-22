@@ -836,6 +836,16 @@ html.light {
   to { transform: rotate(360deg); }
 }
 
+/* Personality radar chart entry animation */
+@keyframes radar-scale-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.hf-radar-enter {
+  animation: radar-scale-in 0.6s ease-out;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Login & Auth Page Styling
    - Brand colors from humanfirstfoundation.com

@@ -12,6 +12,8 @@ import type { AgentTunerOutput, AgentTunerPill } from "@/lib/agent-tuner/types";
 import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
 import type { MatrixPosition } from "@/lib/domain/agent-tuning";
 import { WizardSummary } from "@/components/shared/WizardSummary";
+import { FancySelect } from "@/components/shared/FancySelect";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { Building2, BookOpen, User, FileText, PlayCircle } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
@@ -105,304 +107,6 @@ function StepMarker({ number, label, completed }: { number: number; label: strin
       >
         {label}
       </div>
-    </div>
-  );
-}
-
-// ── Fancy Select ──────────────────────────────────
-
-type SortKey = "label" | "description";
-type SortDir = "asc" | "desc";
-
-function FancySelect({
-  options,
-  value,
-  onChange,
-  placeholder = "Select...",
-  loading,
-  searchable = true,
-  sortable = true,
-}: {
-  options: { value: string; label: string; description?: string | null }[];
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  loading?: boolean;
-  searchable?: boolean;
-  sortable?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("label");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const ref = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  // Focus search when dropdown opens
-  useEffect(() => {
-    if (open && searchable) {
-      setTimeout(() => searchRef.current?.focus(), 0);
-    }
-  }, [open, searchable]);
-
-  const selected = options.find((o) => o.value === value);
-
-  // Filter
-  const q = query.toLowerCase();
-  const filtered = q
-    ? options.filter(
-        (o) =>
-          o.label.toLowerCase().includes(q) ||
-          (o.description?.toLowerCase().includes(q) ?? false)
-      )
-    : options;
-
-  // Sort
-  const sorted = [...filtered].sort((a, b) => {
-    const aVal = (sortKey === "label" ? a.label : a.description ?? "").toLowerCase();
-    const bVal = (sortKey === "label" ? b.label : b.description ?? "").toLowerCase();
-    const cmp = aVal.localeCompare(bVal);
-    return sortDir === "asc" ? cmp : -cmp;
-  });
-
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{ fontSize: 14, color: "var(--text-muted)", padding: "14px 0" }}>
-        Loading...
-      </div>
-    );
-  }
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      {/* ── Trigger ── */}
-      <button
-        type="button"
-        onClick={() => { setOpen(!open); if (open) setQuery(""); }}
-        style={{
-          width: "100%",
-          padding: "14px 20px",
-          borderRadius: 12,
-          border: `2px solid ${open ? "var(--accent-primary)" : "var(--input-border)"}`,
-          background: "var(--input-bg)",
-          fontSize: 16,
-          fontWeight: 500,
-          cursor: "pointer",
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          color: selected ? "var(--text-primary)" : "var(--text-placeholder)",
-          transition: "border-color 0.2s, box-shadow 0.2s",
-          boxShadow: open ? "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)" : "none",
-          boxSizing: "border-box",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, color: selected ? "var(--text-primary)" : "var(--text-placeholder)" }}>
-            {selected ? selected.label : placeholder}
-          </div>
-          {selected?.description && (
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2, fontWeight: 400 }}>
-              {selected.description}
-            </div>
-          )}
-        </div>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-          <path d="M4 6l4 4 4-4" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {/* ── Dropdown ── */}
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 14,
-            boxShadow: "0 8px 24px color-mix(in srgb, var(--foreground) 12%, transparent)",
-            overflow: "hidden",
-          }}
-        >
-          {/* ── Search + Sort toolbar ── */}
-          <div
-            style={{
-              padding: "10px 14px",
-              borderBottom: "1px solid var(--border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            {searchable && (
-              <div style={{ flex: 1, position: "relative" }}>
-                <svg
-                  width="14" height="14" viewBox="0 0 16 16" fill="none"
-                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-                >
-                  <circle cx="7" cy="7" r="5" stroke="var(--text-muted)" strokeWidth="1.5" />
-                  <path d="M11 11l3 3" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                <input
-                  ref={searchRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Filter..."
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px 8px 30px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border-default)",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    background: "var(--input-bg)",
-                    color: "var(--text-primary)",
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border-default)")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") { setOpen(false); setQuery(""); }
-                    if (e.key === "Enter" && sorted.length === 1) {
-                      onChange(sorted[0].value);
-                      setOpen(false);
-                      setQuery("");
-                    }
-                  }}
-                />
-              </div>
-            )}
-            {sortable && (
-              <div style={{ display: "flex", gap: 2 }}>
-                {(["label", "description"] as SortKey[]).map((key) => {
-                  const active = sortKey === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => toggleSort(key)}
-                      style={{
-                        padding: "5px 8px",
-                        borderRadius: 6,
-                        border: "none",
-                        background: active ? "var(--status-info-bg)" : "transparent",
-                        color: active ? "var(--accent-primary)" : "var(--text-muted)",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        whiteSpace: "nowrap",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {key === "label" ? "Name" : "Type"}
-                      {active && (
-                        <span style={{ marginLeft: 2, fontSize: 10 }}>
-                          {sortDir === "asc" ? "\u25B2" : "\u25BC"}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ── Options list ── */}
-          <div style={{ maxHeight: 240, overflowY: "auto" }}>
-            {sorted.length === 0 ? (
-              <div style={{ padding: "20px 14px", textAlign: "center", fontSize: 14, color: "var(--text-muted)" }}>
-                No matches for &ldquo;{query}&rdquo;
-              </div>
-            ) : (
-              sorted.map((o) => {
-                const isSelected = o.value === value;
-                return (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => { onChange(o.value); setOpen(false); setQuery(""); }}
-                    style={{
-                      width: "100%",
-                      padding: "12px 20px",
-                      border: "none",
-                      borderBottom: "1px solid var(--border-subtle)",
-                      background: isSelected ? "var(--status-info-bg)" : "var(--surface-primary)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--hover-bg)"; }}
-                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--surface-primary)"; }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 15, fontWeight: isSelected ? 700 : 500, color: "var(--text-primary)" }}>
-                        {o.label}
-                      </div>
-                      {o.description && (
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, fontWeight: 400 }}>
-                          {o.description}
-                        </div>
-                      )}
-                    </div>
-                    {isSelected && (
-                      <div
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          background: "var(--accent-primary)",
-                          color: "white",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {"\u2713"}
-                      </div>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -504,6 +208,9 @@ export default function QuickLaunchPage() {
   // ── Phase state machine ────────────────────────────
   const [phase, setPhase] = useState<Phase>("form");
   const [taskId, setTaskId] = useState<string | null>(null);
+
+  // Warn on browser refresh/close when in-progress (past form, not yet result)
+  useUnsavedGuard(phase !== "form" && phase !== "result");
 
   // Form state
   const [brief, setBrief] = useState("");
@@ -622,12 +329,20 @@ export default function QuickLaunchPage() {
   // ── Check for resumable task ──────────────────────
 
   useEffect(() => {
-    fetch("/api/tasks?status=in_progress")
+    // Check both in_progress (building) and completed with review phase (review overrides)
+    fetch("/api/tasks?status=in_progress,completed&taskType=quick_launch&limit=1&sort=recent")
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.tasks) {
-          const qlTask = data.tasks.find((t: any) => t.taskType === "quick_launch");
-          if (qlTask && qlTask.context) {
+          // Prefer in_progress tasks; fall back to recently completed ones in review phase
+          const inProgress = data.tasks.find((t: any) => t.taskType === "quick_launch" && t.status === "in_progress");
+          const reviewPhase = data.tasks.find(
+            (t: any) => t.taskType === "quick_launch" && t.status === "completed" && t.context?.phase === "review"
+          );
+          const qlTask = inProgress || reviewPhase;
+          // Skip if another tab already claimed this task
+          const claimedId = localStorage.getItem("ql-active-task");
+          if (qlTask && qlTask.context && qlTask.id !== claimedId) {
             setResumeTask({
               id: qlTask.id,
               context: qlTask.context,
@@ -645,6 +360,8 @@ export default function QuickLaunchPage() {
     if (!resumeTask?.context) return;
     const ctx = resumeTask.context;
 
+    // Mark task as claimed to prevent duplicate resume in other tabs
+    try { localStorage.setItem("ql-active-task", resumeTask.id); } catch {}
     setTaskId(resumeTask.id);
 
     // Restore input state
@@ -1154,6 +871,7 @@ export default function QuickLaunchPage() {
     if (evtPhase === "complete" && detail) {
       setResult(detail as LaunchResult);
       setPhase("result");
+      try { localStorage.removeItem("ql-active-task"); } catch {}
       return;
     }
 
@@ -1334,6 +1052,7 @@ export default function QuickLaunchPage() {
   const handleReset = () => {
     setPhase("form");
     setResult(null);
+    try { localStorage.removeItem("ql-active-task"); } catch {}
     setCommitTimeline([]);
     setFile(null);
     setSubjectName("");
@@ -2249,7 +1968,7 @@ export default function QuickLaunchPage() {
               The personality and interaction style your AI will use with callers.
             </div>
             <FancySelect
-              options={personas.map((p) => ({ value: p.slug, label: p.name, description: p.description }))}
+              options={personas.map((p) => ({ value: p.slug, label: p.name, subtitle: p.description ?? undefined }))}
               value={persona}
               onChange={(v) => { setPersona(v); setSuggestedPersona(null); }}
               placeholder={`Pick a ${lower('persona')}...`}

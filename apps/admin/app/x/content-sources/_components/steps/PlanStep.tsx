@@ -51,8 +51,12 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
   const subjectId = getData<string>("subjectId");
   const subjectName = getData<string>("subjectName");
 
-  // Phase tracking
-  const [phase, setPhase] = useState<"intents" | "generating" | "editing">("intents");
+  // Restore task state from data bag (survives browser refresh)
+  const restoredPlanTaskId = getData<string>("planTaskId") || null;
+  const restoredCurrGenTaskId = getData<string>("currGenTaskId") || null;
+
+  // Phase tracking — resume from where we left off
+  const [phase, setPhase] = useState<"intents" | "generating" | "editing">(restoredPlanTaskId ? "generating" : "intents");
 
   // Intent inputs
   const [sessionCount, setSessionCount] = useState<number | null>(null);
@@ -62,13 +66,13 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
 
   // Curriculum
   const [curriculumId, setCurriculumId] = useState<string | null>(getData<string>("curriculumId") || null);
-  const [curriculumStatus, setCurriculumStatus] = useState<"unknown" | "checking" | "none" | "generating" | "ready">("unknown");
-  const [currGenTaskId, setCurrGenTaskId] = useState<string | null>(null);
+  const [curriculumStatus, setCurriculumStatus] = useState<"unknown" | "checking" | "none" | "generating" | "ready">(restoredCurrGenTaskId ? "generating" : "unknown");
+  const [currGenTaskId, setCurrGenTaskId] = useState<string | null>(restoredCurrGenTaskId);
 
   // Lesson plan
   const [entries, setEntries] = useState<LessonEntry[]>([]);
   const [reasoning, setReasoning] = useState("");
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState(!!restoredPlanTaskId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,6 +115,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
         setError("Curriculum generation timed out. Please try again.");
         setCurriculumStatus("none");
         setCurrGenTaskId(null);
+        setData("currGenTaskId", null);
         return;
       }
       try {
@@ -129,9 +134,11 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
           if (saveData.curriculum?.id) {
             setCurriculumId(saveData.curriculum.id);
             setCurriculumStatus("ready");
+            setData("currGenTaskId", null);
           } else {
             setError(saveData.error || "Failed to save curriculum. Please try again.");
             setCurriculumStatus("none");
+            setData("currGenTaskId", null);
           }
         } else if (task?.status === "failed" || task?.status === "abandoned") {
           clearInterval(interval);
@@ -139,6 +146,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
           setError(ctx.error || "Curriculum generation failed. Please try again.");
           setCurriculumStatus("none");
           setCurrGenTaskId(null);
+          setData("currGenTaskId", null);
         }
       } catch {
         // silent — poll continues
@@ -161,6 +169,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
       const data = await res.json();
       if (data.taskId) {
         setCurrGenTaskId(data.taskId);
+        setData("currGenTaskId", data.taskId);
       } else {
         setError(data.error || "Failed to start curriculum generation");
         setCurriculumStatus("none");
@@ -172,11 +181,11 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
   }
 
   // Lesson plan task
-  const [planTaskId, setPlanTaskId] = useState<string | null>(null);
+  const [planTaskId, setPlanTaskId] = useState<string | null>(restoredPlanTaskId);
 
   // ── Generate lesson plan (starts async job) ─────────────────────────────
   async function handleGeneratePlan() {
-    if (!curriculumId) return;
+    if (!curriculumId || generating || planTaskId) return;
     setGenerating(true);
     setError(null);
     setPhase("generating");
@@ -195,6 +204,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
       if (data.taskId) {
         // Job submitted async, store taskId and poll
         setPlanTaskId(data.taskId);
+        setData("planTaskId", data.taskId);
       } else {
         setError(data.error || "Failed to start lesson plan generation");
         setPhase("intents");
@@ -220,6 +230,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
         setPhase("intents");
         setGenerating(false);
         setPlanTaskId(null);
+        setData("planTaskId", null);
         return;
       }
       try {
@@ -245,12 +256,14 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
             setGenerating(false);
           }
           setPlanTaskId(null);
+          setData("planTaskId", null);
         } else if (task?.status === "failed" || task?.status === "abandoned") {
           clearInterval(interval);
           setError(ctx.error || "Lesson plan generation failed. Please try again.");
           setPhase("intents");
           setGenerating(false);
           setPlanTaskId(null);
+          setData("planTaskId", null);
         } else if (task?.status === "in_progress" && ctx.error) {
           // Background job errored but didn't set terminal status
           clearInterval(interval);
@@ -258,6 +271,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
           setPhase("intents");
           setGenerating(false);
           setPlanTaskId(null);
+          setData("planTaskId", null);
         }
       } catch {
         // Silent — poll continues
@@ -268,6 +282,7 @@ export default function PlanStep({ setData, getData, onNext, onPrev }: StepProps
 
   // ── Intent form → generate ───────────────────────────
   async function handleIntentSubmit() {
+    if (generating || curriculumStatus === "generating" || curriculumStatus === "checking") return;
     if (curriculumStatus === "none") {
       await handleGenerateCurriculum();
       // Curriculum generation is async — it'll auto-trigger plan generation when ready

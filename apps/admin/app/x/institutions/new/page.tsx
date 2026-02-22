@@ -180,7 +180,7 @@ export default function NewInstitutionPage() {
               {saving ? "Creating..." : "Create Institution"}
             </button>
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push("/x/institutions")}
               style={{
                 padding: "12px 24px",
                 background: "var(--surface-secondary)",

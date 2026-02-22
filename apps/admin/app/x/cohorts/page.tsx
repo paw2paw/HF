@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/useApi";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
 import { School, Plus, Users, Phone, Target } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 type CohortGroup = {
   id: string;
@@ -35,6 +36,28 @@ export default function CohortsPage() {
   const [filterDomain, setFilterDomain] = useState("all");
   const [filterActive, setFilterActive] = useState("active");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/cohorts/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to delete");
+      refetch();
+    } catch (err: any) {
+      setDeleteError(err.message || "Failed to delete");
+    } finally {
+      setDeleting(false);
+      setConfirmDeleteId(null);
+    }
+  };
 
   // Fetch domains for filter
   const { data: domainsData } = useApi<{ domains: Domain[] }>("/api/domains", {
@@ -128,25 +151,27 @@ export default function CohortsPage() {
             Manage teacher and tutor cohort groups
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 16px",
-            background: "var(--button-primary-bg)",
-            color: "var(--button-primary-text)",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          <Plus size={14} />
-          New Cohort
-        </button>
+        {isOperator && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 16px",
+              background: "var(--button-primary-bg)",
+              color: "var(--button-primary-text)",
+              border: "none",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <Plus size={14} />
+            New Cohort
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -195,6 +220,20 @@ export default function CohortsPage() {
           ]}
         />
       </div>
+
+      {/* Delete error */}
+      {deleteError && (
+        <div className="hf-banner hf-banner-error" style={{ justifyContent: "space-between" }}>
+          <span>{deleteError}</span>
+          <button
+            onClick={() => setDeleteError(null)}
+            className="hf-btn-ghost"
+            style={{ padding: 0, fontSize: 12, color: "inherit", textDecoration: "underline" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -384,6 +423,45 @@ export default function CohortsPage() {
                     Owner: {cohort.owner.name}
                   </span>
                 </div>
+
+                {/* Delete action */}
+                {isOperator && (
+                  <div
+                    style={{ paddingTop: 10, marginTop: 10, borderTop: "1px solid var(--border-default)" }}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                  >
+                    {confirmDeleteId === cohort.id ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                        <span style={{ color: "var(--status-error-text)", fontWeight: 600 }}>
+                          Permanently delete this cohort?
+                        </span>
+                        <button
+                          onClick={() => handleDelete(cohort.id)}
+                          disabled={deleting}
+                          className="hf-btn hf-btn-destructive"
+                          style={{ padding: "2px 8px", fontSize: 11 }}
+                        >
+                          {deleting ? "..." : "Yes, delete"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="hf-btn hf-btn-secondary"
+                          style={{ padding: "2px 8px", fontSize: 11 }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(cohort.id)}
+                        className="hf-btn-ghost"
+                        style={{ padding: 0, fontSize: 11 }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </Link>
           ))}

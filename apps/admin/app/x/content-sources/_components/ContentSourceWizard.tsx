@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { ProgressStepper } from "@/components/shared/ProgressStepper";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import SourceStep from "./steps/SourceStep";
 import ExtractStep from "./steps/ExtractStep";
 import ReviewStep from "./steps/ReviewStep";
@@ -69,10 +70,15 @@ export default function ContentSourceWizard() {
 
   const currentStep = state?.currentStep ?? 0;
 
-  // Track visited steps for accurate stepper display
-  const visitedSteps = useRef(new Set<number>([0]));
+  // Warn on browser refresh/close when user has started working
+  useUnsavedGuard(!!getData<string>("sourceId") || !!getData<boolean>("hasFile"));
+
+  // Track visited steps in data bag so stepper survives refresh
+  const savedVisited = getData<number[]>("visitedSteps");
+  const visitedSteps = useRef(new Set<number>(savedVisited ?? [0]));
   if (!visitedSteps.current.has(currentStep)) {
     visitedSteps.current.add(currentStep);
+    setData("visitedSteps", [...visitedSteps.current]);
   }
 
   const handleNext = () => nextStep();
@@ -80,7 +86,9 @@ export default function ContentSourceWizard() {
   const handleGoToStep = (step: number) => setStep(step);
 
   // Build ProgressStepper data — only mark visited steps as completed
-  const progressSteps = CONTENT_STEPS.map((s, i) => ({
+  // Use spec-loaded steps from flow state when available, fallback to hardcoded
+  const activeSteps = state?.steps ?? CONTENT_STEPS;
+  const progressSteps = activeSteps.map((s, i) => ({
     label: s.label,
     completed: visitedSteps.current.has(i) && i < currentStep,
     active: i === currentStep,

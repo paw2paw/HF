@@ -73,6 +73,52 @@ export async function GET(_req: NextRequest, { params }: Params) {
  * @response 200 { subject: {...} }
  * @response 500 { error: "..." }
  */
+/**
+ * @api DELETE /api/subjects/:subjectId
+ * @visibility internal
+ * @scope subjects:delete
+ * @auth session
+ * @tags subjects
+ * @description Soft-delete a subject by setting isActive to false. Requires OPERATOR role.
+ * @param subjectId string - Subject ID (path)
+ * @response 200 { ok: true }
+ * @response 404 { ok: false, error: "Subject not found" }
+ * @response 500 { ok: false, error: "..." }
+ */
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
+    const { subjectId } = await params;
+
+    const subject = await prisma.subject.findUnique({
+      where: { id: subjectId },
+      select: { id: true },
+    });
+
+    if (!subject) {
+      return NextResponse.json(
+        { ok: false, error: "Subject not found" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.subject.update({
+      where: { id: subjectId },
+      data: { isActive: false },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    console.error("[subjects/:id] DELETE error:", error);
+    return NextResponse.json(
+      { ok: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const authResult = await requireAuth("OPERATOR");

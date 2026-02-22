@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { useStepFlow } from '@/contexts/StepFlowContext';
 import { ProgressStepper } from '@/components/shared/ProgressStepper';
+import { useUnsavedGuard } from '@/hooks/useUnsavedGuard';
 import { IntentStep } from './steps/IntentStep';
 import { ContentStep } from './steps/ContentStep';
 import { LessonPlanStep } from './steps/LessonPlanStep';
@@ -26,6 +27,9 @@ type CourseSetupWizardProps = {
 
 export function CourseSetupWizard({ onComplete }: CourseSetupWizardProps) {
   const { state, setStep, nextStep, prevStep, setData, getData, endFlow } = useStepFlow();
+
+  // Warn on browser refresh/close when user has started filling in data
+  useUnsavedGuard(!!getData<string>('courseName'));
 
   if (!state || !state.active) {
     return <div>Loading wizard...</div>;

@@ -8,6 +8,9 @@ import {
 import { renderEmailHtml } from "@/lib/email-render";
 export { renderEmailHtml, type RenderEmailOptions } from "@/lib/email-render";
 
+/** Centralized email "from" address — all email functions use this */
+export const EMAIL_FROM_DEFAULT = "HF Admin <noreply@example.com>";
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.resend.com",
   port: parseInt(process.env.SMTP_PORT || "587"),
@@ -38,7 +41,7 @@ export async function sendMagicLinkEmail({ to, url }: SendMagicLinkEmailParams) 
     settings = EMAIL_TEMPLATE_DEFAULTS;
   }
 
-  const fromAddress = process.env.EMAIL_FROM || `${settings.sharedFromName} <noreply@example.com>`;
+  const fromAddress = process.env.EMAIL_FROM || EMAIL_FROM_DEFAULT;
 
   const html = renderEmailHtml({
     heading: settings.magicLinkHeading,
@@ -99,7 +102,7 @@ export async function sendInviteEmail({
   const bodyTemplate = replaceVars(settings.inviteBody, vars);
   const footerText = replaceVars(settings.inviteFooter, vars);
 
-  const fromAddress = process.env.EMAIL_FROM || `${settings.sharedFromName} <noreply@example.com>`;
+  const fromAddress = process.env.EMAIL_FROM || EMAIL_FROM_DEFAULT;
 
   const bodyHtml = bodyTemplate
     .split("\n")
@@ -148,7 +151,7 @@ export async function sendPasswordResetEmail({
     settings = EMAIL_TEMPLATE_DEFAULTS;
   }
 
-  const fromAddress = process.env.EMAIL_FROM || `${settings.sharedFromName} <noreply@example.com>`;
+  const fromAddress = process.env.EMAIL_FROM || EMAIL_FROM_DEFAULT;
 
   const html = renderEmailHtml({
     heading: settings.passwordResetHeading,

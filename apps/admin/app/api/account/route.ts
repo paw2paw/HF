@@ -22,6 +22,7 @@ export async function GET() {
       email: true,
       name: true,
       displayName: true,
+      avatarInitials: true,
       image: true,
       role: true,
       isActive: true,
@@ -44,8 +45,8 @@ export async function GET() {
  * @scope account:write
  * @auth session
  * @tags account
- * @description Update the authenticated user's own display name and name
- * @body { displayName?: string, name?: string }
+ * @description Update the authenticated user's profile (display name, name, avatar initials)
+ * @body { displayName?: string, name?: string, avatarInitials?: string }
  * @response 200 { ok: true, user: object }
  */
 export async function PATCH(req: Request) {
@@ -53,19 +54,32 @@ export async function PATCH(req: Request) {
   if (isAuthError(authResult)) return authResult.error;
 
   const body = await req.json();
-  const { displayName, name } = body;
+  const { displayName, name, avatarInitials } = body;
+
+  // Validate avatarInitials: max 3 chars, uppercase, letters only
+  let cleanedInitials: string | undefined;
+  if (avatarInitials !== undefined) {
+    if (avatarInitials === null || avatarInitials === "") {
+      cleanedInitials = null as unknown as string; // clear initials
+    } else if (typeof avatarInitials === "string") {
+      const stripped = avatarInitials.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3);
+      cleanedInitials = stripped || undefined;
+    }
+  }
 
   const user = await prisma.user.update({
     where: { id: authResult.session.user.id },
     data: {
       ...(displayName !== undefined ? { displayName } : {}),
       ...(name !== undefined ? { name } : {}),
+      ...(cleanedInitials !== undefined ? { avatarInitials: cleanedInitials } : {}),
     },
     select: {
       id: true,
       email: true,
       name: true,
       displayName: true,
+      avatarInitials: true,
       image: true,
       role: true,
     },

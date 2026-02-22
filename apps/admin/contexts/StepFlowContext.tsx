@@ -9,6 +9,7 @@ export interface StepDefinition {
   id: string;
   label: string;        // "Select Domain & Caller"
   activeLabel: string;  // "Selecting Domain & Caller" (for banner)
+  skipWhen?: string;    // Optional skip condition expression (evaluated by evaluateSkipCondition)
 }
 
 export interface StepFlowState {
@@ -86,6 +87,14 @@ export function StepFlowProvider({ children }: { children: React.ReactNode }) {
   }, [flowState, hydrated]);
 
   const startFlow = useCallback((config: StartFlowConfig) => {
+    // Warn if another flow is active (prevent silent data loss)
+    if (flowState?.active && flowState.flowId !== config.flowId) {
+      if (typeof window !== "undefined" && !window.confirm(
+        "You have an in-progress flow. Starting a new one will discard it. Continue?"
+      )) {
+        return;
+      }
+    }
     setFlowState({
       flowId: config.flowId,
       active: true,
@@ -94,7 +103,7 @@ export function StepFlowProvider({ children }: { children: React.ReactNode }) {
       data: {},
       returnPath: config.returnPath,
     });
-  }, []);
+  }, [flowState]);
 
   const setStep = useCallback((step: number) => {
     setFlowState((prev) => {

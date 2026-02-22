@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { SourcePageHeader } from "@/components/shared/SourcePageHeader";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
+import { useSession } from "next-auth/react";
 
 const TRUST_LEVELS = [
   { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
@@ -68,6 +69,27 @@ export default function SubjectsPage() {
   const [selectedDomain, setSelectedDomain] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // RBAC
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
+  const handleDeactivate = async (id: string) => {
+    setDeactivating(true);
+    try {
+      const res = await fetch(`/api/subjects/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to deactivate");
+      setSubjects((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      setError(err.message || "Failed to deactivate");
+    } finally {
+      setDeactivating(false);
+      setConfirmDeactivateId(null);
+    }
+  };
 
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -276,21 +298,23 @@ export default function SubjectsPage() {
 
         <div style={{ flex: 1 }} />
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 600,
-            background: "var(--button-primary-bg)",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
-        >
-          + New Subject
-        </button>
+        {isOperator && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              background: "var(--button-primary-bg)",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            + New Subject
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -386,6 +410,43 @@ export default function SubjectsPage() {
                   <span><strong style={{ color: "var(--text-primary)" }}>{s.lessonPlanSessions}</strong> sessions</span>
                 )}
               </div>
+
+              {/* Deactivate action */}
+              {isOperator && s.isActive && (
+                <div
+                  style={{ paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border-default)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {confirmDeactivateId === s.id ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                      <span style={{ color: "var(--status-error-text)" }}>Deactivate?</span>
+                      <button
+                        onClick={() => handleDeactivate(s.id)}
+                        disabled={deactivating}
+                        className="hf-btn hf-btn-destructive"
+                        style={{ padding: "2px 8px", fontSize: 11 }}
+                      >
+                        {deactivating ? "..." : "Yes"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeactivateId(null)}
+                        className="hf-btn hf-btn-secondary"
+                        style={{ padding: "2px 8px", fontSize: 11 }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeactivateId(s.id)}
+                      className="hf-btn-ghost"
+                      style={{ padding: 0, fontSize: 11 }}
+                    >
+                      Deactivate
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

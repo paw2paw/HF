@@ -4,7 +4,7 @@ import EmailProvider from "next-auth/providers/email";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
-import { sendMagicLinkEmail } from "./email";
+import { sendMagicLinkEmail, EMAIL_FROM_DEFAULT } from "./email";
 import type { UserRole } from "@prisma/client";
 import type { Adapter } from "next-auth/adapters";
 
@@ -18,6 +18,7 @@ declare module "next-auth" {
       role: UserRole;
       assignedDomainId: string | null;
       institutionId: string | null;
+      avatarInitials: string | null;
     };
   }
 
@@ -25,6 +26,7 @@ declare module "next-auth" {
     role: UserRole;
     assignedDomainId?: string | null;
     institutionId?: string | null;
+    avatarInitials?: string | null;
   }
 }
 
@@ -70,6 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: true,
             assignedDomainId: true,
             institutionId: true,
+            avatarInitials: true,
           },
         });
 
@@ -104,6 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           role: user.role,
           assignedDomainId: user.assignedDomainId,
+          avatarInitials: user.avatarInitials,
         };
       },
     }),
@@ -117,7 +121,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           pass: process.env.SMTP_PASSWORD || process.env.RESEND_API_KEY || "",
         },
       },
-      from: process.env.EMAIL_FROM || "HF Admin <noreply@example.com>",
+      from: process.env.EMAIL_FROM || EMAIL_FROM_DEFAULT,
       sendVerificationRequest: async ({ identifier: email, url }) => {
         await sendMagicLinkEmail({ to: email, url });
       },
@@ -162,13 +166,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       // On sign in, add user info to token
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.assignedDomainId = user.assignedDomainId ?? null;
         token.institutionId = user.institutionId ?? null;
+        token.avatarInitials = user.avatarInitials ?? null;
+      }
+      // On session update (e.g. after profile save), refresh from DB
+      if (trigger === "update" && token.id) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { avatarInitials: true, name: true, role: true, assignedDomainId: true, institutionId: true },
+        });
+        if (fresh) {
+          token.avatarInitials = fresh.avatarInitials ?? null;
+          token.name = fresh.name;
+          token.role = fresh.role;
+          token.assignedDomainId = fresh.assignedDomainId ?? null;
+          token.institutionId = fresh.institutionId ?? null;
+        }
       }
       return token;
     },
@@ -180,6 +199,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = token.role as UserRole;
         session.user.assignedDomainId = (token.assignedDomainId as string) ?? null;
         session.user.institutionId = (token.institutionId as string) ?? null;
+        session.user.avatarInitials = (token.avatarInitials as string) ?? null;
       }
       return session;
     },

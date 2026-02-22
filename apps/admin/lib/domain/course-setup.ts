@@ -98,7 +98,7 @@ export type ProgressCallback = (event: ProgressEvent) => void;
 async function loadCourseSetupSteps(): Promise<CourseSetupStep[]> {
   const spec = await prisma.analysisSpec.findFirst({
     where: {
-      slug: { contains: "course-setup-001", mode: "insensitive" },
+      slug: { contains: config.specs.courseSetup.toLowerCase(), mode: "insensitive" },
       isActive: true,
     },
     select: { slug: true, config: true },

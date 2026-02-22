@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import { useSession } from "next-auth/react";
 
 interface Classroom {
   id: string;
@@ -22,7 +23,29 @@ export default function ClassroomsPage() {
   const institutionId = searchParams.get("institutionId");
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const { terms, plural, lower, lowerPlural } = useTerminology();
+
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
+
+  const handleArchive = async (id: string) => {
+    setArchiving(true);
+    setArchiveError(null);
+    try {
+      const res = await fetch(`/api/educator/classrooms/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to archive");
+      setClassrooms((prev) => prev.map((c) => c.id === id ? { ...c, isActive: false } : c));
+    } catch (err: any) {
+      setArchiveError(err.message || "Failed to archive");
+    } finally {
+      setArchiving(false);
+      setConfirmArchiveId(null);
+    }
+  };
 
   useEffect(() => {
     const instQuery = institutionId ? `?institutionId=${institutionId}` : "";
@@ -60,14 +83,29 @@ export default function ClassroomsPage() {
             {classrooms.length} {classrooms.length !== 1 ? lowerPlural("cohort") : lower("cohort")}
           </p>
         </div>
-        <Link
-          href="/x/educator/classrooms/new"
-          className="hf-btn hf-btn-primary"
-          style={{ textDecoration: "none" }}
-        >
-          + New {terms.cohort}
-        </Link>
+        {isOperator && (
+          <Link
+            href="/x/educator/classrooms/new"
+            className="hf-btn hf-btn-primary"
+            style={{ textDecoration: "none" }}
+          >
+            + New {terms.cohort}
+          </Link>
+        )}
       </div>
+
+      {archiveError && (
+        <div className="hf-banner hf-banner-error" style={{ justifyContent: "space-between" }}>
+          <span>{archiveError}</span>
+          <button
+            onClick={() => setArchiveError(null)}
+            className="hf-btn-ghost"
+            style={{ padding: 0, fontSize: 12, color: "inherit", textDecoration: "underline" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {classrooms.length === 0 ? (
         <div className="hf-card text-center" style={{ padding: "60px 20px" }}>
@@ -78,13 +116,15 @@ export default function ClassroomsPage() {
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20 }}>
             Create your first {lower("cohort")} to start inviting {lowerPlural("caller")}.
           </p>
-          <Link
-            href="/x/educator/classrooms/new"
-            className="hf-btn hf-btn-primary"
-            style={{ textDecoration: "none" }}
-          >
-            Create {terms.cohort}
-          </Link>
+          {isOperator && (
+            <Link
+              href="/x/educator/classrooms/new"
+              className="hf-btn hf-btn-primary"
+              style={{ textDecoration: "none" }}
+            >
+              Create {terms.cohort}
+            </Link>
+          )}
         </div>
       ) : (
         <div
@@ -186,6 +226,43 @@ export default function ClassroomsPage() {
                     day: "numeric",
                     month: "short",
                   })}
+                </div>
+              )}
+
+              {/* Archive action */}
+              {isOperator && classroom.isActive && (
+                <div
+                  style={{ paddingTop: 10, marginTop: 10, borderTop: "1px solid var(--border-default)" }}
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                >
+                  {confirmArchiveId === classroom.id ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                      <span style={{ color: "var(--status-error-text)" }}>Archive?</span>
+                      <button
+                        onClick={() => handleArchive(classroom.id)}
+                        disabled={archiving}
+                        className="hf-btn hf-btn-destructive"
+                        style={{ padding: "2px 8px", fontSize: 11 }}
+                      >
+                        {archiving ? "..." : "Yes"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmArchiveId(null)}
+                        className="hf-btn hf-btn-secondary"
+                        style={{ padding: "2px 8px", fontSize: 11 }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmArchiveId(classroom.id)}
+                      className="hf-btn-ghost"
+                      style={{ padding: 0, fontSize: 11 }}
+                    >
+                      Archive
+                    </button>
+                  )}
                 </div>
               )}
             </Link>

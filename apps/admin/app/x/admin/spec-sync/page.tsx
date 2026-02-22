@@ -136,7 +136,10 @@ export default function SpecSyncPage() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h1 className="hf-page-title">Import Specs from Files</h1>
+          <div>
+            <a href="/x/settings" style={{ fontSize: 13, color: "var(--accent-primary)", textDecoration: "none" }}>&larr; Back to Settings</a>
+            <h1 className="hf-page-title" style={{ marginTop: 4 }}>Import Specs from Files</h1>
+          </div>
           <p style={{ margin: "4px 0 0", color: "var(--text-secondary)", fontSize: 14 }}>
             Load <code>docs-archive/bdd-specs/*.spec.json</code> files into the database (DB is the source of truth after import)
           </p>

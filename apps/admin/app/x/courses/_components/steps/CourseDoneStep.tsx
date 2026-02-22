@@ -192,8 +192,10 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
             primaryAction={{
               label: 'Start Teaching',
               icon: <PlayCircle className="w-5 h-5" />,
-              href: domainId ? `/x/teach?domainId=${domainId}` : undefined,
-              onClick: domainId ? undefined : handleGoToCourses,
+              onClick: () => {
+                endFlow();
+                router.push(domainId ? `/x/teach?domainId=${domainId}` : '/x/courses');
+              },
             }}
             secondaryActions={[
               { label: 'Back to Courses', onClick: handleGoToCourses },
@@ -261,7 +263,8 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
                   setTaskProgress(null);
                   setError(null);
                   setData('taskId', undefined);
-                  setTimeout(() => handleLaunch(), 0);
+                  // Use rAF to ensure state clears before re-launching
+                  requestAnimationFrame(() => handleLaunch());
                 }}
                 className="flex-1 px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity font-semibold"
               >
@@ -313,7 +316,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
           }}
           secondaryActions={[
             {
-              label: 'Save as Draft',
+              label: 'Cancel',
               onClick: handleGoToCourses,
             },
           ]}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import { useSession } from "next-auth/react";
 
 interface Institution {
   id: string;
@@ -19,6 +20,29 @@ interface Institution {
 export default function InstitutionsPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
+  const isSuperAdmin = session?.user?.role === "SUPERADMIN";
+
+  const handleDeactivate = async (id: string) => {
+    setDeactivating(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/institutions/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to deactivate");
+      setInstitutions((prev) => prev.map((i) => i.id === id ? { ...i, isActive: false } : i));
+    } catch (err: any) {
+      setActionError(err.message || "Failed to deactivate");
+    } finally {
+      setDeactivating(false);
+      setConfirmDeactivateId(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/institutions")
@@ -49,21 +73,36 @@ export default function InstitutionsPage() {
             Manage schools and organizations
           </p>
         </div>
-        <Link
-          href="/x/institutions/new"
-          style={{
-            padding: "10px 16px",
-            background: "var(--button-primary-bg)",
-            color: "var(--button-primary-text)",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          + New Institution
-        </Link>
+        {isOperator && (
+          <Link
+            href="/x/institutions/new"
+            style={{
+              padding: "10px 16px",
+              background: "var(--button-primary-bg)",
+              color: "var(--button-primary-text)",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            + New Institution
+          </Link>
+        )}
       </div>
+
+      {actionError && (
+        <div className="hf-banner hf-banner-error" style={{ justifyContent: "space-between" }}>
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="hf-btn-ghost"
+            style={{ padding: 0, fontSize: 12, color: "inherit", textDecoration: "underline" }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {institutions.length === 0 ? (
         <div
@@ -82,20 +121,22 @@ export default function InstitutionsPage() {
           <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 16 }}>
             Create your first institution to enable branded experiences for schools.
           </p>
-          <Link
-            href="/x/institutions/new"
-            style={{
-              padding: "10px 20px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Create Institution
-          </Link>
+          {isOperator && (
+            <Link
+              href="/x/institutions/new"
+              style={{
+                padding: "10px 20px",
+                background: "var(--button-primary-bg)",
+                color: "var(--button-primary-text)",
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              Create Institution
+            </Link>
+          )}
         </div>
       ) : (
         <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden" }}>
@@ -117,6 +158,11 @@ export default function InstitutionsPage() {
                 <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Status
                 </th>
+                {isSuperAdmin && (
+                  <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -168,6 +214,39 @@ export default function InstitutionsPage() {
                       {inst.isActive ? "Active" : "Inactive"}
                     </span>
                   </td>
+                  {isSuperAdmin && (
+                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                      {inst.isActive && (
+                        confirmDeactivateId === inst.id ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+                            <button
+                              onClick={() => handleDeactivate(inst.id)}
+                              disabled={deactivating}
+                              className="hf-btn hf-btn-destructive"
+                              style={{ padding: "2px 8px", fontSize: 11 }}
+                            >
+                              {deactivating ? "..." : "Confirm"}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeactivateId(null)}
+                              className="hf-btn hf-btn-secondary"
+                              style={{ padding: "2px 8px", fontSize: 11 }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeactivateId(inst.id)}
+                            className="hf-btn hf-btn-secondary"
+                            style={{ padding: "2px 8px", fontSize: 11 }}
+                          >
+                            Deactivate
+                          </button>
+                        )
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

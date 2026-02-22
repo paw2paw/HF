@@ -240,7 +240,7 @@ export default function TaxonomyGraphPage() {
         router.push(`/x/specs?id=${id}`);
         break;
       case "param":
-        router.push(`/data-dictionary?search=${encodeURIComponent(node.label)}`);
+        router.push(`/x/dictionary?search=${encodeURIComponent(node.label)}`);
         break;
       case "playbook":
         router.push(`/x/playbooks/${id}`);
@@ -255,22 +255,23 @@ export default function TaxonomyGraphPage() {
         break;
       }
       case "anchor":
-        router.push(`/data-dictionary?search=${encodeURIComponent(node.label)}`);
+        router.push(`/x/dictionary?search=${encodeURIComponent(node.label)}`);
         break;
       case "promptSlug":
-        router.push(`/x/taxonomy?tab=slugs&search=${encodeURIComponent(node.label)}`);
+        router.push(`/x/dictionary?search=${encodeURIComponent(node.label)}`);
         break;
-      case "target":
+      case "target": {
         // Navigate to data dictionary for the parameter this target belongs to
         const paramDetail = node.details?.find(d => d.label === "Parameter");
         if (paramDetail?.value) {
-          router.push(`/data-dictionary?search=${encodeURIComponent(String(paramDetail.value))}`);
+          router.push(`/x/dictionary?search=${encodeURIComponent(String(paramDetail.value))}`);
         }
         break;
+      }
       case "range": {
-        // Navigate to the parent slug
+        // Navigate to the parent slug in dictionary
         const [slugId] = id.split("/");
-        router.push(`/x/taxonomy?tab=slugs&id=${slugId}`);
+        router.push(`/x/dictionary?search=${encodeURIComponent(slugId)}`);
         break;
       }
     }

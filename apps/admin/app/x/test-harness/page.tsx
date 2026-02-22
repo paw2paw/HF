@@ -482,7 +482,8 @@ export default function TestHarnessPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Header */}
       <div>
-        <h1 className="hf-page-title">
+        <a href="/x/settings" style={{ fontSize: 13, color: "var(--accent-primary)", textDecoration: "none" }}>&larr; Back to Settings</a>
+        <h1 className="hf-page-title" style={{ marginTop: 4 }}>
           Test Harness
         </h1>
 

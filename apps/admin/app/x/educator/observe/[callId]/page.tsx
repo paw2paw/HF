@@ -24,6 +24,8 @@ export default function ObserveCallPage() {
   const [callInfo, setCallInfo] = useState<CallInfo | null>(null);
   const [callEnded, setCallEnded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [interjectText, setInterjectText] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -61,7 +63,7 @@ export default function ObserveCallPage() {
           }
         }
       } catch {
-        // Error loading
+        setLoadError("Failed to connect to call. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -123,7 +125,8 @@ export default function ObserveCallPage() {
         ]);
       }
     } catch {
-      // Error sending
+      setSendError("Failed to send message. Please try again.");
+      setTimeout(() => setSendError(null), 4000);
     } finally {
       setSending(false);
     }
@@ -135,6 +138,19 @@ export default function ObserveCallPage() {
         <div style={{ fontSize: 15, color: "var(--text-muted)" }}>
           Connecting to call...
         </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ padding: 32 }}>
+        <div style={{ padding: 16, background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", color: "var(--status-error-text)", borderRadius: 12, fontSize: 14 }}>
+          {loadError}
+        </div>
+        <button onClick={() => router.back()} style={{ marginTop: 12, fontSize: 13, color: "var(--accent-primary)", background: "none", border: "none", cursor: "pointer" }}>
+          &larr; Go back
+        </button>
       </div>
     );
   }
@@ -322,6 +338,11 @@ export default function ObserveCallPage() {
       </div>
 
       {/* Interject Panel */}
+      {sendError && (
+        <div style={{ padding: "8px 20px", background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", color: "var(--status-error-text)", fontSize: 13, textAlign: "center" }}>
+          {sendError}
+        </div>
+      )}
       {!callEnded && (
         <div
           style={{

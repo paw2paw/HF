@@ -146,7 +146,8 @@ export default function DebugPage() {
   return (
     <div style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 className="hf-page-title">Debug Console</h1>
+        <a href="/x/settings" style={{ fontSize: 13, color: "var(--accent-primary)", textDecoration: "none" }}>&larr; Back to Settings</a>
+        <h1 className="hf-page-title" style={{ marginTop: 4 }}>Debug Console</h1>
         <p style={{ color: "var(--text-secondary)", margin: "4px 0 0", fontSize: 14 }}>
           Test API endpoints and view request/response logs
         </p>

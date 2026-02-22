@@ -633,6 +633,7 @@ model User {
   role          UserRole  @default(OPERATOR) // Default to OPERATOR for new users
   name          String?
   displayName   String? // What the system calls this user
+  avatarInitials String? // Custom avatar initials (max 3 chars, user-set)
   image         String? // For NextAuth (avatar)
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())

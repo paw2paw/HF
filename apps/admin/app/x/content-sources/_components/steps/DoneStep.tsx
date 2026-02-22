@@ -117,8 +117,8 @@ export default function DoneStep({ getData, onPrev, endFlow }: StepProps) {
       }}
       stats={stats.length > 0 ? stats : undefined}
       primaryAction={{
-        label: "Teach This",
-        href: domainId ? `/x/teach?domainId=${domainId}` : undefined,
+        label: domainId ? "Teach This" : "Done",
+        href: domainId ? `/x/teach?domainId=${domainId}` : "/x/content-sources",
         onClick: endFlow,
       }}
       secondaryActions={[

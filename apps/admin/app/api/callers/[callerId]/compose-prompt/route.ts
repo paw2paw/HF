@@ -30,6 +30,25 @@ export async function POST(
     if (isAuthError(authResult)) return authResult.error;
 
     const { callerId } = await params;
+
+    // Validate caller exists and has a domain assigned
+    const caller = await prisma.caller.findUnique({
+      where: { id: callerId },
+      select: { id: true, domainId: true, name: true },
+    });
+    if (!caller) {
+      return NextResponse.json(
+        { ok: false, error: "Caller not found" },
+        { status: 404 }
+      );
+    }
+    if (!caller.domainId) {
+      return NextResponse.json(
+        { ok: false, error: "Caller has no institution assigned. Please assign an institution before composing a prompt." },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const {
       triggerType = "manual",

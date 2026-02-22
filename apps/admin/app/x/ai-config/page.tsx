@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import { useSession } from "next-auth/react";
 
 // =====================================================
 // TYPES
@@ -91,6 +92,9 @@ export default function AIConfigPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  const { data: session } = useSession();
+  const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
 
   // Models management state
   const [showModelsManager, setShowModelsManager] = useState(false);
@@ -960,20 +964,15 @@ export default function AIConfigPage() {
                                 >
                                   {model.isActive ? "Disable" : "Enable"}
                                 </button>
-                                <button
-                                  onClick={() => deleteModel(model.modelId)}
-                                  style={{
-                                    padding: "4px 8px",
-                                    borderRadius: 4,
-                                    border: `1px solid var(--status-error-border)`,
-                                    background: "var(--status-error-bg)",
-                                    fontSize: 11,
-                                    cursor: "pointer",
-                                    color: "var(--status-error-text)",
-                                  }}
-                                >
-                                  Delete
-                                </button>
+                                {isOperator && (
+                                  <button
+                                    onClick={() => deleteModel(model.modelId)}
+                                    className="hf-btn hf-btn-destructive"
+                                    style={{ padding: "4px 8px", fontSize: 11 }}
+                                  >
+                                    Delete
+                                  </button>
+                                )}
                               </>
                             )}
                           </div>

@@ -20,7 +20,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
   useEffect(() => {
     const saved = getData<string>('welcomeMessage');
     if (saved) setWelcomeMessage(saved);
-  }, [getData]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch default welcome template for selected persona
   useEffect(() => {

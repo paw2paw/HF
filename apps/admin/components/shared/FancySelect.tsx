@@ -10,6 +10,9 @@ export type FancySelectOption = {
   isAction?: boolean; // For special actions like "+ Create new..."
 };
 
+type SortKey = "label" | "subtitle";
+type SortDir = "asc" | "desc";
+
 export type FancySelectProps = {
   value: string;
   onChange: (value: string) => void;
@@ -18,6 +21,8 @@ export type FancySelectProps = {
   searchable?: boolean;
   clearable?: boolean;
   disabled?: boolean;
+  loading?: boolean;
+  sortable?: boolean;
   selectedStyle?: { border: string; background: string }; // Custom style when selected
   style?: React.CSSProperties;
 };
@@ -30,12 +35,16 @@ export function FancySelect({
   searchable = true,
   clearable = false,
   disabled = false,
+  loading = false,
+  sortable = false,
   selectedStyle,
   style,
 }: FancySelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [highlightIndex, setHighlightIndex] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>("label");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -43,15 +52,36 @@ export function FancySelect({
   const selectedOption = options.find((o) => o.value === value && !o.isAction);
 
   const filteredOptions = useMemo(() => {
-    if (!search.trim()) return options;
-    const s = search.toLowerCase();
-    return options.filter(
-      (o) =>
-        o.isAction ||
-        o.label.toLowerCase().includes(s) ||
-        o.subtitle?.toLowerCase().includes(s)
-    );
-  }, [options, search]);
+    let result = options;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      result = options.filter(
+        (o) =>
+          o.isAction ||
+          o.label.toLowerCase().includes(s) ||
+          o.subtitle?.toLowerCase().includes(s)
+      );
+    }
+    if (sortable) {
+      result = [...result].sort((a, b) => {
+        if (a.isAction || b.isAction) return 0;
+        const aVal = (sortKey === "label" ? a.label : a.subtitle ?? "").toLowerCase();
+        const bVal = (sortKey === "label" ? b.label : b.subtitle ?? "").toLowerCase();
+        const cmp = aVal.localeCompare(bVal);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [options, search, sortable, sortKey, sortDir]);
+
+  const toggleSort = useCallback((key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }, [sortKey]);
 
   const handleSelect = useCallback(
     (option: FancySelectOption) => {
@@ -125,6 +155,14 @@ export function FancySelect({
   const hasValue = !!value && !!selectedOption;
   const inputBorder = hasValue && selectedStyle ? selectedStyle.border : "1px solid var(--border-default)";
   const inputBg = hasValue && selectedStyle ? selectedStyle.background : disabled ? "var(--surface-secondary)" : "var(--surface-primary)";
+
+  if (loading) {
+    return (
+      <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0", ...style }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} style={{ position: "relative", ...style }}>
@@ -230,10 +268,49 @@ export function FancySelect({
                   fontSize: 11,
                   color: "var(--text-placeholder)",
                   borderBottom: "1px solid var(--border-subtle)",
+                  display: sortable ? "flex" : "block",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 }}
               >
-                {filteredOptions.filter((o) => !o.isAction).length} option
-                {filteredOptions.filter((o) => !o.isAction).length !== 1 ? "s" : ""}
+                <span>
+                  {filteredOptions.filter((o) => !o.isAction).length} option
+                  {filteredOptions.filter((o) => !o.isAction).length !== 1 ? "s" : ""}
+                </span>
+                {sortable && (
+                  <span style={{ display: "flex", gap: 2 }}>
+                    {(["label", "subtitle"] as SortKey[]).map((key) => {
+                      const active = sortKey === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleSort(key); }}
+                          style={{
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            border: "none",
+                            background: active ? "var(--status-info-bg)" : "transparent",
+                            color: active ? "var(--accent-primary)" : "var(--text-muted)",
+                            fontSize: 10,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {key === "label" ? "Name" : "Type"}
+                          {active && (
+                            <span style={{ marginLeft: 2, fontSize: 9 }}>
+                              {sortDir === "asc" ? "\u25B2" : "\u25BC"}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </span>
+                )}
               </div>
               {filteredOptions.map((option, index) => (
                 <div

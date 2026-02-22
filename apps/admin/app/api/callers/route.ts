@@ -200,6 +200,11 @@ export async function POST(req: Request) {
       if (defaultDomain) {
         domainId = defaultDomain.id;
         console.log(`[caller-create] No domain specified, using default domain: ${defaultDomain.slug}`);
+      } else {
+        return NextResponse.json(
+          { ok: false, error: "No institution specified and no default institution exists. Please create an institution first or specify a domainId." },
+          { status: 400 }
+        );
       }
     }
 

@@ -34,7 +34,8 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
   const handleNext = async () => {
     setData('contentMode', uploadMode);
     if (uploadMode === 'file' && file) {
-      setData('contentFile', file);
+      // Don't store File object in bag — File can't survive JSON.stringify (becomes {}).
+      // Store only the filename; user re-selects file if they refresh.
       setData('contentFileName', file.name);
     } else if (uploadMode === 'describe') {
       setData('contentDescription', description);
@@ -42,8 +43,8 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
     onNext();
   };
 
-  const hasFileContent = !!file || !!savedFileName;
-  const isValid = uploadMode === 'file' ? hasFileContent : description.trim().length > 0;
+  const hasFile = !!file;
+  const isValid = uploadMode === 'file' ? hasFile : description.trim().length > 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -109,8 +110,10 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
                 </div>
               ) : savedFileName ? (
                 <div>
+                  <AlertCircle className="w-5 h-5 text-[var(--status-warning-text)] mx-auto mb-2" />
                   <p className="font-semibold text-[var(--text-primary)]">{savedFileName}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">Previously selected — click to change</p>
+                  <p className="text-sm text-[var(--status-warning-text)]">File needs to be re-selected after page refresh</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">Click to re-upload, or Skip this step</p>
                 </div>
               ) : (
                 <div>
@@ -158,6 +161,7 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
           <button
             onClick={() => {
               setData('contentMode', 'skip');
+              setData('contentFileName', undefined);
               onNext();
             }}
             className="px-6 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

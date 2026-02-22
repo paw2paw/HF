@@ -33,13 +33,13 @@ function ChannelsPanelAdapter(_props: PanelProps) {
   return <ChannelsPanel />;
 }
 
+// Ordered: foundational setup → operational → security → personal → advanced
 const CUSTOM_PANELS: SettingsPanel[] = [
   registerCustomPanel(
-    "appearance", "Appearance", "Sun",
-    "Theme mode and color palettes",
-    "general", AppearancePanel,
-    ["theme", "dark mode", "light mode", "system", "palette", "color"],
-    false,
+    "institution_types", "Institution Types", "Building2",
+    "Manage institution types and terminology presets",
+    "system", InstitutionTypesPanel,
+    ["institution", "types", "terminology", "school", "corporate", "community"],
   ),
   registerCustomPanel(
     "channels", "Delivery Channels", "Phone",
@@ -54,10 +54,11 @@ const CUSTOM_PANELS: SettingsPanel[] = [
     ["access matrix", "CRUD", "permissions", "roles", "SUPERADMIN", "ADMIN", "OPERATOR", "entity access", "scope"],
   ),
   registerCustomPanel(
-    "institution_types", "Institution Types", "Building2",
-    "Manage institution types and terminology presets",
-    "system", InstitutionTypesPanel,
-    ["institution", "types", "terminology", "school", "corporate", "community"],
+    "appearance", "Appearance", "Sun",
+    "Theme mode and color palettes",
+    "general", AppearancePanel,
+    ["theme", "dark mode", "light mode", "system", "palette", "color"],
+    false,
   ),
   registerCustomPanel(
     "fallbacks", "Fallback Defaults", "Shield",

@@ -68,9 +68,8 @@ export default function ResponsiveViewerPage() {
     if (iframeRef.current) {
       try {
         iframeRef.current.contentWindow?.location.replace(currentRoute);
-      } catch (e) {
+      } catch {
         // Fallback if cross-origin
-        console.log("Using iframe src for navigation");
       }
     }
   }, [currentRoute]);
@@ -105,8 +104,9 @@ export default function ResponsiveViewerPage() {
       {/* Header */}
       <div className="border-b" style={{ borderColor: "var(--border-default)", background: "var(--surface-secondary)" }}>
         <div className="px-6 py-4">
-          <h1 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>
-            📱 Responsive Design Viewer
+          <a href="/x/settings" style={{ fontSize: 13, color: "var(--accent-primary)", textDecoration: "none" }}>&larr; Back to Settings</a>
+          <h1 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)", marginTop: 4 }}>
+            Responsive Design Viewer
           </h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             Preview the app in different device sizes and orientations
