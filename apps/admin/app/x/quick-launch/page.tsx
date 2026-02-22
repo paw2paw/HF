@@ -909,7 +909,7 @@ export default function QuickLaunchPage() {
             subtitle={result.goalCount > 0 ? `${result.goalCount} goals` : undefined}
             intent={{
               items: [
-                { icon: <BookOpen className="w-4 h-4" />, label: "Subject", value: subjectName || "—" },
+                { icon: <BookOpen className="w-4 h-4" />, label: terms.playbook, value: subjectName || "—" },
                 ...(selectedPersona ? [{ icon: <User className="w-4 h-4" />, label: "Persona", value: selectedPersona.name }] : []),
                 ...(goals.length > 0 ? [{ icon: <Target className="w-4 h-4" />, label: "Goals", value: `${goals.length} learning goal${goals.length !== 1 ? "s" : ""}` }] : []),
               ],
