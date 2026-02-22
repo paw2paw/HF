@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import "./spec-sync-detail-modal.css";
 
 export interface SpecSyncDetailModalProps {
   /** Close handler */
@@ -144,104 +145,22 @@ export function SpecSyncDetailModal({
     }
   };
 
-  const badgeStyle = (type: "success" | "warning" | "error" | "info") => {
-    const colors = {
-      success: {
-        bg: "var(--status-success-bg)",
-        color: "var(--status-success-text)",
-        border: "var(--status-success-border)",
-      },
-      warning: {
-        bg: "var(--status-warning-bg)",
-        color: "var(--status-warning-text)",
-        border: "var(--status-warning-border)",
-      },
-      error: {
-        bg: "var(--status-error-bg)",
-        color: "var(--status-error-text)",
-        border: "var(--status-error-border)",
-      },
-      info: {
-        bg: "var(--status-info-bg)",
-        color: "var(--status-info-text)",
-        border: "var(--status-info-border)",
-      },
-    };
-    return {
-      padding: "2px 8px",
-      borderRadius: 4,
-      fontSize: 11,
-      fontWeight: 600,
-      background: colors[type].bg,
-      color: colors[type].color,
-      border: `1px solid ${colors[type].border}`,
-      display: "inline-block",
-    };
-  };
-
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
-      }}
+      className="ssd-overlay"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--surface-primary)",
-          borderRadius: 16,
-          padding: 32,
-          boxShadow: "0 24px 48px rgba(0,0,0,0.3)",
-          border: "1px solid var(--border-default)",
-          maxWidth: 900,
-          width: "90%",
-          maxHeight: "90vh",
-          overflow: "auto",
-        }}
+        className="ssd-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 24,
-          }}
-        >
+        <div className="ssd-header">
           <div>
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                marginBottom: 4,
-              }}
-            >
-              Import Specs from Files
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                color: "var(--text-muted)",
-              }}
-            >
+            <div className="ssd-title">Import Specs from Files</div>
+            <div className="ssd-subtitle">
               Load{" "}
-              <code
-                style={{
-                  background: "var(--surface-secondary)",
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  fontSize: 12,
-                }}
-              >
+              <code className="ssd-code">
                 docs-archive/bdd-specs/*.spec.json
               </code>{" "}
               files into the database
@@ -249,15 +168,7 @@ export function SpecSyncDetailModal({
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "none",
-              fontSize: 24,
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              padding: 0,
-              lineHeight: 1,
-            }}
+            className="ssd-close-btn"
             title="Close (Esc)"
           >
             ×
@@ -266,29 +177,14 @@ export function SpecSyncDetailModal({
 
         {/* Loading State */}
         {loading && (
-          <div
-            style={{
-              padding: 48,
-              textAlign: "center",
-              color: "var(--text-secondary)",
-            }}
-          >
+          <div className="ssd-loading">
             Loading sync status...
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div
-            style={{
-              padding: 12,
-              background: "var(--status-error-bg)",
-              border: "1px solid var(--status-error-border)",
-              borderRadius: 8,
-              marginBottom: 16,
-              color: "var(--status-error-text)",
-            }}
-          >
+          <div className="hf-banner hf-banner-error">
             ❌ {error}
           </div>
         )}
@@ -296,22 +192,8 @@ export function SpecSyncDetailModal({
         {/* Sync Result */}
         {syncResult && (
           <div
-            style={{
-              padding: 12,
-              background: syncResult.ok
-                ? "var(--status-success-bg)"
-                : "var(--status-error-bg)",
-              border: `1px solid ${
-                syncResult.ok
-                  ? "var(--status-success-border)"
-                  : "var(--status-error-border)"
-              }`,
-              borderRadius: 8,
-              marginBottom: 16,
-              color: syncResult.ok
-                ? "var(--status-success-text)"
-                : "var(--status-error-text)",
-            }}
+            className="ssd-sync-result"
+            data-status={syncResult.ok ? "success" : "error"}
           >
             {syncResult.ok ? (
               <>
@@ -337,187 +219,54 @@ export function SpecSyncDetailModal({
         {!loading && status && (
           <>
             {/* Summary Cards */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-                marginBottom: 24,
-              }}
-            >
-              <div
-                style={{
-                  padding: 16,
-                  background: "var(--surface-secondary)",
-                  borderRadius: 8,
-                  textAlign: "center",
-                  border: "1px solid var(--border-subtle)",
-                }}
-              >
-                <div style={{ fontSize: 28, fontWeight: 600 }}>
+            <div className="ssd-summary-grid">
+              <div className="ssd-summary-card ssd-summary-card-default">
+                <div className="ssd-summary-value">
                   {status.summary.totalFiles}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    marginTop: 4,
-                  }}
-                >
-                  Spec Files
-                </div>
+                <div className="ssd-summary-label">Spec Files</div>
               </div>
-              <div
-                style={{
-                  padding: 16,
-                  background: "var(--status-success-bg)",
-                  borderRadius: 8,
-                  textAlign: "center",
-                  border: "1px solid var(--status-success-border)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    color: "var(--status-success-text)",
-                  }}
-                >
+              <div className="ssd-summary-card ssd-summary-card-success">
+                <div className="ssd-summary-value ssd-summary-value-success">
                   {status.summary.synced}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--status-success-text)",
-                    marginTop: 4,
-                  }}
-                >
+                <div className="ssd-summary-label ssd-summary-label-success">
                   Imported
                 </div>
               </div>
-              <div
-                style={{
-                  padding: 16,
-                  background: status.summary.unseeded
-                    ? "var(--status-warning-bg)"
-                    : "var(--surface-secondary)",
-                  borderRadius: 8,
-                  textAlign: "center",
-                  border: `1px solid ${
-                    status.summary.unseeded
-                      ? "var(--status-warning-border)"
-                      : "var(--border-subtle)"
-                  }`,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    color: status.summary.unseeded
-                      ? "var(--status-warning-text)"
-                      : "var(--text-primary)",
-                  }}
-                >
+              <div className={`ssd-summary-card ${status.summary.unseeded ? "ssd-summary-card-warning" : "ssd-summary-card-inactive"}`}>
+                <div className={`ssd-summary-value ${status.summary.unseeded ? "ssd-summary-value-warning" : ""}`}>
                   {status.summary.unseeded}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: status.summary.unseeded
-                      ? "var(--status-warning-text)"
-                      : "var(--text-secondary)",
-                    marginTop: 4,
-                  }}
-                >
+                <div className={`ssd-summary-label ${status.summary.unseeded ? "ssd-summary-label-warning" : ""}`}>
                   Ready to Import
                 </div>
               </div>
-              <div
-                style={{
-                  padding: 16,
-                  background: "var(--surface-secondary)",
-                  borderRadius: 8,
-                  textAlign: "center",
-                  border: "1px solid var(--border-subtle)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    color: "var(--text-primary)",
-                  }}
-                >
+              <div className="ssd-summary-card ssd-summary-card-default">
+                <div className="ssd-summary-value">
                   {status.summary.orphaned}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    marginTop: 4,
-                  }}
-                >
-                  DB-Only
-                </div>
+                <div className="ssd-summary-label">DB-Only</div>
               </div>
             </div>
 
             {/* Unseeded Specs Section */}
             {status.unseeded.length > 0 ? (
-              <div style={{ marginBottom: 24 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 600,
-                      margin: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={badgeStyle("warning")}>
+              <div className="ssd-section">
+                <div className="ssd-section-header">
+                  <h2 className="ssd-section-title">
+                    <span className="hf-badge hf-badge-warning">
                       {status.unseeded.length}
                     </span>
                     Ready to Import
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 400,
-                        color: "var(--text-secondary)",
-                      }}
-                    >
+                    <span className="ssd-section-hint">
                       — spec files not yet loaded into database
                     </span>
                   </h2>
                   <button
                     onClick={syncSelected}
                     disabled={syncing || status.unseeded.length === 0}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: 6,
-                      border: "none",
-                      background:
-                        syncing || status.unseeded.length === 0
-                          ? "var(--button-disabled-bg)"
-                          : "var(--button-primary-bg)",
-                      color: "white",
-                      cursor:
-                        syncing || status.unseeded.length === 0
-                          ? "not-allowed"
-                          : "pointer",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      opacity: syncing || status.unseeded.length === 0 ? 0.6 : 1,
-                    }}
+                    className="ssd-import-btn"
                   >
                     {syncing
                       ? "Importing..."
@@ -526,34 +275,11 @@ export function SpecSyncDetailModal({
                       : `Import All ${status.unseeded.length}`}
                   </button>
                 </div>
-                <div
-                  style={{
-                    background: "var(--surface-primary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
+                <div className="ssd-table-container">
+                  <table className="ssd-table">
                     <thead>
-                      <tr
-                        style={{
-                          background: "var(--surface-secondary)",
-                        }}
-                      >
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "center",
-                            width: 40,
-                          }}
-                        >
+                      <tr>
+                        <th className="ssd-th-center">
                           <input
                             type="checkbox"
                             checked={
@@ -561,118 +287,45 @@ export function SpecSyncDetailModal({
                               status.unseeded.length > 0
                             }
                             onChange={toggleAll}
-                            style={{ cursor: "pointer", width: 16, height: 16 }}
+                            className="ssd-checkbox"
                             title="Select all"
                           />
                         </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          ID
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Title
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          File
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Type
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Role
-                        </th>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>File</th>
+                        <th>Type</th>
+                        <th>Role</th>
                       </tr>
                     </thead>
                     <tbody>
                       {status.unseeded.map((spec) => (
                         <tr
                           key={spec.id}
-                          style={{
-                            borderTop: "1px solid var(--border-default)",
-                            background: selectedSpecs.has(spec.id)
-                              ? "var(--status-info-bg)"
-                              : "transparent",
-                            cursor: "pointer",
-                          }}
+                          className={`ssd-row-selectable ${selectedSpecs.has(spec.id) ? "ssd-row-selected" : ""}`}
                           onClick={() => toggleSpec(spec.id)}
                         >
                           <td
-                            style={{ padding: "10px 12px", textAlign: "center" }}
+                            className="ssd-cell-center"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <input
                               type="checkbox"
                               checked={selectedSpecs.has(spec.id)}
                               onChange={() => toggleSpec(spec.id)}
-                              style={{ cursor: "pointer", width: 16, height: 16 }}
+                              className="ssd-checkbox"
                             />
                           </td>
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              fontFamily: "monospace",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {spec.id}
-                          </td>
-                          <td style={{ padding: "10px 12px" }}>{spec.title}</td>
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              color: "var(--text-secondary)",
-                              fontSize: 12,
-                            }}
-                          >
-                            {spec.filename}
-                          </td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span
-                              style={badgeStyle(
-                                spec.specType === "SYSTEM" ? "info" : "success"
-                              )}
-                            >
+                          <td className="ssd-cell-mono">{spec.id}</td>
+                          <td>{spec.title}</td>
+                          <td className="ssd-cell-secondary">{spec.filename}</td>
+                          <td>
+                            <span className={`hf-badge ${spec.specType === "SYSTEM" ? "hf-badge-info" : "hf-badge-success"}`}>
                               {spec.specType}
                             </span>
                           </td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span
-                              style={{
-                                ...badgeStyle("info"),
-                                background: "var(--surface-secondary)",
-                                color: "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                              }}
-                            >
+                          <td>
+                            <span className="ssd-badge-role">
                               {spec.specRole}
                             </span>
                           </td>
@@ -683,33 +336,12 @@ export function SpecSyncDetailModal({
                 </div>
               </div>
             ) : (
-              <div
-                style={{
-                  padding: 32,
-                  textAlign: "center",
-                  background: "var(--status-success-bg)",
-                  border: "1px solid var(--status-success-border)",
-                  borderRadius: 8,
-                  marginBottom: 24,
-                }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    color: "var(--status-success-text)",
-                  }}
-                >
+              <div className="ssd-all-synced">
+                <div className="ssd-all-synced-icon">✅</div>
+                <div className="ssd-all-synced-title">
                   All spec files imported!
                 </div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    color: "var(--status-success-text)",
-                    marginTop: 4,
-                  }}
-                >
+                <div className="ssd-all-synced-desc">
                   All spec files are imported into the database
                 </div>
               </div>
@@ -720,175 +352,59 @@ export function SpecSyncDetailModal({
               <details
                 open={showSynced}
                 onToggle={(e) => setShowSynced((e.target as HTMLDetailsElement).open)}
-                style={{ marginBottom: 24 }}
+                className="ssd-details"
               >
-                <summary
-                  style={{
-                    cursor: "pointer",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    marginBottom: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    listStyle: "none",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 14,
-                      color: "var(--text-secondary)",
-                      marginRight: 4,
-                    }}
-                  >
+                <summary className="ssd-summary">
+                  <span className="ssd-toggle-icon">
                     {showSynced ? "▼" : "▶"}
                   </span>
-                  <span style={badgeStyle("success")}>
+                  <span className="hf-badge hf-badge-success">
                     {status.synced.length}
                   </span>
                   Already Imported
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 400,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <span className="ssd-section-hint">
                     — file has been loaded into database
                   </span>
                 </summary>
-                <div
-                  style={{
-                    background: "var(--surface-primary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
+                <div className="ssd-table-container">
+                  <table className="ssd-table">
                     <thead>
-                      <tr style={{ background: "var(--surface-secondary)" }}>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          ID
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          DB Slug
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Type
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Role
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Last Updated
-                        </th>
+                      <tr>
+                        <th>ID</th>
+                        <th>DB Slug</th>
+                        <th>Type</th>
+                        <th>Role</th>
+                        <th>Last Updated</th>
                       </tr>
                     </thead>
                     <tbody>
                       {status.synced.map((spec) => (
-                        <tr
-                          key={spec.id}
-                          style={{
-                            borderTop: "1px solid var(--border-default)",
-                          }}
-                        >
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              fontFamily: "monospace",
-                              fontWeight: 500,
-                            }}
-                          >
-                            {spec.id}
-                          </td>
-                          <td style={{ padding: "10px 12px" }}>
+                        <tr key={spec.id}>
+                          <td className="ssd-cell-mono">{spec.id}</td>
+                          <td>
                             <Link
                               href={`/x/specs?q=${spec.dbSlug}`}
-                              style={{
-                                color: "var(--accent-primary)",
-                                textDecoration: "none",
-                              }}
+                              className="ssd-link"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {spec.dbSlug}
                             </Link>
                           </td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span
-                              style={badgeStyle(
-                                spec.specType === "SYSTEM" ? "info" : "success"
-                              )}
-                            >
+                          <td>
+                            <span className={`hf-badge ${spec.specType === "SYSTEM" ? "hf-badge-info" : "hf-badge-success"}`}>
                               {spec.specType}
                             </span>
                           </td>
-                          <td style={{ padding: "10px 12px" }}>
+                          <td>
                             {spec.specRole ? (
-                              <span
-                                style={{
-                                  ...badgeStyle("info"),
-                                  background: "var(--surface-secondary)",
-                                  color: "var(--text-secondary)",
-                                  border: "1px solid var(--border-default)",
-                                }}
-                              >
+                              <span className="ssd-badge-role">
                                 {spec.specRole}
                               </span>
                             ) : (
-                              <span
-                                style={{
-                                  color: "var(--text-muted)",
-                                  fontSize: 12,
-                                }}
-                              >
-                                —
-                              </span>
+                              <span className="ssd-no-role">—</span>
                             )}
                           </td>
-                          <td
-                            style={{
-                              padding: "10px 12px",
-                              color: "var(--text-secondary)",
-                              fontSize: 12,
-                            }}
-                          >
+                          <td className="ssd-cell-secondary">
                             {new Date(spec.dbUpdatedAt).toLocaleDateString()}
                           </td>
                         </tr>
@@ -901,137 +417,51 @@ export function SpecSyncDetailModal({
 
             {/* Orphaned Specs Section */}
             {status.orphaned.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
-                <h2
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    marginBottom: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <span style={badgeStyle("info")}>
+              <div className="ssd-section">
+                <h2 className="ssd-section-title ssd-section-title-spaced">
+                  <span className="hf-badge hf-badge-info">
                     {status.orphaned.length}
                   </span>
                   DB-Only Specs
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 400,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
+                  <span className="ssd-section-hint">
                     — created via UI or source file removed (this is normal)
                   </span>
                 </h2>
-                <div
-                  style={{
-                    padding: 12,
-                    background: "var(--status-warning-bg)",
-                    border: "1px solid var(--status-warning-border)",
-                    borderRadius: 8,
-                    marginBottom: 12,
-                    fontSize: 13,
-                    color: "var(--status-warning-text)",
-                  }}
-                >
+                <div className="ssd-orphaned-info">
                   These specs exist in the database only. They were created via the
                   UI import or their source file was removed. This is normal — the
                   database is the source of truth.
                 </div>
-                <div
-                  style={{
-                    background: "var(--surface-primary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
+                <div className="ssd-table-container">
+                  <table className="ssd-table">
                     <thead>
-                      <tr style={{ background: "var(--surface-secondary)" }}>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          DB Slug
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Name
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Type
-                        </th>
-                        <th
-                          style={{
-                            padding: "10px 12px",
-                            textAlign: "left",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Status
-                        </th>
+                      <tr>
+                        <th>DB Slug</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {status.orphaned.map((spec) => (
-                        <tr
-                          key={spec.dbId}
-                          style={{
-                            borderTop: "1px solid var(--border-default)",
-                          }}
-                        >
-                          <td style={{ padding: "10px 12px" }}>
+                        <tr key={spec.dbId}>
+                          <td>
                             <Link
                               href={`/x/specs?id=${spec.dbId}`}
-                              style={{
-                                color: "var(--accent-primary)",
-                                textDecoration: "none",
-                              }}
+                              className="ssd-link"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {spec.slug}
                             </Link>
                           </td>
-                          <td style={{ padding: "10px 12px" }}>{spec.name}</td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span
-                              style={badgeStyle(
-                                spec.specType === "SYSTEM" ? "info" : "success"
-                              )}
-                            >
+                          <td>{spec.name}</td>
+                          <td>
+                            <span className={`hf-badge ${spec.specType === "SYSTEM" ? "hf-badge-info" : "hf-badge-success"}`}>
                               {spec.specType}
                             </span>
                           </td>
-                          <td style={{ padding: "10px 12px" }}>
-                            <span
-                              style={badgeStyle(
-                                spec.isActive ? "success" : "error"
-                              )}
-                            >
+                          <td>
+                            <span className={`hf-badge ${spec.isActive ? "hf-badge-success" : "hf-badge-error"}`}>
                               {spec.isActive ? "Active" : "Inactive"}
                             </span>
                           </td>

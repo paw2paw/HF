@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useTheme, usePalette, type ThemePreference } from "@/contexts";
 import { UserAvatar, ROLE_COLORS, computeInitials } from "@/components/shared/UserAvatar";
+import "./account.css";
 
 const ROLE_LABELS: Record<string, string> = {
   SUPERADMIN: "Super Admin",
@@ -151,25 +152,16 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <div
-          style={{
-            width: 24,
-            height: 24,
-            border: "2px solid var(--border-default)",
-            borderTopColor: "var(--accent-primary)",
-            borderRadius: "50%",
-            animation: "spin 0.8s linear infinite",
-          }}
-        />
+      <div className="acct-loading">
+        <div className="hf-spinner" />
       </div>
     );
   }
 
   if (!user || !session?.user) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <div style={{ fontSize: 14, color: "var(--text-muted)" }}>Not signed in</div>
+      <div className="acct-empty">
+        <div className="acct-empty-text">Not signed in</div>
       </div>
     );
   }
@@ -177,88 +169,37 @@ export default function AccountPage() {
   const roleColor = ROLE_COLORS[user.role] || "var(--text-muted)";
 
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 16px" }}>
+    <div className="acct-page">
       {/* Header */}
-      <div style={{ paddingTop: 12, marginBottom: 28 }}>
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            marginBottom: 6,
-          }}
-        >
+      <div className="acct-header">
+        <h1 className="hf-page-title">
           My Account
         </h1>
-        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+        <p className="hf-page-subtitle">
           Profile, appearance, and session details
         </p>
       </div>
 
       {/* Save indicator */}
       {(saving || saved) && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "10px 16px",
-            background: saved
-              ? "color-mix(in srgb, var(--status-success-text) 10%, transparent)"
-              : "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-            border: saved
-              ? "1px solid color-mix(in srgb, var(--status-success-text) 30%, transparent)"
-              : "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            color: saved ? "var(--status-success-text)" : "var(--accent-primary)",
-            transition: "all 0.2s ease",
-          }}
-        >
+        <div className={`acct-save-indicator ${saved ? "acct-save-saved" : "acct-save-saving"}`}>
           {saved ? <Check size={16} /> : null}
           {saving ? "Saving changes..." : "Changes saved"}
         </div>
       )}
 
       {/* Profile section */}
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 24,
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 4,
-          }}
-        >
+      <div className="hf-card">
+        <h2 className="hf-section-title">
           Profile
         </h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+        <p className="acct-section-desc">
           Your identity and how the system addresses you
         </p>
 
         {/* Avatar + role badge + initials editor */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            marginBottom: 24,
-            padding: 16,
-            background: "var(--surface-secondary)",
-            borderRadius: 12,
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <div className="acct-profile-hero">
+          <div className="acct-avatar-col">
             <UserAvatar
               name={user.displayName || user.name || user.email}
               initials={avatarInitials || undefined}
@@ -272,50 +213,17 @@ export default function AccountPage() {
               onChange={(e) => handleInitialsChange(e.target.value)}
               placeholder={computeInitials(user.displayName || user.name || user.email)}
               maxLength={3}
-              style={{
-                width: 56,
-                padding: "4px 6px",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-primary)",
-                color: "var(--text-primary)",
-                fontSize: 13,
-                fontWeight: 600,
-                textAlign: "center",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                outline: "none",
-                transition: "border-color 0.15s ease",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent-primary)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-default)";
-              }}
+              className="acct-initials-input"
               title="Custom avatar initials (max 3 letters)"
             />
           </div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-                marginBottom: 6,
-              }}
-            >
+          <div className="acct-hero-info">
+            <div className="acct-hero-name">
               {user.displayName || user.name || user.email}
             </div>
             <span
+              className="acct-role-badge"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 10px",
-                borderRadius: 20,
-                fontSize: 11,
-                fontWeight: 600,
                 background: `color-mix(in srgb, ${roleColor} 15%, transparent)`,
                 color: roleColor,
               }}
@@ -327,18 +235,10 @@ export default function AccountPage() {
         </div>
 
         {/* Form fields */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div className="acct-form-grid">
           {/* Display Name */}
           <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--text-secondary)",
-                marginBottom: 6,
-              }}
-            >
+            <label className="hf-label">
               Display Name
             </label>
             <input
@@ -346,37 +246,13 @@ export default function AccountPage() {
               value={displayName}
               onChange={(e) => handleDisplayNameChange(e.target.value)}
               placeholder="How the system addresses you"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-                outline: "none",
-                transition: "border-color 0.15s ease",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent-primary)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-default)";
-              }}
+              className="hf-input"
             />
           </div>
 
           {/* Full Name */}
           <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--text-secondary)",
-                marginBottom: 6,
-              }}
-            >
+            <label className="hf-label">
               Full Name
             </label>
             <input
@@ -384,154 +260,55 @@ export default function AccountPage() {
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Your full name"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-                outline: "none",
-                transition: "border-color 0.15s ease",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent-primary)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-default)";
-              }}
+              className="hf-input"
             />
           </div>
         </div>
 
         {/* Email (read-only) */}
         <div>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              marginBottom: 6,
-            }}
-          >
+          <label className="acct-readonly-label">
             <Lock size={11} />
             Email
           </label>
-          <div
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--border-subtle)",
-              background: "var(--surface-tertiary)",
-              color: "var(--text-muted)",
-              fontSize: 14,
-            }}
-          >
+          <div className="acct-readonly-field">
             {user.email}
           </div>
         </div>
       </div>
 
       {/* Appearance section */}
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 24,
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 4,
-          }}
-        >
+      <div className="hf-card">
+        <h2 className="hf-section-title">
           Appearance
         </h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+        <p className="acct-section-desc">
           Choose your preferred color mode
         </p>
 
         {/* Theme selector — 3-column grid with icon boxes */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+        <div className="acct-theme-grid">
           {THEME_OPTIONS.map((option) => {
             const isSelected = mounted && preference === option.value;
             return (
               <button
                 key={option.value}
                 onClick={() => setPreference(option.value)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "20px 16px",
-                  borderRadius: 12,
-                  border: isSelected
-                    ? "2px solid var(--accent-primary)"
-                    : "1px solid var(--border-default)",
-                  background: isSelected
-                    ? "var(--surface-secondary)"
-                    : "var(--surface-primary)",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  position: "relative",
-                }}
+                className={`acct-theme-btn ${isSelected ? "acct-theme-btn-selected" : ""}`}
               >
                 {isSelected && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      background: "var(--accent-primary)",
-                      color: "white",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
+                  <div className="acct-theme-check">
                     <Check size={14} strokeWidth={2.5} />
                   </div>
                 )}
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: "var(--surface-tertiary)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: isSelected ? "var(--accent-primary)" : "var(--text-muted)",
-                  }}
-                >
+                <div className={`acct-theme-icon-box ${isSelected ? "acct-theme-icon-box-selected" : ""}`}>
                   <ThemeIcon icon={option.icon} size={22} />
                 </div>
-                <div style={{ textAlign: "center" }}>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                      marginBottom: 2,
-                    }}
-                  >
+                <div className="hf-text-center">
+                  <div className="acct-theme-label">
                     {option.label}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  <div className="acct-theme-desc">
                     {option.description}
                   </div>
                 </div>
@@ -541,25 +318,19 @@ export default function AccountPage() {
         </div>
 
         {/* Palettes — side by side */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="acct-palette-grid">
           {/* Light palette */}
-          <div
-            style={{
-              background: "var(--surface-secondary)",
-              borderRadius: 12,
-              padding: 16,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <Sun size={14} style={{ color: "var(--text-muted)" }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+          <div className="acct-palette-panel">
+            <div className="acct-palette-header">
+              <Sun size={14} className="acct-palette-header-icon" />
+              <span className="acct-palette-title">
                 Light Palette
               </span>
             </div>
-            <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
+            <p className="acct-palette-desc">
               Background tones for light mode
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="acct-palette-list">
               {lightPresets.map((preset) => {
                 const isSelected = mounted && lightPalette === preset.id;
                 const isActive = mounted && resolvedTheme === "light" && isSelected;
@@ -567,21 +338,10 @@ export default function AccountPage() {
                   <button
                     key={preset.id}
                     onClick={() => setLightPalette(preset.id)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: isSelected
-                        ? "2px solid var(--accent-primary)"
-                        : "1px solid var(--border-default)",
-                      background: preset.light.surfacePrimary,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
+                    className={`acct-palette-btn ${isSelected ? "acct-palette-btn-selected" : ""}`}
+                    style={{ background: preset.light.surfacePrimary }}
                   >
-                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                    <div className="acct-swatch-row">
                       {[
                         preset.light.background,
                         preset.light.surfacePrimary,
@@ -590,48 +350,22 @@ export default function AccountPage() {
                       ].map((color, i) => (
                         <div
                           key={i}
-                          style={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: 3,
-                            background: color,
-                            border: "1px solid rgba(0,0,0,0.1)",
-                          }}
+                          className="acct-swatch acct-swatch-light"
+                          style={{ background: color }}
                         />
                       ))}
                     </div>
-                    <div style={{ flex: 1, textAlign: "left" }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <div className="acct-palette-info">
+                      <div className="acct-palette-name">
                         {preset.name}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{preset.description}</div>
+                      <div className="acct-palette-detail">{preset.description}</div>
                     </div>
                     {isActive && (
-                      <div
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: "var(--status-success-text)",
-                          boxShadow: "0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent)",
-                          flexShrink: 0,
-                        }}
-                      />
+                      <div className="acct-active-dot" />
                     )}
                     {isSelected && !isActive && (
-                      <div
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: "50%",
-                          background: "var(--accent-primary)",
-                          color: "white",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
+                      <div className="acct-selected-check">
                         <Check size={12} strokeWidth={2.5} />
                       </div>
                     )}
@@ -642,23 +376,17 @@ export default function AccountPage() {
           </div>
 
           {/* Dark palette */}
-          <div
-            style={{
-              background: "var(--surface-secondary)",
-              borderRadius: 12,
-              padding: 16,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <Moon size={14} style={{ color: "var(--text-muted)" }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+          <div className="acct-palette-panel">
+            <div className="acct-palette-header">
+              <Moon size={14} className="acct-palette-header-icon" />
+              <span className="acct-palette-title">
                 Dark Palette
               </span>
             </div>
-            <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
+            <p className="acct-palette-desc">
               Background tones for dark mode
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="acct-palette-list">
               {darkPresets.map((preset) => {
                 const isSelected = mounted && darkPalette === preset.id;
                 const isActive = mounted && resolvedTheme === "dark" && isSelected;
@@ -667,21 +395,10 @@ export default function AccountPage() {
                   <button
                     key={preset.id}
                     onClick={() => setDarkPalette(preset.id)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: isSelected
-                        ? "2px solid var(--accent-primary)"
-                        : "1px solid var(--border-default)",
-                      background: colors.surfacePrimary,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
+                    className={`acct-palette-btn ${isSelected ? "acct-palette-btn-selected" : ""}`}
+                    style={{ background: colors.surfacePrimary }}
                   >
-                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                    <div className="acct-swatch-row">
                       {[
                         colors.background,
                         colors.surfacePrimary,
@@ -690,48 +407,22 @@ export default function AccountPage() {
                       ].map((color, i) => (
                         <div
                           key={i}
-                          style={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: 3,
-                            background: color,
-                            border: "1px solid rgba(255,255,255,0.1)",
-                          }}
+                          className="acct-swatch acct-swatch-dark"
+                          style={{ background: color }}
                         />
                       ))}
                     </div>
-                    <div style={{ flex: 1, textAlign: "left" }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <div className="acct-palette-info">
+                      <div className="acct-palette-name">
                         {preset.name}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{preset.description}</div>
+                      <div className="acct-palette-detail">{preset.description}</div>
                     </div>
                     {isActive && (
-                      <div
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: "var(--status-success-text)",
-                          boxShadow: "0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent)",
-                          flexShrink: 0,
-                        }}
-                      />
+                      <div className="acct-active-dot" />
                     )}
                     {isSelected && !isActive && (
-                      <div
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: "50%",
-                          background: "var(--accent-primary)",
-                          color: "white",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
+                      <div className="acct-selected-check">
                         <Check size={12} strokeWidth={2.5} />
                       </div>
                     )}
@@ -744,58 +435,23 @@ export default function AccountPage() {
       </div>
 
       {/* Session details */}
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 24,
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 4,
-          }}
-        >
+      <div className="hf-card">
+        <h2 className="hf-section-title">
           Session
         </h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+        <p className="acct-section-desc">
           Your current session and account details
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div className="acct-session-list">
           {/* Role */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "14px 0",
-              borderBottom: "1px solid var(--border-subtle)",
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "var(--surface-secondary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--text-muted)",
-                flexShrink: 0,
-              }}
-            >
+          <div className="acct-session-row acct-session-row-border">
+            <div className="acct-session-icon">
               <Shield size={16} />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>Role</div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+            <div className="acct-session-info">
+              <div className="acct-session-label">Role</div>
+              <div className="acct-session-value">
                 {ROLE_LABELS[user.role] || user.role}
               </div>
             </div>
@@ -803,35 +459,15 @@ export default function AccountPage() {
 
           {/* Domain */}
           {user.assignedDomain && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "14px 0",
-                borderBottom: "1px solid var(--border-subtle)",
-              }}
-            >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: "var(--surface-secondary)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--text-muted)",
-                  flexShrink: 0,
-                }}
-              >
+            <div className="acct-session-row acct-session-row-border">
+              <div className="acct-session-icon">
                 <Building2 size={16} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
+              <div className="acct-session-info">
+                <div className="acct-session-label">
                   Institution
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                <div className="acct-session-value">
                   {user.assignedDomain.name}
                 </div>
               </div>
@@ -839,34 +475,15 @@ export default function AccountPage() {
           )}
 
           {/* Member since */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "14px 0",
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "var(--surface-secondary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--text-muted)",
-                flexShrink: 0,
-              }}
-            >
+          <div className="acct-session-row">
+            <div className="acct-session-icon">
               <Calendar size={16} />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
+            <div className="acct-session-info">
+              <div className="acct-session-label">
                 Member since
               </div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+              <div className="acct-session-value">
                 {new Date(user.createdAt).toLocaleDateString(undefined, {
                   year: "numeric",
                   month: "long",
@@ -881,75 +498,22 @@ export default function AccountPage() {
       {/* Sign out */}
       <button
         onClick={() => signOut({ callbackUrl: "/login" })}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          width: "100%",
-          padding: "14px 16px",
-          borderRadius: 12,
-          border: "1px solid color-mix(in srgb, var(--status-error-text) 25%, transparent)",
-          background: "color-mix(in srgb, var(--status-error-text) 4%, transparent)",
-          color: "var(--status-error-text)",
-          fontSize: 14,
-          fontWeight: 500,
-          cursor: "pointer",
-          transition: "all 0.15s ease",
-          marginBottom: 24,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "color-mix(in srgb, var(--status-error-text) 10%, transparent)";
-          e.currentTarget.style.borderColor = "color-mix(in srgb, var(--status-error-text) 40%, transparent)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "color-mix(in srgb, var(--status-error-text) 4%, transparent)";
-          e.currentTarget.style.borderColor = "color-mix(in srgb, var(--status-error-text) 25%, transparent)";
-        }}
+        className="acct-signout-btn"
       >
         <LogOut size={16} />
         Sign Out
       </button>
 
       {/* Footer info */}
-      <div
-        style={{
-          padding: 16,
-          background: "var(--surface-secondary)",
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 32,
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "var(--surface-tertiary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--text-muted)",
-            flexShrink: 0,
-          }}
-        >
+      <div className="acct-footer">
+        <div className="acct-footer-icon">
           <Info size={18} strokeWidth={1.5} />
         </div>
         <div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--text-primary)",
-              marginBottom: 2,
-            }}
-          >
+          <div className="acct-footer-title">
             Changes saved automatically
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <div className="acct-footer-desc">
             Profile changes sync to the server. Theme preferences are stored locally in your browser.
           </div>
         </div>

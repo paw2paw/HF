@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TreeNode, nodeIcons, nodeColors } from "@/components/shared/ExplorerTree";
 import { SpecRoleBadge } from "@/components/shared/SpecRoleBadge";
 import { Spec, PlaybookItem, AvailableItems } from "./types";
+import "./explorer-tab.css";
 
 // ============================================================
 // Props
@@ -60,63 +61,33 @@ export function ExplorerTabContent({
   outputTypeBadge,
 }: ExplorerTabProps) {
   return (
-        <div style={{ marginTop: 24 }}>
+        <div className="exp-root">
           {explorerLoading ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
+            <div className="exp-loading">
               Loading playbook tree...
             </div>
           ) : !explorerTree ? (
-            <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
+            <div className="exp-loading">
               Failed to load playbook structure
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "350px 1fr", gap: 24, height: "calc(100vh - 300px)" }}>
+            <div className="exp-grid">
               {/* Left Panel: File Explorer Tree */}
-              <div style={{
-                background: "var(--background)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}>
+              <div className="exp-tree-panel">
                 {/* Tree Header */}
-                <div style={{
-                  padding: "12px 16px",
-                  borderBottom: "1px solid var(--border-default)",
-                  background: "var(--surface-primary)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}>
-                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text-secondary)" }}>Playbook Structure</span>
-                  <div style={{ display: "flex", gap: 4 }}>
+                <div className="exp-tree-header">
+                  <span className="exp-tree-header-title">Playbook Structure</span>
+                  <div className="exp-tree-header-actions">
                     <button
                       onClick={expandAllNodes}
-                      style={{
-                        padding: "4px 8px",
-                        fontSize: 11,
-                        background: "var(--status-info-bg)",
-                        color: "var(--button-primary-bg)",
-                        border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
+                      className="exp-tree-btn-expand"
                       title="Expand all nodes in the tree"
                     >
                       + Expand All
                     </button>
                     <button
                       onClick={collapseAllNodes}
-                      style={{
-                        padding: "4px 8px",
-                        fontSize: 11,
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-muted)",
-                        border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
+                      className="exp-tree-btn-collapse"
                       title="Collapse all nodes in the tree"
                     >
                       − Collapse All
@@ -127,12 +98,7 @@ export function ExplorerTabContent({
                 <div
                   tabIndex={0}
                   onKeyDown={handleTreeKeyDown}
-                  style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    padding: 8,
-                    outline: "none",
-                  }}
+                  className="exp-tree-content"
                   onFocus={(e) => {
                     // Auto-select root if nothing selected
                     if (!selectedNode && explorerTree) {
@@ -152,32 +118,18 @@ export function ExplorerTabContent({
               </div>
 
               {/* Right Panel: Detail View or Group Specs Panel */}
-              <div style={{
-                background: "var(--surface-primary)",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}>
+              <div className="exp-detail-panel">
                 {selectedNode ? (
                   // Check if this is a group node - show spec cards with toggles
                   (selectedNode.type === "group" || selectedNode.type === "output-group") && selectedNode.children && selectedNode.children.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                    <div className="exp-group-wrapper">
                       {/* Group Header */}
-                      <div style={{
-                        padding: "16px 20px",
-                        borderBottom: "1px solid var(--border-default)",
-                        background: "var(--background)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}>
+                      <div className="exp-group-header">
                         <div>
-                          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                          <h3 className="exp-group-title">
                             {selectedNode.name}
                           </h3>
-                          <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "var(--text-muted)" }}>
+                          <p className="exp-group-subtitle">
                             {selectedNode.meta?.count || selectedNode.children.length} specs
                             {selectedNode.meta?.enabledCount !== undefined &&
                               ` • ${selectedNode.meta.enabledCount} enabled`}
@@ -187,16 +139,7 @@ export function ExplorerTabContent({
                           <button
                             onClick={handleSaveSystemSpecs}
                             disabled={savingSystemSpecs}
-                            style={{
-                              padding: "6px 12px",
-                              fontSize: 12,
-                              fontWeight: 500,
-                              background: "var(--status-success-text)",
-                              color: "white",
-                              border: "none",
-                              borderRadius: 4,
-                              cursor: savingSystemSpecs ? "not-allowed" : "pointer",
-                            }}
+                            className="exp-save-btn"
                           >
                             {savingSystemSpecs ? "Saving..." : "Save Changes"}
                           </button>
@@ -204,7 +147,7 @@ export function ExplorerTabContent({
                       </div>
 
                       {/* Spec Cards with Toggles */}
-                      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+                      <div className="exp-group-body">
                         {(() => {
                           // Collect all spec nodes from children (handle nested output-groups)
                           const collectSpecs = (nodes: TreeNode[]): TreeNode[] => {
@@ -232,19 +175,11 @@ export function ExplorerTabContent({
                               if (subSpecs.length === 0) return null;
 
                               return (
-                                <div key={subGroup.id} style={{ marginBottom: 20 }}>
-                                  <div style={{
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    color: "var(--text-muted)",
-                                    letterSpacing: "0.05em",
-                                    marginBottom: 8,
-                                    paddingBottom: 4,
-                                    borderBottom: "1px solid var(--input-border)",
-                                  }}>
+                                <div key={subGroup.id} className="exp-subgroup">
+                                  <div className="exp-subgroup-label">
                                     {subGroup.name}
                                   </div>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                  <div className="exp-spec-list">
                                     {subSpecs.map((specNode) => {
                                       const spec = (availableItems?.systemSpecs || []).find(s => s.id === specNode.id);
                                       const isEnabled = systemSpecToggles.get(specNode.id) ?? true;
@@ -256,8 +191,8 @@ export function ExplorerTabContent({
                                       return (
                                         <div
                                           key={specNode.id}
+                                          className="exp-spec-card"
                                           style={{
-                                            padding: "12px 14px",
                                             background: !isGloballyActive
                                               ? "var(--status-error-bg)"
                                               : specHasOverride
@@ -272,106 +207,70 @@ export function ExplorerTabContent({
                                                 : effectiveEnabled
                                                   ? "1px solid var(--status-success-border)"
                                                   : "1px solid var(--border-default)",
-                                            borderRadius: 8,
                                             opacity: effectiveEnabled ? 1 : 0.6,
-                                            transition: "all 0.15s",
                                           }}
                                         >
-                                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                              <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                                          <div className="exp-spec-row">
+                                            <div className="exp-spec-info">
+                                              <div className="exp-spec-badges">
                                                 <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
                                                 {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
                                                 {!isGloballyActive && (
-                                                  <span style={{
-                                                    fontSize: 9,
-                                                    fontWeight: 600,
-                                                    padding: "1px 4px",
-                                                    background: "var(--button-destructive-bg)",
-                                                    color: "white",
-                                                    borderRadius: 3,
-                                                    textTransform: "uppercase",
-                                                  }}>
+                                                  <span className="exp-inactive-badge">
                                                     Inactive
                                                   </span>
                                                 )}
                                               </div>
                                               <Link
                                                 href={`${routePrefix}/specs/${specNode.id}`}
+                                                className="exp-spec-link"
                                                 style={{
-                                                  fontWeight: 600,
-                                                  fontSize: 13,
                                                   color: effectiveEnabled ? "var(--text-primary)" : "var(--text-muted)",
-                                                  textDecoration: "none",
-                                                  display: "block",
-                                                  marginBottom: 4,
                                                 }}
                                               >
                                                 {specNode.name.replace(/^🚫\s*/, "")}
                                               </Link>
                                               {specNode.description && (
-                                                <div style={{
-                                                  fontSize: 11,
-                                                  color: effectiveEnabled ? "var(--text-muted)" : "var(--text-placeholder)",
-                                                  lineHeight: 1.4,
-                                                  overflow: "hidden",
-                                                  display: "-webkit-box",
-                                                  WebkitLineClamp: 2,
-                                                  WebkitBoxOrient: "vertical",
-                                                }}>
+                                                <div
+                                                  className="exp-spec-desc-clamp"
+                                                  style={{
+                                                    color: effectiveEnabled ? "var(--text-muted)" : "var(--text-placeholder)",
+                                                  }}
+                                                >
                                                   {specNode.description}
                                                 </div>
                                               )}
                                             </div>
                                             {/* Toggle controls */}
                                             {isGloballyActive && (
-                                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                              <div className="exp-toggle-controls">
                                                 {specHasConfig && (
                                                   <button
                                                     onClick={(e) => {
                                                       e.stopPropagation();
                                                       if (spec) handleOpenConfigModal(spec);
                                                     }}
+                                                    className="exp-config-btn"
                                                     style={{
-                                                      width: 28,
-                                                      height: 28,
-                                                      borderRadius: 6,
                                                       border: specHasOverride ? "2px solid var(--status-warning-text)" : "1px solid var(--input-border)",
                                                       background: specHasOverride ? "var(--status-warning-bg)" : "var(--surface-primary)",
-                                                      cursor: "pointer",
-                                                      display: "flex",
-                                                      alignItems: "center",
-                                                      justifyContent: "center",
                                                     }}
                                                     title={specHasOverride ? "Config overridden - click to edit" : "Configure spec settings"}
                                                   >
-                                                    <span style={{ fontSize: 14 }}>⚙️</span>
+                                                    <span className="exp-config-icon">⚙️</span>
                                                   </button>
                                                 )}
                                                 <button
                                                   onClick={() => handleToggleSystemSpec(specNode.id)}
+                                                  className="exp-toggle-track"
                                                   style={{
-                                                    width: 40,
-                                                    height: 22,
-                                                    borderRadius: 11,
-                                                    border: "none",
                                                     background: isEnabled ? "var(--status-success-text)" : "var(--button-disabled-bg)",
-                                                    cursor: "pointer",
-                                                    position: "relative",
-                                                    transition: "background 0.15s",
                                                   }}
                                                 >
-                                                  <div style={{
-                                                    width: 18,
-                                                    height: 18,
-                                                    borderRadius: "50%",
-                                                    background: "var(--surface-primary)",
-                                                    position: "absolute",
-                                                    top: 2,
-                                                    left: isEnabled ? 20 : 2,
-                                                    transition: "left 0.15s",
-                                                    boxShadow: "0 1px 3px color-mix(in srgb, var(--text-primary) 20%, transparent)",
-                                                  }} />
+                                                  <div
+                                                    className="exp-toggle-knob"
+                                                    style={{ left: isEnabled ? 20 : 2 }}
+                                                  />
                                                 </button>
                                               </div>
                                             )}
@@ -386,7 +285,7 @@ export function ExplorerTabContent({
                           } else {
                             // Render flat list of specs
                             return (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              <div className="exp-spec-list">
                                 {specNodes.map((specNode) => {
                                   const spec = (availableItems?.systemSpecs || []).find(s => s.id === specNode.id) ||
                                                items.find(i => i.spec?.id === specNode.id)?.spec;
@@ -402,92 +301,71 @@ export function ExplorerTabContent({
                                   return (
                                     <div
                                       key={specNode.id}
+                                      className="exp-spec-card"
                                       style={{
-                                        padding: "12px 14px",
                                         background: effectiveEnabled ? "var(--surface-primary)" : "var(--background)",
                                         border: effectiveEnabled
                                           ? "1px solid var(--status-success-border)"
                                           : "1px solid var(--border-default)",
-                                        borderRadius: 8,
                                         opacity: effectiveEnabled ? 1 : 0.6,
                                       }}
                                     >
-                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                                      <div className="exp-spec-row">
+                                        <div className="exp-spec-info">
+                                          <div className="exp-spec-badges">
                                             <SpecRoleBadge role={specNode.meta?.specRole || spec?.specRole} size="sm" showIcon={false} />
                                             {outputTypeBadge(specNode.meta?.outputType || spec?.outputType || "")}
                                           </div>
                                           <Link
                                             href={`${routePrefix}/specs/${specNode.id}`}
+                                            className="exp-spec-link"
                                             style={{
-                                              fontWeight: 600,
-                                              fontSize: 13,
                                               color: effectiveEnabled ? "var(--text-primary)" : "var(--text-muted)",
-                                              textDecoration: "none",
-                                              display: "block",
-                                              marginBottom: 4,
                                             }}
                                           >
                                             {specNode.name.replace(/^🚫\s*/, "")}
                                           </Link>
                                           {specNode.description && (
-                                            <div style={{
-                                              fontSize: 11,
-                                              color: effectiveEnabled ? "var(--text-muted)" : "var(--text-placeholder)",
-                                              lineHeight: 1.4,
-                                            }}>
+                                            <div
+                                              className="exp-spec-desc"
+                                              style={{
+                                                color: effectiveEnabled ? "var(--text-muted)" : "var(--text-placeholder)",
+                                              }}
+                                            >
                                               {specNode.description}
                                             </div>
                                           )}
                                         </div>
                                         {/* Toggle for system specs only */}
                                         {isSystemSpec && isGloballyActive && (
-                                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                          <div className="exp-toggle-controls">
                                             {specHasConfig && (
                                               <button
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   if (spec) handleOpenConfigModal(spec as Spec);
                                                 }}
+                                                className="exp-config-btn"
                                                 style={{
-                                                  width: 28,
-                                                  height: 28,
-                                                  borderRadius: 6,
                                                   border: specHasOverride ? "2px solid var(--status-warning-text)" : "1px solid var(--input-border)",
                                                   background: specHasOverride ? "var(--status-warning-bg)" : "var(--surface-primary)",
-                                                  cursor: "pointer",
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  justifyContent: "center",
                                                 }}
                                                 title={specHasOverride ? "Config overridden" : "Configure"}
                                               >
-                                                <span style={{ fontSize: 14 }}>⚙️</span>
+                                                <span className="exp-config-icon">⚙️</span>
                                               </button>
                                             )}
                                             <button
                                               onClick={() => handleToggleSystemSpec(specNode.id)}
+                                              className="exp-toggle-track"
                                               style={{
-                                                width: 40,
-                                                height: 22,
-                                                borderRadius: 11,
-                                                border: "none",
                                                 background: isEnabled ? "var(--status-success-text)" : "var(--button-disabled-bg)",
-                                                cursor: "pointer",
-                                                position: "relative",
                                               }}
                                             >
-                                              <div style={{
-                                                width: 18,
-                                                height: 18,
-                                                borderRadius: "50%",
-                                                background: "var(--surface-primary)",
-                                                position: "absolute",
-                                                top: 2,
-                                                left: isEnabled ? 20 : 2,
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                                              }} />
+                                              <div
+                                                className="exp-toggle-knob"
+                                                style={{ left: isEnabled ? 20 : 2 }}
+                                              />
                                             </button>
                                           </div>
                                         )}
@@ -506,18 +384,9 @@ export function ExplorerTabContent({
                     <NodeDetailPanel node={selectedNode} />
                   )
                 ) : (
-                  <div style={{
-                    padding: 48,
-                    textAlign: "center",
-                    color: "var(--text-placeholder)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    height: "100%",
-                  }}>
-                    <span style={{ fontSize: 48, marginBottom: 16 }}>🌳</span>
-                    <p style={{ fontSize: 14 }}>Select an item from the tree to view details</p>
+                  <div className="exp-empty-state">
+                    <span className="exp-empty-icon">🌳</span>
+                    <p className="exp-empty-text">Select an item from the tree to view details</p>
                   </div>
                 )}
               </div>
@@ -559,7 +428,7 @@ function ExplorerTreeNode({
   // Windows Explorer style [+]/[-] toggle box
   const ToggleBox = () => {
     if (!hasChildren) {
-      return <span style={{ width: 16, height: 16, display: "inline-block" }} />;
+      return <span className="exp-toggle-box-spacer" />;
     }
     return (
       <span
@@ -567,23 +436,7 @@ function ExplorerTreeNode({
           e.stopPropagation();
           onToggle(node.id);
         }}
-        style={{
-          width: 16,
-          height: 16,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: "1px solid var(--text-placeholder)",
-          borderRadius: 2,
-          background: "var(--surface-primary)",
-          fontSize: 12,
-          fontWeight: 700,
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          flexShrink: 0,
-          lineHeight: 1,
-          fontFamily: "monospace",
-        }}
+        className="exp-toggle-box"
         title={isExpanded ? "Collapse" : "Expand"}
       >
         {isExpanded ? "−" : "+"}
@@ -592,7 +445,7 @@ function ExplorerTreeNode({
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="exp-node-wrapper">
       {/* Tree connector lines */}
       {depth > 0 && (
         <>
@@ -601,50 +454,42 @@ function ExplorerTreeNode({
             showLine && (
               <div
                 key={i}
+                className="exp-connector-line"
                 style={{
-                  position: "absolute",
                   left: i * 20 + 8,
                   top: 0,
                   bottom: 0,
-                  width: 1,
-                  background: "var(--button-disabled-bg)",
                 }}
               />
             )
           ))}
           {/* Horizontal connector to this node */}
           <div
+            className="exp-connector-horizontal"
             style={{
-              position: "absolute",
               left: (depth - 1) * 20 + 8,
               top: 14,
               width: 12,
-              height: 1,
-              background: "var(--button-disabled-bg)",
             }}
           />
           {/* Vertical line segment for this level (if not last) */}
           {!isLast && (
             <div
+              className="exp-connector-line"
               style={{
-                position: "absolute",
                 left: (depth - 1) * 20 + 8,
                 top: 0,
                 bottom: 0,
-                width: 1,
-                background: "var(--button-disabled-bg)",
               }}
             />
           )}
           {/* Vertical line to horizontal for this node */}
           <div
+            className="exp-connector-line"
             style={{
-              position: "absolute",
               left: (depth - 1) * 20 + 8,
               top: 0,
               height: 15,
-              width: 1,
-              background: "var(--button-disabled-bg)",
             }}
           />
         </>
@@ -655,18 +500,11 @@ function ExplorerTreeNode({
         onClick={() => {
           onSelect(node);
         }}
+        className="exp-node-row"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "4px 8px",
           marginLeft: depth * 20,
-          borderRadius: 4,
-          cursor: "pointer",
           background: isSelected ? colors.selectedBg : "transparent",
           border: isSelected ? `1px solid ${colors.border}` : "1px solid transparent",
-          transition: "background 0.1s",
-          position: "relative",
         }}
         ref={(el) => {
           // Scroll into view when selected
@@ -685,31 +523,22 @@ function ExplorerTreeNode({
         <ToggleBox />
 
         {/* Node Icon */}
-        <span style={{ flexShrink: 0, fontSize: 14 }}>{icon}</span>
+        <span className="exp-node-icon">{icon}</span>
 
         {/* Node Name */}
-        <span style={{
-          fontSize: 12,
-          fontWeight: isSelected ? 600 : 400,
-          color: isSelected ? colors.text : "var(--text-secondary)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
+        <span
+          className="exp-node-name"
+          style={{
+            fontWeight: isSelected ? 600 : 400,
+            color: isSelected ? colors.text : "var(--text-secondary)",
+          }}
+        >
           {node.name}
         </span>
 
         {/* Child Count Badge */}
         {hasChildren && (
-          <span style={{
-            fontSize: 10,
-            color: "var(--text-muted)",
-            background: "var(--border-default)",
-            padding: "1px 5px",
-            borderRadius: 8,
-            marginLeft: "auto",
-            flexShrink: 0,
-          }}>
+          <span className="exp-child-count">
             {node.children!.length}
           </span>
         )}
@@ -747,31 +576,16 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
   const colors = nodeColors[node.type] || nodeColors.config;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="exp-detail-wrapper">
       {/* Header */}
-      <div style={{
-        padding: "20px 24px",
-        borderBottom: "1px solid var(--border-default)",
-        background: colors.bg,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 32 }}>{icon}</span>
+      <div className="exp-detail-header" style={{ background: colors.bg }}>
+        <div className="exp-detail-header-row">
+          <span className="exp-detail-header-icon">{icon}</span>
           <div>
-            <span style={{
-              fontSize: 10,
-              textTransform: "uppercase",
-              color: colors.text,
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-            }}>
+            <span className="exp-detail-type-label" style={{ color: colors.text }}>
               {node.type}
             </span>
-            <h2 style={{
-              margin: "4px 0 0 0",
-              fontSize: 18,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-            }}>
+            <h2 className="exp-detail-title">
               {node.name}
             </h2>
           </div>
@@ -779,20 +593,14 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+      <div className="exp-detail-body">
         {/* Description */}
         {node.description && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+          <div className="exp-detail-section">
+            <h3 className="exp-detail-section-heading">
               Description
             </h3>
-            <p style={{
-              margin: 0,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-            }}>
+            <p className="exp-detail-description">
               {node.description}
             </p>
           </div>
@@ -800,42 +608,19 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
 
         {/* Metadata */}
         {node.meta && Object.keys(node.meta).length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+          <div className="exp-detail-section">
+            <h3 className="exp-detail-section-heading-lg">
               Properties
             </h3>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 12,
-            }}>
+            <div className="exp-props-grid">
               {Object.entries(node.meta)
                 .filter(([k, v]) => v !== null && v !== undefined && k !== "fullTemplate" && k !== "fullDescription" && k !== "fullText")
                 .map(([key, value]) => (
-                  <div
-                    key={key}
-                    style={{
-                      padding: "10px 12px",
-                      background: "var(--background)",
-                      borderRadius: 6,
-                      border: "1px solid var(--border-default)",
-                    }}
-                  >
-                    <div style={{
-                      fontSize: 10,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                      marginBottom: 4,
-                      fontWeight: 500,
-                    }}>
+                  <div key={key} className="exp-prop-card">
+                    <div className="exp-prop-label">
                       {key}
                     </div>
-                    <div style={{
-                      fontSize: 13,
-                      color: "var(--text-primary)",
-                      fontWeight: 500,
-                      wordBreak: "break-word",
-                    }}>
+                    <div className="exp-prop-value">
                       {typeof value === "boolean"
                         ? (value ? "✓ Yes" : "✗ No")
                         : typeof value === "number"
@@ -855,23 +640,11 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
 
         {/* Full Template Content (for template-content nodes) */}
         {node.type === "template-content" && node.meta?.fullTemplate && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+          <div className="exp-detail-section">
+            <h3 className="exp-detail-section-heading-lg">
               Full Template ({node.meta.length} chars)
             </h3>
-            <pre style={{
-              margin: 0,
-              padding: 16,
-              background: "var(--code-bg)",
-              color: "var(--code-text)",
-              borderRadius: 8,
-              fontSize: 12,
-              lineHeight: 1.6,
-              overflow: "auto",
-              maxHeight: 400,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}>
+            <pre className="exp-template-block">
               {node.meta.fullTemplate}
             </pre>
           </div>
@@ -879,21 +652,11 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
 
         {/* Full Description (for info nodes) */}
         {node.type === "info" && node.meta?.fullDescription && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+          <div className="exp-detail-section">
+            <h3 className="exp-detail-section-heading-lg">
               Full Description
             </h3>
-            <p style={{
-              margin: 0,
-              padding: 16,
-              background: "var(--status-info-bg)",
-              borderRadius: 8,
-              border: "1px solid var(--status-info-border)",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "var(--status-info-text)",
-              whiteSpace: "pre-wrap",
-            }}>
+            <p className="exp-info-block">
               {node.meta.fullDescription}
             </p>
           </div>
@@ -901,21 +664,11 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
 
         {/* Instruction Content (for instruction nodes) */}
         {node.type === "instruction" && node.meta?.fullText && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+          <div className="exp-detail-section">
+            <h3 className="exp-detail-section-heading-lg">
               Instruction
             </h3>
-            <p style={{
-              margin: 0,
-              padding: 16,
-              background: "var(--status-success-bg)",
-              borderRadius: 8,
-              border: "1px solid var(--status-success-border)",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "var(--status-success-text)",
-              whiteSpace: "pre-wrap",
-            }}>
+            <p className="exp-instruction-block">
               {node.meta.fullText}
             </p>
           </div>
@@ -924,72 +677,41 @@ function NodeDetailPanel({ node }: { node: TreeNode }) {
         {/* Children Summary */}
         {node.children && node.children.length > 0 && (
           <div>
-            <h3 style={{ margin: "0 0 12px 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+            <h3 className="exp-detail-section-heading-lg">
               Contains ({node.children.length} items)
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="exp-spec-list">
               {node.children.slice(0, 10).map((child) => {
                 const childIcon = nodeIcons[child.type] || "📄";
                 const childColors = nodeColors[child.type] || nodeColors.config;
                 return (
                   <div
                     key={child.id}
+                    className="exp-child-card"
                     style={{
-                      padding: "10px 12px",
                       background: childColors.bg,
-                      borderRadius: 6,
                       border: `1px solid ${childColors.border}`,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
                     }}
                   >
                     <span>{childIcon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: childColors.text,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}>
+                    <div className="exp-child-info">
+                      <div className="exp-child-name" style={{ color: childColors.text }}>
                         {child.name}
                       </div>
                       {child.description && (
-                        <div style={{
-                          fontSize: 11,
-                          color: "var(--text-muted)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}>
+                        <div className="exp-child-desc">
                           {child.description}
                         </div>
                       )}
                     </div>
-                    <span style={{
-                      fontSize: 9,
-                      padding: "2px 6px",
-                      background: "var(--surface-primary)",
-                      borderRadius: 4,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                    }}>
+                    <span className="exp-child-type-badge">
                       {child.type}
                     </span>
                   </div>
                 );
               })}
               {node.children.length > 10 && (
-                <div style={{
-                  padding: 12,
-                  textAlign: "center",
-                  color: "var(--text-muted)",
-                  fontSize: 12,
-                  background: "var(--background)",
-                  borderRadius: 6,
-                }}>
+                <div className="exp-overflow-indicator">
                   ...and {node.children.length - 10} more items
                 </div>
               )}

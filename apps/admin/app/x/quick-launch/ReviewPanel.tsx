@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import type { AnalysisPreview, CommitOverrides } from "@/lib/domain/quick-launch";
 import type { GeneratedIdentityConfig } from "@/lib/domain/generate-identity";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import "./review-panel.css";
 
 // ── Types ──────────────────────────────────────────
 
@@ -34,30 +35,17 @@ interface ReviewPanelProps {
 function Skeleton({ width = "100%", height = 16 }: { width?: string | number; height?: number }) {
   return (
     <div
-      style={{
-        width,
-        height,
-        borderRadius: 6,
-        background: "var(--surface-tertiary)",
-        animation: "pulse 1.5s ease-in-out infinite",
-      }}
+      className="rp-skeleton"
+      style={{ width, height }}
     />
   );
 }
 
 // ── Section Card ───────────────────────────────────
 
-function SectionCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      style={{
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 14,
-        padding: 24,
-        ...style,
-      }}
-    >
+    <div className={`rp-section-card${className ? ` ${className}` : ""}`}>
       {children}
     </div>
   );
@@ -67,21 +55,12 @@ function SectionCard({ children, style }: { children: React.ReactNode; style?: R
 
 function ColumnHeader({ label, sublabel }: { label: string; sublabel?: string }) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          color: "var(--text-muted)",
-          marginBottom: sublabel ? 4 : 0,
-        }}
-      >
+    <div className="rp-column-header">
+      <div className={`rp-column-header-label${sublabel ? " rp-column-header-label-spaced" : ""}`}>
         {label}
       </div>
       {sublabel && (
-        <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+        <div className="rp-column-header-sublabel">
           {sublabel}
         </div>
       )}
@@ -105,17 +84,8 @@ function EditableField({
   const [editing, setEditing] = useState(false);
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "var(--text-muted)",
-          marginBottom: 6,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
+    <div className="rp-field-group">
+      <div className="rp-field-label">
         {label}
       </div>
       {editing ? (
@@ -126,20 +96,7 @@ function EditableField({
             onBlur={() => setEditing(false)}
             autoFocus
             rows={3}
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "2px solid var(--accent-primary)",
-              fontSize: 14,
-              fontWeight: 500,
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-              outline: "none",
-              resize: "vertical",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
+            className="rp-field-textarea"
           />
         ) : (
           <input
@@ -149,39 +106,15 @@ function EditableField({
             onBlur={() => setEditing(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
             autoFocus
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "2px solid var(--accent-primary)",
-              fontSize: 14,
-              fontWeight: 500,
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
+            className="rp-field-input"
           />
         )
       ) : (
         <div
           onClick={() => setEditing(true)}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid var(--border-default)",
-            fontSize: 14,
-            fontWeight: 500,
-            color: "var(--text-primary)",
-            cursor: "pointer",
-            transition: "border-color 0.15s",
-            minHeight: multiline ? 60 : "auto",
-            whiteSpace: multiline ? "pre-wrap" : "normal",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent-primary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
+          className={`rp-field-display${multiline ? " rp-field-display-multiline" : ""}`}
         >
-          {value || <span style={{ color: "var(--text-muted)" }}>Click to edit...</span>}
+          {value || <span className="rp-field-placeholder">Click to edit...</span>}
         </div>
       )}
     </div>
@@ -212,49 +145,17 @@ function EditableTagList({
   };
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "var(--text-muted)",
-          marginBottom: 8,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}
-      >
+    <div className="rp-field-group">
+      <div className="rp-tag-label">
         {label}
       </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div className="rp-tag-wrap">
         {tags.map((tag, i) => (
-          <span
-            key={i}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "5px 10px",
-              borderRadius: 16,
-              background: "var(--status-info-bg)",
-              border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--text-primary)",
-            }}
-          >
+          <span key={i} className="rp-tag">
             {tag}
             <button
               onClick={() => onChange(tags.filter((_, j) => j !== i))}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-                fontSize: 14,
-                lineHeight: 1,
-                color: "var(--text-muted)",
-                fontWeight: 700,
-              }}
+              className="rp-tag-remove"
             >
               &times;
             </button>
@@ -272,31 +173,12 @@ function EditableTagList({
             }}
             autoFocus
             placeholder="Type and press Enter"
-            style={{
-              padding: "5px 10px",
-              borderRadius: 16,
-              border: "2px solid var(--accent-primary)",
-              fontSize: 13,
-              fontWeight: 500,
-              outline: "none",
-              minWidth: 120,
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-            }}
+            className="rp-tag-input"
           />
         ) : (
           <button
             onClick={() => setAdding(true)}
-            style={{
-              padding: "5px 10px",
-              borderRadius: 16,
-              border: "1px dashed var(--border-default)",
-              background: "transparent",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--text-muted)",
-              cursor: "pointer",
-            }}
+            className="rp-tag-add"
           >
             + Add
           </button>
@@ -311,22 +193,17 @@ function EditableTagList({
 function CategoryBar({ label, count, maxCount }: { label: string; count: number; maxCount: number }) {
   const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-      <div style={{ width: 80, fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", textTransform: "capitalize" }}>
+    <div className="rp-cat-row">
+      <div className="rp-cat-label">
         {label}
       </div>
-      <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--surface-tertiary)", overflow: "hidden" }}>
+      <div className="rp-cat-track">
         <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            borderRadius: 4,
-            background: "var(--accent-primary)",
-            transition: "width 0.5s ease",
-          }}
+          className="rp-cat-fill"
+          style={{ width: `${pct}%` }}
         />
       </div>
-      <div style={{ width: 30, fontSize: 12, fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>
+      <div className="rp-cat-count">
         {count}
       </div>
     </div>
@@ -353,18 +230,10 @@ function AssertionCategoryBadge({ category }: { category: string }) {
   const label = category.replace(/_/g, " ");
   return (
     <span
+      className="rp-cat-badge"
       style={{
-        display: "inline-block",
-        padding: "2px 6px",
-        borderRadius: 4,
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0.03em",
         color,
         background: `color-mix(in srgb, ${color} 12%, transparent)`,
-        whiteSpace: "nowrap",
-        flexShrink: 0,
       }}
     >
       {label}
@@ -420,55 +289,38 @@ export default function ReviewPanel({
     : 0;
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
+    <div className="rp-container">
       {/* 3-column grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1.2fr 1fr",
-          gap: 20,
-          alignItems: "start",
-        }}
-      >
+      <div className="rp-grid">
         {/* ── Column 1: Your Input ── */}
         <div>
           <ColumnHeader label="Your Input" />
           <SectionCard>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Name</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{input.subjectName}</div>
+            <div className="rp-section-mb">
+              <div className="rp-input-label">Name</div>
+              <div className="rp-input-name">{input.subjectName}</div>
             </div>
 
             {input.brief && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Brief</div>
-                <div style={{ fontSize: 14, fontWeight: 400, color: "var(--text-secondary)", lineHeight: 1.5 }}>{input.brief}</div>
+              <div className="rp-section-mb">
+                <div className="rp-input-label">Brief</div>
+                <div className="rp-input-brief">{input.brief}</div>
               </div>
             )}
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{terms.persona}</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+            <div className="rp-section-mb">
+              <div className="rp-input-label">{terms.persona}</div>
+              <div className="rp-input-persona">
                 {input.personaName || input.persona}
               </div>
             </div>
 
             {input.goals.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Learning Goals</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div className="rp-section-mb">
+                <div className="rp-input-label rp-input-label-spaced">Learning Goals</div>
+                <div className="rp-tag-wrap">
                   {input.goals.map((g, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        padding: "5px 12px",
-                        borderRadius: 16,
-                        background: "var(--surface-secondary)",
-                        border: "1px solid var(--border-default)",
-                        fontSize: 13,
-                        fontWeight: 500,
-                      }}
-                    >
+                    <span key={i} className="rp-input-goal-chip">
                       {g}
                     </span>
                   ))}
@@ -476,21 +328,21 @@ export default function ReviewPanel({
               </div>
             )}
 
-            <div style={{ marginBottom: input.qualificationRef ? 16 : 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <div className={input.qualificationRef ? "rp-section-mb" : ""}>
+              <div className="rp-input-label">
                 {input.mode === "generate" ? "Content Source" : "Source Material"}
               </div>
               {input.mode === "generate" ? (
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-primary)" }}>
+                <div className="rp-input-source-ai">
                   AI-generated from goals
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                  <div className="rp-input-source-file">
                     {input.fileName}
                   </div>
                   {input.fileSize != null && (
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    <div className="rp-input-file-size">
                       {(input.fileSize / 1024).toFixed(0)} KB
                     </div>
                   )}
@@ -499,9 +351,9 @@ export default function ReviewPanel({
             </div>
 
             {input.qualificationRef && (
-              <div style={{ marginBottom: input.agentStyleTraits?.length ? 16 : 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Qualification</div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+              <div className={input.agentStyleTraits?.length ? "rp-section-mb" : ""}>
+                <div className="rp-input-label">Qualification</div>
+                <div className="rp-input-qual">
                   {input.qualificationRef}
                 </div>
               </div>
@@ -509,21 +361,10 @@ export default function ReviewPanel({
 
             {input.agentStyleTraits && input.agentStyleTraits.length > 0 && (
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Agent Style</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div className="rp-input-label rp-input-label-spaced">Agent Style</div>
+                <div className="rp-tag-wrap">
                   {input.agentStyleTraits.map((trait, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: 12,
-                        background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                        border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: "var(--accent-primary)",
-                      }}
-                    >
+                    <span key={i} className="rp-style-trait">
                       {trait}
                     </span>
                   ))}
@@ -538,47 +379,39 @@ export default function ReviewPanel({
           <ColumnHeader label="AI Understood" sublabel={analysisComplete ? "Analysis complete" : "Analyzing..."} />
 
           {/* Content Extraction (upload mode) or Generation info (generate mode) */}
-          <SectionCard style={{ marginBottom: 16 }}>
+          <SectionCard className="rp-section-mb">
             {input.mode === "generate" ? (
               <>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div className="rp-section-heading">
                   AI-Generated Content
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                <div className="rp-gen-body">
                   Content will be generated during the create step based on your description and{" "}
                   {input.goals.length > 0
                     ? `${input.goals.length} learning goal${input.goals.length !== 1 ? "s" : ""}`
                     : "AI-inferred goals"
                   }.
                 </div>
-                <div style={{
-                  marginTop: 14,
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  background: "var(--surface-secondary)",
-                  fontSize: 13,
-                  color: "var(--text-secondary)",
-                  fontWeight: 500,
-                }}>
+                <div className="rp-gen-note">
                   Modules will be structured progressively, with outcomes and assessment criteria tailored to your goals.
                 </div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div className="rp-section-heading">
                   Content Extraction
                 </div>
                 {summary && "categoryBreakdown" in summary ? (
                   <>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>
+                    <div className="rp-extract-count">
                       {preview.assertionCount} teaching points
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
+                    <div className="rp-extract-chapters">
                       from {(summary as any).chapters?.length ?? 0} chapter{(summary as any).chapters?.length !== 1 ? "s" : ""}
                     </div>
 
                     {/* Category breakdown */}
-                    <div style={{ marginBottom: 16 }}>
+                    <div className="rp-section-mb">
                       {Object.entries((summary as any).categoryBreakdown || {})
                         .sort(([, a], [, b]) => (b as number) - (a as number))
                         .map(([cat, count]) => (
@@ -589,13 +422,13 @@ export default function ReviewPanel({
                     {/* Top chapters */}
                     {(summary as any).chapters?.length > 0 && (
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        <div className="rp-input-label rp-input-label-spaced">
                           Top Chapters
                         </div>
                         {(summary as any).chapters.slice(0, 6).map((ch: any, i: number) => (
-                          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
-                            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{ch.name}</span>
-                            <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{ch.count}</span>
+                          <div key={i} className="rp-chapter-row">
+                            <span className="rp-chapter-name">{ch.name}</span>
+                            <span className="rp-chapter-count">{ch.count}</span>
                           </div>
                         ))}
                       </div>
@@ -603,43 +436,23 @@ export default function ReviewPanel({
 
                     {/* Sample teaching points */}
                     {(summary as any).sampleAssertions?.length > 0 && (
-                      <div style={{ marginTop: 16 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <div className="rp-sample-mt">
+                        <div className="rp-input-label rp-input-label-spaced-md">
                           Sample Teaching Points
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div className="rp-sample-list">
                           {(summary as any).sampleAssertions.map((a: any, i: number) => (
-                            <div
-                              key={i}
-                              style={{
-                                display: "flex",
-                                gap: 8,
-                                alignItems: "flex-start",
-                                padding: "8px 10px",
-                                borderRadius: 8,
-                                background: "var(--surface-secondary)",
-                                border: "1px solid var(--border-subtle, var(--border-default))",
-                              }}
-                            >
+                            <div key={i} className="rp-sample-row">
                               <AssertionCategoryBadge category={a.category} />
-                              <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="rp-sample-body">
                                 <div
-                                  style={{
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    color: "var(--text-primary)",
-                                    lineHeight: 1.45,
-                                    overflow: "hidden",
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: "vertical",
-                                  }}
+                                  className="rp-sample-text"
                                   title={a.assertion}
                                 >
                                   {a.assertion}
                                 </div>
                                 {a.chapter && (
-                                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                                  <div className="rp-sample-chapter">
                                     {a.chapter}
                                   </div>
                                 )}
@@ -648,7 +461,7 @@ export default function ReviewPanel({
                           ))}
                         </div>
                         {(preview.assertionCount || 0) > (summary as any).sampleAssertions.length && (
-                          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8, textAlign: "center" }}>
+                          <div className="rp-sample-footer">
                             Showing {(summary as any).sampleAssertions.length} of {preview.assertionCount} teaching points
                           </div>
                         )}
@@ -656,14 +469,14 @@ export default function ReviewPanel({
                     )}
                   </>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div className="rp-skeleton-group">
                     <Skeleton height={24} width="60%" />
                     <Skeleton height={14} width="40%" />
-                    <div style={{ marginTop: 8 }}>
+                    <div className="rp-skeleton-spacer-sm">
                       <Skeleton height={8} />
-                      <div style={{ height: 6 }} />
+                      <div className="rp-skeleton-gap" />
                       <Skeleton height={8} width="80%" />
-                      <div style={{ height: 6 }} />
+                      <div className="rp-skeleton-gap" />
                       <Skeleton height={8} width="60%" />
                     </div>
                   </div>
@@ -674,34 +487,23 @@ export default function ReviewPanel({
 
           {/* Generated Identity */}
           <SectionCard>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <div className="rp-section-heading">
               Generated Identity
             </div>
             {identity ? (
               <>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.6, marginBottom: 16, fontStyle: "italic" }}>
+                <div className="rp-identity-quote">
                   &ldquo;{identity.roleStatement}&rdquo;
                 </div>
 
                 {identity.techniques?.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <div className="rp-identity-section">
+                    <div className="rp-input-label rp-input-label-spaced">
                       Teaching Techniques
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div className="rp-tag-wrap">
                       {identity.techniques.map((t, i) => (
-                        <span
-                          key={i}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 12,
-                            background: "var(--surface-secondary)",
-                            border: "1px solid var(--border-default)",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            color: "var(--text-primary)",
-                          }}
-                        >
+                        <span key={i} className="rp-technique-tag">
                           {t.name}
                         </span>
                       ))}
@@ -711,27 +513,17 @@ export default function ReviewPanel({
 
                 {identity.domainVocabulary?.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <div className="rp-input-label rp-input-label-spaced">
                       Domain Vocabulary
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div className="rp-tag-wrap">
                       {identity.domainVocabulary.slice(0, 12).map((v, i) => (
-                        <span
-                          key={i}
-                          style={{
-                            padding: "3px 8px",
-                            borderRadius: 8,
-                            background: "var(--surface-tertiary)",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            color: "var(--text-secondary)",
-                          }}
-                        >
+                        <span key={i} className="rp-vocab-tag">
                           {v}
                         </span>
                       ))}
                       {identity.domainVocabulary.length > 12 && (
-                        <span style={{ fontSize: 12, color: "var(--text-muted)", padding: "3px 0" }}>
+                        <span className="rp-vocab-more">
                           +{identity.domainVocabulary.length - 12} more
                         </span>
                       )}
@@ -740,11 +532,11 @@ export default function ReviewPanel({
                 )}
               </>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="rp-skeleton-group">
                 <Skeleton height={14} />
                 <Skeleton height={14} width="90%" />
                 <Skeleton height={14} width="70%" />
-                <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+                <div className="rp-skeleton-tags">
                   <Skeleton height={24} width={80} />
                   <Skeleton height={24} width={90} />
                   <Skeleton height={24} width={70} />
@@ -757,7 +549,7 @@ export default function ReviewPanel({
         {/* ── Column 3: What We'll Create ── */}
         <div>
           <ColumnHeader label="What We'll Create" sublabel="Click any field to edit" />
-          <SectionCard style={{ marginBottom: 16 }}>
+          <SectionCard className="rp-section-mb">
             <EditableField
               label="Agent Name"
               value={effectiveDomainName}
@@ -785,38 +577,28 @@ export default function ReviewPanel({
 
           {/* Identity Config (collapsible) */}
           {effectiveIdentity && (
-            <SectionCard style={{ marginBottom: 16 }}>
+            <SectionCard className="rp-section-mb">
               <button
                 onClick={() => setIdentityExpanded(!identityExpanded)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  textAlign: "left",
-                }}
+                className="rp-expand-btn"
               >
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div className="rp-expand-label">
                   Identity Config
                 </div>
-                <span style={{ fontSize: 14, color: "var(--text-muted)" }}>
+                <span className="rp-expand-icon">
                   {identityExpanded ? "\u25BE" : "\u25B8"}
                 </span>
               </button>
 
               {!identityExpanded && (
-                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 8, lineHeight: 1.5 }}>
+                <div className="rp-identity-preview">
                   {(effectiveIdentity.roleStatement || "").slice(0, 100)}
                   {(effectiveIdentity.roleStatement || "").length > 100 ? "..." : ""}
                 </div>
               )}
 
               {identityExpanded && (
-                <div style={{ marginTop: 16 }}>
+                <div className="rp-identity-expanded">
                   <EditableField
                     label="Role Statement"
                     value={effectiveIdentity.roleStatement || ""}
@@ -882,9 +664,9 @@ export default function ReviewPanel({
 
           {/* Warnings */}
           {preview.warnings && preview.warnings.length > 0 && (
-            <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", fontSize: 13 }}>
+            <div className="rp-warning-box">
               {preview.warnings.map((w, i) => (
-                <div key={i} style={{ color: "var(--status-warning-text)", marginBottom: i < preview.warnings!.length - 1 ? 4 : 0 }}>
+                <div key={i} className={`rp-warning-item${i < preview.warnings!.length - 1 ? " rp-warning-item-spaced" : ""}`}>
                   {w}
                 </div>
               ))}
@@ -892,54 +674,23 @@ export default function ReviewPanel({
           )}
 
           {/* Action Buttons */}
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="rp-actions">
             <button
               onClick={onBack}
-              style={{
-                padding: "14px 24px",
-                borderRadius: 12,
-                border: "2px solid var(--border-default)",
-                background: "var(--surface-primary)",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className="rp-back-btn"
             >
               Back
             </button>
             <button
               onClick={onConfirm}
               disabled={!analysisComplete}
-              style={{
-                flex: 1,
-                padding: "14px 24px",
-                borderRadius: 12,
-                border: "none",
-                background: analysisComplete
-                  ? "var(--accent-primary)"
-                  : "var(--surface-tertiary)",
-                color: analysisComplete ? "white" : "var(--text-muted)",
-                fontSize: 16,
-                fontWeight: 800,
-                cursor: analysisComplete ? "pointer" : "not-allowed",
-                transition: "all 0.2s",
-                letterSpacing: "-0.02em",
-                boxShadow: analysisComplete ? "0 4px 14px color-mix(in srgb, var(--accent-primary) 35%, transparent)" : "none",
-              }}
+              className={`rp-confirm-btn ${analysisComplete ? "rp-confirm-btn-active" : "rp-confirm-btn-disabled"}`}
             >
               {analysisComplete ? "Create" : "Waiting for analysis..."}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Pulse animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import "./data-management.css";
 import { useState, useEffect } from "react";
 import { AIModelsManager } from "@/components/shared/AIModelsManager";
 import { SpecSyncDetailModal } from "@/components/shared/SpecSyncDetailModal";
@@ -283,39 +284,26 @@ export default function DataManagementPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 className="hf-page-title" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 32 }}>🌱</span>
+      <div className="dm-header">
+        <h1 className="hf-page-title dm-title-row">
+          <span className="dm-title-icon">🌱</span>
           Data Management
         </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 15 }}>
+        <p className="dm-subtitle">
           Initialize system from source files (specs, domains, playbooks, transcripts)
         </p>
       </div>
 
       {/* Current Stats Card */}
-      <div style={{ marginBottom: 40 }}>
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 4,
-          }}>
-            Current Database State
-          </h2>
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-            Current counts of key entities in your system
-          </p>
+      <div className="dm-stats-section">
+        <div className="dm-stats-header">
+          <h2 className="dm-stats-title">Current Database State</h2>
+          <p className="dm-stats-desc">Current counts of key entities in your system</p>
         </div>
         {loadingStats ? (
-          <div style={{ fontSize: 14, color: "var(--text-muted)", padding: 20 }}>Loading...</div>
+          <div className="dm-stats-loading">Loading...</div>
         ) : stats ? (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
-            gap: 16,
-          }}>
+          <div className="dm-stats-grid">
             <StatItem label="Domains" value={stats.domains} icon="🌐" />
             <StatItem label="Playbooks" value={stats.playbooks} icon="📚" />
             <StatItem label="Specs" value={stats.specs} icon="📐" />
@@ -323,80 +311,48 @@ export default function DataManagementPage() {
             <StatItem label="Calls" value={stats.calls} icon="📞" />
           </div>
         ) : (
-          <div style={{ fontSize: 14, color: "var(--status-error-text)", padding: 20 }}>Failed to load stats</div>
+          <div className="dm-stats-error">Failed to load stats</div>
         )}
       </div>
 
       {/* Manage AI Models Section */}
-      <div
-        style={{
-          padding: 24,
-          background: "var(--surface-primary)",
-          borderRadius: 12,
-          border: "1px solid var(--border-default)",
-          marginBottom: 32,
-          transition: "all 0.2s",
-        }}
-      >
+      <div className="dm-collapsible">
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            cursor: "pointer",
-          }}
+          className="dm-collapsible-header"
           onClick={() => setShowAIModels(!showAIModels)}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <span style={{ fontSize: 28 }}>🤖</span>
+          <div className="dm-collapsible-left">
+            <span className="dm-collapsible-icon">🤖</span>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
-                Manage AI Models
-              </div>
-              <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
+              <div className="dm-collapsible-title">Manage AI Models</div>
+              <div className="dm-collapsible-desc">
                 Add, edit, or disable AI models available for pipeline operations
               </div>
             </div>
           </div>
-          <span style={{ fontSize: 20, color: "var(--text-muted)" }}>
+          <span className="dm-collapsible-chevron">
             {showAIModels ? "▼" : "▶"}
           </span>
         </div>
 
         {showAIModels && (
-          <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border-subtle)" }}>
+          <div className="dm-collapsible-body">
             <AIModelsManager showHeader={false} />
           </div>
         )}
       </div>
 
       {/* Recommended Order Notice */}
-      <div
-        style={{
-          padding: 20,
-          background: "var(--status-info-bg)",
-          borderRadius: 12,
-          border: "1px solid var(--status-info-border)",
-          marginBottom: 32,
-        }}
-      >
-        <div style={{
-          fontSize: 15,
-          fontWeight: 600,
-          color: "var(--status-info-text)",
-          marginBottom: 12,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}>
-          <span style={{ fontSize: 20 }}>💡</span>
+      <div className="dm-info-banner">
+        <div className="dm-info-banner-title">
+          <span className="dm-info-banner-icon">💡</span>
           Recommended Execution Order
         </div>
-        <ol style={{ fontSize: 14, color: "var(--status-info-text)", margin: 0, paddingLeft: 24, lineHeight: 1.8 }}>
-          <li style={{ marginBottom: 8 }}>
+        <ol className="dm-info-banner-list">
+          <li>
             <strong>Sync All BDD Specs</strong> - Import all spec files from /docs-archive/bdd-specs directory (parameters, analysis specs, anchors)
           </li>
-          <li style={{ marginBottom: 8 }}>
+          <li>
             <strong>Create Domains & Playbooks</strong> - Select and create domains with playbooks and behavior targets (requires specs to exist)
           </li>
           <li>
@@ -406,7 +362,7 @@ export default function DataManagementPage() {
       </div>
 
       {/* Operation Cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="dm-ops-stack">
         {/* Sync All BDD Specs */}
         <SyncSpecsCard
           status={operationStatus["sync-specs"]}
@@ -478,9 +434,9 @@ export default function DataManagementPage() {
           icon="🎯"
           warning={`This will create ${selectedPlaybooks.size} domain(s) and playbook(s) with all required specs, behavior targets, and dependencies. Existing domains with the same slugs will be deleted first. All created playbooks will be set to PUBLISHED status.`}
           details={
-            <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-muted)" }}>
+            <div className="dm-modal-details">
               <strong>Selected playbooks:</strong>
-              <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+              <ul>
                 {Array.from(selectedPlaybooks).map((id) => {
                   const pb = availablePlaybooks.find((p) => p.id === id);
                   return pb ? (
@@ -531,62 +487,16 @@ export default function DataManagementPage() {
         />
       )}
 
-      {/* Hover styles */}
-      <style>{`
-        .stat-card:hover {
-          border-color: var(--button-primary-bg) !important;
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-          transform: translateY(-2px);
-          cursor: pointer;
-        }
-        @media (max-width: 1024px) {
-          .stat-card {
-            grid-column: span 1;
-          }
-        }
-        @media (max-width: 768px) {
-          div[style*="gridTemplateColumns: repeat(5"] {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
 function StatItem({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px 16px",
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 12,
-        transition: "all 0.2s",
-      }}
-      className="stat-card"
-    >
-      <div style={{ fontSize: 20, marginBottom: 8 }}>{icon}</div>
-      <div style={{
-        fontSize: 28,
-        fontWeight: 700,
-        color: "var(--button-primary-bg)",
-        lineHeight: 1,
-        marginBottom: 4,
-      }}>
-        {value}
-      </div>
-      <div style={{
-        fontSize: 12,
-        color: "var(--text-muted)",
-        fontWeight: 500,
-      }}>
-        {label}
-      </div>
+    <div className="dm-stat-card">
+      <div className="dm-stat-icon">{icon}</div>
+      <div className="dm-stat-value">{value}</div>
+      <div className="dm-stat-label">{label}</div>
     </div>
   );
 }
@@ -610,127 +520,57 @@ function SyncSpecsCard({
   const isSuccess = status === "success";
   const isError = status === "error";
 
+  const cardClass = `dm-op-card${isSuccess ? " dm-op-card-success" : isError ? " dm-op-card-error" : ""}`;
+
   return (
-    <div
-      style={{
-        padding: 24,
-        background: "var(--surface-primary)",
-        borderRadius: 12,
-        border: `1px solid ${
-          isSuccess ? "var(--status-success-border)" : isError ? "var(--status-error-border)" : "var(--border-default)"
-        }`,
-        transition: "all 0.2s",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>📦</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>
-              Sync All BDD Specs
-            </div>
+    <div className={cardClass}>
+      <div className="dm-op-row">
+        <div className="dm-op-icon">📦</div>
+        <div className="dm-op-body">
+          <div className="dm-op-title-row">
+            <div className="dm-op-title">Sync All BDD Specs</div>
             {/* Sync Status Pills */}
             {!loadingSyncStatus && syncStatus && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <span
-                  style={{
-                    padding: "4px 10px",
-                    background: "var(--status-success-bg)",
-                    border: "1px solid var(--status-success-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--status-success-text)",
-                  }}
-                >
+              <div className="dm-pills">
+                <span className="dm-pill dm-pill-success">
                   {syncStatus.syncedFiles} synced
                 </span>
                 {syncStatus.unsyncedFiles > 0 && (
-                  <span
-                    style={{
-                      padding: "4px 10px",
-                      background: "var(--status-warning-bg)",
-                      border: "1px solid var(--status-warning-border)",
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--status-warning-text)",
-                    }}
-                  >
+                  <span className="dm-pill dm-pill-warning">
                     {syncStatus.unsyncedFiles} unsynced
                   </span>
                 )}
               </div>
             )}
           </div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
+          <div className="dm-op-desc">
             Reads all .spec.json files from /docs-archive/bdd-specs directory and creates/updates Parameters, AnalysisSpecs,
             Anchors, and PromptSlugs. Run this first to establish the spec foundation.
           </div>
 
           {isRunning && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-warning-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-running">
               ⏳ Syncing specs...
             </div>
           )}
 
           {isSuccess && result?.message && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-success-bg)",
-                border: "1px solid var(--status-success-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-success-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-success">
               ✅ {result.message}
             </div>
           )}
 
           {isError && result?.error && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-error-bg)",
-                border: "1px solid var(--status-error-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-error-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-error">
               ❌ {result.error}
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="dm-btn-row">
             <button
               onClick={onExecute}
               disabled={isRunning}
-              style={{
-                padding: "10px 20px",
-                background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isRunning ? "not-allowed" : "pointer",
-                opacity: isRunning ? 0.6 : 1,
-              }}
+              className="dm-btn dm-btn-primary"
             >
               {isRunning ? "Syncing..." : "Sync All Specs"}
             </button>
@@ -738,17 +578,7 @@ function SyncSpecsCard({
             <button
               onClick={onViewDetails}
               disabled={isRunning}
-              style={{
-                padding: "10px 20px",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isRunning ? "not-allowed" : "pointer",
-                opacity: isRunning ? 0.6 : 1,
-              }}
+              className="dm-btn dm-btn-secondary"
             >
               View Details
             </button>
@@ -780,88 +610,44 @@ function CreateDomainsCard({
   const isSuccess = status === "success";
   const isError = status === "error";
 
+  const cardClass = `dm-op-card${isSuccess ? " dm-op-card-success" : isError ? " dm-op-card-error" : ""}`;
+
   return (
-    <div
-      style={{
-        padding: 24,
-        background: "var(--surface-primary)",
-        borderRadius: 12,
-        border: `1px solid ${
-          isSuccess ? "var(--status-success-border)" : isError ? "var(--status-error-border)" : "var(--border-default)"
-        }`,
-        transition: "all 0.2s",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>🎯</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
-            Create Domains & Playbooks
-          </div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
+    <div className={cardClass}>
+      <div className="dm-op-row">
+        <div className="dm-op-icon">🎯</div>
+        <div className="dm-op-body">
+          <div className="dm-op-title-mb">Create Domains & Playbooks</div>
+          <div className="dm-op-desc">
             Select playbooks to create with their domains, behavior targets, and all required specs. Each playbook
             will be created as PUBLISHED and ready to use.
           </div>
 
           {isRunning && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-warning-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-running">
               ⏳ Creating domains and playbooks...
             </div>
           )}
 
           {isSuccess && result?.message && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-success-bg)",
-                border: "1px solid var(--status-success-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-success-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-success">
               ✅ {result.message}
             </div>
           )}
 
           {isError && result?.error && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-error-bg)",
-                border: "1px solid var(--status-error-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-error-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-error">
               ❌ {result.error}
             </div>
           )}
 
           {/* Playbook Selection */}
           {loadingPlaybooks ? (
-            <div style={{ padding: 12, fontSize: 14, color: "var(--text-muted)" }}>
-              Loading available playbooks...
-            </div>
+            <div className="dm-pb-loading">Loading available playbooks...</div>
           ) : (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
-                Select playbooks to create:
-              </div>
-              <div style={{ display: "grid", gap: 12 }}>
+            <div className="dm-pb-section">
+              <div className="dm-pb-label">Select playbooks to create:</div>
+              <div className="dm-pb-grid">
                 {availablePlaybooks.map((pb) => (
                   <PlaybookCheckbox
                     key={pb.id}
@@ -874,24 +660,11 @@ function CreateDomainsCard({
             </div>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="dm-btn-row-center">
             <button
               onClick={onExecute}
               disabled={isRunning || selectedPlaybooks.size === 0}
-              style={{
-                padding: "10px 20px",
-                background:
-                  isRunning || selectedPlaybooks.size === 0
-                    ? "var(--button-disabled-bg)"
-                    : "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isRunning || selectedPlaybooks.size === 0 ? "not-allowed" : "pointer",
-                opacity: isRunning || selectedPlaybooks.size === 0 ? 0.6 : 1,
-              }}
+              className="dm-btn dm-btn-primary"
             >
               {isRunning
                 ? "Creating..."
@@ -900,7 +673,7 @@ function CreateDomainsCard({
                 : `Create ${selectedPlaybooks.size} Playbook(s)`}
             </button>
             {selectedPlaybooks.size > 0 && (
-              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              <span className="dm-pb-selected-count">
                 {selectedPlaybooks.size} playbook(s) selected
               </span>
             )}
@@ -921,38 +694,17 @@ function PlaybookCheckbox({
   onToggle: () => void;
 }) {
   return (
-    <label
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-        padding: 12,
-        background: isSelected ? "var(--status-info-bg)" : "var(--background)",
-        border: `1px solid ${isSelected ? "var(--status-info-border)" : "var(--border-default)"}`,
-        borderRadius: 8,
-        cursor: "pointer",
-        transition: "all 0.15s ease",
-      }}
-    >
+    <label className={`dm-pb-checkbox${isSelected ? " dm-pb-checkbox-selected" : ""}`}>
       <input
         type="checkbox"
         checked={isSelected}
         onChange={onToggle}
-        style={{
-          marginTop: 2,
-          width: 16,
-          height: 16,
-          cursor: "pointer",
-        }}
+        className="dm-pb-input"
       />
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-          {playbook.name}
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>
-          {playbook.description}
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+      <div className="dm-pb-content">
+        <div className="dm-pb-name">{playbook.name}</div>
+        <div className="dm-pb-desc">{playbook.description}</div>
+        <div className="dm-pb-meta">
           <strong>Domain:</strong> {playbook.domain.name} • <strong>Specs:</strong> ~{playbook.specCount} •{" "}
           <strong>Targets:</strong> {playbook.behaviorTargetCount}
         </div>
@@ -976,109 +728,47 @@ function OperationCard({
   const isSuccess = status === "success";
   const isError = status === "error";
 
+  const cardClass = `dm-op-card${isSuccess ? " dm-op-card-success" : isError ? " dm-op-card-error" : ""}`;
+
   return (
-    <div
-      style={{
-        padding: 24,
-        background: "var(--surface-primary)",
-        borderRadius: 12,
-        border: `1px solid ${
-          isSuccess ? "var(--status-success-border)" : isError ? "var(--status-error-border)" : "var(--border-default)"
-        }`,
-        transition: "all 0.2s",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-        <div style={{ fontSize: 32, lineHeight: 1, flexShrink: 0 }}>{operation.icon}</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>
-            {operation.title}
-          </div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 16 }}>
-            {operation.description}
-          </div>
+    <div className={cardClass}>
+      <div className="dm-op-row">
+        <div className="dm-op-icon">{operation.icon}</div>
+        <div className="dm-op-body">
+          <div className="dm-op-title-mb">{operation.title}</div>
+          <div className="dm-op-desc">{operation.description}</div>
 
           {isRunning && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-warning-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-running">
               ⏳ Running operation...
             </div>
           )}
 
           {isSuccess && result?.message && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-success-bg)",
-                border: "1px solid var(--status-success-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-success-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-success">
               ✅ {result.message}
             </div>
           )}
 
           {isError && result?.error && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-error-bg)",
-                border: "1px solid var(--status-error-border)",
-                borderRadius: 8,
-                fontSize: 14,
-                color: "var(--status-error-text)",
-                marginBottom: 12,
-              }}
-            >
+            <div className="dm-status-banner dm-status-banner-error">
               ❌ {result.error}
             </div>
           )}
 
           {operation.requiresMode ? (
-            <div style={{ display: "flex", gap: 12 }}>
+            <div className="dm-btn-row">
               <button
                 onClick={() => onExecute("replace")}
                 disabled={isRunning}
-                style={{
-                  padding: "10px 20px",
-                  background: isRunning ? "var(--button-disabled-bg)" : "var(--button-destructive-bg)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: isRunning ? "not-allowed" : "pointer",
-                  opacity: isRunning ? 0.6 : 1,
-                }}
+                className="dm-btn dm-btn-destructive"
               >
                 🗑️ Replace ALL
               </button>
               <button
                 onClick={() => onExecute("keep")}
                 disabled={isRunning}
-                style={{
-                  padding: "10px 20px",
-                  background: isRunning ? "var(--button-disabled-bg)" : "var(--button-success-bg)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: isRunning ? "not-allowed" : "pointer",
-                  opacity: isRunning ? 0.6 : 1,
-                }}
+                className="dm-btn dm-btn-success"
               >
                 📥 Keep ALL (Skip Duplicates)
               </button>
@@ -1087,17 +777,7 @@ function OperationCard({
             <button
               onClick={() => onExecute()}
               disabled={isRunning}
-              style={{
-                padding: "10px 20px",
-                background: isRunning ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isRunning ? "not-allowed" : "pointer",
-                opacity: isRunning ? 0.6 : 1,
-              }}
+              className="dm-btn dm-btn-primary"
             >
               {isRunning ? "Running..." : `Run ${operation.title}`}
             </button>
@@ -1126,88 +806,22 @@ function ConfirmationModal({
   onCancel: () => void;
 }) {
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: "var(--modal-bg)",
-          borderRadius: 16,
-          padding: 32,
-          maxWidth: 500,
-          width: "90%",
-          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 48, textAlign: "center", marginBottom: 16 }}>{icon}</div>
-        <div
-          style={{
-            fontSize: 20,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            marginBottom: 12,
-            textAlign: "center",
-          }}
-        >
-          {title}
-        </div>
-        <div
-          style={{
-            padding: 16,
-            background: destructive ? "var(--status-error-bg)" : "var(--status-warning-bg)",
-            border: `1px solid ${destructive ? "var(--status-error-border)" : "var(--status-warning-border)"}`,
-            borderRadius: 8,
-            fontSize: 14,
-            color: destructive ? "var(--status-error-text)" : "var(--status-warning-text)",
-            lineHeight: 1.6,
-            marginBottom: 24,
-          }}
-        >
+    <div className="dm-modal-overlay" onClick={onCancel}>
+      <div className="dm-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="dm-modal-icon">{icon}</div>
+        <div className="dm-modal-title">{title}</div>
+        <div className={`dm-modal-warning ${destructive ? "dm-modal-warning-destructive" : "dm-modal-warning-default"}`}>
           {warning}
           {details}
         </div>
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: "10px 20px",
-              background: "var(--surface-primary)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--input-border)",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+        <div className="dm-modal-actions">
+          <button onClick={onCancel} className="dm-modal-btn-cancel">
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            style={{
-              padding: "10px 20px",
-              background: destructive ? "var(--button-destructive-bg)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className={`dm-modal-btn-confirm ${destructive ? "dm-modal-btn-confirm-destructive" : "dm-modal-btn-confirm-default"}`}
           >
             Yes, Proceed
           </button>

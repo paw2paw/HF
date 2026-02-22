@@ -1,0 +1,576 @@
+/* =============================================================
+   Data Management Page — dm-* classes
+   Migrated from inline styles. All colors via CSS variables.
+   ============================================================= */
+
+/* ── Page Layout ── */
+
+.dm-header {
+  margin-bottom: 32px;
+}
+
+.dm-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dm-title-icon {
+  font-size: 32px;
+}
+
+.dm-subtitle {
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+/* ── Stats Section ── */
+
+.dm-stats-section {
+  margin-bottom: 40px;
+}
+
+.dm-stats-header {
+  margin-bottom: 16px;
+}
+
+.dm-stats-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dm-stats-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dm-stats-loading {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 20px;
+}
+
+.dm-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.dm-stats-error {
+  font-size: 14px;
+  color: var(--status-error-text);
+  padding: 20px;
+}
+
+/* ── Stat Card ── */
+
+.dm-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.dm-stat-card:hover {
+  border-color: var(--button-primary-bg);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--button-primary-bg) 10%, transparent);
+  transform: translateY(-2px);
+  cursor: pointer;
+}
+
+.dm-stat-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.dm-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--button-primary-bg);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.dm-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Collapsible Section (AI Models) ── */
+
+.dm-collapsible {
+  padding: 24px;
+  background: var(--surface-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  margin-bottom: 32px;
+  transition: all 0.2s;
+}
+
+.dm-collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.dm-collapsible-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.dm-collapsible-icon {
+  font-size: 28px;
+}
+
+.dm-collapsible-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dm-collapsible-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.dm-collapsible-chevron {
+  font-size: 20px;
+  color: var(--text-muted);
+}
+
+.dm-collapsible-body {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Info Banner (Recommended Order) ── */
+
+.dm-info-banner {
+  padding: 20px;
+  background: var(--status-info-bg);
+  border-radius: 12px;
+  border: 1px solid var(--status-info-border);
+  margin-bottom: 32px;
+}
+
+.dm-info-banner-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--status-info-text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dm-info-banner-icon {
+  font-size: 20px;
+}
+
+.dm-info-banner-list {
+  font-size: 14px;
+  color: var(--status-info-text);
+  margin: 0;
+  padding-left: 24px;
+  line-height: 1.8;
+}
+
+.dm-info-banner-list li {
+  margin-bottom: 8px;
+}
+
+.dm-info-banner-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Operation Cards Stack ── */
+
+.dm-ops-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Operation Card (shared by Sync, Create, generic ops) ── */
+
+.dm-op-card {
+  padding: 24px;
+  background: var(--surface-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  transition: all 0.2s;
+}
+
+.dm-op-card-success {
+  border-color: var(--status-success-border);
+}
+
+.dm-op-card-error {
+  border-color: var(--status-error-border);
+}
+
+.dm-op-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.dm-op-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dm-op-body {
+  flex: 1;
+}
+
+.dm-op-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.dm-op-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dm-op-title-mb {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.dm-op-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+/* ── Status Pills (synced/unsynced) ── */
+
+.dm-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.dm-pill {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dm-pill-success {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.dm-pill-warning {
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+
+/* ── Status Feedback Banners ── */
+
+.dm-status-banner {
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.dm-status-banner-running {
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+
+.dm-status-banner-success {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.dm-status-banner-error {
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  color: var(--status-error-text);
+}
+
+/* ── Buttons ── */
+
+.dm-btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+.dm-btn-row-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dm-btn {
+  padding: 10px 20px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dm-btn-primary {
+  background: var(--button-primary-bg);
+}
+
+.dm-btn-primary:disabled {
+  background: var(--button-disabled-bg);
+}
+
+.dm-btn-secondary {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+
+.dm-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dm-btn-destructive {
+  background: var(--button-destructive-bg);
+}
+
+.dm-btn-destructive:disabled {
+  background: var(--button-disabled-bg);
+}
+
+.dm-btn-success {
+  background: var(--button-success-bg);
+}
+
+.dm-btn-success:disabled {
+  background: var(--button-disabled-bg);
+}
+
+/* ── Playbook Selection ── */
+
+.dm-pb-loading {
+  padding: 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.dm-pb-section {
+  margin-bottom: 16px;
+}
+
+.dm-pb-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.dm-pb-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.dm-pb-selected-count {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Playbook Checkbox ── */
+
+.dm-pb-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  background: var(--background);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dm-pb-checkbox-selected {
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+}
+
+.dm-pb-input {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.dm-pb-content {
+  flex: 1;
+}
+
+.dm-pb-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dm-pb-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.dm-pb-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Confirmation Modal ── */
+
+.dm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: color-mix(in srgb, black 50%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dm-modal-card {
+  background: var(--modal-bg);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px color-mix(in srgb, black 10%, transparent);
+}
+
+.dm-modal-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.dm-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.dm-modal-warning {
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.dm-modal-warning-default {
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+
+.dm-modal-warning-destructive {
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  color: var(--status-error-text);
+}
+
+.dm-modal-details {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dm-modal-details ul {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.dm-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.dm-modal-btn-cancel {
+  padding: 10px 20px;
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dm-modal-btn-confirm {
+  padding: 10px 20px;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dm-modal-btn-confirm-default {
+  background: var(--button-primary-bg);
+}
+
+.dm-modal-btn-confirm-destructive {
+  background: var(--button-destructive-bg);
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 1024px) {
+  .dm-stat-card {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .dm-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

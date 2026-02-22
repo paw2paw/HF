@@ -1,0 +1,307 @@
+/* ── Specs Page ────────────────────────── */
+/* Extracted from inline styles — imported by specs/page.tsx */
+
+/* ── Filters ── */
+.sp-filters {
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.sp-divider-center {
+  align-self: center;
+}
+
+.sp-results-count {
+  margin-left: auto;
+  align-self: center;
+}
+
+/* ── Content Area (sidebar list/tree body) ── */
+.sp-content-area {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 0 0 8px 8px;
+}
+
+.sp-content-area-tree {
+  padding: 8px;
+}
+
+.sp-empty-state-inset {
+  margin: 8px;
+}
+
+.sp-spec-name {
+  margin-bottom: 2px;
+}
+
+/* ── Tree focus container ── */
+.sp-tree-focus {
+  outline: none;
+  min-height: 100%;
+}
+
+/* ── Detail panel empty ── */
+.sp-detail-empty {
+  height: 100%;
+}
+
+/* ── Data Flow badges ── */
+.sp-badge-source {
+  background: var(--status-info-bg);
+  color: var(--accent-primary);
+}
+
+.sp-arrow-blue {
+  color: var(--accent-primary);
+}
+
+.sp-badge-feature-set {
+  background: var(--badge-purple-bg);
+  color: var(--badge-purple-text);
+}
+
+.sp-arrow-purple {
+  color: var(--badge-purple-text);
+}
+
+.sp-badge-analysis-spec {
+  background: var(--status-info-bg);
+  color: var(--button-primary-bg);
+}
+
+.sp-data-flow-count {
+  margin-left: 8px;
+}
+
+/* ── Spec Role / Config / Prompt section ── */
+
+.sp-label-row {
+  margin-bottom: 6px;
+}
+
+.sp-label-inline {
+  margin-bottom: 0;
+}
+
+.sp-badge-inline {
+  margin-left: 8px;
+}
+
+/* ── Save / Recompile / Export buttons ── */
+.sp-btn-save {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.sp-btn-save:disabled,
+.sp-btn-save[disabled] {
+  background: var(--surface-disabled);
+  color: var(--text-placeholder);
+}
+
+.sp-btn-recompile {
+  background: var(--status-warning-text);
+  color: white;
+}
+
+.sp-btn-recompile:disabled,
+.sp-btn-recompile[disabled] {
+  background: var(--surface-disabled);
+  color: var(--text-placeholder);
+}
+
+.sp-btn-export {
+  background: var(--status-error-text);
+  color: white;
+}
+
+.sp-btn-export:disabled,
+.sp-btn-export[disabled] {
+  background: var(--surface-disabled);
+  color: var(--text-placeholder);
+}
+
+/* ── Trigger table headers ── */
+.sp-th-number {
+  width: 28px;
+}
+
+.sp-th-name {
+  width: 14%;
+}
+
+.sp-th-given {
+  color: var(--badge-purple-text);
+}
+
+.sp-th-when {
+  color: var(--accent-primary);
+}
+
+.sp-th-then {
+  color: var(--status-success-text);
+}
+
+.sp-th-actions {
+  width: 44px;
+}
+
+/* ── Trigger row highlight transition ── */
+.sp-trigger-row {
+  transition: background-color 0.3s;
+}
+
+.sp-trigger-row-highlight {
+  background: var(--surface-selected);
+}
+
+/* ── Action sub-row ── */
+.sp-action-row {
+  background: var(--surface-secondary);
+  transition: background-color 0.3s;
+}
+
+.sp-action-row.sp-trigger-row-highlight {
+  background: var(--surface-selected);
+}
+
+/* ── Parameter card alignment ── */
+.sp-param-header {
+  align-items: flex-start;
+}
+
+.sp-param-definition {
+  margin: 0;
+}
+
+/* ── Sub-labels (fontWeight 500, marginBottom 4) ── */
+.sp-sub-label {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+/* ── Prompt Guidance grid ── */
+.sp-guidance-grid {
+  gap: 16px;
+}
+
+/* ── Flush paragraph ── */
+.sp-flush-p {
+  margin: 0;
+}
+
+/* ── Modal: Given/When/Then colored labels ── */
+.sp-label-given {
+  color: var(--badge-purple-text);
+}
+
+.sp-label-when {
+  color: var(--accent-primary);
+}
+
+.sp-label-then {
+  color: var(--status-success-text);
+}
+
+/* ── Modal: Actions label row ── */
+.sp-actions-label {
+  margin-bottom: 0;
+}
+
+/* ── Modal: +Action button ── */
+.sp-btn-add-action {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+/* ── Modal: empty actions placeholder ── */
+.sp-empty-actions {
+  padding: 12px;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+}
+
+/* ── Modal: action card header ── */
+.sp-action-header {
+  margin-bottom: 6px;
+}
+
+/* ── Modal: remove action button ── */
+.sp-btn-remove-action {
+  padding: 2px 6px;
+}
+
+/* ── Modal: action input wrapper ── */
+.sp-action-input-wrap {
+  margin-bottom: 6px;
+}
+
+/* ── Modal: flex-1 field container ── */
+.sp-field-flex {
+  flex: 1;
+}
+
+/* ── Modal: weight field fixed width ── */
+.sp-field-weight {
+  width: 70px;
+}
+
+/* ── Modal: learn fields gap ── */
+.sp-learn-fields {
+  gap: 6px;
+}
+
+/* ── Modal: footer ── */
+.sp-modal-footer {
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* ── Modal: Cancel button sizing ── */
+.sp-btn-modal-cancel {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* ── Modal: Submit button ── */
+.sp-btn-modal-submit {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sp-btn-modal-submit-active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.sp-btn-modal-submit-disabled {
+  background: var(--surface-disabled);
+  color: var(--text-muted);
+}
+
+/* ── InlineCell: placeholder text ── */
+.sp-inline-placeholder {
+  color: var(--text-placeholder);
+  font-style: italic;
+}
+
+/* ── InlineCell: font-family inherit (non-mono textarea) ── */
+.sp-font-inherit {
+  font-family: inherit;
+}
+
+/* ── Locked textarea background ── */
+.sp-textarea-locked {
+  background: var(--surface-disabled);
+}
+
+/* ── Modal: cursor pointer for select ── */
+.sp-select-pointer {
+  cursor: pointer;
+}

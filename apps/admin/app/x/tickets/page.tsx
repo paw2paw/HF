@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useApi } from "@/hooks/useApi";
 import type { Ticket, TicketStats, TicketStatus, TicketPriority, TicketCategory, TicketComment } from "@/types/tickets";
 import { formatRelativeTime, getUserInitials, getCategoryIcon, truncateText } from "@/utils/formatters";
+import "./tickets.css";
 
 export default function TicketsPage() {
   const { data: session } = useSession();
@@ -58,32 +59,27 @@ export default function TicketsPage() {
   };
 
   return (
-    <div style={{ padding: "24px 0" }}>
+    <div className="tk-page">
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      <div className="tk-header">
+        <div className="tk-header-row">
           <h1 className="hf-page-title">Tickets</h1>
           <button
             onClick={() => setShowCreate(true)}
-            className="hf-btn hf-btn-primary"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
+            className="hf-btn hf-btn-primary tk-create-btn"
           >
             <span>🎫</span>
             New Ticket
           </button>
         </div>
-        <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
+        <p className="tk-subtitle">
           Track and manage support requests and issues
         </p>
       </div>
 
       {/* Stats Cards */}
       {stats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
+        <div className="tk-stats-grid">
           <StatCard
             label="Open"
             count={stats.byStatus.OPEN}
@@ -116,30 +112,18 @@ export default function TicketsPage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 12, marginBottom: 20 }}>
+      <div className="tk-filters">
         <input
           type="text"
           placeholder="Search tickets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid var(--border-default)",
-            borderRadius: 6,
-            fontSize: 14,
-            outline: "none",
-          }}
+          className="tk-filter-input"
         />
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as TicketStatus | "ALL")}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid var(--border-default)",
-            borderRadius: 6,
-            fontSize: 14,
-            outline: "none",
-          }}
+          className="tk-filter-select"
         >
           <option value="ALL">All Statuses</option>
           <option value="OPEN">Open</option>
@@ -151,13 +135,7 @@ export default function TicketsPage() {
         <select
           value={filterPriority}
           onChange={(e) => setFilterPriority(e.target.value as TicketPriority | "ALL")}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid var(--border-default)",
-            borderRadius: 6,
-            fontSize: 14,
-            outline: "none",
-          }}
+          className="tk-filter-select"
         >
           <option value="ALL">All Priorities</option>
           <option value="URGENT">Urgent</option>
@@ -168,13 +146,7 @@ export default function TicketsPage() {
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value as TicketCategory | "ALL")}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid var(--border-default)",
-            borderRadius: 6,
-            fontSize: 14,
-            outline: "none",
-          }}
+          className="tk-filter-select"
         >
           <option value="ALL">All Categories</option>
           <option value="BUG">Bug</option>
@@ -187,27 +159,19 @@ export default function TicketsPage() {
 
       {/* Ticket List */}
       {ticketsLoading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--text-muted)" }}>Loading tickets...</div>
+        <div className="tk-loading">Loading tickets...</div>
       ) : filteredTickets.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: 60,
-            background: "var(--surface-secondary)",
-            borderRadius: 12,
-            border: "1px dashed var(--border-default)",
-          }}
-        >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎫</div>
-          <p style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)", marginBottom: 8 }}>
+        <div className="tk-empty">
+          <div className="tk-empty-icon">🎫</div>
+          <p className="tk-empty-title">
             {search || filterStatus !== "ALL" || filterPriority !== "ALL" || filterCategory !== "ALL" ? "No tickets match your filters" : "No tickets yet"}
           </p>
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <p className="tk-empty-text">
             Create your first ticket to get started.
           </p>
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="tk-list">
           {filteredTickets.map((ticket) => (
             <TicketCard key={ticket.id} ticket={ticket} onClick={() => setSelectedTicket(ticket)} />
           ))}
@@ -256,14 +220,8 @@ function StatCard({
   return (
     <div
       onClick={onClick}
-      style={{
-        padding: 16,
-        background: active ? `color-mix(in srgb, ${color} 8%, transparent)` : "var(--surface-primary)",
-        border: `2px solid ${active ? color : "var(--border-default)"}`,
-        borderRadius: 10,
-        cursor: "pointer",
-        transition: "all 0.15s ease",
-      }}
+      className={`tk-stat-card${active ? " active" : ""}`}
+      style={{ "--stat-color": color } as React.CSSProperties}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = color;
         e.currentTarget.style.boxShadow = `0 4px 12px color-mix(in srgb, ${color} 20%, transparent)`;
@@ -273,8 +231,8 @@ function StatCard({
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      <div style={{ fontSize: 24, fontWeight: 700, color, marginBottom: 4 }}>{count}</div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>{label}</div>
+      <div className="tk-stat-count">{count}</div>
+      <div className="tk-stat-label">{label}</div>
     </div>
   );
 }
@@ -284,14 +242,8 @@ function TicketCard({ ticket, onClick }: { ticket: Ticket; onClick: () => void }
   return (
     <div
       onClick={onClick}
-      style={{
-        padding: 16,
-        background: "var(--surface-primary)",
-        border: `2px solid ${getPriorityBorderColor(ticket.priority)}`,
-        borderRadius: 10,
-        cursor: "pointer",
-        transition: "all 0.15s ease",
-      }}
+      className="tk-card"
+      style={{ borderColor: getPriorityBorderColor(ticket.priority) }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = getPriorityColor(ticket.priority);
         e.currentTarget.style.boxShadow = `0 4px 12px color-mix(in srgb, ${getPriorityColor(ticket.priority)} 20%, transparent)`;
@@ -301,79 +253,53 @@ function TicketCard({ ticket, onClick }: { ticket: Ticket; onClick: () => void }
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>#{ticket.ticketNumber}</span>
+      <div className="tk-card-header">
+        <div className="tk-card-meta">
+          <span className="tk-ticket-number">#{ticket.ticketNumber}</span>
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>{getCategoryIcon(ticket.category)}</span>
+        <div className="tk-card-icons">
+          <span className="tk-category-icon">{getCategoryIcon(ticket.category)}</span>
           {ticket._count && ticket._count.comments > 0 && (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>💬 {ticket._count.comments}</span>
+            <span className="tk-comment-count">💬 {ticket._count.comments}</span>
           )}
         </div>
       </div>
 
-      <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+      <h3 className="tk-card-title">
         {ticket.title}
       </h3>
 
-      <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
+      <p className="tk-card-desc">
         {truncateText(ticket.description, 150)}
       </p>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                background: "var(--text-muted)",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
+      <div className="tk-card-footer">
+        <div className="tk-card-people">
+          <div className="tk-person">
+            <div className="tk-avatar">
               {getUserInitials(ticket.creator)}
             </div>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            <span className="tk-person-name">
               {ticket.creator.name || ticket.creator.email}
             </span>
           </div>
           {ticket.assignee && (
             <>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>→</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "var(--accent-primary)",
-                    color: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
+              <span className="tk-arrow">&rarr;</span>
+              <div className="tk-person">
+                <div className="tk-avatar-accent">
                   {getUserInitials(ticket.assignee)}
                 </div>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <span className="tk-person-name">
                   {ticket.assignee.name || ticket.assignee.email}
                 </span>
               </div>
             </>
           )}
         </div>
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatRelativeTime(ticket.createdAt)}</span>
+        <span className="tk-timestamp">{formatRelativeTime(ticket.createdAt)}</span>
       </div>
     </div>
   );
@@ -384,15 +310,8 @@ function StatusBadge({ status }: { status: TicketStatus }) {
   const config = getStatusConfig(status);
   return (
     <span
-      style={{
-        padding: "3px 8px",
-        fontSize: 11,
-        fontWeight: 600,
-        background: config.bg,
-        color: config.text,
-        border: `1px solid ${config.border}`,
-        borderRadius: 4,
-      }}
+      className="tk-badge-bordered"
+      style={{ background: config.bg, color: config.text, borderColor: config.border }}
     >
       {status.replace("_", " ")}
     </span>
@@ -403,14 +322,8 @@ function PriorityBadge({ priority }: { priority: TicketPriority }) {
   const config = getPriorityConfig(priority);
   return (
     <span
-      style={{
-        padding: "3px 8px",
-        fontSize: 11,
-        fontWeight: 600,
-        background: config.bg,
-        color: config.text,
-        borderRadius: 4,
-      }}
+      className="tk-badge"
+      style={{ background: config.bg, color: config.text }}
     >
       {priority}
     </span>
@@ -507,101 +420,50 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          borderRadius: 12,
-          width: "100%",
-          maxWidth: 600,
-          maxHeight: "90vh",
-          overflow: "auto",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ padding: 24, borderBottom: "1px solid var(--border-default)" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Create Ticket</h2>
+    <div className="tk-modal-overlay" onClick={onClose}>
+      <div className="tk-create-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="tk-modal-header">
+          <h2 className="tk-modal-title">Create Ticket</h2>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+        <form onSubmit={handleSubmit} className="tk-form">
           {error && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--status-error-bg)",
-                border: "1px solid color-mix(in srgb, var(--status-error-text) 30%, transparent)",
-                borderRadius: 6,
-                color: "var(--status-error-text)",
-                fontSize: 14,
-                marginBottom: 16,
-              }}
-            >
+            <div className="tk-error-banner">
               {error}
             </div>
           )}
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Title *</label>
+          <div className="tk-field">
+            <label className="tk-field-label">Title *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="Brief summary of the issue"
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 14,
-              }}
+              className="tk-text-input"
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Description *</label>
+          <div className="tk-field">
+            <label className="tk-field-label">Description *</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
               rows={5}
               placeholder="Detailed description of the issue"
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 14,
-                resize: "vertical",
-                fontFamily: "inherit",
-              }}
+              className="tk-textarea"
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div className="tk-two-col">
             <div>
-              <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Priority</label>
+              <label className="tk-field-label">Priority</label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TicketPriority)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
+                className="tk-form-select"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -610,42 +472,30 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
               </select>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>Category</label>
+              <label className="tk-field-label">Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as TicketCategory)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
+                className="tk-form-select"
               >
-                <option value="BUG">🐛 Bug</option>
-                <option value="FEATURE">✨ Feature</option>
-                <option value="QUESTION">❓ Question</option>
-                <option value="SUPPORT">💬 Support</option>
-                <option value="OTHER">📋 Other</option>
+                <option value="BUG">Bug</option>
+                <option value="FEATURE">Feature</option>
+                <option value="QUESTION">Question</option>
+                <option value="SUPPORT">Support</option>
+                <option value="OTHER">Other</option>
               </select>
             </div>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 6 }}>
+          <div className="tk-field-lg">
+            <label className="tk-field-label">
               Assign To {usersLoading && "(Loading...)"}
             </label>
             <select
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
               disabled={usersLoading}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 14,
-              }}
+              className="tk-form-select"
             >
               <option value="">Unassigned</option>
               {usersLoading && <option disabled>Loading users...</option>}
@@ -658,47 +508,30 @@ function CreateTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucc
               ))}
             </select>
             {usersError && (
-              <div style={{ marginTop: 4, fontSize: 12, color: "var(--status-error-text)" }}>
+              <div className="tk-field-hint-error">
                 Error: {usersError}
               </div>
             )}
             {!usersLoading && !usersError && users.length === 0 && (
-              <div style={{ marginTop: 4, fontSize: 12, color: "var(--status-warning-text)" }}>
+              <div className="tk-field-hint-warning">
                 No users found. Check console for details.
               </div>
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+          <div className="tk-form-actions">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              style={{
-                padding: "8px 16px",
-                background: "transparent",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
+              className="tk-btn-cancel"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !title.trim() || !description.trim()}
-              style={{
-                padding: "8px 16px",
-                background: loading || !title.trim() || !description.trim() ? "var(--surface-disabled)" : "var(--badge-purple-text)",
-                color: loading || !title.trim() || !description.trim() ? "var(--text-muted)" : "white",
-                border: "none",
-                borderRadius: 6,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: loading || !title.trim() || !description.trim() ? "not-allowed" : "pointer",
-              }}
+              className="tk-btn-submit"
             >
               {loading ? "Creating..." : "Create Ticket"}
             </button>
@@ -844,18 +677,8 @@ function TicketDetailModal({
 
   if (ticketLoading) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-        }}
-      >
-        <div style={{ color: "white", fontSize: 16 }}>Loading...</div>
+      <div className="tk-modal-overlay">
+        <div className="tk-modal-loading-text">Loading...</div>
       </div>
     );
   }
@@ -863,102 +686,41 @@ function TicketDetailModal({
   if (!ticket) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          borderRadius: 12,
-          width: "100%",
-          maxWidth: 900,
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="tk-modal-overlay" onClick={onClose}>
+      <div className="tk-detail-modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div
-          style={{
-            padding: 24,
-            borderBottom: "1px solid var(--border-default)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
+        <div className="tk-detail-header">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)" }}>
+            <div className="tk-detail-meta">
+              <span className="tk-detail-ticket-number">
                 #{ticket.ticketNumber}
               </span>
               <StatusBadge status={ticket.status} />
               <PriorityBadge priority={ticket.priority} />
-              <span style={{ fontSize: 16 }}>{getCategoryIcon(ticket.category)}</span>
+              <span className="tk-detail-category-icon">{getCategoryIcon(ticket.category)}</span>
             </div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{ticket.title}</h2>
+            <h2 className="tk-detail-title">{ticket.title}</h2>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="tk-detail-actions">
             {(ticket.creatorId === session?.user?.id || session?.user?.role === "ADMIN") && (
-              <button
-                onClick={handleDelete}
-                style={{
-                  padding: "6px 12px",
-                  background: "var(--status-error-bg)",
-                  color: "var(--status-error-text)",
-                  border: "none",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={handleDelete} className="tk-btn-delete">
                 Delete
               </button>
             )}
-            <button
-              onClick={onClose}
-              style={{
-                padding: "6px 12px",
-                background: "var(--surface-secondary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={onClose} className="tk-btn-close">
               Close
             </button>
           </div>
         </div>
 
         {/* Controls */}
-        <div style={{ padding: 16, borderBottom: "1px solid var(--border-default)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div className="tk-controls">
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-muted)" }}>
-              Status
-            </label>
+            <label className="tk-control-label">Status</label>
             <select
               value={ticket.status}
               onChange={(e) => handleUpdateStatus(e.target.value as TicketStatus)}
-              style={{
-                width: "100%",
-                padding: "6px 10px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 13,
-              }}
+              className="tk-control-select"
             >
               <option value="OPEN">Open</option>
               <option value="IN_PROGRESS">In Progress</option>
@@ -968,19 +730,11 @@ function TicketDetailModal({
             </select>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-muted)" }}>
-              Priority
-            </label>
+            <label className="tk-control-label">Priority</label>
             <select
               value={ticket.priority}
               onChange={(e) => handleUpdatePriority(e.target.value as TicketPriority)}
-              style={{
-                width: "100%",
-                padding: "6px 10px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 13,
-              }}
+              className="tk-control-select"
             >
               <option value="LOW">Low</option>
               <option value="MEDIUM">Medium</option>
@@ -989,19 +743,11 @@ function TicketDetailModal({
             </select>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-muted)" }}>
-              Assignee
-            </label>
+            <label className="tk-control-label">Assignee</label>
             <select
               value={ticket.assigneeId || ""}
               onChange={(e) => handleUpdateAssignee(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "6px 10px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 13,
-              }}
+              className="tk-control-select"
             >
               <option value="">Unassigned</option>
               {users.map((user) => (
@@ -1014,76 +760,43 @@ function TicketDetailModal({
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
+        <div className="tk-detail-content">
           {/* Description */}
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: "var(--text-muted)" }}>
-              Description
-            </h3>
-            <div style={{ fontSize: 14, color: "var(--text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+          <div className="tk-description-section">
+            <h3 className="tk-section-label">Description</h3>
+            <div className="tk-description-text">
               {ticket.description}
             </div>
           </div>
 
           {/* Comments */}
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--text-muted)" }}>
+            <h3 className="tk-section-label-comments">
               Comments ({ticket.comments?.length || 0})
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="tk-comments-list">
               {ticket.comments?.map((comment) => (
                 <div
                   key={comment.id}
-                  style={{
-                    padding: 12,
-                    background: comment.isInternal ? "var(--status-warning-bg)" : "var(--surface-secondary)",
-                    border: comment.isInternal ? "1px solid color-mix(in srgb, var(--status-warning-text) 40%, transparent)" : "1px solid var(--border-default)",
-                    borderRadius: 8,
-                  }}
+                  className={`tk-comment${comment.isInternal ? " internal" : ""}`}
                 >
-                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                    <div
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: "50%",
-                        background: "var(--text-muted)",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        flexShrink: 0,
-                      }}
-                    >
+                  <div className="tk-comment-header">
+                    <div className="tk-comment-avatar">
                       {getUserInitials(comment.author)}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                      <div className="tk-comment-author">
                         {comment.author.name || comment.author.email}
                         {comment.isInternal && (
-                          <span
-                            style={{
-                              marginLeft: 8,
-                              fontSize: 11,
-                              fontWeight: 500,
-                              color: "var(--status-warning-text)",
-                              background: "color-mix(in srgb, var(--status-warning-text) 25%, transparent)",
-                              padding: "2px 6px",
-                              borderRadius: 3,
-                            }}
-                          >
-                            Internal
-                          </span>
+                          <span className="tk-internal-tag">Internal</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      <div className="tk-comment-time">
                         {formatRelativeTime(comment.createdAt)}
                       </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: 13, color: "var(--text-primary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  <div className="tk-comment-body">
                     {comment.content}
                   </div>
                 </div>
@@ -1093,20 +806,10 @@ function TicketDetailModal({
         </div>
 
         {/* Add Comment */}
-        <div style={{ padding: 24, borderTop: "1px solid var(--border-default)" }}>
+        <div className="tk-comment-form">
           <form onSubmit={handleAddComment}>
             {error && (
-              <div
-                style={{
-                  padding: 12,
-                  background: "var(--status-error-bg)",
-                  border: "1px solid var(--status-error-border)",
-                  borderRadius: 6,
-                  color: "var(--status-error-text)",
-                  fontSize: 14,
-                  marginBottom: 12,
-                }}
-              >
+              <div className="tk-comment-error">
                 {error}
               </div>
             )}
@@ -1115,40 +818,22 @@ function TicketDetailModal({
               onChange={(e) => setCommentContent(e.target.value)}
               placeholder="Add a comment..."
               rows={3}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                fontSize: 14,
-                resize: "vertical",
-                fontFamily: "inherit",
-                marginBottom: 12,
-              }}
+              className="tk-comment-textarea"
             />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <div className="tk-comment-footer">
+              <label className="tk-checkbox-label">
                 <input
                   type="checkbox"
                   checked={isInternal}
                   onChange={(e) => setIsInternal(e.target.checked)}
-                  style={{ cursor: "pointer" }}
+                  className="tk-checkbox"
                 />
-                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Internal note (team only)</span>
+                <span className="tk-checkbox-text">Internal note (team only)</span>
               </label>
               <button
                 type="submit"
                 disabled={loading || !commentContent.trim()}
-                style={{
-                  padding: "8px 16px",
-                  background: loading || !commentContent.trim() ? "var(--surface-disabled)" : "var(--badge-purple-text)",
-                  color: loading || !commentContent.trim() ? "var(--text-muted)" : "white",
-                  border: "none",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: loading || !commentContent.trim() ? "not-allowed" : "pointer",
-                }}
+                className="tk-btn-submit"
               >
                 {loading ? "Adding..." : "Add Comment"}
               </button>

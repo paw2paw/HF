@@ -1,0 +1,468 @@
+/* ── Source Step ── src-* prefix ── */
+
+/* ── Source Card ── */
+
+.src-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.src-card--selected {
+  border: 2px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.src-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--button-primary-text, #fff);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.src-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.src-card-name--selected {
+  color: var(--accent-primary);
+  padding-right: 28px;
+}
+
+.src-card-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.src-card-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.src-card-qualification {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: monospace;
+}
+
+/* ── Shared input style (edit form fields) ── */
+
+.src-field-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* ── Source Created (success state) ── */
+
+.src-created-banner {
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+  display: block;
+}
+
+.src-created-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.src-created-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.src-created-classification {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.src-created-btn {
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ── Entry Paths (two-column grid) ── */
+
+.src-entry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* ── Drop Zone ── */
+
+.src-dropzone {
+  padding: 32px;
+  border-radius: 12px;
+  border: 2px dashed var(--border-default);
+  background: var(--surface-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.src-dropzone--dragover {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.src-dropzone--has-file {
+  border-style: solid;
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+}
+
+.src-dropzone-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.src-dropzone-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.src-dropzone-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Describe Source (Path B) ── */
+
+.src-describe-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.src-describe-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.src-describe-row {
+  display: flex;
+  gap: 8px;
+}
+
+.src-describe-input {
+  flex: 1;
+}
+
+.src-suggest-error {
+  font-size: 12px;
+  color: var(--status-error-text);
+  margin: 0;
+}
+
+.src-ai-interpretation {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Metadata Card ── */
+
+.src-meta-card {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  margin-bottom: 16px;
+}
+
+.src-meta-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.src-meta-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.src-meta-edit-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Metadata Preview (read-only) ── */
+
+.src-meta-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.src-meta-label {
+  color: var(--text-muted);
+}
+
+.src-meta-slug {
+  font-size: 11px;
+}
+
+/* ── Metadata Edit Form ── */
+
+.src-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.src-edit-grid--no-mb {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.src-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+/* ── Classification Result ── */
+
+.src-classification {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  font-size: 12px;
+}
+
+/* ── Subject Selection ── */
+
+.src-subject-card {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  margin-bottom: 16px;
+}
+
+.src-subject-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.src-subject-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.src-subject-select {
+  flex: 1;
+}
+
+.src-subject-or {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.src-subject-new-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.src-input-auto {
+  width: auto;
+}
+
+.src-btn-lg {
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ── Main Step Layout ── */
+
+.src-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.src-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+}
+
+/* ── Search & Filter ── */
+
+.src-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.src-search-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.src-trust-filter {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* ── Source Count ── */
+
+.src-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* ── Loading & Empty States ── */
+
+.src-loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.src-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ── Card Grid ── */
+
+.src-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* ── Selected Source Subject Picker ── */
+
+.src-selected-picker {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+}
+
+.src-picker-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.src-picker-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+.src-picker-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+/* ── Divider Toggle ── */
+
+.src-divider-wrap {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.src-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-default);
+}
+
+.src-divider-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── Upload Section Wrapper ── */
+
+.src-upload-section {
+  margin-top: 24px;
+}

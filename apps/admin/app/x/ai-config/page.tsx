@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 import { useSession } from "next-auth/react";
+import "./ai-config.css";
 
 // =====================================================
 // TYPES
@@ -419,113 +420,57 @@ export default function AIConfigPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <div style={{ fontSize: 24, color: "var(--text-muted)" }}>Loading AI configurations...</div>
+      <div className="aic-page">
+        <div className="aic-loading">
+          <div className="aic-loading-text">Loading AI configurations...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+    <div className="aic-page">
       <AdvancedBanner />
       {/* Header */}
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div className="aic-header">
         <div>
           <h1 className="hf-page-title">AI Model Configuration</h1>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
+          <p className="aic-header-subtitle">
             Configure which AI provider and model to use for each operation. Changes take effect
             immediately at runtime.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <a
-            href="/x/ai-knowledge"
-            style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              textDecoration: "none",
-            }}
-          >
+        <div className="aic-header-actions">
+          <a href="/x/ai-knowledge" className="aic-header-btn">
             🧠 AI Knowledge
           </a>
-          <button
-            onClick={openModelsManager}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
+          <button onClick={openModelsManager} className="aic-header-btn">
             <span>Manage Models</span>
-            <span style={{ fontSize: 16 }}>{showModelsManager ? "▼" : "▶"}</span>
+            <span className="aic-toggle-icon">{showModelsManager ? "▼" : "▶"}</span>
           </button>
         </div>
       </div>
 
       {/* Models Manager Section */}
       {showModelsManager && (
-        <div
-          style={{
-            background: "var(--surface-secondary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 20,
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>Available AI Models</h2>
-            <button
-              onClick={() => setShowModelsManager(false)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 20,
-                color: "var(--text-muted)",
-              }}
-            >
+        <div className="aic-models-panel">
+          <div className="aic-models-header">
+            <h2 className="aic-models-title">Available AI Models</h2>
+            <button onClick={() => setShowModelsManager(false)} className="aic-close-btn">
               &times;
             </button>
           </div>
 
           {loadingModels ? (
-            <div style={{ textAlign: "center", padding: 20, color: "var(--text-muted)" }}>Loading models...</div>
+            <div className="aic-models-loading">Loading models...</div>
           ) : (
             <>
               {/* Add New Model Form */}
-              <div
-                style={{
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  padding: 16,
-                  marginBottom: 16,
-                }}
-              >
-                <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 12px 0", color: "var(--text-primary)" }}>Add New Model</h3>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div className="aic-add-model-form">
+                <h3 className="aic-add-model-title">Add New Model</h3>
+                <div className="aic-add-model-fields">
                   <div>
-                    <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                    <label className="aic-field-label">
                       MODEL ID *
                     </label>
                     <input
@@ -533,19 +478,11 @@ export default function AIConfigPage() {
                       value={newModel.modelId}
                       onChange={(e) => setNewModel({ ...newModel, modelId: e.target.value })}
                       placeholder="e.g., claude-3-opus-20240229"
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        border: "1px solid var(--border-default)",
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-primary)",
-                        fontSize: 13,
-                        width: 220,
-                      }}
+                      className="aic-field-input aic-field-input-model-id"
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                    <label className="aic-field-label">
                       LABEL *
                     </label>
                     <input
@@ -553,19 +490,11 @@ export default function AIConfigPage() {
                       value={newModel.label}
                       onChange={(e) => setNewModel({ ...newModel, label: e.target.value })}
                       placeholder="e.g., Claude 3 Opus"
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        border: "1px solid var(--border-default)",
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-primary)",
-                        fontSize: 13,
-                        width: 150,
-                      }}
+                      className="aic-field-input aic-field-input-label"
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                    <label className="aic-field-label">
                       PROVIDER
                     </label>
                     <FancySelect
@@ -577,7 +506,7 @@ export default function AIConfigPage() {
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>
+                    <label className="aic-field-label">
                       TIER
                     </label>
                     <FancySelect
@@ -593,19 +522,7 @@ export default function AIConfigPage() {
                       ]}
                     />
                   </div>
-                  <button
-                    onClick={addModel}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: "var(--accent-primary)",
-                      color: "var(--accent-primary-text)",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: "pointer",
-                    }}
-                  >
+                  <button onClick={addModel} className="aic-add-model-btn">
                     Add Model
                   </button>
                 </div>
@@ -619,26 +536,14 @@ export default function AIConfigPage() {
                 const providerStyle = PROVIDER_STYLES[provider.id] || PROVIDER_STYLES.mock;
 
                 return (
-                  <div key={provider.id} style={{ marginBottom: 16 }}>
+                  <div key={provider.id} className="aic-provider-section">
                     <h4
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        margin: "0 0 8px 0",
-                        color: providerStyle.text,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
+                      className="aic-provider-heading"
+                      style={{ color: providerStyle.text }}
                     >
                       <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          background: providerStyle.bg,
-                          border: `1px solid ${providerStyle.border}`,
-                        }}
+                        className="aic-provider-dot"
+                        style={{ background: providerStyle.bg, border: `1px solid ${providerStyle.border}` }}
                       />
                       {provider.label}
                     </h4>
@@ -646,110 +551,50 @@ export default function AIConfigPage() {
                     {/* API Key Management */}
                     {provider.id !== "mock" && (
                       <div
-                        style={{
-                          background: "var(--surface-primary)",
-                          border: `1px solid ${keyStatus[provider.id]?.configured ? "var(--status-success-text)" : "var(--status-warning-text)"}`,
-                          borderRadius: 6,
-                          padding: "10px 12px",
-                          marginBottom: 10,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
+                        className="aic-key-row"
+                        style={{ borderColor: keyStatus[provider.id]?.configured ? "var(--status-success-text)" : "var(--status-warning-text)" }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 200 }}>
+                        <div className="aic-key-status">
                           <span
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              background: keyStatus[provider.id]?.configured ? "var(--status-success-text)" : "var(--status-warning-text)",
-                            }}
+                            className="aic-key-dot"
+                            style={{ background: keyStatus[provider.id]?.configured ? "var(--status-success-text)" : "var(--status-warning-text)" }}
                           />
-                          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
+                          <span className="aic-key-env-var">
                             {keyStatus[provider.id]?.envVar || `${provider.id.toUpperCase()}_API_KEY`}:
                           </span>
                           {keyStatus[provider.id]?.configured ? (
-                            <code
-                              style={{
-                                fontSize: 11,
-                                color: "var(--text-muted)",
-                                background: "var(--surface-tertiary)",
-                                padding: "2px 6px",
-                                borderRadius: 4,
-                              }}
-                            >
+                            <code className="aic-key-masked">
                               {keyStatus[provider.id]?.masked}
                             </code>
                           ) : (
-                            <span style={{ fontSize: 12, color: "var(--status-warning-text)", fontStyle: "italic" }}>
+                            <span className="aic-key-unconfigured">
                               Not configured
                             </span>
                           )}
                         </div>
 
                         {editingKey === provider.id ? (
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <div className="aic-key-edit">
                             <input
                               type="password"
                               value={newKeyValue}
                               onChange={(e) => setNewKeyValue(e.target.value)}
                               placeholder="Paste API key..."
-                              style={{
-                                padding: "5px 10px",
-                                borderRadius: 4,
-                                border: "1px solid var(--border-default)",
-                                background: "var(--surface-secondary)",
-                                color: "var(--text-primary)",
-                                fontSize: 12,
-                                width: 280,
-                              }}
+                              className="aic-key-input"
                             />
-                            <button
-                              onClick={() => saveApiKey(provider.id)}
-                              style={{
-                                padding: "5px 10px",
-                                borderRadius: 4,
-                                border: "none",
-                                background: "var(--button-success-bg)",
-                                color: "var(--button-primary-text)",
-                                fontSize: 11,
-                                fontWeight: 500,
-                                cursor: "pointer",
-                              }}
-                            >
+                            <button onClick={() => saveApiKey(provider.id)} className="aic-key-save-btn">
                               Save
                             </button>
                             <button
                               onClick={() => { setEditingKey(null); setNewKeyValue(""); }}
-                              style={{
-                                padding: "5px 10px",
-                                borderRadius: 4,
-                                border: "1px solid var(--border-default)",
-                                background: "var(--surface-primary)",
-                                color: "var(--text-muted)",
-                                fontSize: 11,
-                                cursor: "pointer",
-                              }}
+                              className="aic-key-cancel-btn"
                             >
                               Cancel
                             </button>
                           </div>
                         ) : (
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button
-                              onClick={() => setEditingKey(provider.id)}
-                              style={{
-                                padding: "5px 10px",
-                                borderRadius: 4,
-                                border: "1px solid var(--border-default)",
-                                background: "var(--surface-primary)",
-                                color: "var(--text-primary)",
-                                fontSize: 11,
-                                cursor: "pointer",
-                              }}
-                            >
+                          <div className="aic-key-actions">
+                            <button onClick={() => setEditingKey(provider.id)} className="aic-key-btn">
                               {keyStatus[provider.id]?.configured ? "Update" : "Add Key"}
                             </button>
                             {keyStatus[provider.id]?.configured && (
@@ -757,31 +602,15 @@ export default function AIConfigPage() {
                                 <button
                                   onClick={() => testApiKey(provider.id)}
                                   disabled={testingKey === provider.id}
+                                  className="aic-key-btn"
                                   style={{
-                                    padding: "5px 10px",
-                                    borderRadius: 4,
-                                    border: "1px solid var(--border-default)",
-                                    background: "var(--surface-primary)",
-                                    color: "var(--text-primary)",
-                                    fontSize: 11,
                                     cursor: testingKey === provider.id ? "wait" : "pointer",
                                     opacity: testingKey === provider.id ? 0.6 : 1,
                                   }}
                                 >
                                   {testingKey === provider.id ? "Testing..." : "Test"}
                                 </button>
-                                <button
-                                  onClick={() => deleteApiKey(provider.id)}
-                                  style={{
-                                    padding: "5px 10px",
-                                    borderRadius: 4,
-                                    border: `1px solid var(--status-error-border)`,
-                                    background: "var(--status-error-bg)",
-                                    color: "var(--status-error-text)",
-                                    fontSize: 11,
-                                    cursor: "pointer",
-                                  }}
-                                >
+                                <button onClick={() => deleteApiKey(provider.id)} className="aic-key-remove-btn">
                                   Remove
                                 </button>
                               </>
@@ -791,20 +620,7 @@ export default function AIConfigPage() {
 
                         {/* Test result */}
                         {keyTestResult?.provider === provider.id && (
-                          <div
-                            style={{
-                              width: "100%",
-                              marginTop: 4,
-                              padding: "6px 10px",
-                              borderRadius: 4,
-                              background: keyTestResult.valid ? "var(--status-success-bg)" : "var(--status-error-bg)",
-                              color: keyTestResult.valid ? "var(--status-success-text)" : "var(--status-error-text)",
-                              fontSize: 12,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                            }}
-                          >
+                          <div className={`aic-key-test-result ${keyTestResult.valid ? "aic-key-test-success" : "aic-key-test-failure"}`}>
                             <span>{keyTestResult.valid ? "✓" : "✗"}</span>
                             <span>{keyTestResult.message}</span>
                           </div>
@@ -812,19 +628,10 @@ export default function AIConfigPage() {
                       </div>
                     )}
 
-                    <h4
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        margin: "0 0 6px 0",
-                        color: "var(--text-muted)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
+                    <h4 className="aic-models-subheading">
                       Models
                     </h4>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="aic-model-list">
                       {providerModels.map((model) => {
                         const tierStyle = TIER_STYLES[model.tier] || TIER_STYLES.standard;
                         const isEditing = editingModel?.modelId === model.modelId;
@@ -832,16 +639,7 @@ export default function AIConfigPage() {
                         return (
                           <div
                             key={model.modelId}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                              padding: "8px 12px",
-                              background: model.isActive ? "var(--surface-primary)" : "var(--surface-tertiary)",
-                              border: "1px solid var(--border-default)",
-                              borderRadius: 6,
-                              opacity: model.isActive ? 1 : 0.6,
-                            }}
+                            className={`aic-model-row ${model.isActive ? "aic-model-row-active" : "aic-model-row-inactive"}`}
                           >
                             {isEditing ? (
                               <>
@@ -851,15 +649,7 @@ export default function AIConfigPage() {
                                   onChange={(e) =>
                                     setEditingModel({ ...editingModel, label: e.target.value })
                                   }
-                                  style={{
-                                    padding: "4px 8px",
-                                    borderRadius: 4,
-                                    border: "1px solid var(--border-default)",
-                                    background: "var(--surface-secondary)",
-                                    color: "var(--text-primary)",
-                                    fontSize: 13,
-                                    width: 150,
-                                  }}
+                                  className="aic-model-edit-input"
                                 />
                                 <FancySelect
                                   value={editingModel.tier}
@@ -880,95 +670,41 @@ export default function AIConfigPage() {
                                       tier: editingModel.tier,
                                     })
                                   }
-                                  style={{
-                                    padding: "4px 10px",
-                                    borderRadius: 4,
-                                    border: "none",
-                                    background: "var(--button-success-bg)",
-                                    color: "var(--button-primary-text)",
-                                    fontSize: 12,
-                                    cursor: "pointer",
-                                  }}
+                                  className="aic-model-save-btn"
                                 >
                                   Save
                                 </button>
-                                <button
-                                  onClick={() => setEditingModel(null)}
-                                  style={{
-                                    padding: "4px 10px",
-                                    borderRadius: 4,
-                                    border: "1px solid var(--border-default)",
-                                    background: "var(--surface-primary)",
-                                    color: "var(--text-primary)",
-                                    fontSize: 12,
-                                    cursor: "pointer",
-                                  }}
-                                >
+                                <button onClick={() => setEditingModel(null)} className="aic-model-cancel-btn">
                                   Cancel
                                 </button>
                               </>
                             ) : (
                               <>
-                                <code
-                                  style={{
-                                    fontSize: 12,
-                                    color: "var(--text-muted)",
-                                    background: "var(--surface-tertiary)",
-                                    padding: "2px 6px",
-                                    borderRadius: 4,
-                                  }}
-                                >
+                                <code className="aic-model-id-badge">
                                   {model.modelId}
                                 </code>
-                                <span style={{ fontSize: 13, fontWeight: 500, flex: 1, color: "var(--text-primary)" }}>
+                                <span className="aic-model-label">
                                   {model.label}
                                 </span>
                                 <span
-                                  style={{
-                                    fontSize: 10,
-                                    padding: "2px 6px",
-                                    borderRadius: 4,
-                                    background: tierStyle.bg,
-                                    color: tierStyle.text,
-                                    fontWeight: 500,
-                                    textTransform: "uppercase",
-                                  }}
+                                  className="aic-tier-badge"
+                                  style={{ background: tierStyle.bg, color: tierStyle.text }}
                                 >
                                   {model.tier}
                                 </span>
-                                <button
-                                  onClick={() => setEditingModel(model)}
-                                  style={{
-                                    padding: "4px 8px",
-                                    borderRadius: 4,
-                                    border: "1px solid var(--border-default)",
-                                    background: "var(--surface-primary)",
-                                    fontSize: 11,
-                                    cursor: "pointer",
-                                    color: "var(--text-muted)",
-                                  }}
-                                >
+                                <button onClick={() => setEditingModel(model)} className="aic-model-edit-btn">
                                   Edit
                                 </button>
                                 <button
                                   onClick={() => toggleModelActive(model)}
-                                  style={{
-                                    padding: "4px 8px",
-                                    borderRadius: 4,
-                                    border: `1px solid var(--border-default)`,
-                                    background: model.isActive ? "var(--status-error-bg)" : "var(--status-success-bg)",
-                                    fontSize: 11,
-                                    cursor: "pointer",
-                                    color: model.isActive ? "var(--status-error-text)" : "var(--status-success-text)",
-                                  }}
+                                  className={`aic-model-toggle-btn ${model.isActive ? "aic-model-toggle-disable" : "aic-model-toggle-enable"}`}
                                 >
                                   {model.isActive ? "Disable" : "Enable"}
                                 </button>
                                 {isOperator && (
                                   <button
                                     onClick={() => deleteModel(model.modelId)}
-                                    className="hf-btn hf-btn-destructive"
-                                    style={{ padding: "4px 8px", fontSize: 11 }}
+                                    className="hf-btn hf-btn-destructive aic-model-delete-btn"
                                   >
                                     Delete
                                   </button>
@@ -989,96 +725,33 @@ export default function AIConfigPage() {
 
       {/* Status Messages */}
       {error && (
-        <div
-          style={{
-            background: "var(--status-error-bg)",
-            border: "1px solid var(--status-error-border)",
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 16,
-            color: "var(--status-error-text)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+        <div className="aic-status-msg aic-status-error">
           <span>{error}</span>
-          <button
-            onClick={() => setError(null)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 18,
-              color: "var(--status-error-text)",
-            }}
-          >
+          <button onClick={() => setError(null)} className="aic-dismiss-btn aic-dismiss-error">
             &times;
           </button>
         </div>
       )}
 
       {successMessage && (
-        <div
-          style={{
-            background: "var(--status-success-bg)",
-            border: "1px solid var(--status-success-border)",
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 16,
-            color: "var(--status-success-text)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+        <div className="aic-status-msg aic-status-success">
           <span>{successMessage}</span>
-          <button
-            onClick={() => setSuccessMessage(null)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 18,
-              color: "var(--status-success-text)",
-            }}
-          >
+          <button onClick={() => setSuccessMessage(null)} className="aic-dismiss-btn aic-dismiss-success">
             &times;
           </button>
         </div>
       )}
 
       {/* Provider Legend */}
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          marginBottom: 20,
-          padding: 12,
-          background: "var(--surface-secondary)",
-          borderRadius: 8,
-        }}
-      >
-        <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>Providers:</span>
+      <div className="aic-provider-legend">
+        <span className="aic-legend-label">Providers:</span>
         {Object.entries(PROVIDER_STYLES).map(([provider, style]) => (
-          <div
-            key={provider}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
+          <div key={provider} className="aic-legend-item">
             <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 3,
-                background: style.bg,
-                border: `1px solid ${style.border}`,
-              }}
+              className="aic-legend-swatch"
+              style={{ background: style.bg, border: `1px solid ${style.border}` }}
             />
-            <span style={{ fontSize: 13, color: style.text, fontWeight: 500 }}>
+            <span className="aic-legend-text" style={{ color: style.text }}>
               {provider.charAt(0).toUpperCase() + provider.slice(1)}
             </span>
           </div>
@@ -1086,53 +759,19 @@ export default function AIConfigPage() {
       </div>
 
       {/* Search */}
-      <div style={{ marginBottom: 16, position: "relative" }}>
+      <div className="aic-search-wrapper">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search configs by name, description, provider, model..."
-          style={{
-            width: "100%",
-            padding: "10px 14px 10px 36px",
-            borderRadius: 8,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            fontSize: 14,
-            outline: "none",
-            boxSizing: "border-box",
-          }}
+          className="aic-search-input"
         />
-        <span
-          style={{
-            position: "absolute",
-            left: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "var(--text-muted)",
-            fontSize: 15,
-            pointerEvents: "none",
-          }}
-        >
+        <span className="aic-search-icon">
           &#x2315;
         </span>
         {search && (
-          <button
-            onClick={() => setSearch("")}
-            style={{
-              position: "absolute",
-              right: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 16,
-              color: "var(--text-muted)",
-              lineHeight: 1,
-            }}
-          >
+          <button onClick={() => setSearch("")} className="aic-search-clear">
             &times;
           </button>
         )}
@@ -1140,13 +779,13 @@ export default function AIConfigPage() {
 
       {/* Result count when filtering */}
       {search.trim() && (
-        <div style={{ marginBottom: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+        <div className="aic-result-count">
           {filteredConfigs.length} of {configs.length} configurations match &ldquo;{search.trim()}&rdquo;
         </div>
       )}
 
       {/* Configuration Cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="aic-config-list">
         {filteredConfigs.map((config) => {
           const providerStyle = PROVIDER_STYLES[config.provider] || PROVIDER_STYLES.mock;
           const models = availableModels?.[config.provider as keyof AvailableModels] || [];
@@ -1159,43 +798,34 @@ export default function AIConfigPage() {
           return (
             <div
               key={config.callPoint}
+              className="aic-config-card"
               style={{
-                background: "var(--surface-primary)",
-                border: `1px solid ${config.isCustomized ? providerStyle.border : "var(--border-default)"}`,
-                borderRadius: 8,
-                padding: 16,
+                borderColor: config.isCustomized ? providerStyle.border : "var(--border-default)",
                 opacity: isSaving ? 0.7 : 1,
-                transition: "opacity 0.2s",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div className="aic-config-card-layout">
                 {/* Left: Label and Description */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary)" }}>{config.label}</span>
+                <div className="aic-config-info">
+                  <div className="aic-config-label-row">
+                    <span className="aic-config-label">{config.label}</span>
                     {config.isCustomized && (
                       <span
-                        style={{
-                          fontSize: 11,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          background: providerStyle.bg,
-                          color: providerStyle.text,
-                          fontWeight: 500,
-                        }}
+                        className="aic-customized-badge"
+                        style={{ background: providerStyle.bg, color: providerStyle.text }}
                       >
                         Customized
                       </span>
                     )}
                   </div>
-                  <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>{config.description}</p>
+                  <p className="aic-config-desc">{config.description}</p>
                 </div>
 
                 {/* Right: Controls */}
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div className="aic-config-controls">
                   {/* Provider Selector */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>
+                  <div className="aic-control-group">
+                    <label className="aic-control-label">
                       PROVIDER
                     </label>
                     <FancySelect
@@ -1214,8 +844,8 @@ export default function AIConfigPage() {
                   </div>
 
                   {/* Model Selector */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>MODEL</label>
+                  <div className="aic-control-group">
+                    <label className="aic-control-label">MODEL</label>
                     <FancySelect
                       value={config.model}
                       onChange={(v) => updateConfig(config.callPoint, { model: v })}
@@ -1228,8 +858,8 @@ export default function AIConfigPage() {
 
                   {/* Transcript Limit (only for pipeline stages that use transcripts) */}
                   {config.defaultTranscriptLimit && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>
+                    <div className="aic-control-group">
+                      <label className="aic-control-label">
                         TRANSCRIPT LIMIT
                       </label>
                       <input
@@ -1244,15 +874,7 @@ export default function AIConfigPage() {
                         min={500}
                         max={50000}
                         step={500}
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: 6,
-                          border: "1px solid var(--border-default)",
-                          background: "var(--surface-secondary)",
-                          color: "var(--text-primary)",
-                          fontSize: 13,
-                          width: 90,
-                        }}
+                        className="aic-transcript-input"
                         title={`Characters of transcript to include. Default: ${config.defaultTranscriptLimit}`}
                       />
                     </div>
@@ -1261,15 +883,8 @@ export default function AIConfigPage() {
                   {/* Tier Badge */}
                   {currentModel && (
                     <div
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                        background: tierStyle.bg,
-                        color: tierStyle.text,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        textTransform: "uppercase",
-                      }}
+                      className="aic-config-tier"
+                      style={{ background: tierStyle.bg, color: tierStyle.text }}
                     >
                       {currentModel.tier}
                     </div>
@@ -1280,15 +895,7 @@ export default function AIConfigPage() {
                     <button
                       onClick={() => resetToDefault(config.callPoint)}
                       disabled={isSaving}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        border: "1px solid var(--border-default)",
-                        background: "var(--surface-secondary)",
-                        fontSize: 12,
-                        cursor: "pointer",
-                        color: "var(--text-muted)",
-                      }}
+                      className="aic-reset-btn"
                       title={`Reset to default: ${config.defaultProvider} / ${config.defaultModel}`}
                     >
                       Reset
@@ -1299,14 +906,14 @@ export default function AIConfigPage() {
 
               {/* Default hint */}
               {!config.isCustomized && (
-                <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                <div className="aic-config-hint">
                   Using default: {config.defaultProvider} / {config.defaultModel}
                 </div>
               )}
 
               {/* Last updated */}
               {config.updatedAt && (
-                <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                <div className="aic-config-hint">
                   Last updated: {new Date(config.updatedAt).toLocaleString()}
                 </div>
               )}
@@ -1316,17 +923,7 @@ export default function AIConfigPage() {
       </div>
 
       {/* Footer Info */}
-      <div
-        style={{
-          marginTop: 24,
-          padding: 16,
-          background: "var(--status-info-bg)",
-          border: "1px solid var(--status-info-border)",
-          borderRadius: 8,
-          fontSize: 13,
-          color: "var(--status-info-text)",
-        }}
-      >
+      <div className="aic-footer-info">
         <strong>How it works:</strong> These settings are loaded at runtime by the AI client. When
         an operation runs (e.g., Pipeline MEASURE), it looks up the configuration for that call
         point and uses the specified provider and model. If no custom configuration exists, the

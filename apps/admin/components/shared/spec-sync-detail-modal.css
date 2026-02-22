@@ -1,0 +1,357 @@
+/* SpecSyncDetailModal — spec import status modal */
+
+/* Overlay */
+.ssd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, #000 60%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+/* Modal panel */
+.ssd-panel {
+  background: var(--surface-primary);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 24px 48px color-mix(in srgb, #000 30%, transparent);
+  border: 1px solid var(--border-default);
+  max-width: 900px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* Header */
+.ssd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.ssd-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.ssd-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.ssd-code {
+  background: var(--surface-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.ssd-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Loading state */
+.ssd-loading {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* Sync result banner — dynamic success/error via data attribute */
+.ssd-sync-result {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.ssd-sync-result[data-status="success"] {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.ssd-sync-result[data-status="error"] {
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  color: var(--status-error-text);
+}
+
+/* Summary cards grid */
+.ssd-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.ssd-summary-card {
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.ssd-summary-card-default {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.ssd-summary-card-success {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+}
+
+.ssd-summary-card-warning {
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+}
+
+.ssd-summary-card-inactive {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.ssd-summary-value {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.ssd-summary-value-success {
+  color: var(--status-success-text);
+}
+
+.ssd-summary-value-warning {
+  color: var(--status-warning-text);
+}
+
+.ssd-summary-label {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+}
+
+.ssd-summary-label-success {
+  color: var(--status-success-text);
+}
+
+.ssd-summary-label-warning {
+  color: var(--status-warning-text);
+}
+
+/* Section spacing */
+.ssd-section {
+  margin-bottom: 24px;
+}
+
+/* Section header row */
+.ssd-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ssd-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ssd-section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.ssd-section-title-spaced {
+  margin-bottom: 12px;
+}
+
+/* Import button */
+.ssd-import-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: var(--button-primary-bg);
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ssd-import-btn:disabled {
+  background: var(--button-disabled-bg);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Table container */
+.ssd-table-container {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Table */
+.ssd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ssd-table thead tr {
+  background: var(--surface-secondary);
+}
+
+.ssd-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.ssd-table th.ssd-th-center {
+  text-align: center;
+  width: 40px;
+}
+
+.ssd-table td {
+  padding: 10px 12px;
+}
+
+.ssd-table tbody tr {
+  border-top: 1px solid var(--border-default);
+}
+
+/* Unseeded row — clickable */
+.ssd-row-selectable {
+  cursor: pointer;
+}
+
+.ssd-row-selectable.ssd-row-selected {
+  background: var(--status-info-bg);
+}
+
+/* Checkbox */
+.ssd-checkbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* Cell variants */
+.ssd-cell-center {
+  text-align: center;
+}
+
+.ssd-cell-mono {
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.ssd-cell-secondary {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Badge — role badge variant (neutral) */
+.ssd-badge-role {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+/* No-role dash */
+.ssd-no-role {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Link */
+.ssd-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+/* All synced success box */
+.ssd-all-synced {
+  padding: 32px;
+  text-align: center;
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.ssd-all-synced-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.ssd-all-synced-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--status-success-text);
+}
+
+.ssd-all-synced-desc {
+  font-size: 14px;
+  color: var(--status-success-text);
+  margin-top: 4px;
+}
+
+/* Collapsible synced section */
+.ssd-details {
+  margin-bottom: 24px;
+}
+
+.ssd-summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+
+.ssd-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ssd-toggle-icon {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+/* Orphaned info banner */
+.ssd-orphaned-info {
+  padding: 12px;
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--status-warning-text);
+}

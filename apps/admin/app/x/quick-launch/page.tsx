@@ -16,7 +16,7 @@ import { WizardSummary } from "@/components/shared/WizardSummary";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { Building2, BookOpen, User, FileText, PlayCircle } from "lucide-react";
+import { Building2, BookOpen, User, FileText, PlayCircle, Target } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
 
@@ -1155,7 +1155,7 @@ export default function QuickLaunchPage() {
               items: [
                 { icon: <BookOpen className="w-4 h-4" />, label: "Subject", value: subjectName || "—" },
                 ...(selectedPersona ? [{ icon: <User className="w-4 h-4" />, label: "Persona", value: selectedPersona.name }] : []),
-                ...(goals.length > 0 ? [{ label: "Goals", value: `${goals.length} learning goal${goals.length !== 1 ? "s" : ""}` }] : []),
+                ...(goals.length > 0 ? [{ icon: <Target className="w-4 h-4" />, label: "Goals", value: `${goals.length} learning goal${goals.length !== 1 ? "s" : ""}` }] : []),
                 ...(file ? [{ icon: <FileText className="w-4 h-4" />, label: "Source", value: file.name }] : []),
               ],
             }}
@@ -1374,8 +1374,8 @@ export default function QuickLaunchPage() {
               </div>
             )}
 
-            {/* Domain picker — use existing domain or create new */}
-            {domains.length > 0 && (
+            {/* Domain picker — only in community mode (institution mode auto-scaffolds domain) */}
+            {communityMode && domains.length > 0 && (
               <div className="hf-mb-md">
                 <label className="hf-label">
                   {terms.domain}

@@ -1,0 +1,685 @@
+/* ── Content Source Detail ── csd-* prefix ── */
+
+/* ── Loading & Error States ── */
+
+.csd-loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.csd-loading-center-sm {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.csd-error-wrap {
+  padding: 24px;
+}
+
+.csd-error-text {
+  color: var(--status-error-text);
+}
+
+.csd-back-link {
+  color: var(--accent-primary);
+  font-size: 13px;
+}
+
+/* ── Back Link ── */
+
+.csd-back-nav {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.csd-back-arrow {
+  font-size: 16px;
+}
+
+/* ── Archived Banner ── */
+
+.csd-archived-banner {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.csd-flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+/* ── Source Header ── */
+
+.csd-header {
+  margin-bottom: 24px;
+}
+
+.csd-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.csd-doc-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--surface-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
+.csd-doc-type-icon {
+  font-size: 12px;
+}
+
+.csd-doc-type-auto {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.csd-status-archived {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.csd-status-inactive {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--status-error-text);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: var(--status-error-bg);
+}
+
+.csd-meta-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.csd-slug {
+  font-family: monospace;
+}
+
+.csd-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  max-width: 700px;
+}
+
+/* ── Review Progress Bar ── */
+
+.csd-progress-wrap {
+  margin-top: 12px;
+  max-width: 500px;
+}
+
+.csd-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.csd-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.csd-progress-counts {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.csd-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  overflow: hidden;
+}
+
+.csd-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}
+
+.csd-progress-fill--complete {
+  background: var(--status-success-text);
+}
+
+.csd-progress-fill--partial {
+  background: linear-gradient(90deg, var(--accent-primary), var(--badge-indigo-text));
+}
+
+/* ── Feedback Banner ── */
+
+.csd-feedback {
+  margin-bottom: 12px;
+}
+
+/* ── Assertions Tab Controls ── */
+
+.csd-controls-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.csd-search-input {
+  width: 220px;
+}
+
+.csd-filter-select {
+  width: auto;
+}
+
+.csd-bulk-btn {
+  font-size: 12px;
+}
+
+.csd-total-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── No Results ── */
+
+.csd-empty-text {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.csd-empty-text--padded {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.csd-empty-text--usage {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px;
+}
+
+/* ── Table ── */
+
+.csd-table-wrap {
+  overflow-x: auto;
+}
+
+.csd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.csd-thead-row {
+  border-bottom: 2px solid var(--border-default);
+}
+
+/* ── Table Header Cells ── */
+
+.csd-th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.csd-th--checkbox {
+  width: 36px;
+  padding: 8px 4px 8px 8px;
+}
+
+.csd-th--sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.csd-th--review {
+  width: 80px;
+  text-align: center;
+}
+
+.csd-sort-indicator {
+  margin-left: 4px;
+}
+
+/* ── Table Body Cells ── */
+
+.csd-td-checkbox {
+  padding: 8px 4px 8px 8px;
+  width: 36px;
+}
+
+.csd-td-assertion {
+  padding: 8px 10px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.csd-td-default {
+  padding: 8px 10px;
+}
+
+.csd-td-location {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.csd-td-review {
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.csd-td-expanded {
+  padding: 0 10px 16px 46px;
+}
+
+/* ── Assertion Row States ── */
+
+.csd-row {
+  cursor: pointer;
+}
+
+.csd-row--border {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.csd-row--selected {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.csd-row--expanded {
+  background: color-mix(in srgb, var(--accent-primary) 3%, transparent);
+}
+
+/* ── Tags (inline in assertion row) ── */
+
+.csd-tags-inline {
+  margin-left: 8px;
+  display: inline-flex;
+  gap: 3px;
+}
+
+.csd-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  color: var(--text-muted);
+}
+
+.csd-tag--detail {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  color: var(--text-secondary);
+}
+
+.csd-tag-overflow {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Pagination ── */
+
+.csd-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.csd-pagination-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.csd-pagination-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Danger Zone ── */
+
+.csd-danger-zone {
+  margin-top: 40px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--status-error-border);
+  background: var(--status-error-bg);
+}
+
+.csd-danger-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--status-error-text);
+  margin: 0 0 8px;
+}
+
+.csd-danger-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+}
+
+.csd-danger-checking {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.csd-danger-usage {
+  margin-bottom: 12px;
+}
+
+.csd-danger-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Trust Badge ── */
+
+.csd-trust-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Category Badge ── */
+
+.csd-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.csd-category-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* ── Review Badge ── */
+
+.csd-review-reviewed {
+  font-size: 11px;
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+
+.csd-review-pending {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Usage Panel ── */
+
+.csd-usage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.csd-usage-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.csd-usage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.csd-usage-row--last {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: none;
+}
+
+.csd-usage-link {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.csd-usage-slug {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.csd-usage-caller-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.csd-usage-stat-label {
+  color: var(--text-secondary);
+}
+
+.csd-usage-stat-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.csd-usage-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.csd-usage-reach {
+  margin-top: 8px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border-default);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.csd-usage-reach strong {
+  color: var(--text-primary);
+}
+
+/* ── Detail View (expanded assertion) ── */
+
+.csd-detail-wrap {
+  padding-top: 8px;
+}
+
+.csd-detail-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.csd-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 20px;
+  margin-bottom: 12px;
+}
+
+.csd-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.csd-detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.csd-detail-value--mono {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.csd-detail-tags {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.csd-detail-none {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.csd-detail-review-info {
+  font-size: 12px;
+}
+
+.csd-detail-review-yes {
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+
+.csd-detail-review-meta {
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.csd-detail-review-pending {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.csd-detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.csd-btn-sm {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.csd-btn-sm--xs {
+  padding: 5px 14px;
+  font-size: 11px;
+}
+
+.csd-btn-reviewed {
+  background: var(--status-success-text);
+}
+
+/* ── Edit Form ── */
+
+.csd-edit-wrap {
+  padding-top: 8px;
+}
+
+.csd-edit-field {
+  margin-bottom: 10px;
+}
+
+.csd-edit-textarea {
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.csd-edit-grid-cat-tags {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.csd-edit-grid-location {
+  display: grid;
+  grid-template-columns: 1fr 1fr 100px;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.csd-edit-grid-validity {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px 120px 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.csd-edit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.csd-edit-delete-wrap {
+  margin-left: auto;
+}
+
+.csd-delete-confirm {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.csd-delete-warning {
+  font-size: 12px;
+  color: var(--status-error-text);
+}
+
+.csd-btn-delete-outline {
+  color: var(--status-error-text);
+  border-color: var(--status-error-border);
+}

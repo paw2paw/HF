@@ -1,0 +1,649 @@
+/* Tickets Page — tk-* classes */
+/* Migrated from inline styles to CSS classes */
+
+/* ── Page Layout ── */
+.tk-page {
+  padding: 24px 0;
+}
+
+.tk-header {
+  margin-bottom: 24px;
+}
+
+.tk-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tk-create-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Stats Grid ── */
+.tk-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tk-stat-card {
+  padding: 16px;
+  background: var(--surface-primary);
+  border: 2px solid var(--border-default);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tk-stat-card.active {
+  border-color: var(--stat-color);
+  background: color-mix(in srgb, var(--stat-color) 8%, transparent);
+}
+
+.tk-stat-count {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--stat-color);
+  margin-bottom: 4px;
+}
+
+.tk-stat-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ── Filters ── */
+.tk-filters {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.tk-filter-input {
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+}
+
+.tk-filter-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+}
+
+/* ── Loading / Empty ── */
+.tk-loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+
+.tk-empty {
+  text-align: center;
+  padding: 60px;
+  background: var(--surface-secondary);
+  border-radius: 12px;
+  border: 1px dashed var(--border-default);
+}
+
+.tk-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.tk-empty-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.tk-empty-text {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* ── Ticket List ── */
+.tk-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* ── Ticket Card ── */
+.tk-card {
+  padding: 16px;
+  background: var(--surface-primary);
+  border: 2px solid var(--border-default);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tk-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.tk-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-ticket-number {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tk-card-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-category-icon {
+  font-size: 20px;
+}
+
+.tk-comment-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tk-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.tk-card-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.tk-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tk-card-people {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tk-person {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tk-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tk-avatar-accent {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tk-person-name {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tk-arrow {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tk-timestamp {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Badges ── */
+.tk-badge {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.tk-badge-bordered {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+/* ── Modal Overlay ── */
+.tk-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.tk-modal-loading-text {
+  color: white;
+  font-size: 16px;
+}
+
+/* ── Create Modal ── */
+.tk-create-modal {
+  background: var(--surface-primary);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.tk-modal-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.tk-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tk-form {
+  padding: 24px;
+}
+
+.tk-error-banner {
+  padding: 12px;
+  background: var(--status-error-bg);
+  border: 1px solid color-mix(in srgb, var(--status-error-text) 30%, transparent);
+  border-radius: 6px;
+  color: var(--status-error-text);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.tk-field {
+  margin-bottom: 16px;
+}
+
+.tk-field-lg {
+  margin-bottom: 20px;
+}
+
+.tk-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.tk-text-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.tk-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.tk-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tk-form-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.tk-field-hint-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--status-error-text);
+}
+
+.tk-field-hint-warning {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--status-warning-text);
+}
+
+.tk-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.tk-btn-cancel {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tk-btn-cancel:disabled {
+  cursor: not-allowed;
+}
+
+.tk-btn-submit {
+  padding: 8px 16px;
+  background: var(--badge-purple-text);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tk-btn-submit:disabled {
+  background: var(--surface-disabled);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ── Detail Modal ── */
+.tk-detail-modal {
+  background: var(--surface-primary);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tk-detail-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.tk-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tk-detail-ticket-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tk-detail-category-icon {
+  font-size: 16px;
+}
+
+.tk-detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tk-detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tk-btn-delete {
+  padding: 6px 12px;
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tk-btn-close {
+  padding: 6px 12px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ── Controls Row ── */
+.tk-controls {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.tk-control-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+
+.tk-control-select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* ── Detail Content ── */
+.tk-detail-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.tk-description-section {
+  margin-bottom: 24px;
+}
+
+.tk-section-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.tk-section-label-comments {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+}
+
+.tk-description-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* ── Comments ── */
+.tk-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tk-comment {
+  padding: 12px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+
+.tk-comment.internal {
+  background: var(--status-warning-bg);
+  border-color: color-mix(in srgb, var(--status-warning-text) 40%, transparent);
+}
+
+.tk-comment-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tk-comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tk-comment-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tk-internal-tag {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--status-warning-text);
+  background: color-mix(in srgb, var(--status-warning-text) 25%, transparent);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.tk-comment-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tk-comment-body {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* ── Comment Form ── */
+.tk-comment-form {
+  padding: 24px;
+  border-top: 1px solid var(--border-default);
+}
+
+.tk-comment-error {
+  padding: 12px;
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  border-radius: 6px;
+  color: var(--status-error-text);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.tk-comment-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+
+.tk-comment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tk-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.tk-checkbox {
+  cursor: pointer;
+}
+
+.tk-checkbox-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}

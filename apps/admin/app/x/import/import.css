@@ -1,0 +1,678 @@
+/* Import Page — CSS classes for /x/import */
+
+/* ── Header ── */
+.imp-header {
+  margin-bottom: 24px;
+}
+
+.imp-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Drop Zones ── */
+.imp-dropzone {
+  border: 2px dashed var(--border-default);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface-secondary);
+  transition: all 0.15s;
+}
+
+.imp-dropzone-active {
+  background: var(--success-bg);
+}
+
+.imp-dropzone-spec-active {
+  background: var(--warning-bg);
+}
+
+.imp-dropzone-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.imp-dropzone-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.imp-dropzone-title-success {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--success-text);
+}
+
+.imp-dropzone-title-warning {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--warning-text);
+}
+
+.imp-dropzone-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.imp-hidden-input {
+  display: none;
+}
+
+/* ── Options Panel ── */
+.imp-options {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+}
+
+.imp-options-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.imp-radio-group {
+  display: flex;
+  gap: 12px;
+}
+
+.imp-radio-option {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+}
+
+.imp-radio-option-selected {
+  background: var(--accent-bg);
+  border: 2px solid var(--accent-primary);
+}
+
+.imp-radio-input {
+  margin-right: 8px;
+}
+
+.imp-radio-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.imp-radio-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  margin-left: 20px;
+}
+
+/* ── Checkbox area (save to raw, auto-activate) ── */
+.imp-checkbox-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.imp-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.imp-checkbox-label-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.imp-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.imp-checkbox-no-mt {
+  width: 18px;
+  height: 18px;
+}
+
+.imp-checkbox-text {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.imp-checkbox-text-default {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.imp-checkbox-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.imp-checkbox-hint-inline {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Buttons ── */
+.imp-btn-row {
+  margin-top: 20px;
+}
+
+.imp-btn-import {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.imp-btn-import:disabled {
+  background: var(--text-placeholder);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.imp-btn-import-success {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--success-text);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.imp-btn-import-success:disabled {
+  background: var(--text-placeholder);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.imp-btn-import-warning {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--warning-text);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.imp-btn-import-warning:disabled {
+  background: var(--text-placeholder);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.imp-btn-back {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.imp-btn-reset {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.imp-action-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* ── Conflict Resolution ── */
+.imp-conflict-banner {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--warning-bg);
+  border-radius: 8px;
+  border: 1px solid var(--warning-border);
+}
+
+.imp-conflict-banner-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--warning-text);
+  margin-bottom: 8px;
+}
+
+.imp-conflict-banner-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.imp-conflict-summary {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.imp-conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.imp-conflict-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.imp-conflict-match-info {
+  margin-bottom: 16px;
+}
+
+.imp-conflict-match-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.imp-conflict-match-code {
+  background: var(--surface-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.imp-conflict-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.imp-conflict-side {
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.imp-conflict-side-existing {
+  background: var(--surface-secondary);
+}
+
+.imp-conflict-side-incoming {
+  background: var(--accent-bg);
+}
+
+.imp-conflict-side-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.imp-conflict-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.imp-conflict-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.imp-conflict-link {
+  font-size: 11px;
+  color: var(--accent-primary);
+  margin-top: 8px;
+  display: inline-block;
+}
+
+.imp-conflict-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.imp-conflict-resolution-row {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.imp-resolution-btn {
+  flex: 1;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.imp-resolution-btn-selected {
+  background: var(--surface-secondary);
+}
+
+.imp-resolution-btn-selected.imp-resolution-color-success {
+  border: 2px solid var(--success-text);
+}
+
+.imp-resolution-btn-selected.imp-resolution-color-accent {
+  border: 2px solid var(--accent-primary);
+}
+
+.imp-resolution-btn-selected.imp-resolution-color-muted {
+  border: 2px solid var(--text-muted);
+}
+
+.imp-resolution-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.imp-resolution-label.imp-resolution-color-success {
+  color: var(--success-text);
+}
+
+.imp-resolution-label.imp-resolution-color-accent {
+  color: var(--accent-primary);
+}
+
+.imp-resolution-label.imp-resolution-color-muted {
+  color: var(--text-muted);
+}
+
+.imp-resolution-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Result Panels ── */
+.imp-result-success {
+  padding: 20px;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 12px;
+}
+
+.imp-result-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--success-text);
+  margin-bottom: 12px;
+}
+
+.imp-result-stats {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: var(--text-primary);
+  flex-wrap: wrap;
+}
+
+.imp-result-stat-muted {
+  color: var(--text-muted);
+}
+
+.imp-result-callers {
+  margin-top: 16px;
+}
+
+.imp-result-callers-label {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.imp-result-callers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.imp-caller-chip {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.imp-caller-chip-new {
+  background: var(--accent-bg);
+  color: var(--accent-primary);
+}
+
+.imp-caller-chip-merged {
+  background: var(--warning-bg);
+}
+
+.imp-caller-badge {
+  font-size: 10px;
+  color: white;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.imp-caller-badge-new {
+  background: var(--accent-primary);
+}
+
+.imp-caller-badge-merged {
+  background: var(--warning-text);
+}
+
+.imp-result-raw-saved {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--accent-bg);
+  border-radius: 6px;
+}
+
+.imp-result-raw-saved-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  margin-bottom: 4px;
+}
+
+.imp-result-warnings {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--warning-bg);
+  border-radius: 6px;
+}
+
+.imp-result-warnings-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--warning-text);
+  margin-bottom: 4px;
+}
+
+.imp-result-warning-item {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Error Banner ── */
+.imp-error {
+  margin-top: 20px;
+  padding: 16px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-radius: 8px;
+}
+
+/* ── Spec Results ── */
+.imp-spec-result {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: 12px;
+}
+
+.imp-spec-result-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--warning-text);
+  margin-bottom: 12px;
+}
+
+.imp-spec-result-stats {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.imp-spec-result-error-count {
+  color: var(--error-text);
+}
+
+.imp-spec-results-list {
+  margin-top: 16px;
+}
+
+.imp-spec-results-label {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.imp-spec-results-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.imp-spec-result-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.imp-spec-result-item-created {
+  background: var(--success-bg);
+}
+
+.imp-spec-result-item-error {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+}
+
+.imp-spec-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.imp-spec-result-id {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.imp-spec-result-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+}
+
+.imp-spec-result-badge-created {
+  background: var(--success-text);
+}
+
+.imp-spec-result-badge-updated {
+  background: var(--text-muted);
+}
+
+.imp-spec-result-badge-error {
+  background: var(--error-text);
+}
+
+.imp-spec-result-name {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.imp-spec-result-error-text {
+  color: var(--error-text);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.imp-spec-result-warning-text {
+  color: var(--warning-text);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* ── Help Section ── */
+.imp-help {
+  margin-top: 32px;
+  padding: 20px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+}
+
+.imp-help-title {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.imp-help-body {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.imp-help-list {
+  margin: 8px 0;
+  padding-left: 20px;
+}

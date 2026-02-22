@@ -1,0 +1,607 @@
+/* ── AI Config Page ────────────────────────── */
+/* Extracted from inline styles — imported by ai-config/page.tsx */
+
+/* Page wrapper */
+.aic-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Loading state */
+.aic-loading {
+  text-align: center;
+  padding: 60px;
+}
+.aic-loading-text {
+  font-size: 24px;
+  color: var(--text-muted);
+}
+
+/* Header area */
+.aic-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.aic-header-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.aic-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Header nav/action button (AI Knowledge link, Manage Models) */
+.aic-header-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.aic-toggle-icon {
+  font-size: 16px;
+}
+
+/* Models Manager panel */
+.aic-models-panel {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.aic-models-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.aic-models-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+.aic-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--text-muted);
+}
+.aic-models-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+/* Add New Model form */
+.aic-add-model-form {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.aic-add-model-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--text-primary);
+}
+.aic-add-model-fields {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.aic-field-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.aic-field-input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.aic-field-input-model-id {
+  width: 220px;
+}
+.aic-field-input-label {
+  width: 150px;
+}
+.aic-add-model-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent-primary);
+  color: var(--accent-primary-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Provider section in models manager */
+.aic-provider-section {
+  margin-bottom: 16px;
+}
+.aic-provider-heading {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aic-provider-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* API Key management row */
+.aic-key-row {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.aic-key-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+.aic-key-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.aic-key-env-var {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.aic-key-masked {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.aic-key-unconfigured {
+  font-size: 12px;
+  color: var(--status-warning-text);
+  font-style: italic;
+}
+
+/* Key edit form */
+.aic-key-edit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.aic-key-input {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  width: 280px;
+}
+.aic-key-save-btn {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: none;
+  background: var(--button-success-bg);
+  color: var(--button-primary-text);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.aic-key-cancel-btn {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* Key action buttons */
+.aic-key-actions {
+  display: flex;
+  gap: 6px;
+}
+.aic-key-btn {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.aic-key-remove-btn {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--status-error-border);
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* Key test result */
+.aic-key-test-result {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aic-key-test-success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+.aic-key-test-failure {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+/* Models subheading */
+.aic-models-subheading {
+  font-size: 11px;
+  font-weight: 500;
+  margin: 0 0 6px 0;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Model list */
+.aic-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.aic-model-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+.aic-model-row-active {
+  background: var(--surface-primary);
+}
+.aic-model-row-inactive {
+  background: var(--surface-tertiary);
+  opacity: 0.6;
+}
+
+/* Model editing inputs */
+.aic-model-edit-input {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 150px;
+}
+.aic-model-save-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: none;
+  background: var(--button-success-bg);
+  color: var(--button-primary-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.aic-model-cancel-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Model display (non-editing) */
+.aic-model-id-badge {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.aic-model-label {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  color: var(--text-primary);
+}
+.aic-tier-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.aic-model-edit-btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.aic-model-toggle-btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  font-size: 11px;
+  cursor: pointer;
+}
+.aic-model-toggle-disable {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+.aic-model-toggle-enable {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+.aic-model-delete-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* Status messages (error / success) */
+.aic-status-msg {
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.aic-status-error {
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  color: var(--status-error-text);
+}
+.aic-status-success {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  color: var(--status-success-text);
+}
+.aic-dismiss-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+}
+.aic-dismiss-error {
+  color: var(--status-error-text);
+}
+.aic-dismiss-success {
+  color: var(--status-success-text);
+}
+
+/* Provider legend bar */
+.aic-provider-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+}
+.aic-legend-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.aic-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aic-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.aic-legend-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Search bar */
+.aic-search-wrapper {
+  margin-bottom: 16px;
+  position: relative;
+}
+.aic-search-input {
+  width: 100%;
+  padding: 10px 14px 10px 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+.aic-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 15px;
+  pointer-events: none;
+}
+.aic-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+/* Search result count */
+.aic-result-count {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Configuration cards list */
+.aic-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Individual config card */
+.aic-config-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 16px;
+  transition: opacity 0.2s;
+}
+.aic-config-card-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.aic-config-info {
+  flex: 1;
+}
+.aic-config-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.aic-config-label {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.aic-customized-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.aic-config-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Config controls (right side) */
+.aic-config-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.aic-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.aic-control-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Transcript limit input */
+.aic-transcript-input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 90px;
+}
+
+/* Config tier badge */
+.aic-config-tier {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* Reset button */
+.aic-reset-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Config hint / meta text */
+.aic-config-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Footer info banner */
+.aic-footer-info {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--status-info-bg);
+  border: 1px solid var(--status-info-border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--status-info-text);
+}

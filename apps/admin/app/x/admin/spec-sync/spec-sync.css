@@ -1,0 +1,276 @@
+/* ── Spec Sync Page ──────────────────────── */
+/* Extracted from inline styles — imported by spec-sync/page.tsx */
+
+.ss-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.ss-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.ss-back-link {
+  font-size: 13px;
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.ss-title {
+  margin-top: 4px;
+}
+
+.ss-subtitle {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.ss-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Buttons ── */
+.ss-btn-refresh {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  font-size: 13px;
+}
+
+.ss-btn-import {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ss-btn-import-active {
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+}
+
+.ss-btn-import-disabled {
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+}
+
+/* ── Scrollable Content ── */
+.ss-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ── Summary Cards ── */
+.ss-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ss-summary-card {
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.ss-summary-card-default {
+  background: var(--surface-secondary);
+}
+
+.ss-summary-card-success {
+  background: var(--status-success-bg);
+}
+
+.ss-summary-card-warning {
+  background: var(--status-warning-bg);
+}
+
+.ss-summary-value {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.ss-summary-label {
+  font-size: 12px;
+}
+
+.ss-summary-label-default {
+  color: var(--text-secondary);
+}
+
+.ss-summary-label-success {
+  color: var(--status-success-text);
+}
+
+.ss-summary-label-warning {
+  color: var(--status-warning-text);
+}
+
+/* ── Sections ── */
+.ss-section {
+  margin-bottom: 24px;
+}
+
+.ss-section-heading {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ss-section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* ── Tables ── */
+.ss-table-wrap {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ss-table-wrap-mt {
+  margin-top: 12px;
+}
+
+.ss-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ss-thead-row {
+  background: var(--surface-secondary);
+}
+
+.ss-th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.ss-th-center {
+  text-align: center;
+  width: 40px;
+}
+
+.ss-td {
+  padding: 10px 12px;
+}
+
+.ss-td-center {
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.ss-td-mono {
+  padding: 10px 12px;
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.ss-td-secondary {
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ss-td-mono-sm {
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.ss-tr-border {
+  border-top: 1px solid var(--border-default);
+}
+
+.ss-tr-selected {
+  background: var(--status-info-bg);
+}
+
+.ss-tr-clickable {
+  cursor: pointer;
+}
+
+/* ── Checkbox ── */
+.ss-checkbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Links ── */
+.ss-link {
+  color: var(--text-link);
+}
+
+/* ── Badge role (muted variant with border) ── */
+.ss-badge-role {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+/* ── Badge with border (used for badgeStyle types) ── */
+.ss-badge-bordered {
+  border: 1px solid var(--status-success-border);
+}
+
+.ss-badge-bordered-warning {
+  border: 1px solid var(--status-warning-border);
+}
+
+.ss-badge-bordered-error {
+  border: 1px solid var(--status-error-border);
+}
+
+.ss-badge-bordered-info {
+  border: 1px solid var(--status-info-border);
+}
+
+/* ── Details / collapsible ── */
+.ss-details {
+  margin-bottom: 24px;
+}
+
+.ss-summary {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Inactive text ── */
+.ss-text-muted {
+  color: var(--text-muted);
+}

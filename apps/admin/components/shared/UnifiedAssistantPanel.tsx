@@ -7,6 +7,7 @@ import { useEntityContext } from "@/contexts/EntityContext";
 import { useGlobalAssistant } from "@/contexts/AssistantContext";
 import type { LayoutMode } from "@/contexts/AssistantContext";
 import { useResponsive } from "@/hooks/useResponsive";
+import "./unified-assistant-panel.css";
 
 // ============================================================================
 // TYPES
@@ -457,253 +458,87 @@ export function UnifiedAssistantPanel({
 
   if (!isVisible) return null;
 
-  const layoutStyles = {
-    popout: {
-      position: "fixed" as const,
-      top: 0,
-      right: 0,
-      bottom: 0,
-      width: isMobile ? "100vw" : panelWidth, // Full width on mobile
-      zIndex: 1000,
-    },
-    embedded: {
-      width: "100%",
-      height: "100%",
-      position: "relative" as const,
-    },
-    sidebar: {
-      position: "fixed" as const,
-      top: 64,
-      right: 16,
-      width: panelWidth,
-      height: panelHeight,
-      zIndex: 999,
-    },
-  };
+  // Dynamic width/height — must stay as inline style (JS-driven values)
+  const panelDynamicStyle: React.CSSProperties =
+    layout === "popout"
+      ? { width: isMobile ? "100vw" : panelWidth }
+      : layout === "sidebar"
+      ? { width: panelWidth, height: panelHeight }
+      : {};
 
   return (
     <>
       {/* Backdrop (only for popout) */}
       {layout === "popout" && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.3)",
-            backdropFilter: "blur(2px)",
-            zIndex: 999,
-            animation: "fadeIn 0.2s ease-out",
-          }}
-          onClick={handleClose}
-        />
+        <div className="uap-backdrop" onClick={handleClose} />
       )}
 
       {/* Panel */}
       <div
         ref={panelRef}
-        style={{
-          ...layoutStyles[layout],
-          background: "var(--surface-primary)",
-          borderLeft: layout === "popout" ? "1px solid var(--border-default)" : "none",
-          border: layout === "embedded" ? "1px solid var(--border-default)" : undefined,
-          borderRadius: layout === "embedded" ? 12 : undefined,
-          boxShadow: layout === "popout" ? "-4px 0 24px rgba(0, 0, 0, 0.15)" : "0 2px 8px rgba(0, 0, 0, 0.1)",
-          display: "flex",
-          flexDirection: "column",
-          animation: layout === "popout" ? "slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)" : undefined,
-        }}
+        className={`uap-panel uap-panel--${layout}${layout === "popout" && isMobile ? " uap-panel--popout-mobile" : ""}`}
+        style={panelDynamicStyle}
       >
         {/* Resize handle (left edge for popout, left+bottom for sidebar) */}
         {layout !== "embedded" && (
           <>
-            {/* Left edge resize handle (width) - More visible */}
+            {/* Left edge resize handle (width) */}
             <div
+              className="uap-resize-left"
               onMouseDown={(e) => handleResizeStart(e, 'width')}
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 8,
-                cursor: "ew-resize",
-                background: "rgba(99, 102, 241, 0.1)",
-                borderLeft: "1px solid rgba(99, 102, 241, 0.2)",
-                zIndex: 1001,
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(99, 102, 241, 0.3)";
-                e.currentTarget.style.borderLeftColor = "rgba(99, 102, 241, 0.5)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(99, 102, 241, 0.1)";
-                e.currentTarget.style.borderLeftColor = "rgba(99, 102, 241, 0.2)";
-              }}
             >
-              {/* Visual grip indicator */}
-              <div style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 3,
-                height: 30,
-                background: "rgba(99, 102, 241, 0.4)",
-                borderRadius: 2,
-              }} />
+              <div className="uap-resize-grip-v" />
             </div>
             {/* Bottom edge resize handle (height, sidebar only) */}
             {layout === "sidebar" && (
               <div
+                className="uap-resize-bottom"
                 onMouseDown={(e) => handleResizeStart(e, 'height')}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 8,
-                  cursor: "ns-resize",
-                  background: "rgba(99, 102, 241, 0.1)",
-                  borderBottom: "1px solid rgba(99, 102, 241, 0.2)",
-                  zIndex: 1001,
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(99, 102, 241, 0.3)";
-                  e.currentTarget.style.borderBottomColor = "rgba(99, 102, 241, 0.5)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(99, 102, 241, 0.1)";
-                  e.currentTarget.style.borderBottomColor = "rgba(99, 102, 241, 0.2)";
-                }}
               >
-                {/* Visual grip indicator */}
-                <div style={{
-                  position: "absolute",
-                  left: "50%",
-                  top: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: 30,
-                  height: 3,
-                  background: "rgba(99, 102, 241, 0.4)",
-                  borderRadius: 2,
-                }} />
+                <div className="uap-resize-grip-h" />
               </div>
             )}
             {/* Corner resize handle (both, sidebar only) */}
             {layout === "sidebar" && (
               <div
+                className="uap-resize-corner"
                 onMouseDown={(e) => handleResizeStart(e, 'both')}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  bottom: 0,
-                  width: 16,
-                  height: 16,
-                  cursor: "nwse-resize",
-                  background: "rgba(99, 102, 241, 0.2)",
-                  zIndex: 1002,
-                  borderRadius: "0 4px 0 0",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(99, 102, 241, 0.5)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(99, 102, 241, 0.2)";
-                }}
               >
-                {/* Corner grip icon */}
-                <div style={{
-                  position: "absolute",
-                  right: 3,
-                  bottom: 3,
-                  fontSize: 10,
-                  color: "rgba(99, 102, 241, 0.7)",
-                  lineHeight: 1,
-                }}>
-                  ⋰
-                </div>
+                <div className="uap-resize-corner-icon">⋰</div>
               </div>
             )}
           </>
         )}
-        {/* Header - Compact */}
-        <div
-          style={{
-            padding: "10px 12px",
-            borderBottom: "1px solid var(--border-default)",
-            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  background: "linear-gradient(135deg, var(--badge-indigo-text, #6366f1) 0%, var(--accent-secondary, #8b5cf6) 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 14,
-                }}
-              >
-                🤖
-              </div>
+
+        {/* Header */}
+        <div className="uap-header">
+          <div className="uap-header-row">
+            <div className="uap-header-left">
+              <div className="uap-header-icon">🤖</div>
               <div>
-                <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                  AI Assistant
-                </h3>
+                <h3 className="uap-header-title">AI Assistant</h3>
                 {context && (
-                  <p style={{ fontSize: 9, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                  <p className="uap-header-context">
                     {context.type}: {context.data?.name || context.data?.title || context.data?.slug || context.data?.domain || "..."}
                   </p>
                 )}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="uap-header-actions">
               {/* Layout mode dropdown (only when in GlobalAssistant context and not mobile) */}
               {globalAssistant && !isMobile && (
-                <div ref={layoutMenuRef} style={{ position: "relative", marginRight: 4 }}>
+                <div ref={layoutMenuRef} className="uap-layout-menu-wrapper">
                   <button
                     onClick={() => setLayoutMenuOpen(!layoutMenuOpen)}
                     title="Change layout"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 4,
-                      border: "1px solid var(--border-default)",
-                      background: layoutMenuOpen ? "rgba(99, 102, 241, 0.1)" : "var(--surface-secondary)",
-                      color: layoutMenuOpen ? "var(--accent-primary)" : "var(--text-muted)",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.2s ease",
-                    }}
+                    className={`uap-layout-menu-btn ${layoutMenuOpen ? "uap-layout-menu-btn--active" : "uap-layout-menu-btn--inactive"}`}
                   >
                     ⚙️
                   </button>
 
                   {/* Dropdown menu */}
                   {layoutMenuOpen && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "calc(100% + 4px)",
-                        right: 0,
-                        width: 180,
-                        background: "var(--surface-primary)",
-                        border: "1px solid var(--border-default)",
-                        borderRadius: 8,
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                        zIndex: 10000,
-                        overflow: "hidden",
-                      }}
-                    >
+                    <div className="uap-layout-dropdown">
                       {[
                         { mode: "popout" as LayoutMode, icon: "📌", label: "Popout", desc: "Full overlay" },
                         { mode: "floating" as LayoutMode, icon: "🪟", label: "Floating", desc: "Draggable" },
@@ -716,38 +551,15 @@ export function UnifiedAssistantPanel({
                             globalAssistant.setLayoutMode(mode);
                             setLayoutMenuOpen(false);
                           }}
-                          style={{
-                            width: "100%",
-                            padding: "8px 12px",
-                            border: "none",
-                            background: globalAssistant.layoutMode === mode ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                            color: "var(--text-primary)",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            fontSize: 12,
-                            textAlign: "left",
-                            transition: "background 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (globalAssistant.layoutMode !== mode) {
-                              e.currentTarget.style.background = "rgba(99, 102, 241, 0.05)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (globalAssistant.layoutMode !== mode) {
-                              e.currentTarget.style.background = "transparent";
-                            }
-                          }}
+                          className={`uap-layout-option ${globalAssistant.layoutMode === mode ? "uap-layout-option--active" : ""}`}
                         >
-                          <span style={{ fontSize: 16 }}>{icon}</span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 12 }}>{label}</div>
-                            <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{desc}</div>
+                          <span className="uap-layout-option-icon">{icon}</span>
+                          <div className="uap-layout-option-text">
+                            <div className="uap-layout-option-label">{label}</div>
+                            <div className="uap-layout-option-desc">{desc}</div>
                           </div>
                           {globalAssistant.layoutMode === mode && (
-                            <span style={{ fontSize: 10, color: "var(--accent-primary)" }}>✓</span>
+                            <span className="uap-layout-option-check">✓</span>
                           )}
                         </button>
                       ))}
@@ -760,20 +572,7 @@ export function UnifiedAssistantPanel({
                 onClick={handleCopy}
                 disabled={messages[activeTab].length === 0}
                 title="Copy chat"
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 4,
-                  border: "1px solid var(--border-default)",
-                  background: messages[activeTab].length === 0 ? "var(--surface-disabled)" : "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                  cursor: messages[activeTab].length === 0 ? "not-allowed" : "pointer",
-                  opacity: messages[activeTab].length === 0 ? 0.5 : 1,
-                  fontSize: 11,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                className="uap-icon-btn"
               >
                 <Copy size={12} />
               </button>
@@ -781,20 +580,7 @@ export function UnifiedAssistantPanel({
                 onClick={handleClear}
                 disabled={messages[activeTab].length === 0}
                 title="Clear chat"
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 4,
-                  border: "1px solid var(--border-default)",
-                  background: messages[activeTab].length === 0 ? "var(--surface-disabled)" : "var(--surface-secondary)",
-                  color: "var(--text-primary)",
-                  cursor: messages[activeTab].length === 0 ? "not-allowed" : "pointer",
-                  opacity: messages[activeTab].length === 0 ? 0.5 : 1,
-                  fontSize: 11,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                className="uap-icon-btn"
               >
                 <Trash2 size={12} />
               </button>
@@ -802,19 +588,7 @@ export function UnifiedAssistantPanel({
                 <button
                   onClick={handleClose}
                   title="Close"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 4,
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-muted)",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 14,
-                  }}
+                  className="uap-icon-btn uap-icon-btn--close"
                 >
                   <XIcon size={12} />
                 </button>
@@ -822,8 +596,8 @@ export function UnifiedAssistantPanel({
             </div>
           </div>
 
-          {/* Tabs - Compact */}
-          <div style={{ display: "flex", gap: 3 }}>
+          {/* Tabs */}
+          <div className="uap-tabs">
             {enabledTabs.map((tab) => {
               const config = TAB_CONFIG[tab];
               const isActive = activeTab === tab;
@@ -831,52 +605,20 @@ export function UnifiedAssistantPanel({
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  style={{
-                    flex: 1,
-                    padding: "5px 8px",
-                    borderRadius: 4,
-                    border: "1px solid",
-                    borderColor: isActive ? "var(--accent-primary)" : "var(--border-default)",
-                    background: isActive ? "var(--accent-primary)" : "var(--surface-secondary)",
-                    color: isActive ? "var(--button-primary-text, #fff)" : "var(--text-primary)",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 4,
-                    transition: "all 0.2s ease",
-                  }}
+                  className={`uap-tab ${isActive ? "uap-tab--active" : ""}`}
                 >
-                  <span style={{ fontSize: 12 }}>{config.icon}</span>
+                  <span className="uap-tab-icon">{config.icon}</span>
                   {config.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Search Bar - Compact */}
+          {/* Search Bar */}
           {activeTab !== "jobs" && (
-            <div style={{ marginTop: 8 }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 4,
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 4,
-                  padding: 4,
-                  transition: "border-color 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(99, 102, 241, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border-default)";
-                }}
-              >
-                <span style={{ fontSize: 11, padding: "2px 4px", color: "var(--text-muted)" }}>🔍</span>
+            <div className="uap-search-wrap">
+              <div className="uap-search-bar">
+                <span className="uap-search-icon">🔍</span>
                 <input
                   type="text"
                   value={searchQuery}
@@ -884,47 +626,17 @@ export function UnifiedAssistantPanel({
                   onKeyPress={handleSearchKeyPress}
                   placeholder="Search history..."
                   disabled={isSearching}
-                  style={{
-                    flex: 1,
-                    border: "none",
-                    outline: "none",
-                    background: "transparent",
-                    fontSize: 11,
-                    color: "var(--text-primary)",
-                    fontFamily: "inherit",
-                    padding: "2px 4px",
-                  }}
+                  className="uap-search-input"
                 />
                 {searchMode ? (
-                  <button
-                    onClick={exitSearchMode}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 3,
-                      border: "none",
-                      background: "var(--surface-secondary)",
-                      color: "var(--text-muted)",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: 10,
-                    }}
-                  >
+                  <button onClick={exitSearchMode} className="uap-search-btn-cancel">
                     ✕
                   </button>
                 ) : (
                   <button
                     onClick={handleSearch}
                     disabled={!searchQuery.trim() || isSearching}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 3,
-                      border: "none",
-                      background: !searchQuery.trim() || isSearching ? "var(--surface-disabled)" : "var(--accent-primary)",
-                      color: !searchQuery.trim() || isSearching ? "var(--text-placeholder)" : "var(--button-primary-text, #fff)",
-                      cursor: !searchQuery.trim() || isSearching ? "not-allowed" : "pointer",
-                      fontWeight: 600,
-                      fontSize: 10,
-                    }}
+                    className="uap-search-btn-go"
                   >
                     {isSearching ? "..." : "Go"}
                   </button>
@@ -934,53 +646,29 @@ export function UnifiedAssistantPanel({
           )}
         </div>
 
-        {/* Tab Content - Maximized */}
-        <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+        {/* Tab Content */}
+        <div className="uap-content">
           {/* Chat/Data/Spec Tabs - Message View */}
           {(activeTab === "chat" || activeTab === "data" || activeTab === "spec") && (
-            <div style={{ flex: 1, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="uap-messages">
               {/* Search Mode - Display Results */}
               {searchMode ? (
                 <>
-                  <div style={{
-                    padding: "8px 12px",
-                    background: "rgba(99, 102, 241, 0.1)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    color: "var(--text-primary)",
-                    fontWeight: 600,
-                  }}>
-                    Found {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for "{searchQuery}"
+                  <div className="uap-search-results-header">
+                    Found {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
                   </div>
                   {searchResults.length === 0 ? (
-                    <div style={{
-                      padding: 32,
-                      textAlign: "center",
-                      color: "var(--text-muted)",
-                      fontSize: 13,
-                    }}>
-                      No previous conversations found matching "{searchQuery}"
+                    <div className="uap-search-empty">
+                      No previous conversations found matching &ldquo;{searchQuery}&rdquo;
                     </div>
                   ) : (
-                    searchResults.map((result, i) => (
-                      <div
-                        key={result.id}
-                        style={{
-                          padding: 12,
-                          background: "var(--surface-secondary)",
-                          border: "1px solid var(--border-default)",
-                          borderRadius: 10,
-                          fontSize: 13,
-                          lineHeight: 1.5,
-                        }}
-                      >
+                    searchResults.map((result) => (
+                      <div key={result.id} className="uap-search-result">
                         {/* User message */}
                         {result.userMatchIndex >= 0 && (
-                          <div style={{ marginBottom: 10 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase" }}>
-                              You asked:
-                            </div>
-                            <div style={{ color: "var(--text-primary)" }}>
+                          <div className="uap-search-result-section">
+                            <div className="uap-search-result-label">You asked:</div>
+                            <div className="uap-search-result-text">
                               {highlightText(result.userMessage, searchQuery)}
                             </div>
                           </div>
@@ -989,33 +677,17 @@ export function UnifiedAssistantPanel({
                         {/* AI response */}
                         {result.aiMatchIndex >= 0 && (
                           <div>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase" }}>
-                              Assistant replied:
-                            </div>
-                            <div style={{ color: "var(--text-primary)" }}>
+                            <div className="uap-search-result-label">Assistant replied:</div>
+                            <div className="uap-search-result-text">
                               {highlightText(result.aiResponse, searchQuery)}
                             </div>
                           </div>
                         )}
 
                         {/* Metadata */}
-                        <div style={{
-                          marginTop: 8,
-                          paddingTop: 8,
-                          borderTop: "1px solid var(--border-default)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          fontSize: 10,
-                          color: "var(--text-placeholder)",
-                        }}>
+                        <div className="uap-search-result-meta">
                           <span>{new Date(result.timestamp).toLocaleString()}</span>
-                          <span style={{
-                            padding: "2px 6px",
-                            background: "rgba(99, 102, 241, 0.15)",
-                            borderRadius: 4,
-                            color: "var(--accent-primary)",
-                            fontWeight: 600,
-                          }}>
+                          <span className="uap-search-result-badge">
                             {result.callPoint.replace("assistant.", "")}
                           </span>
                         </div>
@@ -1027,94 +699,34 @@ export function UnifiedAssistantPanel({
                 /* Regular Chat Mode - Display Current Messages */
                 <>
                   {messages[activeTab].map((message, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: message.role === "user" ? "flex-end" : "flex-start",
-                  }}
-                >
-                  <div
-                    style={{
-                      maxWidth: "85%",
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      background:
-                        message.role === "user"
-                          ? "linear-gradient(135deg, var(--badge-indigo-text, #6366f1) 0%, var(--accent-secondary, #8b5cf6) 100%)"
-                          : "var(--surface-secondary)",
-                      color: message.role === "user" ? "var(--text-on-dark, #fff)" : "var(--text-primary)",
-                      fontSize: 13,
-                      lineHeight: 1.5,
-                      border: message.role === "assistant" ? "1px solid var(--border-default)" : "none",
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {message.content}
-                  </div>
-
-                  {message.suggestions && (
                     <div
-                      style={{
-                        marginTop: 8,
-                        padding: 12,
-                        background: "rgba(99, 102, 241, 0.05)",
-                        border: "1px solid rgba(99, 102, 241, 0.2)",
-                        borderRadius: 8,
-                        maxWidth: "85%",
-                      }}
+                      key={i}
+                      className={`uap-message ${message.role === "user" ? "uap-message--user" : "uap-message--assistant"}`}
                     >
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
-                        💡 SUGGESTED CHANGES
+                      <div className={`uap-bubble ${message.role === "user" ? "uap-bubble--user" : "uap-bubble--assistant"}`}>
+                        {message.content}
                       </div>
-                      <pre
-                        style={{
-                          fontSize: 10,
-                          fontFamily: "monospace",
-                          background: "var(--surface-primary)",
-                          padding: 8,
-                          borderRadius: 6,
-                          overflow: "auto",
-                          margin: 0,
-                        }}
-                      >
-                        {JSON.stringify(message.suggestions, null, 2)}
-                      </pre>
-                    </div>
-                  )}
 
-                  <div style={{ fontSize: 9, color: "var(--text-placeholder)", marginTop: 4 }}>
-                    {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </div>
-              ))}
+                      {message.suggestions && (
+                        <div className="uap-suggestions">
+                          <div className="uap-suggestions-label">
+                            💡 SUGGESTED CHANGES
+                          </div>
+                          <pre className="uap-suggestions-code">
+                            {JSON.stringify(message.suggestions, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+
+                      <div className="uap-timestamp">
+                        {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                  ))}
 
                   {loading && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "10px 14px",
-                        background: "var(--surface-secondary)",
-                        border: "1px solid var(--border-default)",
-                        borderRadius: 12,
-                        maxWidth: "85%",
-                        fontSize: 13,
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 14,
-                          height: 14,
-                          border: "2px solid var(--border-default)",
-                          borderTopColor: "var(--accent-primary)",
-                          borderRadius: "50%",
-                          animation: "spin 1s linear infinite",
-                        }}
-                      />
+                    <div className="uap-loading">
+                      <div className="uap-loading-spinner" />
                       Thinking...
                     </div>
                   )}
@@ -1127,131 +739,55 @@ export function UnifiedAssistantPanel({
 
           {/* Jobs Tab - Job List View */}
           {activeTab === "jobs" && (
-            <div style={{ flex: 1, padding: "16px 20px" }}>
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>
-                  Active Jobs
-                </h4>
-                <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
-                  Track your progress and follow AI guidance
-                </p>
+            <div className="uap-jobs">
+              <div className="uap-jobs-header">
+                <h4 className="uap-jobs-title">Active Jobs</h4>
+                <p className="uap-jobs-desc">Track your progress and follow AI guidance</p>
               </div>
 
               {tasks.length === 0 ? (
-                <div
-                  style={{
-                    padding: 32,
-                    textAlign: "center",
-                    color: "var(--text-muted)",
-                    fontSize: 12,
-                  }}
-                >
+                <div className="uap-jobs-empty">
                   No active tasks. Start a conversation to get guidance!
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div className="uap-task-list">
                   {tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      style={{
-                        padding: 12,
-                        background: "var(--surface-secondary)",
-                        border: "1px solid var(--border-default)",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--surface-tertiary)";
-                        e.currentTarget.style.borderColor = "var(--accent-primary)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "var(--surface-secondary)";
-                        e.currentTarget.style.borderColor = "var(--border-default)";
-                      }}
-                    >
+                    <div key={task.id} className="uap-task">
                       {/* Progress bar */}
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)", marginBottom: 4 }}>
+                      <div className="uap-task-progress">
+                        <div className="uap-task-progress-labels">
                           <span>Step {task.currentStep} of {task.totalSteps}</span>
                           <span>{Math.round(task.progress * 100)}%</span>
                         </div>
-                        <div style={{ height: 4, background: "var(--border-default)", borderRadius: 2, overflow: "hidden" }}>
-                          <div style={{
-                            width: `${task.progress * 100}%`,
-                            height: '100%',
-                            background: 'linear-gradient(90deg, var(--accent-secondary, #8b5cf6), var(--badge-indigo-text, #6366f1))',
-                            borderRadius: 2,
-                            transition: 'width 0.3s ease',
-                          }} />
+                        <div className="uap-task-progress-track">
+                          {/* Dynamic width depends on task.progress — must stay inline */}
+                          <div className="uap-task-progress-fill" style={{ width: `${task.progress * 100}%` }} />
                         </div>
                       </div>
 
                       {/* Task info */}
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <div
-                          style={{
-                            width: 18,
-                            height: 18,
-                            borderRadius: 4,
-                            border: "2px solid",
-                            borderColor:
-                              task.status === "completed"
-                                ? "var(--status-success-text)"
-                                : task.status === "abandoned"
-                                ? "var(--status-error-text)"
-                                : task.status === "in_progress"
-                                ? "var(--status-warning-text)"
-                                : "var(--border-default)",
-                            background:
-                              task.status === "completed"
-                                ? "var(--status-success-text)"
-                                : task.status === "abandoned"
-                                ? "var(--status-error-text)"
-                                : "transparent",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "var(--button-primary-text, #fff)",
-                            fontSize: 10,
-                            flexShrink: 0,
-                          }}
-                        >
+                      <div className="uap-task-info">
+                        <div className={`uap-task-checkbox uap-task-checkbox--${task.status}`}>
                           {task.status === "completed" && "✓"}
                           {task.status === "abandoned" && "✕"}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: "var(--text-primary)",
-                              marginBottom: 4,
-                            }}
-                          >
-                            {task.title}
-                          </div>
+                        <div className="uap-task-body">
+                          <div className="uap-task-title">{task.title}</div>
                           {task.description && (
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>{task.description}</div>
+                            <div className="uap-task-description">{task.description}</div>
                           )}
-
-                          {/* Task type badge */}
-                          <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {task.taskType.replace(/_/g, " ")}
-                          </div>
+                          <div className="uap-task-type">{task.taskType.replace(/_/g, " ")}</div>
                         </div>
                       </div>
 
                       {/* Blockers */}
                       {task.blockers && task.blockers.length > 0 && (
-                        <div style={{ marginTop: 10, padding: 8, background: "color-mix(in srgb, var(--status-error-text) 10%, transparent)", borderRadius: 6, border: "1px solid color-mix(in srgb, var(--status-error-text) 20%, transparent)" }}>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--status-error-text)", marginBottom: 4 }}>
+                        <div className="uap-task-blockers">
+                          <div className="uap-task-blockers-title">
                             ⚠️ {task.blockers.length} Blocker{task.blockers.length > 1 ? 's' : ''}
                           </div>
                           {task.blockers.map((blocker, i) => (
-                            <div key={i} style={{ fontSize: 10, color: "var(--status-error-text)", marginLeft: 16 }}>
-                              • {blocker}
-                            </div>
+                            <div key={i} className="uap-task-blocker-item">• {blocker}</div>
                           ))}
                         </div>
                       )}
@@ -1263,28 +799,12 @@ export function UnifiedAssistantPanel({
           )}
         </div>
 
-        {/* Footer - Input Only (Compact) */}
-        <div
-          style={{
-            padding: "8px 12px",
-            borderTop: "1px solid var(--border-default)",
-            background: "var(--surface-secondary)",
-          }}
-        >
-
+        {/* Footer - Input */}
+        <div className="uap-footer">
           {/* Input (only for chat tabs, not jobs) */}
           {activeTab !== "jobs" && (
             <>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 6,
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                  padding: 4,
-                }}
-              >
+              <div className="uap-input-row">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -1292,19 +812,7 @@ export function UnifiedAssistantPanel({
                   placeholder="Ask me anything..."
                   disabled={loading}
                   rows={1}
-                  style={{
-                    flex: 1,
-                    border: "none",
-                    outline: "none",
-                    background: "transparent",
-                    resize: "none",
-                    fontSize: 12,
-                    color: "var(--text-primary)",
-                    fontFamily: "inherit",
-                    padding: "4px 6px",
-                    minHeight: 22,
-                    maxHeight: 100,
-                  }}
+                  className="uap-textarea"
                   onInput={(e) => {
                     const target = e.target as HTMLTextAreaElement;
                     target.style.height = "22px";
@@ -1314,51 +822,18 @@ export function UnifiedAssistantPanel({
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || loading}
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: 4,
-                    border: "none",
-                    background: !input.trim() || loading ? "var(--surface-disabled)" : "var(--accent-primary)",
-                    color: !input.trim() || loading ? "var(--text-placeholder)" : "var(--button-primary-text, #fff)",
-                    cursor: !input.trim() || loading ? "not-allowed" : "pointer",
-                    fontWeight: 600,
-                    fontSize: 11,
-                  }}
+                  className="uap-send-btn"
                 >
                   ↵
                 </button>
               </div>
-              <div style={{ marginTop: 4, fontSize: 8, color: "var(--text-placeholder)", textAlign: "center" }}>
+              <div className="uap-input-hint">
                 Enter=send • Shift+Enter=newline • ↑↓=history
               </div>
             </>
           )}
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        @keyframes slideInRight {
-          from {
-            transform: translateX(100%);
-          }
-          to {
-            transform: translateX(0);
-          }
-        }
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </>
   );
 }

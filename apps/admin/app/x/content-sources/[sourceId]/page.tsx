@@ -7,6 +7,7 @@ import { DraggableTabs, type TabDefinition } from "@/components/shared/Draggable
 import { ReviewTabBadge } from "./_components/ReviewTabBadge";
 import QuestionsPanel from "./_components/QuestionsPanel";
 import VocabularyPanel from "./_components/VocabularyPanel";
+import "./content-source-detail.css";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ const CATEGORIES = [
   { value: "concept", label: "Concept", color: "var(--accent-primary)", icon: "\uD83D\uDCA1" },
   { value: "observation", label: "Observation", color: "var(--status-success-text)", icon: "\uD83D\uDC41\uFE0F" },
   { value: "discussion_point", label: "Discussion Point", color: "var(--accent-secondary, #8b5cf6)", icon: "\uD83D\uDCAC" },
-  { value: "context", label: "Context", color: "var(--text-muted)", icon: "\uD83D\uDCCC" },
+  { value: "context", label: "Context", color: "var(--text-muted)", icon: "\uD83D\uDCC" },
 ];
 
 const DOCUMENT_TYPES: Record<string, { label: string; icon: string }> = {
@@ -133,7 +134,10 @@ const PAGE_SIZE = 50;
 function TrustBadge({ level }: { level: string }) {
   const cfg = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
   return (
-    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, color: cfg.color, backgroundColor: cfg.bg, border: `1px solid color-mix(in srgb, ${cfg.color} 20%, transparent)` }}>
+    <span
+      className="csd-trust-badge"
+      style={{ color: cfg.color, backgroundColor: cfg.bg, border: `1px solid color-mix(in srgb, ${cfg.color} 20%, transparent)` }}
+    >
       {cfg.label}
     </span>
   );
@@ -144,8 +148,11 @@ function CategoryBadge({ category }: { category: string }) {
   const color = cfg?.color || "var(--text-muted)";
   const icon = cfg?.icon;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`, textTransform: "uppercase" }}>
-      {icon && <span style={{ fontSize: 11, lineHeight: 1 }}>{icon}</span>}
+    <span
+      className="csd-category-badge"
+      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)` }}
+    >
+      {icon && <span className="csd-category-icon">{icon}</span>}
       {cfg?.label || category}
     </span>
   );
@@ -153,9 +160,9 @@ function CategoryBadge({ category }: { category: string }) {
 
 function ReviewBadge({ reviewed }: { reviewed: boolean }) {
   return reviewed ? (
-    <span style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
+    <span className="csd-review-reviewed">Reviewed</span>
   ) : (
-    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Pending</span>
+    <span className="csd-review-pending">Pending</span>
   );
 }
 
@@ -376,14 +383,14 @@ export default function SourceDetailPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   if (sourceLoading) {
-    return <div style={{ display: "flex", justifyContent: "center", padding: 24 }}><div className="hf-spinner" /></div>;
+    return <div className="csd-loading-center"><div className="hf-spinner" /></div>;
   }
 
   if (!source) {
     return (
-      <div style={{ padding: 24 }}>
-        <p style={{ color: "var(--status-error-text)" }}>Source not found</p>
-        <Link href="/x/content-sources" style={{ color: "var(--accent-primary)", fontSize: 13 }}>Back to Content Sources</Link>
+      <div className="csd-error-wrap">
+        <p className="csd-error-text">Source not found</p>
+        <Link href="/x/content-sources" className="csd-back-link">Back to Content Sources</Link>
       </div>
     );
   }
@@ -391,25 +398,21 @@ export default function SourceDetailPage() {
   return (
     <div>
       {/* Back link */}
-      <Link
-        href="/x/content-sources"
-        style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 16 }}
-      >
-        <span style={{ fontSize: 16 }}>&larr;</span> Back to Content Sources
+      <Link href="/x/content-sources" className="csd-back-nav">
+        <span className="csd-back-arrow">&larr;</span> Back to Content Sources
       </Link>
 
       {/* Archived banner */}
       {source.archivedAt && (
-        <div className="hf-banner hf-banner-warning" style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="hf-banner hf-banner-warning csd-archived-banner">
           <span>
             This source was archived on {new Date(source.archivedAt).toLocaleDateString()}.
             It is hidden from pickers but its content remains in the knowledge base.
           </span>
           <button
-            className="hf-btn hf-btn-secondary"
+            className="hf-btn hf-btn-secondary csd-flex-shrink-0"
             onClick={handleUnarchive}
             disabled={archiving}
-            style={{ flexShrink: 0 }}
           >
             {archiving ? "Restoring..." : "Unarchive"}
           </button>
@@ -417,8 +420,8 @@ export default function SourceDetailPage() {
       )}
 
       {/* Source header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <div className="csd-header">
+        <div className="csd-header-row">
           <h1 className="hf-page-title">
             {source.name}
           </h1>
@@ -426,45 +429,34 @@ export default function SourceDetailPage() {
           {source.documentType && DOCUMENT_TYPES[source.documentType] && (
             <span
               title={source.documentTypeSource ? `Classified by: ${source.documentTypeSource}` : "Default"}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 8px",
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 500,
-                color: "var(--text-secondary)",
-                backgroundColor: "var(--surface-tertiary)",
-                border: "1px solid var(--border-subtle)",
-              }}
+              className="csd-doc-type-badge"
             >
-              <span style={{ fontSize: 12 }}>{DOCUMENT_TYPES[source.documentType].icon}</span>
+              <span className="csd-doc-type-icon">{DOCUMENT_TYPES[source.documentType].icon}</span>
               {DOCUMENT_TYPES[source.documentType].label}
               {source.documentTypeSource?.startsWith("ai:") && (
-                <span style={{ fontSize: 9, color: "var(--text-muted)", fontStyle: "italic" }}>auto</span>
+                <span className="csd-doc-type-auto">auto</span>
               )}
             </span>
           )}
           {source.archivedAt ? (
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", padding: "2px 8px", borderRadius: 4, backgroundColor: "var(--surface-secondary)", border: "1px solid var(--border-default)" }}>
+            <span className="csd-status-archived">
               Archived
             </span>
           ) : !source.isActive && (
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--status-error-text)", padding: "2px 8px", borderRadius: 4, backgroundColor: "var(--status-error-bg)" }}>
+            <span className="csd-status-inactive">
               Inactive
             </span>
           )}
         </div>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 6, fontSize: 12, color: "var(--text-muted)" }}>
-          <span style={{ fontFamily: "monospace" }}>{source.slug}</span>
+        <div className="csd-meta-row">
+          <span className="csd-slug">{source.slug}</span>
           {source.publisherOrg && <span>{source.publisherOrg}</span>}
           {source.edition && <span>{source.edition}</span>}
           {source.publicationYear && <span>{source.publicationYear}</span>}
           <span>Created {new Date(source.createdAt).toLocaleDateString()}</span>
         </div>
         {source.description && (
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 8, maxWidth: 700 }}>
+          <p className="csd-description">
             {source.description}
           </p>
         )}
@@ -475,27 +467,22 @@ export default function SourceDetailPage() {
           const totalReviewed = reviewedCount + (qReviewed || source.questionReviewedCount || 0) + (vReviewed || source.vocabularyReviewedCount || 0);
           const aggPct = totalItems > 0 ? Math.round((totalReviewed / totalItems) * 100) : 0;
           return (
-            <div style={{ marginTop: 12, maxWidth: 500 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div className="csd-progress-wrap">
+              <div className="csd-progress-header">
+                <span className="csd-progress-label">
                   Review Progress
                 </span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <span className="csd-progress-counts">
                   {reviewedCount}/{source.assertionCount} points
                   {(source.questionCount || 0) > 0 && <> &middot; {qReviewed || source.questionReviewedCount || 0}/{qTotal || source.questionCount || 0} questions</>}
                   {(source.vocabularyCount || 0) > 0 && <> &middot; {vReviewed || source.vocabularyReviewedCount || 0}/{vTotal || source.vocabularyCount || 0} vocab</>}
                 </span>
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: "var(--surface-tertiary)", overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  borderRadius: 3,
-                  background: aggPct === 100
-                    ? "var(--status-success-text)"
-                    : "linear-gradient(90deg, var(--accent-primary), var(--badge-indigo-text))",
-                  width: `${aggPct}%`,
-                  transition: "width 0.5s ease-out",
-                }} />
+              <div className="csd-progress-track">
+                <div
+                  className={`csd-progress-fill ${aggPct === 100 ? "csd-progress-fill--complete" : "csd-progress-fill--partial"}`}
+                  style={{ width: `${aggPct}%` }}
+                />
               </div>
             </div>
           );
@@ -504,7 +491,7 @@ export default function SourceDetailPage() {
 
       {/* Feedback banner */}
       {feedback && (
-        <div className={`hf-banner ${feedback.type === "error" ? "hf-banner-error" : "hf-banner-success"}`} style={{ marginBottom: 12 }}>
+        <div className={`hf-banner ${feedback.type === "error" ? "hf-banner-error" : "hf-banner-success"} csd-feedback`}>
           {feedback.message}
         </div>
       )}
@@ -539,20 +526,18 @@ export default function SourceDetailPage() {
       {activeTab === "assertions" && (
         <>
           {/* Controls row */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="csd-controls-row">
             <input
               type="text"
               placeholder="Search assertions..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="hf-input"
-              style={{ width: 220 }}
+              className="hf-input csd-search-input"
             />
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="hf-input"
-              style={{ width: "auto" }}
+              className="hf-input csd-filter-select"
             >
               <option value="">All categories</option>
               {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -560,8 +545,7 @@ export default function SourceDetailPage() {
             <select
               value={filterReview}
               onChange={(e) => setFilterReview(e.target.value)}
-              className="hf-input"
-              style={{ width: "auto" }}
+              className="hf-input csd-filter-select"
             >
               <option value="">All review status</option>
               <option value="true">Reviewed</option>
@@ -573,38 +557,37 @@ export default function SourceDetailPage() {
               <button
                 onClick={handleBulkReview}
                 disabled={bulkLoading}
-                className="hf-btn hf-btn-primary"
-                style={{ fontSize: 12 }}
+                className="hf-btn hf-btn-primary csd-bulk-btn"
               >
                 {bulkLoading ? "Reviewing..." : `Mark ${selected.size} Reviewed`}
               </button>
             )}
 
-            <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+            <span className="csd-total-count">
               {total} assertion{total !== 1 ? "s" : ""}
             </span>
           </div>
 
           {/* Assertions table */}
           {assertionsLoading && assertions.length === 0 ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><div className="hf-spinner" /></div>
+            <div className="csd-loading-center-sm"><div className="hf-spinner" /></div>
           ) : assertions.length === 0 ? (
-            <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+            <p className="csd-empty-text">
               {search || filterCategory || filterReview ? "No assertions match your filters." : "No assertions extracted yet."}
             </p>
           ) : (
             <>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <div className="csd-table-wrap">
+                <table className="csd-table">
                   <thead>
-                    <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
-                      <th style={{ width: 36, padding: "8px 4px 8px 8px" }}>
+                    <tr className="csd-thead-row">
+                      <th className="csd-th csd-th--checkbox">
                         <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} />
                       </th>
-                      <th style={thStyle}>Assertion</th>
+                      <th className="csd-th">Assertion</th>
                       <SortTh field="category" current={sortBy} dir={sortDir} onClick={handleSort}>Category</SortTh>
                       <SortTh field="chapter" current={sortBy} dir={sortDir} onClick={handleSort}>Location</SortTh>
-                      <th style={{ ...thStyle, width: 80, textAlign: "center" }}>Review</th>
+                      <th className="csd-th csd-th--review">Review</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -647,23 +630,21 @@ export default function SourceDetailPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
+                <div className="csd-pagination">
                   <button
                     onClick={() => setPage(Math.max(0, page - 1))}
                     disabled={page === 0}
-                    className="hf-btn hf-btn-secondary"
-                    style={{ padding: "6px 14px", fontSize: 12 }}
+                    className="hf-btn hf-btn-secondary csd-pagination-btn"
                   >
                     Prev
                   </button>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  <span className="csd-pagination-text">
                     Page {page + 1} of {totalPages}
                   </span>
                   <button
                     onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                     disabled={page >= totalPages - 1}
-                    className="hf-btn hf-btn-secondary"
-                    style={{ padding: "6px 14px", fontSize: 12 }}
+                    className="hf-btn hf-btn-secondary csd-pagination-btn"
                   >
                     Next
                   </button>
@@ -697,11 +678,11 @@ export default function SourceDetailPage() {
 
       {/* ── Danger Zone (archive / delete) ── */}
       {!source.archivedAt && (
-        <div style={{ marginTop: 40, padding: 20, borderRadius: 12, border: "1px solid var(--status-error-border)", background: "var(--status-error-bg)" }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--status-error-text)", margin: "0 0 8px" }}>
+        <div className="csd-danger-zone">
+          <h3 className="csd-danger-title">
             Danger Zone
           </h3>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+          <p className="csd-danger-desc">
             Archiving this source hides it from pickers and the library. Its teaching content remains
             in the knowledge base until permanently deleted by a Super Admin.
           </p>
@@ -714,9 +695,9 @@ export default function SourceDetailPage() {
             </button>
           ) : (
             <div>
-              {usageLoading && <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Checking usage...</p>}
+              {usageLoading && <p className="csd-danger-checking">Checking usage...</p>}
               {usageData && (usageData.subjects.length > 0 || usageData.curricula.length > 0) && (
-                <div className="hf-banner hf-banner-warning" style={{ marginBottom: 12 }}>
+                <div className="hf-banner hf-banner-warning csd-danger-usage">
                   <strong>This source is in use:</strong>
                   {usageData.subjects.length > 0 && (
                     <span> {usageData.subjects.length} subject{usageData.subjects.length !== 1 ? "s" : ""} ({usageData.subjects.map((s) => s.name).join(", ")})</span>
@@ -729,7 +710,7 @@ export default function SourceDetailPage() {
                   )}
                 </div>
               )}
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="csd-danger-actions">
                 <button
                   className="hf-btn hf-btn-destructive"
                   onClick={() => handleArchive(true)}
@@ -770,30 +751,27 @@ function UsagePanel({
   }, [usage, onLoad]);
 
   if (loading) {
-    return <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><div className="hf-spinner" /></div>;
+    return <div className="csd-loading-center-sm"><div className="hf-spinner" /></div>;
   }
 
   if (!usage) {
-    return <p style={{ color: "var(--text-muted)", fontSize: 13, padding: 8 }}>No usage data available.</p>;
+    return <p className="csd-empty-text--usage">No usage data available.</p>;
   }
 
-  const sectionTitle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" };
-  const listRow: React.CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border-subtle)", fontSize: 13 };
-
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+    <div className="csd-usage-grid">
       {/* Subjects */}
       <div className="hf-card">
-        <h4 style={sectionTitle}>Linked Subjects ({usage.subjects.length})</h4>
+        <h4 className="csd-usage-section-title">Linked Subjects ({usage.subjects.length})</h4>
         {usage.subjects.length === 0 ? (
-          <p style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Not linked to any subjects</p>
+          <p className="csd-empty-text--padded">Not linked to any subjects</p>
         ) : (
           usage.subjects.map((s) => (
-            <div key={s.id} style={listRow}>
-              <Link href={`/x/subjects?id=${s.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+            <div key={s.id} className="csd-usage-row">
+              <Link href={`/x/subjects?id=${s.id}`} className="csd-usage-link">
                 {s.name}
               </Link>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</span>
+              <span className="csd-usage-slug">{s.slug}</span>
             </div>
           ))
         )}
@@ -801,16 +779,16 @@ function UsagePanel({
 
       {/* Domains */}
       <div className="hf-card">
-        <h4 style={sectionTitle}>Institutions ({usage.domains.length})</h4>
+        <h4 className="csd-usage-section-title">Institutions ({usage.domains.length})</h4>
         {usage.domains.length === 0 ? (
-          <p style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Not used by any institutions</p>
+          <p className="csd-empty-text--padded">Not used by any institutions</p>
         ) : (
           usage.domains.map((d) => (
-            <div key={d.id} style={listRow}>
-              <Link href={`/x/domains?id=${d.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+            <div key={d.id} className="csd-usage-row">
+              <Link href={`/x/domains?id=${d.id}`} className="csd-usage-link">
                 {d.name}
               </Link>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              <span className="csd-usage-caller-count">
                 {d.callerCount} caller{d.callerCount !== 1 ? "s" : ""}
               </span>
             </div>
@@ -821,11 +799,11 @@ function UsagePanel({
       {/* Curricula */}
       {usage.curricula.length > 0 && (
         <div className="hf-card">
-          <h4 style={sectionTitle}>Curricula ({usage.curricula.length})</h4>
+          <h4 className="csd-usage-section-title">Curricula ({usage.curricula.length})</h4>
           {usage.curricula.map((c) => (
-            <div key={c.id} style={listRow}>
-              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</span>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{c.slug}</span>
+            <div key={c.id} className="csd-usage-row">
+              <span className="csd-usage-name">{c.name}</span>
+              <span className="csd-usage-slug">{c.slug}</span>
             </div>
           ))}
         </div>
@@ -833,26 +811,26 @@ function UsagePanel({
 
       {/* Content stats */}
       <div className="hf-card">
-        <h4 style={sectionTitle}>Content</h4>
-        <div style={listRow}>
-          <span style={{ color: "var(--text-secondary)" }}>Teaching Points</span>
-          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.assertions}</span>
+        <h4 className="csd-usage-section-title">Content</h4>
+        <div className="csd-usage-row">
+          <span className="csd-usage-stat-label">Teaching Points</span>
+          <span className="csd-usage-stat-value">{usage.contentStats.assertions}</span>
         </div>
-        <div style={listRow}>
-          <span style={{ color: "var(--text-secondary)" }}>Questions</span>
-          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.questions}</span>
+        <div className="csd-usage-row">
+          <span className="csd-usage-stat-label">Questions</span>
+          <span className="csd-usage-stat-value">{usage.contentStats.questions}</span>
         </div>
-        <div style={listRow}>
-          <span style={{ color: "var(--text-secondary)" }}>Vocabulary</span>
-          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.vocabulary}</span>
+        <div className="csd-usage-row">
+          <span className="csd-usage-stat-label">Vocabulary</span>
+          <span className="csd-usage-stat-value">{usage.contentStats.vocabulary}</span>
         </div>
-        <div style={{ ...listRow, borderBottom: "none" }}>
-          <span style={{ color: "var(--text-secondary)" }}>Media Assets</span>
-          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.mediaAssets}</span>
+        <div className="csd-usage-row--last">
+          <span className="csd-usage-stat-label">Media Assets</span>
+          <span className="csd-usage-stat-value">{usage.contentStats.mediaAssets}</span>
         </div>
         {usage.totalCallerReach > 0 && (
-          <div style={{ marginTop: 8, padding: "8px 0 0", borderTop: "1px solid var(--border-default)", fontSize: 12, color: "var(--text-muted)" }}>
-            Total caller reach: <strong style={{ color: "var(--text-primary)" }}>{usage.totalCallerReach}</strong>
+          <div className="csd-usage-reach">
+            Total caller reach: <strong>{usage.totalCallerReach}</strong>
           </div>
         )}
       </div>
@@ -861,15 +839,6 @@ function UsagePanel({
 }
 
 // ── Sortable Table Header ──────────────────────────────
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "8px 10px",
-  color: "var(--text-muted)",
-  fontWeight: 600,
-  fontSize: 12,
-  whiteSpace: "nowrap",
-};
 
 function SortTh({
   field,
@@ -888,10 +857,10 @@ function SortTh({
   return (
     <th
       onClick={() => onClick(field)}
-      style={{ ...thStyle, cursor: "pointer", userSelect: "none" }}
+      className="csd-th csd-th--sortable"
     >
       {children}
-      {isActive && <span style={{ marginLeft: 4 }}>{dir === "asc" ? "\u25B2" : "\u25BC"}</span>}
+      {isActive && <span className="csd-sort-indicator">{dir === "asc" ? "\u25B2" : "\u25BC"}</span>}
     </th>
   );
 }
@@ -932,6 +901,12 @@ function AssertionRow({
   const truncated = a.assertion.length > 120 ? a.assertion.slice(0, 120) + "..." : a.assertion;
   const location = [a.chapter, a.section, a.pageRef].filter(Boolean).join(" / ");
 
+  const rowClasses = [
+    "csd-row",
+    !isExpanded ? "csd-row--border" : "",
+    isSelected ? "csd-row--selected" : isExpanded ? "csd-row--expanded" : "",
+  ].filter(Boolean).join(" ");
+
   return (
     <>
       <tr
@@ -940,47 +915,39 @@ function AssertionRow({
           if ((e.target as HTMLElement).closest("input, button")) return;
           onToggleExpand();
         }}
-        style={{
-          borderBottom: isExpanded ? "none" : "1px solid var(--border-subtle)",
-          cursor: "pointer",
-          background: isSelected
-            ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
-            : isExpanded
-              ? "color-mix(in srgb, var(--accent-primary) 3%, transparent)"
-              : "transparent",
-        }}
+        className={rowClasses}
       >
-        <td style={{ padding: "8px 4px 8px 8px", width: 36 }}>
+        <td className="csd-td-checkbox">
           <input type="checkbox" checked={isSelected} onChange={onToggleSelect} />
         </td>
-        <td style={{ padding: "8px 10px", color: "var(--text-primary)", lineHeight: 1.4 }}>
+        <td className="csd-td-assertion">
           {truncated}
           {a.tags.length > 0 && (
-            <span style={{ marginLeft: 8, display: "inline-flex", gap: 3 }}>
+            <span className="csd-tags-inline">
               {a.tags.slice(0, 3).map((tag) => (
-                <span key={tag} style={{ fontSize: 10, padding: "1px 4px", borderRadius: 3, background: "var(--surface-tertiary)", color: "var(--text-muted)" }}>
+                <span key={tag} className="csd-tag">
                   {tag}
                 </span>
               ))}
-              {a.tags.length > 3 && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{a.tags.length - 3}</span>}
+              {a.tags.length > 3 && <span className="csd-tag-overflow">+{a.tags.length - 3}</span>}
             </span>
           )}
         </td>
-        <td style={{ padding: "8px 10px" }}>
+        <td className="csd-td-default">
           <CategoryBadge category={a.category} />
         </td>
-        <td style={{ padding: "8px 10px", fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+        <td className="csd-td-location">
           {location || "-"}
         </td>
-        <td style={{ padding: "8px 10px", textAlign: "center" }}>
+        <td className="csd-td-review">
           <ReviewBadge reviewed={isReviewed} />
         </td>
       </tr>
 
       {/* Expanded detail / edit */}
       {isExpanded && (
-        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-          <td colSpan={5} style={{ padding: "0 10px 16px 46px" }}>
+        <tr className="csd-row--border">
+          <td colSpan={5} className="csd-td-expanded">
             {isEditing ? (
               <EditForm
                 assertion={a}
@@ -1044,95 +1011,91 @@ function DetailView({
     }
   };
 
-  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 };
-  const valueStyle: React.CSSProperties = { fontSize: 13, color: "var(--text-primary)" };
-
   return (
-    <div style={{ paddingTop: 8 }}>
+    <div className="csd-detail-wrap">
       {/* Full assertion text */}
-      <div style={{ ...valueStyle, lineHeight: 1.5, marginBottom: 12, whiteSpace: "pre-wrap" }}>
+      <div className="csd-detail-text">
         {a.assertion}
       </div>
 
       {/* Metadata grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "8px 20px", marginBottom: 12 }}>
+      <div className="csd-detail-grid">
         <div>
-          <div style={labelStyle}>Category</div>
+          <div className="csd-detail-label">Category</div>
           <CategoryBadge category={a.category} />
         </div>
         <div>
-          <div style={labelStyle}>Tags</div>
-          <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+          <div className="csd-detail-label">Tags</div>
+          <div className="csd-detail-tags">
             {a.tags.length > 0
               ? a.tags.map((t) => (
-                  <span key={t} style={{ fontSize: 11, padding: "1px 5px", borderRadius: 3, background: "var(--surface-tertiary)", color: "var(--text-secondary)" }}>
+                  <span key={t} className="csd-tag--detail">
                     {t}
                   </span>
                 ))
-              : <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>none</span>
+              : <span className="csd-detail-none">none</span>
             }
           </div>
         </div>
         {(a.chapter || a.section || a.pageRef) && (
           <div>
-            <div style={labelStyle}>Location</div>
-            <div style={valueStyle}>{[a.chapter, a.section, a.pageRef].filter(Boolean).join(" / ")}</div>
+            <div className="csd-detail-label">Location</div>
+            <div className="csd-detail-value">{[a.chapter, a.section, a.pageRef].filter(Boolean).join(" / ")}</div>
           </div>
         )}
         {a.taxYear && (
           <div>
-            <div style={labelStyle}>Tax Year</div>
-            <div style={valueStyle}>{a.taxYear}</div>
+            <div className="csd-detail-label">Tax Year</div>
+            <div className="csd-detail-value">{a.taxYear}</div>
           </div>
         )}
         {a.examRelevance !== null && (
           <div>
-            <div style={labelStyle}>Exam Relevance</div>
-            <div style={valueStyle}>{Math.round(a.examRelevance * 100)}%</div>
+            <div className="csd-detail-label">Exam Relevance</div>
+            <div className="csd-detail-value">{Math.round(a.examRelevance * 100)}%</div>
           </div>
         )}
         {a.learningOutcomeRef && (
           <div>
-            <div style={labelStyle}>Learning Outcome</div>
-            <div style={valueStyle}>{a.learningOutcomeRef}</div>
+            <div className="csd-detail-label">Learning Outcome</div>
+            <div className="csd-detail-value">{a.learningOutcomeRef}</div>
           </div>
         )}
         {a.topicSlug && (
           <div>
-            <div style={labelStyle}>Topic</div>
-            <div style={{ ...valueStyle, fontFamily: "monospace", fontSize: 12 }}>{a.topicSlug}</div>
+            <div className="csd-detail-label">Topic</div>
+            <div className="csd-detail-value--mono">{a.topicSlug}</div>
           </div>
         )}
         <div>
-          <div style={labelStyle}>Review Status</div>
+          <div className="csd-detail-label">Review Status</div>
           {a.reviewedAt ? (
-            <div style={{ fontSize: 12 }}>
-              <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>Reviewed</span>
-              <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>
+            <div className="csd-detail-review-info">
+              <span className="csd-detail-review-yes">Reviewed</span>
+              <span className="csd-detail-review-meta">
                 by {a.reviewer?.name || a.reviewer?.email || "unknown"} on {new Date(a.reviewedAt).toLocaleDateString()}
               </span>
             </div>
           ) : (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Pending</span>
+            <span className="csd-detail-review-pending">Pending</span>
           )}
         </div>
         {a._count.children > 0 && (
           <div>
-            <div style={labelStyle}>Children</div>
-            <div style={valueStyle}>{a._count.children} sub-assertions</div>
+            <div className="csd-detail-label">Children</div>
+            <div className="csd-detail-value">{a._count.children} sub-assertions</div>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={onEdit} className="hf-btn hf-btn-secondary" style={{ padding: "5px 14px", fontSize: 12 }}>Edit</button>
+      <div className="csd-detail-actions">
+        <button onClick={onEdit} className="hf-btn hf-btn-secondary csd-btn-sm">Edit</button>
         {!a.reviewedAt && (
           <button
             onClick={handleMarkReviewed}
             disabled={reviewing}
-            className="hf-btn hf-btn-primary"
-            style={{ padding: "5px 14px", fontSize: 12, background: "var(--status-success-text)" }}
+            className="hf-btn hf-btn-primary csd-btn-sm csd-btn-reviewed"
           >
             {reviewing ? "..." : "Mark Reviewed"}
           </button>
@@ -1232,26 +1195,23 @@ function EditForm({
     }
   };
 
-  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 2 };
-
   return (
-    <div style={{ paddingTop: 8 }}>
+    <div className="csd-edit-wrap">
       {/* Assertion text */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={labelStyle}>Assertion Text</div>
+      <div className="csd-edit-field">
+        <div className="csd-detail-label">Assertion Text</div>
         <textarea
           value={form.assertion}
           onChange={(e) => setForm({ ...form, assertion: e.target.value })}
           rows={3}
-          className="hf-input"
-          style={{ resize: "vertical", fontFamily: "inherit", lineHeight: 1.4 }}
+          className="hf-input csd-edit-textarea"
         />
       </div>
 
       {/* Category + Tags row */}
-      <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 10, marginBottom: 10 }}>
+      <div className="csd-edit-grid-cat-tags">
         <div>
-          <div style={labelStyle}>Category</div>
+          <div className="csd-detail-label">Category</div>
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -1261,7 +1221,7 @@ function EditForm({
           </select>
         </div>
         <div>
-          <div style={labelStyle}>Tags (comma-separated)</div>
+          <div className="csd-detail-label">Tags (comma-separated)</div>
           <input
             value={form.tags}
             onChange={(e) => setForm({ ...form, tags: e.target.value })}
@@ -1272,37 +1232,37 @@ function EditForm({
       </div>
 
       {/* Location row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px", gap: 10, marginBottom: 10 }}>
+      <div className="csd-edit-grid-location">
         <div>
-          <div style={labelStyle}>Chapter</div>
-          <input value={form.chapter} onChange={(e) => setForm({ ...form, chapter: e.target.value })} className="hf-input"placeholder="Chapter 3" />
+          <div className="csd-detail-label">Chapter</div>
+          <input value={form.chapter} onChange={(e) => setForm({ ...form, chapter: e.target.value })} className="hf-input" placeholder="Chapter 3" />
         </div>
         <div>
-          <div style={labelStyle}>Section</div>
-          <input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} className="hf-input"placeholder="3.2 ISA Allowances" />
+          <div className="csd-detail-label">Section</div>
+          <input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} className="hf-input" placeholder="3.2 ISA Allowances" />
         </div>
         <div>
-          <div style={labelStyle}>Page</div>
-          <input value={form.pageRef} onChange={(e) => setForm({ ...form, pageRef: e.target.value })} className="hf-input"placeholder="p.47" />
+          <div className="csd-detail-label">Page</div>
+          <input value={form.pageRef} onChange={(e) => setForm({ ...form, pageRef: e.target.value })} className="hf-input" placeholder="p.47" />
         </div>
       </div>
 
       {/* Validity + exam row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px 120px 1fr", gap: 10, marginBottom: 12 }}>
+      <div className="csd-edit-grid-validity">
         <div>
-          <div style={labelStyle}>Valid From</div>
-          <input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} className="hf-input"/>
+          <div className="csd-detail-label">Valid From</div>
+          <input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} className="hf-input" />
         </div>
         <div>
-          <div style={labelStyle}>Valid Until</div>
-          <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className="hf-input"/>
+          <div className="csd-detail-label">Valid Until</div>
+          <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className="hf-input" />
         </div>
         <div>
-          <div style={labelStyle}>Tax Year</div>
-          <input value={form.taxYear} onChange={(e) => setForm({ ...form, taxYear: e.target.value })} className="hf-input"placeholder="2024/25" />
+          <div className="csd-detail-label">Tax Year</div>
+          <input value={form.taxYear} onChange={(e) => setForm({ ...form, taxYear: e.target.value })} className="hf-input" placeholder="2024/25" />
         </div>
         <div>
-          <div style={labelStyle}>Exam Rel.</div>
+          <div className="csd-detail-label">Exam Rel.</div>
           <input
             type="number"
             min="0"
@@ -1315,18 +1275,17 @@ function EditForm({
           />
         </div>
         <div>
-          <div style={labelStyle}>LO Reference</div>
-          <input value={form.learningOutcomeRef} onChange={(e) => setForm({ ...form, learningOutcomeRef: e.target.value })} className="hf-input"placeholder="R04-LO2-AC2.3" />
+          <div className="csd-detail-label">LO Reference</div>
+          <input value={form.learningOutcomeRef} onChange={(e) => setForm({ ...form, learningOutcomeRef: e.target.value })} className="hf-input" placeholder="R04-LO2-AC2.3" />
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div className="csd-edit-actions">
         <button
           onClick={() => handleSave(false)}
           disabled={saving}
-          className="hf-btn hf-btn-primary"
-          style={{ padding: "5px 14px", fontSize: 12 }}
+          className="hf-btn hf-btn-primary csd-btn-sm"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -1334,35 +1293,32 @@ function EditForm({
           <button
             onClick={() => handleSave(true)}
             disabled={saving}
-            className="hf-btn hf-btn-primary"
-            style={{ padding: "5px 14px", fontSize: 12, background: "var(--status-success-text)" }}
+            className="hf-btn hf-btn-primary csd-btn-sm csd-btn-reviewed"
           >
             Save & Mark Reviewed
           </button>
         )}
-        <button onClick={onCancel} className="hf-btn hf-btn-secondary" style={{ padding: "5px 14px", fontSize: 12 }}>Cancel</button>
+        <button onClick={onCancel} className="hf-btn hf-btn-secondary csd-btn-sm">Cancel</button>
 
         {/* Delete (with confirmation) */}
-        <div style={{ marginLeft: "auto" }}>
+        <div className="csd-edit-delete-wrap">
           {confirmDelete ? (
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "var(--status-error-text)" }}>
+            <span className="csd-delete-confirm">
+              <span className="csd-delete-warning">
                 {a._count.children > 0 ? `Has ${a._count.children} children` : "Delete permanently?"}
               </span>
               {a._count.children === 0 && (
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="hf-btn hf-btn-destructive"
-                  style={{ padding: "5px 14px", fontSize: 11 }}
+                  className="hf-btn hf-btn-destructive csd-btn-sm--xs"
                 >
                   {deleting ? "..." : "Confirm"}
                 </button>
               )}
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="hf-btn hf-btn-secondary"
-                style={{ padding: "5px 14px", fontSize: 11 }}
+                className="hf-btn hf-btn-secondary csd-btn-sm--xs"
               >
                 Cancel
               </button>
@@ -1370,8 +1326,7 @@ function EditForm({
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="hf-btn hf-btn-secondary"
-              style={{ padding: "5px 14px", fontSize: 12, color: "var(--status-error-text)", borderColor: "var(--status-error-border)" }}
+              className="hf-btn hf-btn-secondary csd-btn-sm csd-btn-delete-outline"
             >
               Delete
             </button>

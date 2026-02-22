@@ -8,6 +8,7 @@ import { useTerminology } from "@/contexts/TerminologyContext";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { EntityPill, DomainPill, PlaybookPill, SpecPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import "./playbooks.css";
 
 type Domain = {
   id: string;
@@ -63,9 +64,9 @@ type PlaybookDetail = {
 const STATUSES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 
 const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
-  DRAFT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", icon: "📝", desc: "Work in progress" },
-  PUBLISHED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", icon: "✅", desc: "Active and in use" },
-  ARCHIVED: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)", icon: "📦", desc: "No longer active" },
+  DRAFT: { bg: "var(--status-warning-bg)", text: "var(--status-warning-text)", icon: "\u{1F4DD}", desc: "Work in progress" },
+  PUBLISHED: { bg: "var(--status-success-bg)", text: "var(--status-success-text)", icon: "\u2705", desc: "Active and in use" },
+  ARCHIVED: { bg: "var(--status-neutral-bg)", text: "var(--status-neutral-text)", icon: "\u{1F4E6}", desc: "No longer active" },
 };
 
 // Map playbook status to StatusBadge status type
@@ -386,20 +387,12 @@ export default function PlaybooksPage() {
     <button
       onClick={onClick}
       title={tooltip}
-      style={{
-        padding: "4px 10px",
-        fontSize: 11,
-        fontWeight: 600,
-        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
-        borderRadius: 5,
-        cursor: "pointer",
-        background: isActive ? colors.bg : "var(--surface-secondary)",
-        color: isActive ? colors.text : "var(--text-muted)",
-        transition: "all 0.15s",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-      }}
+      className={`pb-filter-pill ${isActive ? "" : "pb-filter-pill--inactive"}`}
+      style={isActive ? {
+        border: `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)`,
+        background: colors.bg,
+        color: colors.text,
+      } : undefined}
     >
       {icon && <span>{icon}</span>}
       {label}
@@ -410,17 +403,7 @@ export default function PlaybooksPage() {
     show ? (
       <button
         onClick={onClick}
-        style={{
-          padding: "0 4px",
-          fontSize: 12,
-          fontWeight: 400,
-          border: "none",
-          borderRadius: 3,
-          cursor: "pointer",
-          background: "transparent",
-          color: "var(--text-placeholder)",
-          lineHeight: 1,
-        }}
+        className="pb-clear-btn"
         title="Clear filter"
       >
         ×
@@ -444,30 +427,13 @@ export default function PlaybooksPage() {
     <div>
       <AdvancedBanner />
       {/* Header */}
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      <div className="pb-header">
+        <div className="pb-header-top">
           <h1 className="hf-section-title">{plural("playbook")}</h1>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className="pb-header-actions">
             <button
               onClick={() => setShowCreate(true)}
-              style={{
-                padding: "6px 12px",
-                background: "var(--button-primary-bg)",
-                color: "var(--surface-primary)",
-                border: "none",
-                borderRadius: 6,
-                fontWeight: 500,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="pb-new-btn"
             >
               + New
             </button>
@@ -475,55 +441,33 @@ export default function PlaybooksPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+        <div className="pb-filters">
           {/* Search */}
-          <div style={{ position: "relative" }}>
+          <div className="pb-search-wrap">
             <input
               type="text"
               placeholder="Search playbooks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                paddingRight: search ? 28 : 12,
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                width: 180,
-                fontSize: 13,
-                background: "var(--surface-primary)",
-                color: "var(--text-primary)",
-                outline: "none",
-              }}
+              className={`pb-search-input ${search ? "pb-search-input--has-value" : ""}`}
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 2,
-                  color: "var(--text-muted)",
-                  fontSize: 14,
-                  lineHeight: 1,
-                }}
+                className="pb-search-clear"
               >
                 &times;
               </button>
             )}
           </div>
 
-          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+          <div className="pb-divider" />
 
           {/* Status */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title={`Filter by ${terms.playbook.toLowerCase()} status`}>Status</span>
+          <div className="pb-filter-group">
+            <span className="pb-filter-label" title={`Filter by ${terms.playbook.toLowerCase()} status`}>Status</span>
             <ClearBtn onClick={() => setSelectedStatuses(new Set())} show={selectedStatuses.size > 0} />
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="pb-filter-pills">
               {STATUSES.map((status) => {
                 const config = statusColors[status];
                 return (
@@ -544,9 +488,9 @@ export default function PlaybooksPage() {
           {/* Domain */}
           {domains.length > 0 && (
             <>
-              <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title={`Filter by ${terms.domain.toLowerCase()}`}>{terms.domain}</span>
+              <div className="pb-divider" />
+              <div className="pb-filter-group">
+                <span className="pb-filter-label" title={`Filter by ${terms.domain.toLowerCase()}`}>{terms.domain}</span>
                 <FancySelect
                   value={selectedDomain}
                   onChange={setSelectedDomain}
@@ -560,145 +504,81 @@ export default function PlaybooksPage() {
           )}
 
           {/* Results count */}
-          <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: "auto", alignSelf: "center" }}>
+          <span className="pb-results-count">
             {filteredPlaybooks.length} of {playbooks.length}
           </span>
         </div>
       </div>
 
       {error && (
-        <div
-          style={{
-            padding: 16,
-            background: "var(--status-error-bg)",
-            color: "var(--status-error-text)",
-            borderRadius: 8,
-            marginBottom: 20,
-          }}
-        >
+        <div className="pb-error-banner">
           {error}
         </div>
       )}
 
       {/* Master-Detail Layout */}
-      <div style={{ display: "flex", gap: 16, minHeight: "calc(100vh - 220px)" }}>
+      <div className="pb-layout">
         {/* List Panel */}
-        <div style={{ width: 340, flexShrink: 0, overflowY: "auto" }}>
+        <div className="pb-list-panel">
           {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+            <div className="pb-list-loading">Loading...</div>
           ) : filteredPlaybooks.length === 0 ? (
-            <div
-              style={{
-                padding: 40,
-                textAlign: "center",
-                background: "var(--background)",
-                borderRadius: 12,
-                border: "1px solid var(--border-default)",
-              }}
-            >
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div className="pb-list-empty">
+              <div className="pb-list-empty-icon">{"\u{1F4DA}"}</div>
+              <div className="pb-list-empty-text">
                 {search || selectedStatuses.size > 0 || selectedDomain
                   ? `No ${plural("playbook").toLowerCase()} match filters`
                   : `No ${plural("playbook").toLowerCase()} yet`}
               </div>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="pb-domain-list">
               {Object.entries(groupedByDomain)
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([domainName, playbooksInDomain]) => (
                   <div key={domainName}>
-                    <h2
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--text-muted)",
-                        marginBottom: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
+                    <h2 className="pb-domain-heading">
                       {domainName} ({playbooksInDomain.length})
                     </h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="pb-domain-items">
                       {playbooksInDomain.map((pb) => (
                         <div
                           key={pb.id}
                           onClick={() => selectPlaybook(pb.id)}
-                          style={{
-                            background: selectedId === pb.id ? "var(--surface-selected)" : "var(--surface-primary)",
-                            border: selectedId === pb.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                            borderRadius: 8,
-                            padding: 12,
-                            cursor: "pointer",
-                            transition: "border-color 0.15s, opacity 0.15s",
-                            opacity: pb.status === "ARCHIVED" ? 0.6 : 1,
-                          }}
+                          className={`pb-card ${selectedId === pb.id ? "pb-card--selected" : ""} ${pb.status === "ARCHIVED" ? "pb-card--archived" : ""}`}
                         >
-                          <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+                          <div className="pb-card-badges">
                             <StatusBadge status={playbookStatusMap[pb.status]} size="compact" />
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 500,
-                                padding: "2px 6px",
-                                background: "var(--surface-secondary)",
-                                color: "var(--text-muted)",
-                                borderRadius: 4,
-                              }}
-                            >
+                            <span className="pb-version-tag">
                               v{pb.version}
                             </span>
                           </div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                          <div className="pb-card-name">
                             {pb.name}
                           </div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>{pb._count.items} specs</div>
+                          <div className="pb-card-count">{pb._count.items} specs</div>
                           {isOperator && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              style={{ display: "flex", gap: 4, paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}
+                              className="pb-card-actions"
                             >
                               {pb.status !== "ARCHIVED" ? (
                                 <button
                                   onClick={() => handleArchiveListItem(pb.id)}
                                   disabled={archivingList.has(pb.id)}
                                   title="Archive course"
-                                  style={{
-                                    flex: 1,
-                                    padding: "4px 8px",
-                                    fontSize: 11,
-                                    fontWeight: 500,
-                                    background: "var(--status-warning-bg)",
-                                    color: "var(--status-warning-text)",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: archivingList.has(pb.id) ? "not-allowed" : "pointer",
-                                    opacity: archivingList.has(pb.id) ? 0.6 : 1,
-                                  }}
+                                  className="pb-card-action-btn pb-card-action-btn--archive"
                                 >
-                                  {archivingList.has(pb.id) ? "..." : "📦"}
+                                  {archivingList.has(pb.id) ? "..." : "\u{1F4E6}"}
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => handleRestoreListItem(pb.id)}
                                   disabled={archivingList.has(pb.id)}
                                   title="Restore course"
-                                  style={{
-                                    flex: 1,
-                                    padding: "4px 8px",
-                                    fontSize: 11,
-                                    fontWeight: 500,
-                                    background: "var(--status-info-bg)",
-                                    color: "var(--status-info-text)",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: archivingList.has(pb.id) ? "not-allowed" : "pointer",
-                                    opacity: archivingList.has(pb.id) ? 0.6 : 1,
-                                  }}
+                                  className="pb-card-action-btn pb-card-action-btn--restore"
                                 >
-                                  {archivingList.has(pb.id) ? "..." : "📤"}
+                                  {archivingList.has(pb.id) ? "..." : "\u{1F4E4}"}
                                 </button>
                               )}
                             </div>
@@ -713,81 +593,44 @@ export default function PlaybooksPage() {
         </div>
 
         {/* Detail Panel */}
-        <div
-          style={{
-            flex: 1,
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            padding: 20,
-            overflowY: "auto",
-          }}
-        >
+        <div className="pb-detail-panel">
           {!selectedId ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                height: "100%",
-                color: "var(--text-muted)",
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
-                <div style={{ fontSize: 14 }}>Select a playbook to view details</div>
+            <div className="pb-detail-empty">
+              <div className="pb-detail-empty-inner">
+                <div className="pb-detail-empty-icon">{"\u{1F4DA}"}</div>
+                <div className="pb-detail-empty-text">Select a playbook to view details</div>
               </div>
             </div>
           ) : detailLoading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading playbook...</div>
+            <div className="pb-detail-loading">Loading playbook...</div>
           ) : detailError || !playbook ? (
-            <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
+            <div className="pb-detail-error">
               {detailError || "Playbook not found"}
             </div>
           ) : (
             <>
               {/* Detail Header */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+              <div className="pb-detail-header">
+                <div className="pb-detail-header-row">
                   <div>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    <h2 className="pb-detail-title">
                       {playbook.name}
                     </h2>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                    <div className="pb-detail-subtitle">
                       {playbook.domain.name} &bull; v{playbook.version}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="pb-detail-header-buttons">
                     <Link
                       href={`/x/taxonomy-graph?focus=playbook:${playbook.id}&depth=6`}
-                      style={{
-                        padding: "8px 12px",
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-secondary)",
-                        borderRadius: 6,
-                        textDecoration: "none",
-                        fontWeight: 500,
-                        fontSize: 13,
-                        border: "1px solid var(--border-default)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
+                      className="pb-graph-link"
                       title="View in taxonomy graph"
                     >
-                      🌌
+                      {"\u{1F30C}"}
                     </Link>
                     <Link
                       href={`/x/playbooks/${playbook.id}`}
-                      style={{
-                        padding: "8px 16px",
-                        background: "var(--button-primary-bg)",
-                        color: "white",
-                        borderRadius: 6,
-                        textDecoration: "none",
-                        fontWeight: 500,
-                        fontSize: 13,
-                      }}
+                      className="pb-editor-link"
                     >
                       Open Editor
                     </Link>
@@ -796,19 +639,11 @@ export default function PlaybooksPage() {
               </div>
 
               {/* Badges */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20, alignItems: "center" }}>
+              <div className="pb-detail-badges">
                 <StatusBadge status={playbookStatusMap[playbook.status]} />
                 <DomainPill label={playbook.domain.name} href={`/x/domains?id=${playbook.domain.id}`} size="compact" />
                 {playbook.parentVersion && (
-                  <span
-                    style={{
-                      fontSize: 11,
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      background: "var(--surface-secondary)",
-                      color: "var(--text-muted)",
-                    }}
-                  >
+                  <span className="pb-parent-badge">
                     Based on: {playbook.parentVersion.name} v{playbook.parentVersion.version}
                   </span>
                 )}
@@ -816,60 +651,40 @@ export default function PlaybooksPage() {
 
               {/* Description */}
               {playbook.description && (
-                <div
-                  style={{
-                    background: "var(--surface-secondary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 20,
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                  }}
-                >
+                <div className="pb-description">
                   {playbook.description}
                 </div>
               )}
 
               {/* Stats */}
-              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600 }}>{playbook.items.length}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Specs</div>
+              <div className="pb-stats">
+                <div className="pb-stat-card">
+                  <div className="pb-stat-value">{playbook.items.length}</div>
+                  <div className="pb-stat-label">Specs</div>
                 </div>
-                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600 }}>
+                <div className="pb-stat-card">
+                  <div className="pb-stat-value">
                     {playbook.items.filter((i) => i.isEnabled).length}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Enabled</div>
+                  <div className="pb-stat-label">Enabled</div>
                 </div>
                 {Object.keys(groupedItems || {}).length > 0 && (
-                  <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                    <div style={{ fontSize: 24, fontWeight: 600 }}>{Object.keys(groupedItems || {}).length}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Scopes</div>
+                  <div className="pb-stat-card">
+                    <div className="pb-stat-value">{Object.keys(groupedItems || {}).length}</div>
+                    <div className="pb-stat-label">Scopes</div>
                   </div>
                 )}
               </div>
 
               {/* Quick Actions */}
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 12 }}>Actions</h3>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="pb-actions-section">
+                <h3 className="pb-actions-title">Actions</h3>
+                <div className="pb-actions-row">
                   {playbook.status === "DRAFT" && (
                     <button
                       onClick={handlePublish}
                       disabled={publishing}
-                      style={{
-                        padding: "8px 16px",
-                        background: "var(--status-success-text)",
-                        color: "var(--accent-primary-text)",
-                        border: "none",
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        fontSize: 13,
-                        cursor: publishing ? "not-allowed" : "pointer",
-                        opacity: publishing ? 0.7 : 1,
-                      }}
+                      className="pb-action-btn pb-action-btn--publish"
                     >
                       {publishing ? "Publishing..." : "Publish"}
                     </button>
@@ -878,17 +693,7 @@ export default function PlaybooksPage() {
                     <button
                       onClick={handleArchive}
                       disabled={archiving}
-                      style={{
-                        padding: "8px 16px",
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-secondary)",
-                        border: "1px solid var(--border-default)",
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        fontSize: 13,
-                        cursor: archiving ? "not-allowed" : "pointer",
-                        opacity: archiving ? 0.7 : 1,
-                      }}
+                      className="pb-action-btn pb-action-btn--archive"
                     >
                       {archiving ? "Archiving Course..." : "Archive Course"}
                     </button>
@@ -897,17 +702,7 @@ export default function PlaybooksPage() {
                     <button
                       onClick={handleRestore}
                       disabled={archiving}
-                      style={{
-                        padding: "8px 16px",
-                        background: "var(--status-info-bg)",
-                        color: "var(--status-info-text)",
-                        border: "none",
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        fontSize: 13,
-                        cursor: archiving ? "not-allowed" : "pointer",
-                        opacity: archiving ? 0.7 : 1,
-                      }}
+                      className="pb-action-btn pb-action-btn--restore"
                     >
                       {archiving ? "Restoring Course..." : "Restore Course"}
                     </button>
@@ -916,17 +711,7 @@ export default function PlaybooksPage() {
                     <button
                       onClick={handleDelete}
                       disabled={deleting}
-                      style={{
-                        padding: "8px 16px",
-                        background: "var(--status-error-bg)",
-                        color: "var(--status-error-text)",
-                        border: "none",
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        fontSize: 13,
-                        cursor: deleting ? "not-allowed" : "pointer",
-                        opacity: deleting ? 0.7 : 1,
-                      }}
+                      className="pb-action-btn pb-action-btn--delete"
                     >
                       {deleting ? "Deleting..." : "Delete Course"}
                     </button>
@@ -937,10 +722,10 @@ export default function PlaybooksPage() {
               {/* Specs Preview */}
               {groupedItems && Object.keys(groupedItems).length > 0 && (
                 <div>
-                  <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 12 }}>
+                  <h3 className="pb-specs-title">
                     Specs by Scope
                   </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div className="pb-specs-groups">
                     {Object.entries(groupedItems)
                       .sort(([a], [b]) => {
                         const order = ["SYSTEM", "DOMAIN", "CALLER"];
@@ -948,52 +733,23 @@ export default function PlaybooksPage() {
                       })
                       .map(([scope, items]) => (
                         <div key={scope}>
-                          <div
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              color: "var(--text-muted)",
-                              marginBottom: 8,
-                              textTransform: "uppercase",
-                            }}
-                          >
+                          <div className="pb-scope-heading">
                             {scope} ({items.length})
                           </div>
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                              gap: 8,
-                            }}
-                          >
+                          <div className="pb-specs-grid">
                             {items.slice(0, 6).map((item) => (
                               <div
                                 key={item.id}
-                                style={{
-                                  padding: 10,
-                                  background: item.isEnabled ? "var(--surface-secondary)" : "var(--status-error-bg)",
-                                  borderRadius: 6,
-                                  border: "1px solid var(--border-default)",
-                                  opacity: item.isEnabled ? 1 : 0.6,
-                                }}
+                                className={`pb-spec-card ${!item.isEnabled ? "pb-spec-card--disabled" : ""}`}
                               >
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    color: "var(--text-primary)",
-                                    marginBottom: 4,
-                                  }}
-                                >
+                                <div className="pb-spec-name">
                                   {item.spec?.name}
                                 </div>
-                                <div style={{ display: "flex", gap: 4 }}>
+                                <div className="pb-spec-tags">
                                   {item.spec?.outputType && (
                                     <span
+                                      className="pb-spec-tag"
                                       style={{
-                                        fontSize: 9,
-                                        padding: "1px 4px",
-                                        borderRadius: 3,
                                         background: outputTypeColors[item.spec.outputType]?.bg || "var(--surface-secondary)",
                                         color: outputTypeColors[item.spec.outputType]?.text || "var(--text-secondary)",
                                       }}
@@ -1002,15 +758,7 @@ export default function PlaybooksPage() {
                                     </span>
                                   )}
                                   {!item.isEnabled && (
-                                    <span
-                                      style={{
-                                        fontSize: 9,
-                                        padding: "1px 4px",
-                                        borderRadius: 3,
-                                        background: "var(--status-error-bg)",
-                                        color: "var(--status-error-text)",
-                                      }}
-                                    >
+                                    <span className="pb-spec-tag pb-spec-tag--disabled">
                                       DISABLED
                                     </span>
                                   )}
@@ -1018,18 +766,7 @@ export default function PlaybooksPage() {
                               </div>
                             ))}
                             {items.length > 6 && (
-                              <div
-                                style={{
-                                  padding: 10,
-                                  background: "var(--surface-secondary)",
-                                  borderRadius: 6,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "var(--text-muted)",
-                                  fontSize: 12,
-                                }}
-                              >
+                              <div className="pb-spec-overflow">
                                 +{items.length - 6} more
                               </div>
                             )}
@@ -1041,31 +778,31 @@ export default function PlaybooksPage() {
               )}
 
               {/* Metadata */}
-              <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 20, marginTop: 24 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)", marginBottom: 12 }}>Metadata</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, fontSize: 12 }}>
+              <div className="pb-metadata">
+                <h3 className="pb-metadata-title">Metadata</h3>
+                <div className="pb-metadata-grid">
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>ID</div>
-                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-primary)" }}>
+                    <div className="pb-metadata-label">ID</div>
+                    <div className="pb-metadata-value--mono">
                       {playbook.id}
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Created</div>
-                    <div style={{ color: "var(--text-primary)" }}>
+                    <div className="pb-metadata-label">Created</div>
+                    <div className="pb-metadata-value">
                       {new Date(playbook.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Updated</div>
-                    <div style={{ color: "var(--text-primary)" }}>
+                    <div className="pb-metadata-label">Updated</div>
+                    <div className="pb-metadata-value">
                       {new Date(playbook.updatedAt).toLocaleDateString()}
                     </div>
                   </div>
                   {playbook.publishedAt && (
                     <div>
-                      <div style={{ color: "var(--text-muted)" }}>Published</div>
-                      <div style={{ color: "var(--text-primary)" }}>
+                      <div className="pb-metadata-label">Published</div>
+                      <div className="pb-metadata-value">
                         {new Date(playbook.publishedAt).toLocaleDateString()}
                       </div>
                     </div>
@@ -1080,24 +817,16 @@ export default function PlaybooksPage() {
       {/* Create Modal */}
       {showCreate && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+          className="pb-modal-backdrop"
           onClick={() => setShowCreate(false)}
         >
           <div
-            style={{ background: "var(--modal-bg)", borderRadius: 12, padding: 24, width: 400 }}
+            className="pb-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New {terms.playbook}</h2>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Domain</label>
+            <h2 className="pb-modal-title">New {terms.playbook}</h2>
+            <div className="pb-modal-field">
+              <label className="pb-modal-label">Domain</label>
               <FancySelect
                 value={newPlaybook.domainId}
                 onChange={(v) => setNewPlaybook({ ...newPlaybook, domainId: v })}
@@ -1105,40 +834,26 @@ export default function PlaybooksPage() {
                 options={domains.map((d) => ({ value: d.id, label: d.name }))}
               />
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Name</label>
+            <div className="pb-modal-field">
+              <label className="pb-modal-label">Name</label>
               <input
                 type="text"
                 value={newPlaybook.name}
                 onChange={(e) => setNewPlaybook({ ...newPlaybook, name: e.target.value })}
-                style={{ width: "100%", padding: 10, border: "1px solid var(--input-border)", borderRadius: 6 }}
+                className="pb-modal-input"
               />
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="pb-modal-footer">
               <button
                 onClick={() => setShowCreate(false)}
-                style={{
-                  padding: "8px 16px",
-                  background: "var(--surface-secondary)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
+                className="pb-modal-cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={creating || !newPlaybook.name || !newPlaybook.domainId}
-                style={{
-                  padding: "8px 16px",
-                  background: "var(--button-primary-bg)",
-                  color: "var(--surface-primary)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  opacity: creating ? 0.7 : 1,
-                }}
+                className="pb-modal-submit"
               >
                 {creating ? "Creating..." : "Create"}
               </button>

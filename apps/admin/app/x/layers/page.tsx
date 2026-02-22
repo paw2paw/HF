@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import "./layers.css";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -66,16 +67,8 @@ function StatusBadge({ status }: { status: ParameterStatus }) {
   const colors = STATUS_COLORS[status];
   return (
     <span
-      style={{
-        fontSize: 10,
-        fontWeight: 600,
-        padding: "2px 8px",
-        borderRadius: 4,
-        background: colors.bg,
-        color: colors.text,
-        textTransform: "uppercase",
-        letterSpacing: "0.5px",
-      }}
+      className="ly-status-badge"
+      style={{ background: colors.bg, color: colors.text }}
     >
       {colors.label}
     </span>
@@ -86,15 +79,8 @@ function SourceBadge({ source }: { source: "BASE" | "OVERLAY" }) {
   const colors = SOURCE_COLORS[source];
   return (
     <span
-      style={{
-        fontSize: 9,
-        fontWeight: 600,
-        padding: "1px 6px",
-        borderRadius: 3,
-        background: colors.bg,
-        color: colors.text,
-        textTransform: "uppercase",
-      }}
+      className="ly-source-badge"
+      style={{ background: colors.bg, color: colors.text }}
     >
       {source}
     </span>
@@ -104,54 +90,48 @@ function SourceBadge({ source }: { source: "BASE" | "OVERLAY" }) {
 // ── Config Value Renderer ──────────────────────────────
 
 function ConfigValue({ value, dimmed }: { value: any; dimmed?: boolean }) {
-  const style: React.CSSProperties = {
-    fontSize: 11,
-    fontFamily: "monospace",
-    color: dimmed ? "var(--text-muted)" : "var(--text-primary)",
-    textDecoration: dimmed ? "line-through" : "none",
-    opacity: dimmed ? 0.6 : 1,
-  };
+  const cls = `ly-config-value${dimmed ? " ly-config-value--dimmed" : ""}`;
 
   if (value === null || value === undefined) {
-    return <span style={{ ...style, fontStyle: "italic" }}>null</span>;
+    return <span className={`${cls} ly-config-value--null`}>null</span>;
   }
 
   if (typeof value === "string") {
     return (
-      <span style={style}>
+      <span className={cls}>
         {value.length > 120 ? `${value.slice(0, 120)}...` : value}
       </span>
     );
   }
 
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span style={{ ...style, fontStyle: "italic" }}>[] (empty)</span>;
+    if (value.length === 0) return <span className={`${cls} ly-config-value--null`}>[] (empty)</span>;
     if (value.length <= 5 && value.every((v) => typeof v === "string")) {
-      return <span style={style}>[{value.join(", ")}]</span>;
+      return <span className={cls}>[{value.join(", ")}]</span>;
     }
-    return <span style={style}>[{value.length} items]</span>;
+    return <span className={cls}>[{value.length} items]</span>;
   }
 
   if (typeof value === "object") {
     const keys = Object.keys(value);
     if (keys.length <= 3) {
       return (
-        <span style={style}>
+        <span className={cls}>
           {"{"}
           {keys.map((k, i) => (
             <React.Fragment key={k}>
               {i > 0 && ", "}
-              <span style={{ color: "var(--text-muted)" }}>{k}</span>: {JSON.stringify(value[k]).slice(0, 40)}
+              <span className="ly-config-key">{k}</span>: {JSON.stringify(value[k]).slice(0, 40)}
             </React.Fragment>
           ))}
           {"}"}
         </span>
       );
     }
-    return <span style={style}>{`{${keys.length} keys}`}</span>;
+    return <span className={cls}>{`{${keys.length} keys}`}</span>;
   }
 
-  return <span style={style}>{String(value)}</span>;
+  return <span className={cls}>{String(value)}</span>;
 }
 
 // ── Parameter Card ─────────────────────────────────────
@@ -171,85 +151,44 @@ function ParameterCard({
     NEW: "var(--status-info-text)",
   };
 
+  const statusClass = param.status === "INHERITED" ? "ly-param-card--inherited" : param.status === "OVERRIDDEN" ? "ly-param-card--overridden" : "ly-param-card--new";
+
   return (
     <div
+      className={`ly-param-card ${statusClass}`}
       style={{
-        marginBottom: 8,
         border: `1px solid ${borderColors[param.status]}`,
-        borderRadius: 8,
-        overflow: "hidden",
         borderLeft: `3px solid ${borderColors[param.status]}`,
-        background: param.status === "INHERITED"
-          ? "var(--surface-secondary)"
-          : "var(--surface-primary)",
       }}
     >
       <button
         type="button"
         onClick={onToggle}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 14px",
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
+        className="ly-param-toggle"
       >
-        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+        <span className="ly-param-arrow">
           {expanded ? "\u25BC" : "\u25B6"}
         </span>
-        <span
-          style={{
-            flex: 1,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-          }}
-        >
+        <span className="ly-param-name">
           {param.name}
         </span>
-        <span
-          style={{
-            fontSize: 10,
-            color: "var(--text-muted)",
-            fontFamily: "monospace",
-          }}
-        >
+        <span className="ly-param-section">
           {param.section}
         </span>
         <StatusBadge status={param.status} />
       </button>
 
       {expanded && (
-        <div style={{ padding: "0 14px 12px" }}>
+        <div className="ly-param-body">
           {param.status === "OVERRIDDEN" && param.baseConfig && (
-            <div style={{ marginBottom: 10 }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                  marginBottom: 4,
-                  textTransform: "uppercase",
-                }}
-              >
+            <div className="ly-base-replaced">
+              <div className="ly-config-label">
                 Base (replaced)
               </div>
-              <div
-                style={{
-                  padding: 8,
-                  borderRadius: 6,
-                  background: "color-mix(in srgb, var(--surface-secondary) 80%, transparent)",
-                  border: "1px dashed var(--border-default)",
-                }}
-              >
+              <div className="ly-config-box--dashed">
                 {Object.entries(param.baseConfig).map(([key, val]) => (
-                  <div key={key} style={{ marginBottom: 3, display: "flex", gap: 6 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 100, fontWeight: 500 }}>
+                  <div key={key} className="ly-config-entry">
+                    <span className="ly-config-entry-key--muted">
                       {key}:
                     </span>
                     <ConfigValue value={val} dimmed />
@@ -261,33 +200,19 @@ function ParameterCard({
 
           <div>
             {param.status === "OVERRIDDEN" && (
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "var(--status-warning-text)",
-                  marginBottom: 4,
-                  textTransform: "uppercase",
-                }}
-              >
+              <div className="ly-config-label ly-config-label--warning">
                 Overlay (active)
               </div>
             )}
-            <div
-              style={{
-                padding: 8,
-                borderRadius: 6,
-                background: "var(--surface-secondary)",
-              }}
-            >
+            <div className="ly-config-box">
               {Object.keys(param.config).length === 0 ? (
-                <span style={{ fontSize: 11, fontStyle: "italic", color: "var(--text-muted)" }}>
+                <span className="ly-config-empty">
                   No config values
                 </span>
               ) : (
                 Object.entries(param.config).map(([key, val]) => (
-                  <div key={key} style={{ marginBottom: 3, display: "flex", gap: 6 }}>
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)", minWidth: 100, fontWeight: 500 }}>
+                  <div key={key} className="ly-config-entry">
+                    <span className="ly-config-entry-key">
                       {key}:
                     </span>
                     <ConfigValue value={val} />
@@ -314,42 +239,21 @@ function LayerStack({
   if (!base && !overlay) return null;
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: "var(--text-muted)",
-          marginBottom: 8,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-        }}
-      >
+    <div className="ly-stack">
+      <div className="ly-stack-label">
         Layer Stack
       </div>
 
       {/* Overlay (top) */}
       {overlay && (
-        <div
-          style={{
-            padding: "10px 12px",
-            marginBottom: -1,
-            borderRadius: "8px 8px 0 0",
-            border: "1px solid var(--accent-primary)",
-            background: "color-mix(in srgb, var(--surface-primary) 85%, transparent)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            position: "relative",
-            zIndex: 2,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--accent-primary)", textTransform: "uppercase" }}>
+        <div className="ly-stack-overlay">
+          <div className="ly-stack-overlay-label">
             Overlay
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginTop: 2 }}>
+          <div className="ly-stack-name">
             {overlay.name}
           </div>
-          <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-muted)" }}>
+          <div className="ly-stack-slug">
             {overlay.slug}
           </div>
         </div>
@@ -357,23 +261,14 @@ function LayerStack({
 
       {/* Base (bottom) */}
       {base && (
-        <div
-          style={{
-            padding: "10px 12px",
-            borderRadius: overlay ? "0 0 8px 8px" : "8px",
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-secondary)",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+        <div className={`ly-stack-base ${overlay ? "ly-stack-base--paired" : "ly-stack-base--solo"}`}>
+          <div className="ly-stack-base-label">
             Base Archetype
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginTop: 2 }}>
+          <div className="ly-stack-name">
             {base.name}
           </div>
-          <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-muted)" }}>
+          <div className="ly-stack-slug">
             {base.slug}
           </div>
         </div>
@@ -386,61 +281,33 @@ function LayerStack({
 
 function StatsPanel({ stats }: { stats: LayerDiffResult["stats"] }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: "var(--text-muted)",
-          marginBottom: 8,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-        }}
-      >
+    <div className="ly-stats">
+      <div className="ly-stats-label">
         Parameter Breakdown
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="ly-stats-rows">
         <StatRow label="Inherited" count={stats.inherited} colors={STATUS_COLORS.INHERITED} />
         <StatRow label="Overridden" count={stats.overridden} colors={STATUS_COLORS.OVERRIDDEN} />
         <StatRow label="New" count={stats.new} colors={STATUS_COLORS.NEW} />
       </div>
 
-      <div
-        style={{
-          marginTop: 8,
-          paddingTop: 8,
-          borderTop: "1px solid var(--border-default)",
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 11,
-          color: "var(--text-secondary)",
-        }}
-      >
+      <div className="ly-stats-total">
         <span>Total merged</span>
-        <span style={{ fontWeight: 600, fontFamily: "monospace" }}>{stats.totalMerged}</span>
+        <span className="ly-stats-total-count">{stats.totalMerged}</span>
       </div>
 
       {(stats.baseConstraints > 0 || stats.overlayConstraints > 0) && (
-        <div
-          style={{
-            marginTop: 12,
-            fontSize: 10,
-            fontWeight: 600,
-            color: "var(--text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-          }}
-        >
+        <div className="ly-stats-constraints">
           Constraints
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>
+          <div className="ly-stats-constraints-rows">
+            <div className="ly-stats-constraint-row">
               <span>Base</span>
-              <span style={{ fontFamily: "monospace", fontWeight: 600 }}>{stats.baseConstraints}</span>
+              <span className="ly-stats-constraint-count">{stats.baseConstraints}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>
+            <div className="ly-stats-constraint-row">
               <span>Overlay</span>
-              <span style={{ fontFamily: "monospace", fontWeight: 600 }}>{stats.overlayConstraints}</span>
+              <span className="ly-stats-constraint-count">{stats.overlayConstraints}</span>
             </div>
           </div>
         </div>
@@ -452,17 +319,11 @@ function StatsPanel({ stats }: { stats: LayerDiffResult["stats"] }) {
 function StatRow({ label, count, colors }: { label: string; count: number; colors: { bg: string; text: string } }) {
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "6px 10px",
-        borderRadius: 6,
-        background: colors.bg,
-      }}
+      className="ly-stat-row"
+      style={{ background: colors.bg }}
     >
-      <span style={{ fontSize: 12, fontWeight: 500, color: colors.text }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: colors.text }}>{count}</span>
+      <span className="ly-stat-label" style={{ color: colors.text }}>{label}</span>
+      <span className="ly-stat-count" style={{ color: colors.text }}>{count}</span>
     </div>
   );
 }
@@ -557,84 +418,32 @@ export default function LayersPage() {
   }, []);
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="ly-layout">
       <AdvancedBanner />
       {/* Header */}
-      <div
-        style={{
-          padding: "16px 24px",
-          borderBottom: "1px solid var(--border-default)",
-          background: "var(--surface-primary)",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-          }}
-        >
+      <div className="ly-header">
+        <h1 className="ly-header-title">
           Identity Layers
         </h1>
-        <span
-          style={{
-            fontSize: 11,
-            color: "var(--text-muted)",
-            padding: "2px 8px",
-            borderRadius: 4,
-            background: "var(--surface-secondary)",
-          }}
-        >
+        <span className="ly-header-badge">
           Base + Overlay Visualization
         </span>
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="ly-body">
         {/* Left Panel */}
-        <div
-          style={{
-            width: 300,
-            minWidth: 300,
-            borderRight: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            overflow: "auto",
-            padding: 16,
-          }}
-        >
+        <div className="ly-sidebar">
           {/* Overlay Selector */}
-          <div style={{ marginBottom: 20 }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: 10,
-                fontWeight: 600,
-                color: "var(--text-muted)",
-                marginBottom: 6,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
+          <div className="ly-select-group">
+            <label className="ly-select-label">
               Select Overlay Spec
             </label>
             <select
               value={selectedOverlayId}
               onChange={(e) => setSelectedOverlayId(e.target.value)}
               disabled={specsLoading}
-              style={{
-                width: "100%",
-                padding: "8px 10px",
-                fontSize: 12,
-                borderRadius: 6,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-primary)",
-                color: "var(--text-primary)",
-                cursor: "pointer",
-              }}
+              className="ly-select"
             >
               {specsLoading ? (
                 <option>Loading specs...</option>
@@ -669,54 +478,22 @@ export default function LayersPage() {
           )}
 
           {!diff && !loading && !error && (
-            <div
-              style={{
-                marginTop: 40,
-                textAlign: "center",
-                color: "var(--text-muted)",
-                fontSize: 12,
-              }}
-            >
+            <div className="ly-empty-sidebar">
               Select an overlay spec to see the layer diff.
             </div>
           )}
         </div>
 
         {/* Right Panel */}
-        <div
-          style={{
-            flex: 1,
-            overflow: "auto",
-            background: "var(--surface-secondary)",
-            padding: 20,
-          }}
-        >
+        <div className="ly-main">
           {loading && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: 200,
-                color: "var(--text-muted)",
-                fontSize: 13,
-              }}
-            >
+            <div className="ly-loading">
               Computing layer diff...
             </div>
           )}
 
           {error && (
-            <div
-              style={{
-                padding: 16,
-                borderRadius: 8,
-                background: "var(--status-error-bg)",
-                border: "1px solid var(--status-error-border)",
-                color: "var(--status-error-text)",
-                fontSize: 12,
-              }}
-            >
+            <div className="ly-error">
               {error}
             </div>
           )}
@@ -724,47 +501,31 @@ export default function LayersPage() {
           {diff && !loading && (
             <>
               {/* Filter + controls bar */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 16,
-                }}
-              >
-                <div style={{ display: "flex", gap: 4 }}>
+              <div className="ly-filter-bar">
+                <div className="ly-filter-group">
                   {(["ALL", "INHERITED", "OVERRIDDEN", "NEW"] as const).map((status) => (
                     <button
                       key={status}
                       type="button"
                       onClick={() => setFilterStatus(status)}
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: 11,
-                        fontWeight: filterStatus === status ? 600 : 400,
-                        borderRadius: 4,
-                        border: `1px solid ${filterStatus === status ? "var(--text-secondary)" : "var(--border-default)"}`,
-                        background: filterStatus === status ? "var(--surface-primary)" : "transparent",
-                        color: filterStatus === status ? "var(--text-primary)" : "var(--text-muted)",
-                        cursor: "pointer",
-                      }}
+                      className={`ly-filter-btn${filterStatus === status ? " ly-filter-btn--active" : ""}`}
                     >
-                      {status === "ALL" ? `All (${diff.parameters.length})` : `${status_COLORS_LABEL[status]} (${diff.parameters.filter((p) => p.status === status).length})`}
+                      {status === "ALL" ? `All (${diff.parameters.length})` : `${STATUS_LABELS[status]} (${diff.parameters.filter((p) => p.status === status).length})`}
                     </button>
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div className="ly-control-group">
                   <button
                     type="button"
                     onClick={expandAll}
-                    style={controlButtonStyle}
+                    className="ly-control-btn"
                   >
                     Expand All
                   </button>
                   <button
                     type="button"
                     onClick={collapseAll}
-                    style={controlButtonStyle}
+                    className="ly-control-btn"
                   >
                     Collapse All
                   </button>
@@ -772,30 +533,12 @@ export default function LayersPage() {
               </div>
 
               {/* Parameters */}
-              <div style={{ marginBottom: 24 }}>
-                <h2
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    marginBottom: 10,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
+              <div className="ly-params-section">
+                <h2 className="ly-section-header">
                   Parameters ({filteredParams.length})
                 </h2>
                 {filteredParams.length === 0 ? (
-                  <div
-                    style={{
-                      padding: 20,
-                      textAlign: "center",
-                      color: "var(--text-muted)",
-                      fontSize: 12,
-                      background: "var(--surface-primary)",
-                      borderRadius: 8,
-                    }}
-                  >
+                  <div className="ly-params-empty">
                     No parameters match the current filter.
                   </div>
                 ) : (
@@ -813,40 +556,16 @@ export default function LayersPage() {
               {/* Constraints */}
               {diff.constraints.length > 0 && (
                 <div>
-                  <h2
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--text-secondary)",
-                      marginBottom: 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
+                  <h2 className="ly-section-header">
                     Constraints (stacked: {diff.constraints.length})
                   </h2>
                   {diff.constraints.map((constraint, i) => (
                     <div
                       key={constraint.id + i}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        marginBottom: 6,
-                        padding: "8px 12px",
-                        borderRadius: 6,
-                        background: "var(--surface-primary)",
-                        border: "1px solid var(--border-default)",
-                      }}
+                      className="ly-constraint-row"
                     >
                       <SourceBadge source={constraint.source} />
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "var(--text-primary)",
-                          flex: 1,
-                        }}
-                      >
+                      <span className="ly-constraint-rule">
                         {constraint.rule}
                       </span>
                     </div>
@@ -857,20 +576,10 @@ export default function LayersPage() {
           )}
 
           {!diff && !loading && !error && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                height: "100%",
-                color: "var(--text-muted)",
-                gap: 8,
-              }}
-            >
-              <div style={{ fontSize: 40, opacity: 0.3 }}>&#x1F5C3;</div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>Select an overlay to visualize layers</div>
-              <div style={{ fontSize: 12 }}>
+            <div className="ly-empty-main">
+              <div className="ly-empty-icon">&#x1F5C3;</div>
+              <div className="ly-empty-title">Select an overlay to visualize layers</div>
+              <div className="ly-empty-desc">
                 Choose a domain overlay from the left panel to see how it extends its base archetype.
               </div>
             </div>
@@ -881,19 +590,9 @@ export default function LayersPage() {
   );
 }
 
-// ── Shared styles ──────────────────────────────────────
+// ── Constants ──────────────────────────────────────────
 
-const controlButtonStyle: React.CSSProperties = {
-  padding: "4px 10px",
-  fontSize: 11,
-  borderRadius: 4,
-  border: "1px solid var(--border-default)",
-  background: "var(--surface-primary)",
-  color: "var(--text-secondary)",
-  cursor: "pointer",
-};
-
-const status_COLORS_LABEL: Record<ParameterStatus, string> = {
+const STATUS_LABELS: Record<ParameterStatus, string> = {
   INHERITED: "Inherited",
   OVERRIDDEN: "Overridden",
   NEW: "New",

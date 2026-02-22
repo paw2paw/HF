@@ -1,0 +1,444 @@
+/* ── Jobs Page ────────────────────────── */
+/* Extracted from inline styles — imported by jobs/page.tsx */
+
+/* Page layout */
+.jobs-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 32px 64px;
+}
+
+/* Header overrides */
+.jobs-title {
+  font-size: 32px;
+  letter-spacing: -0.03em;
+}
+.jobs-subtitle {
+  margin-bottom: 20px;
+}
+
+/* Filter + sort toolbar */
+.jobs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.jobs-filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.jobs-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Loading spinner container */
+.jobs-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+/* Section */
+.jobs-section {
+  margin-bottom: 40px;
+}
+
+/* Section heading (IN PROGRESS / DONE / ARCHIVE) */
+.jobs-section-heading {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.jobs-section-heading-inline {
+  margin-bottom: 0;
+}
+
+/* Section header bar (heading + controls) */
+.jobs-section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Empty states */
+.jobs-empty {
+  border-radius: 14px;
+  padding: 32px;
+}
+.jobs-empty-text {
+  font-size: 14px;
+  padding: 16px 0;
+  color: var(--text-muted);
+}
+
+/* Card list */
+.jobs-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.jobs-card-list-compact {
+  gap: 8px;
+}
+
+/* Active job card */
+.jobs-active-card {
+  padding: 20px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+}
+
+/* Active card header row */
+.jobs-active-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* Job label (title) */
+.jobs-active-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+/* Job metadata line */
+.jobs-active-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Action buttons group */
+.jobs-active-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Running badge */
+.jobs-badge-running {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+/* Resume badge */
+.jobs-badge-resume {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--accent-primary);
+  color: var(--accent-primary-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Abandon button */
+.jobs-btn-abandon {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Progress bar */
+.jobs-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  overflow: hidden;
+}
+.jobs-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+/* Next step line */
+.jobs-next-step {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.jobs-next-step-accent {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+.jobs-next-step-title {
+  font-weight: 600;
+}
+.jobs-next-step-estimated {
+  opacity: 0.7;
+}
+
+/* Blockers */
+.jobs-blockers {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--status-warning-text);
+}
+
+/* Completed job card */
+.jobs-completed-card {
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+.jobs-completed-card-selected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+/* Completed card inner row */
+.jobs-completed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.jobs-completed-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.jobs-completed-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* Checkbox label wrapper */
+.jobs-checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Checkbox input */
+.jobs-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+/* Failed icon circle */
+.jobs-failed-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: white;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: var(--status-error-text);
+}
+
+/* Status icon circle (archive — success or error) */
+.jobs-status-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: white;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.jobs-status-icon-success {
+  background: var(--status-success-text);
+}
+.jobs-status-icon-error {
+  background: var(--status-error-text);
+}
+
+/* Completed job label */
+.jobs-completed-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Failed tag */
+.jobs-failed-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--status-error-text);
+}
+
+/* Time ago text */
+.jobs-time-ago {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Action bar (archive controls) */
+.jobs-action-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Small action buttons */
+.jobs-btn-sm {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.jobs-btn-xs {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+.jobs-btn-confirm {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+/* Load more button */
+.jobs-load-more {
+  margin-top: 4px;
+}
+
+/* Archive toggle button */
+.jobs-archive-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.jobs-archive-toggle-open {
+  margin-bottom: 16px;
+}
+
+/* Archive chevron */
+.jobs-archive-chevron {
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.jobs-archive-chevron-open {
+  transform: rotate(180deg);
+}
+
+/* Archive controls bar */
+.jobs-archive-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Delete confirmation dialog */
+.jobs-delete-confirm {
+  padding: 16px;
+  background: color-mix(in srgb, var(--status-error-text) 8%, var(--surface-primary));
+  border: 1px solid color-mix(in srgb, var(--status-error-text) 25%, transparent);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.jobs-delete-confirm-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.jobs-delete-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Archive loading */
+.jobs-archive-loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+/* Archived job card */
+.jobs-archived-card {
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: border-color 0.15s ease, opacity 0.15s ease;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+.jobs-archived-card-selected {
+  border-color: var(--accent-primary);
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+/* ── Summary Badges (JobSummary) ────────── */
+
+.jobs-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Count badge */
+.jobs-count-badge {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+/* Entity link badge */
+.jobs-entity-link {
+  background: var(--surface-secondary);
+  color: var(--accent-primary);
+}
+
+/* Duplicate count (tertiary) */
+.jobs-count-badge-muted {
+  background: var(--surface-tertiary);
+  color: var(--text-muted);
+}
+
+/* Error summary */
+.jobs-error-summary {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--status-error-text);
+}

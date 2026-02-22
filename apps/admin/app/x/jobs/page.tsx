@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowUpDown } from "lucide-react";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
+import "./jobs.css";
 
 // ── Types ──────────────────────────────────────────
 
@@ -248,10 +249,7 @@ function timeAgo(dateStr: string): string {
 
 function CountBadge({ label, count }: { label: string; count: number }) {
   return (
-    <span
-      className="rounded px-2 py-0.5 text-[11px] font-mono"
-      style={{ background: "var(--surface-secondary)", color: "var(--text-secondary)" }}
-    >
+    <span className="rounded px-2 py-0.5 text-[11px] font-mono jobs-count-badge">
       {count} {label}
     </span>
   );
@@ -261,8 +259,7 @@ function EntityLink({ label, name, href }: { label: string; name: string; href: 
   return (
     <Link
       href={href}
-      className="rounded px-2 py-0.5 text-[11px] transition-colors hover:underline"
-      style={{ background: "var(--surface-secondary)", color: "var(--accent-primary)" }}
+      className="rounded px-2 py-0.5 text-[11px] transition-colors hover:underline jobs-entity-link"
       onClick={(e) => e.stopPropagation()}
     >
       {label}: {name}
@@ -273,7 +270,7 @@ function EntityLink({ label, name, href }: { label: string; name: string; href: 
 function JobSummary({ task }: { task: UserTask }) {
   if (isFailedJob(task) && task.context?.error) {
     return (
-      <div style={{ marginTop: 6, fontSize: 12, color: "var(--status-error-text, #ef4444)" }}>
+      <div className="jobs-error-summary">
         {task.context.error}
       </div>
     );
@@ -284,7 +281,7 @@ function JobSummary({ task }: { task: UserTask }) {
 
   if (task.taskType === "quick_launch") {
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <div className="jobs-summary-badges">
         {summary.domain?.name && (
           <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains/${summary.domain.id}`} />
         )}
@@ -300,14 +297,11 @@ function JobSummary({ task }: { task: UserTask }) {
 
   if (task.taskType === "extraction") {
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <div className="jobs-summary-badges">
         {summary.counts?.extracted > 0 && <CountBadge label="extracted" count={summary.counts.extracted} />}
         {summary.counts?.imported > 0 && <CountBadge label="imported" count={summary.counts.imported} />}
         {summary.counts?.duplicates > 0 && (
-          <span
-            className="rounded px-2 py-0.5 text-[11px] font-mono"
-            style={{ background: "var(--surface-tertiary)", color: "var(--text-muted)" }}
-          >
+          <span className="rounded px-2 py-0.5 text-[11px] font-mono jobs-count-badge-muted">
             {summary.counts.duplicates} duplicates
           </span>
         )}
@@ -317,7 +311,7 @@ function JobSummary({ task }: { task: UserTask }) {
 
   if (task.taskType === "curriculum_generation") {
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <div className="jobs-summary-badges">
         {summary.subject?.name && (
           <EntityLink label="Subject" name={summary.subject.name} href={`/x/subjects/${summary.subject.id}`} />
         )}
@@ -329,7 +323,7 @@ function JobSummary({ task }: { task: UserTask }) {
 
   if (task.taskType === "content_wizard") {
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <div className="jobs-summary-badges">
         {summary.subject?.name && (
           <EntityLink label="Subject" name={summary.subject.name} href={`/x/subjects/${summary.subject.id}`} />
         )}
@@ -344,7 +338,7 @@ function JobSummary({ task }: { task: UserTask }) {
 
   if (task.taskType === "course_setup") {
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <div className="jobs-summary-badges">
         {summary?.domain?.name && (
           <EntityLink label="Domain" name={summary.domain.name} href={`/x/domains/${summary.domain.id}`} />
         )}
@@ -357,9 +351,9 @@ function JobSummary({ task }: { task: UserTask }) {
   if (task.taskType === "classroom_setup") {
     const ctx = task.context;
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      <div className="jobs-summary-badges">
         {ctx?.created?.id && (
-          <EntityLink label="Classroom" name={ctx.name || "—"} href={`/x/educator/classrooms/${ctx.created.id}`} />
+          <EntityLink label="Classroom" name={ctx.name || "\u2014"} href={`/x/educator/classrooms/${ctx.created.id}`} />
         )}
       </div>
     );
@@ -636,15 +630,15 @@ export default function JobsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "48px 32px 64px" }}>
+    <div className="jobs-page">
       {/* Header */}
-      <h1 className="hf-page-title" style={{ fontSize: 32, letterSpacing: "-0.03em" }}>Jobs</h1>
-      <p className="hf-page-subtitle" style={{ marginBottom: 20 }}>Track your in-progress and completed jobs.</p>
+      <h1 className="hf-page-title jobs-title">Jobs</h1>
+      <p className="hf-page-subtitle jobs-subtitle">Track your in-progress and completed jobs.</p>
 
       {/* Filter chips + sort toggle */}
       {!loading && !error && (availableTypes.length > 0 || activeTasks.length > 0 || completedTasks.length > 0) && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 8 }}>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className="jobs-toolbar">
+          <div className="jobs-filter-chips">
             <button
               className={filterType === "all" ? "hf-chip hf-chip-selected" : "hf-chip"}
               onClick={() => setFilterType("all")}
@@ -665,9 +659,8 @@ export default function JobsPage() {
             })}
           </div>
           <button
-            className="hf-btn hf-btn-secondary"
+            className="hf-btn hf-btn-secondary jobs-sort-btn"
             onClick={() => setSortDir((d) => d === "newest" ? "oldest" : "newest")}
-            style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", fontSize: 12, flexShrink: 0 }}
             title={`Sort: ${sortDir === "newest" ? "Newest first" : "Oldest first"}`}
           >
             <ArrowUpDown size={12} />
@@ -677,62 +670,40 @@ export default function JobsPage() {
       )}
 
       {loading && (
-        <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}><div className="hf-spinner" /></div>
+        <div className="jobs-loading"><div className="hf-spinner" /></div>
       )}
 
       {!loading && <ErrorBanner error={error} />}
 
       {/* In Progress */}
       {!loading && !error && (
-        <section style={{ marginBottom: 40 }}>
-          <h2
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "var(--text-muted)",
-              marginBottom: 16,
-            }}
-          >
+        <section className="jobs-section">
+          <h2 className="jobs-section-heading">
             In Progress ({filteredActive.length})
           </h2>
 
           {filteredActive.length === 0 ? (
-            <div
-              className="hf-empty"
-              style={{
-                borderRadius: 14,
-                padding: 32,
-              }}
-            >
+            <div className="hf-empty jobs-empty">
               {filterType === "all"
                 ? "No jobs in progress. Start one from Quick Launch or other tools."
                 : `No ${JOB_TYPE_LABELS[filterType]?.label || filterType} jobs in progress.`}
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div className="jobs-card-list">
               {filteredActive.map((task) => {
                 const nextStep = getNextStep(task);
                 return (
                   <div
                     key={task.id}
-                    style={{
-                      padding: 20,
-                      borderRadius: 14,
-                      cursor: "pointer",
-                      transition: "border-color 0.15s ease",
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                    }}
+                    className="jobs-active-card"
                     onClick={() => router.push(getJobClickPath(task))}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <div className="jobs-active-header">
                       <div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 2 }}>
+                        <div className="jobs-active-title">
                           {getJobLabel(task)}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        <div className="jobs-active-meta">
                           Started {timeAgo(task.startedAt)}
                           {isWizardPhase(task)
                             ? ` \u00b7 Setting up (step ${(task.context._wizardStep ?? 0) + 1})`
@@ -743,46 +714,19 @@ export default function JobsPage() {
                               : ` \u00b7 Step ${task.currentStep} of ${task.totalSteps}`}
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div className="jobs-active-actions">
                         {isBackgroundJob(task) ? (
-                          <span
-                            style={{
-                              padding: "8px 16px",
-                              borderRadius: 8,
-                              background: "var(--surface-secondary)",
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: "var(--accent-primary)",
-                            }}
-                          >
+                          <span className="jobs-badge-running">
                             Running...
                           </span>
                         ) : (
-                          <span
-                            style={{
-                              padding: "8px 16px",
-                              borderRadius: 8,
-                              background: "var(--accent-primary)",
-                              color: "var(--accent-primary-text)",
-                              fontSize: 13,
-                              fontWeight: 700,
-                            }}
-                          >
+                          <span className="jobs-badge-resume">
                             Resume
                           </span>
                         )}
                         <button
+                          className="jobs-btn-abandon"
                           onClick={(e) => { e.stopPropagation(); handleAbandon(task.id); }}
-                          style={{
-                            padding: "8px 16px",
-                            borderRadius: 8,
-                            background: "transparent",
-                            border: "1px solid var(--border-default)",
-                            fontSize: 13,
-                            fontWeight: 500,
-                            cursor: "pointer",
-                            color: "var(--text-muted)",
-                          }}
                         >
                           Abandon
                         </button>
@@ -790,41 +734,29 @@ export default function JobsPage() {
                     </div>
 
                     {/* Progress bar */}
-                    <div
-                      style={{
-                        height: 6,
-                        borderRadius: 3,
-                        background: "var(--surface-tertiary)",
-                        overflow: "hidden",
-                      }}
-                    >
+                    <div className="jobs-progress-track">
                       <div
-                        style={{
-                          height: "100%",
-                          width: `${(task.currentStep / task.totalSteps) * 100}%`,
-                          borderRadius: 3,
-                          background: "var(--accent-primary)",
-                          transition: "width 0.3s ease",
-                        }}
+                        className="jobs-progress-fill"
+                        style={{ width: `${(task.currentStep / task.totalSteps) * 100}%` }}
                       />
                     </div>
 
                     {/* Next step */}
                     {nextStep && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>
-                        <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>{"\u21b3"} Next:</span>{" "}
-                        <span style={{ fontWeight: 600 }}>{nextStep.title}</span>
+                      <div className="jobs-next-step">
+                        <span className="jobs-next-step-accent">{"\u21b3"} Next:</span>{" "}
+                        <span className="jobs-next-step-title">{nextStep.title}</span>
                         {" \u2014 "}
                         {nextStep.description}
                         {nextStep.estimated && (
-                          <span style={{ opacity: 0.7 }}> (~{nextStep.estimated})</span>
+                          <span className="jobs-next-step-estimated"> (~{nextStep.estimated})</span>
                         )}
                       </div>
                     )}
 
                     {/* Blockers */}
                     {task.blockers && task.blockers.length > 0 && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: "var(--status-warning-text)" }}>
+                      <div className="jobs-blockers">
                         Blocked: {task.blockers.join(", ")}
                       </div>
                     )}
@@ -838,37 +770,27 @@ export default function JobsPage() {
 
       {/* Completed */}
       {!loading && (
-        <section style={{ marginBottom: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "var(--text-muted)",
-              }}
-            >
+        <section className="jobs-section">
+          <div className="jobs-section-bar">
+            <h2 className="jobs-section-heading jobs-section-heading-inline">
               Done ({filterType === "all" ? completedTotal : filteredCompleted.length})
             </h2>
 
             {/* Archive controls */}
             {filteredCompleted.length > 0 && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className="jobs-action-bar">
                 {selectedIds.size > 0 && (
                   <button
-                    className="hf-btn hf-btn-secondary"
+                    className="hf-btn hf-btn-secondary jobs-btn-sm"
                     onClick={handleArchive}
                     disabled={archiving}
-                    style={{ padding: "5px 12px", fontSize: 12 }}
                   >
                     {archiving ? "Archiving..." : `Archive ${selectedIds.size}`}
                   </button>
                 )}
                 <button
-                  className="hf-btn hf-btn-ghost"
+                  className="hf-btn hf-btn-ghost jobs-btn-sm"
                   onClick={toggleSelectAll}
-                  style={{ padding: "5px 12px", fontSize: 12 }}
                 >
                   {selectedIds.size === selectableCompleted.length && selectableCompleted.length > 0
                     ? "Deselect All"
@@ -879,13 +801,11 @@ export default function JobsPage() {
           </div>
 
           {filteredCompleted.length === 0 ? (
-            <div
-              style={{ fontSize: 14, padding: "16px 0", color: "var(--text-muted)" }}
-            >
+            <div className="jobs-empty-text">
               {filterType === "all" ? "No completed jobs yet." : `No completed ${JOB_TYPE_LABELS[filterType]?.label || filterType} jobs.`}
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="jobs-card-list jobs-card-list-compact">
               {filteredCompleted.map((task) => {
                 const failed = isFailedJob(task);
                 const selectable = !failed;
@@ -894,63 +814,39 @@ export default function JobsPage() {
                 return (
                   <div
                     key={task.id}
-                    style={{
-                      padding: "12px 20px",
-                      borderRadius: 10,
-                      cursor: "pointer",
-                      transition: "border-color 0.15s ease",
-                      background: "var(--surface-secondary)",
-                      border: "1px solid var(--border-default)",
-                      ...(selected ? { borderColor: "var(--accent-primary)", background: "color-mix(in srgb, var(--accent-primary) 5%, transparent)" } : {}),
-                    }}
+                    className={`jobs-completed-card${selected ? " jobs-completed-card-selected" : ""}`}
                     onClick={() => router.push(getJobClickPath(task))}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="jobs-completed-row">
+                      <div className="jobs-completed-left">
                         {selectable ? (
                           <label
-                            style={{ display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}
+                            className="jobs-checkbox-label"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <input
                               type="checkbox"
                               checked={selected}
                               onChange={() => toggleSelect(task.id)}
-                              style={{ width: 16, height: 16, accentColor: "var(--accent-primary)", cursor: "pointer" }}
+                              className="jobs-checkbox"
                             />
                           </label>
                         ) : (
-                          <div
-                            style={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: "50%",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 11,
-                              color: "white",
-                              fontWeight: 700,
-                              flexShrink: 0,
-                              background: "var(--status-error-text)",
-                            }}
-                          >
+                          <div className="jobs-failed-icon">
                             &#10007;
                           </div>
                         )}
-                        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                        <div className="jobs-completed-label">
                           {getJobLabel(task)}
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 12 }}>
+                      <div className="jobs-completed-right">
                         {failed && (
-                          <span
-                            style={{ fontSize: 11, fontWeight: 600, color: "var(--status-error-text)" }}
-                          >
+                          <span className="jobs-failed-tag">
                             Failed
                           </span>
                         )}
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        <span className="jobs-time-ago">
                           {task.completedAt ? timeAgo(task.completedAt) : timeAgo(task.updatedAt)}
                         </span>
                       </div>
@@ -963,10 +859,9 @@ export default function JobsPage() {
               {/* Load More */}
               {hasMore && filterType === "all" && (
                 <button
-                  className="hf-btn hf-btn-secondary"
+                  className="hf-btn hf-btn-secondary jobs-load-more"
                   onClick={loadMoreCompleted}
                   disabled={loadingMore}
-                  style={{ marginTop: 4 }}
                 >
                   {loadingMore ? "Loading..." : "Load More"}
                 </button>
@@ -980,30 +875,13 @@ export default function JobsPage() {
       {!loading && (
         <section>
           <button
+            className={`jobs-archive-toggle${showArchive ? " jobs-archive-toggle-open" : ""}`}
             onClick={toggleArchive}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              marginBottom: showArchive ? 16 : 0,
-            }}
           >
-            <h2
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "var(--text-muted)",
-              }}
-            >
+            <h2 className="jobs-section-heading jobs-section-heading-inline">
               Archive {archivedTotal > 0 && `(${archivedTotal})`}
             </h2>
-            <span style={{ fontSize: 12, color: "var(--text-muted)", transition: "transform 0.2s ease", transform: showArchive ? "rotate(180deg)" : "rotate(0)" }}>
+            <span className={`jobs-archive-chevron${showArchive ? " jobs-archive-chevron-open" : ""}`}>
               &#9660;
             </span>
           </button>
@@ -1012,29 +890,26 @@ export default function JobsPage() {
             <>
               {/* Archive controls */}
               {archivedTasks.length > 0 && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+                <div className="jobs-archive-controls">
                   {archivedSelectedIds.size > 0 && (
                     <>
                       <button
-                        className="hf-btn hf-btn-secondary"
+                        className="hf-btn hf-btn-secondary jobs-btn-sm"
                         onClick={() => handleUnarchive(Array.from(archivedSelectedIds))}
-                        style={{ padding: "5px 12px", fontSize: 12 }}
                       >
                         Restore {archivedSelectedIds.size}
                       </button>
                       <button
-                        className="hf-btn hf-btn-destructive"
+                        className="hf-btn hf-btn-destructive jobs-btn-sm"
                         onClick={() => setConfirmDelete(true)}
-                        style={{ padding: "5px 12px", fontSize: 12 }}
                       >
                         Delete {archivedSelectedIds.size}
                       </button>
                     </>
                   )}
                   <button
-                    className="hf-btn hf-btn-ghost"
+                    className="hf-btn hf-btn-ghost jobs-btn-sm"
                     onClick={toggleArchiveSelectAll}
-                    style={{ padding: "5px 12px", fontSize: 12 }}
                   >
                     {archivedSelectedIds.size === archivedTasks.length && archivedTasks.length > 0
                       ? "Deselect All"
@@ -1045,34 +920,21 @@ export default function JobsPage() {
 
               {/* Delete confirm dialog */}
               {confirmDelete && (
-                <div
-                  style={{
-                    padding: 16,
-                    background: "color-mix(in srgb, var(--status-error-text) 8%, var(--surface-primary))",
-                    border: "1px solid color-mix(in srgb, var(--status-error-text) 25%, transparent)",
-                    borderRadius: 10,
-                    marginBottom: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
+                <div className="jobs-delete-confirm">
+                  <span className="jobs-delete-confirm-text">
                     Permanently delete {archivedSelectedIds.size} job{archivedSelectedIds.size !== 1 ? "s" : ""}? This cannot be undone.
                   </span>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="jobs-delete-confirm-actions">
                     <button
-                      className="hf-btn hf-btn-secondary"
+                      className="hf-btn hf-btn-secondary jobs-btn-confirm"
                       onClick={() => setConfirmDelete(false)}
-                      style={{ padding: "6px 14px", fontSize: 12 }}
                     >
                       Cancel
                     </button>
                     <button
-                      className="hf-btn hf-btn-destructive"
+                      className="hf-btn hf-btn-destructive jobs-btn-confirm"
                       onClick={handleDelete}
                       disabled={deleting}
-                      style={{ padding: "6px 14px", fontSize: 12 }}
                     >
                       {deleting ? "Deleting..." : "Delete"}
                     </button>
@@ -1081,75 +943,49 @@ export default function JobsPage() {
               )}
 
               {loadingArchive ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: "16px 0" }}><div className="hf-spinner" /></div>
+                <div className="jobs-archive-loading"><div className="hf-spinner" /></div>
               ) : archivedTasks.length === 0 ? (
-                <div
-                  style={{ fontSize: 14, padding: "16px 0", color: "var(--text-muted)" }}
-                >
+                <div className="jobs-empty-text">
                   No archived jobs.
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="jobs-card-list jobs-card-list-compact">
                   {archivedTasks.map((task) => {
                     const selected = archivedSelectedIds.has(task.id);
                     return (
                       <div
                         key={task.id}
-                        style={{
-                          padding: "12px 20px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          opacity: 0.7,
-                          transition: "border-color 0.15s ease, opacity 0.15s ease",
-                          background: "var(--surface-secondary)",
-                          border: "1px solid var(--border-default)",
-                          ...(selected ? { borderColor: "var(--accent-primary)", opacity: 1, background: "color-mix(in srgb, var(--accent-primary) 5%, transparent)" } : {}),
-                        }}
+                        className={`jobs-archived-card${selected ? " jobs-archived-card-selected" : ""}`}
                         onClick={() => router.push(getJobClickPath(task))}
                       >
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div className="jobs-completed-row">
+                          <div className="jobs-completed-left">
                             <label
-                              style={{ display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}
+                              className="jobs-checkbox-label"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <input
                                 type="checkbox"
                                 checked={selected}
                                 onChange={() => toggleArchiveSelect(task.id)}
-                                style={{ width: 16, height: 16, accentColor: "var(--accent-primary)", cursor: "pointer" }}
+                                className="jobs-checkbox"
                               />
                             </label>
-                            <div
-                              style={{
-                                width: 20,
-                                height: 20,
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 11,
-                                color: "white",
-                                fontWeight: 700,
-                                flexShrink: 0,
-                                background: isFailedJob(task) ? "var(--status-error-text)" : "var(--status-success-text)",
-                              }}
-                            >
+                            <div className={`jobs-status-icon ${isFailedJob(task) ? "jobs-status-icon-error" : "jobs-status-icon-success"}`}>
                               {isFailedJob(task) ? "\u2717" : "\u2713"}
                             </div>
-                            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                            <div className="jobs-completed-label">
                               {getJobLabel(task)}
                             </div>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginLeft: 12 }}>
+                          <div className="jobs-completed-right">
                             <button
-                              className="hf-btn hf-btn-ghost"
+                              className="hf-btn hf-btn-ghost jobs-btn-xs"
                               onClick={(e) => { e.stopPropagation(); handleUnarchive([task.id]); }}
-                              style={{ padding: "4px 10px", fontSize: 11 }}
                             >
                               Restore
                             </button>
-                            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                            <span className="jobs-time-ago">
                               {task.completedAt ? timeAgo(task.completedAt) : timeAgo(task.updatedAt)}
                             </span>
                           </div>
@@ -1161,10 +997,9 @@ export default function JobsPage() {
 
                   {archivedHasMore && (
                     <button
-                      className="hf-btn hf-btn-secondary"
+                      className="hf-btn hf-btn-secondary jobs-load-more"
                       onClick={loadMoreArchived}
                       disabled={loadingMoreArchive}
-                      style={{ marginTop: 4 }}
                     >
                       {loadingMoreArchive ? "Loading..." : "Load More"}
                     </button>

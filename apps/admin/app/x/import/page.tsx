@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
 import { MessageCircle, ClipboardList } from "lucide-react";
+import "./import.css";
 
 type ImportTab = "transcripts" | "specs";
 
@@ -315,9 +316,9 @@ export default function ImportPage() {
         <SearchParamsReader onTab={handleTabFromUrl} />
       </Suspense>
 
-      <div style={{ marginBottom: 24 }}>
+      <div className="imp-header">
         <h1 className="hf-page-title">Import</h1>
-        <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+        <p className="imp-subtitle">
           Upload transcripts or BDD specs to populate the database
         </p>
       </div>
@@ -345,15 +346,7 @@ export default function ImportPage() {
                 onDrop={handleTranscriptDrop}
                 onDragOver={(e) => e.preventDefault()}
                 onClick={() => transcriptFileInputRef.current?.click()}
-                style={{
-                  border: "2px dashed var(--border-default)",
-                  borderRadius: 12,
-                  padding: 40,
-                  textAlign: "center",
-                  cursor: "pointer",
-                  background: transcriptFiles.length > 0 ? "var(--success-bg)" : "var(--surface-secondary)",
-                  transition: "all 0.15s",
-                }}
+                className={`imp-dropzone ${transcriptFiles.length > 0 ? "imp-dropzone-active" : ""}`}
               >
                 <input
                   ref={transcriptFileInputRef}
@@ -361,24 +354,24 @@ export default function ImportPage() {
                   multiple
                   accept=".json,.txt,.csv"
                   onChange={handleTranscriptFileChange}
-                  style={{ display: "none" }}
+                  className="imp-hidden-input"
                 />
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📥</div>
+                <div className="imp-dropzone-icon">📥</div>
                 {transcriptFiles.length > 0 ? (
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--success-text)" }}>
+                    <div className="imp-dropzone-title-success">
                       {transcriptFiles.length} file(s) selected
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                    <div className="imp-dropzone-hint">
                       {transcriptFiles.map((f) => f.name).join(", ")}
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <div className="imp-dropzone-title">
                       Drop transcript files here or click to browse
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                    <div className="imp-dropzone-hint">
                       Supports JSON, TXT, CSV formats
                     </div>
                   </div>
@@ -386,11 +379,11 @@ export default function ImportPage() {
               </div>
 
               {/* Options */}
-              <div style={{ marginTop: 20, padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-primary)" }}>
+              <div className="imp-options">
+                <label className="imp-options-label">
                   If call already exists (by ID):
                 </label>
-                <div style={{ display: "flex", gap: 12 }}>
+                <div className="imp-radio-group">
                   {[
                     { value: "skip", label: "Skip", desc: "Keep existing call" },
                     { value: "overwrite", label: "Overwrite", desc: "Replace transcript" },
@@ -398,14 +391,7 @@ export default function ImportPage() {
                   ].map((opt) => (
                     <label
                       key={opt.value}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        background: duplicateHandling === opt.value ? "var(--accent-bg)" : "var(--surface-primary)",
-                        border: duplicateHandling === opt.value ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                        borderRadius: 8,
-                        cursor: "pointer",
-                      }}
+                      className={`imp-radio-option ${duplicateHandling === opt.value ? "imp-radio-option-selected" : ""}`}
                     >
                       <input
                         type="radio"
@@ -413,10 +399,10 @@ export default function ImportPage() {
                         value={opt.value}
                         checked={duplicateHandling === opt.value}
                         onChange={(e) => setDuplicateHandling(e.target.value as any)}
-                        style={{ marginRight: 8 }}
+                        className="imp-radio-input"
                       />
-                      <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{opt.label}</span>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, marginLeft: 20 }}>
+                      <span className="imp-radio-label">{opt.label}</span>
+                      <div className="imp-radio-desc">
                         {opt.desc}
                       </div>
                     </label>
@@ -424,17 +410,17 @@ export default function ImportPage() {
                 </div>
 
                 {/* Save to raw folder option */}
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-default)" }}>
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <div className="imp-checkbox-section">
+                  <label className="imp-checkbox-label">
                     <input
                       type="checkbox"
                       checked={saveToRaw}
                       onChange={(e) => setSaveToRaw(e.target.checked)}
-                      style={{ width: 18, height: 18, marginTop: 2 }}
+                      className="imp-checkbox"
                     />
                     <div>
-                      <span style={{ fontWeight: 500, fontSize: 13, color: "var(--text-primary)" }}>Save to raw folder</span>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                      <span className="imp-checkbox-text">Save to raw folder</span>
+                      <div className="imp-checkbox-hint">
                         Copies files to HF_KB_PATH/sources/transcripts/raw for future bulk imports
                       </div>
                     </div>
@@ -443,20 +429,11 @@ export default function ImportPage() {
               </div>
 
               {/* Import Button */}
-              <div style={{ marginTop: 20 }}>
+              <div className="imp-btn-row">
                 <button
                   onClick={handleTranscriptPreview}
                   disabled={transcriptFiles.length === 0 || transcriptImporting}
-                  style={{
-                    padding: "12px 24px",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    background: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-placeholder)" : "var(--accent-primary)",
-                    color: transcriptFiles.length === 0 || transcriptImporting ? "var(--text-muted)" : "white",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: transcriptFiles.length === 0 || transcriptImporting ? "not-allowed" : "pointer",
-                  }}
+                  className="imp-btn-import"
                 >
                   {transcriptImporting ? "Checking..." : "Import Transcripts"}
                 </button>
@@ -467,53 +444,48 @@ export default function ImportPage() {
           {/* Step 2: Conflict Resolution */}
           {importStep === "conflicts" && previewResult && (
             <div>
-              <div style={{ marginBottom: 20, padding: 16, background: "var(--warning-bg)", borderRadius: 8, border: "1px solid var(--warning-border)" }}>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)", marginBottom: 8 }}>
+              <div className="imp-conflict-banner">
+                <div className="imp-conflict-banner-title">
                   ⚠️ {previewResult.conflicts.length} Caller Conflict{previewResult.conflicts.length > 1 ? "s" : ""} Detected
                 </div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                <div className="imp-conflict-banner-desc">
                   The following callers match existing records by phone number but have different names.
                   Choose how to handle each one:
                 </div>
               </div>
 
               {/* Summary */}
-              <div style={{ marginBottom: 20, display: "flex", gap: 16, fontSize: 13, color: "var(--text-secondary)" }}>
+              <div className="imp-conflict-summary">
                 <span>{previewResult.summary.filesCount} file(s)</span>
                 <span>{previewResult.summary.callersCount} caller(s)</span>
                 <span>{previewResult.summary.callsCount} call(s)</span>
               </div>
 
               {/* Conflict Cards */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
+              <div className="imp-conflict-list">
                 {previewResult.conflicts.map((conflict) => (
                   <div
                     key={conflict.conflictKey}
-                    style={{
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 12,
-                      padding: 20,
-                    }}
+                    className="imp-conflict-card"
                   >
                     {/* Match info */}
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
-                        Match by {conflict.matchType}: <code style={{ background: "var(--surface-secondary)", padding: "2px 6px", borderRadius: 4 }}>{conflict.matchValue}</code>
+                    <div className="imp-conflict-match-info">
+                      <div className="imp-conflict-match-label">
+                        Match by {conflict.matchType}: <code className="imp-conflict-match-code">{conflict.matchValue}</code>
                       </div>
                     </div>
 
                     {/* Side by side comparison */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div className="imp-conflict-grid">
                       {/* Existing Caller */}
-                      <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase" }}>
+                      <div className="imp-conflict-side imp-conflict-side-existing">
+                        <div className="imp-conflict-side-label">
                           Existing in Database
                         </div>
-                        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                        <div className="imp-conflict-name">
                           {conflict.existingCaller.name || "(no name)"}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        <div className="imp-conflict-detail">
                           {conflict.existingCaller.phone && <div>📱 {conflict.existingCaller.phone}</div>}
                           {conflict.existingCaller.email && <div>📧 {conflict.existingCaller.email}</div>}
                           <div>📞 {conflict.existingCaller.callCount} call(s) on record</div>
@@ -521,54 +493,46 @@ export default function ImportPage() {
                         <Link
                           href={`/x/callers/${conflict.existingCaller.id}`}
                           target="_blank"
-                          style={{ fontSize: 11, color: "var(--accent-primary)", marginTop: 8, display: "inline-block" }}
+                          className="imp-conflict-link"
                         >
                           View caller →
                         </Link>
                       </div>
 
                       {/* Incoming Caller */}
-                      <div style={{ padding: 16, background: "var(--accent-bg)", borderRadius: 8 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase" }}>
+                      <div className="imp-conflict-side imp-conflict-side-incoming">
+                        <div className="imp-conflict-side-label">
                           From Import
                         </div>
-                        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+                        <div className="imp-conflict-name">
                           {conflict.incomingCaller.name || "(no name)"}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        <div className="imp-conflict-detail">
                           {conflict.incomingCaller.phone && <div>📱 {conflict.incomingCaller.phone}</div>}
                           <div>📞 {conflict.incomingCaller.callCount} call(s) to import</div>
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8, fontStyle: "italic" }}>
+                        <div className="imp-conflict-preview">
                           &ldquo;{conflict.incomingCaller.firstTranscriptPreview}&rdquo;
                         </div>
                       </div>
                     </div>
 
                     {/* Resolution Options */}
-                    <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                    <div className="imp-conflict-resolution-row">
                       {[
-                        { value: "merge" as const, label: "Merge", desc: "Add calls to existing caller", color: "var(--success-text)" },
-                        { value: "create_new" as const, label: "Create New", desc: "Create as separate caller", color: "var(--accent-primary)" },
-                        { value: "skip" as const, label: "Skip", desc: "Don't import these calls", color: "var(--text-muted)" },
+                        { value: "merge" as const, label: "Merge", desc: "Add calls to existing caller", colorClass: "imp-resolution-color-success" },
+                        { value: "create_new" as const, label: "Create New", desc: "Create as separate caller", colorClass: "imp-resolution-color-accent" },
+                        { value: "skip" as const, label: "Skip", desc: "Don't import these calls", colorClass: "imp-resolution-color-muted" },
                       ].map((opt) => (
                         <button
                           key={opt.value}
                           onClick={() => handleConflictResolution(conflict.conflictKey, opt.value)}
-                          style={{
-                            flex: 1,
-                            padding: "10px 12px",
-                            background: conflictResolutions[conflict.conflictKey] === opt.value ? "var(--surface-secondary)" : "transparent",
-                            border: conflictResolutions[conflict.conflictKey] === opt.value ? `2px solid ${opt.color}` : "1px solid var(--border-default)",
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            textAlign: "left",
-                          }}
+                          className={`imp-resolution-btn ${conflictResolutions[conflict.conflictKey] === opt.value ? `imp-resolution-btn-selected ${opt.colorClass}` : ""}`}
                         >
-                          <div style={{ fontWeight: 600, fontSize: 13, color: conflictResolutions[conflict.conflictKey] === opt.value ? opt.color : "var(--text-primary)" }}>
+                          <div className={`imp-resolution-label ${conflictResolutions[conflict.conflictKey] === opt.value ? opt.colorClass : ""}`}>
                             {opt.label}
                           </div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{opt.desc}</div>
+                          <div className="imp-resolution-desc">{opt.desc}</div>
                         </button>
                       ))}
                     </div>
@@ -577,35 +541,17 @@ export default function ImportPage() {
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: "flex", gap: 12 }}>
+              <div className="imp-action-row">
                 <button
                   onClick={() => setImportStep("select")}
-                  style={{
-                    padding: "12px 24px",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    background: "transparent",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                  }}
+                  className="imp-btn-back"
                 >
                   ← Back
                 </button>
                 <button
                   onClick={handleTranscriptImport}
                   disabled={transcriptImporting}
-                  style={{
-                    padding: "12px 24px",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    background: transcriptImporting ? "var(--text-placeholder)" : "var(--success-text)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: transcriptImporting ? "not-allowed" : "pointer",
-                  }}
+                  className="imp-btn-import-success"
                 >
                   {transcriptImporting ? "Importing..." : "Confirm & Import"}
                 </button>
@@ -615,11 +561,11 @@ export default function ImportPage() {
 
           {/* Step 3: Result */}
           {importStep === "result" && transcriptResult && (
-            <div style={{ padding: 20, background: "var(--success-bg)", border: "1px solid var(--success-border)", borderRadius: 12 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--success-text)", marginBottom: 12 }}>
+            <div className="imp-result-success">
+              <div className="imp-result-title">
                 ✓ Import Complete
               </div>
-              <div style={{ display: "flex", gap: 24, fontSize: 14, color: "var(--text-primary)", flexWrap: "wrap" }}>
+              <div className="imp-result-stats">
                 {transcriptResult.created !== undefined && transcriptResult.created > 0 && (
                   <span>🆕 {transcriptResult.created} new caller(s)</span>
                 )}
@@ -630,33 +576,23 @@ export default function ImportPage() {
                   <span>📞 {transcriptResult.callsImported} call(s) imported</span>
                 )}
                 {transcriptResult.skipped !== undefined && transcriptResult.skipped > 0 && (
-                  <span style={{ color: "var(--text-muted)" }}>⏭️ {transcriptResult.skipped} skipped</span>
+                  <span className="imp-result-stat-muted">⏭️ {transcriptResult.skipped} skipped</span>
                 )}
               </div>
 
               {transcriptResult.callers && transcriptResult.callers.length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>Callers:</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div className="imp-result-callers">
+                  <div className="imp-result-callers-label">Callers:</div>
+                  <div className="imp-result-callers-list">
                     {transcriptResult.callers.map((c) => (
                       <Link
                         key={c.id}
                         href={`/x/callers/${c.id}`}
-                        style={{
-                          padding: "6px 12px",
-                          background: c.isNew ? "var(--accent-bg)" : c.merged ? "var(--warning-bg)" : "var(--surface-secondary)",
-                          color: c.isNew ? "var(--accent-primary)" : "var(--text-primary)",
-                          borderRadius: 6,
-                          fontSize: 13,
-                          textDecoration: "none",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
+                        className={`imp-caller-chip ${c.isNew ? "imp-caller-chip-new" : c.merged ? "imp-caller-chip-merged" : ""}`}
                       >
                         {c.name || c.email || c.id.slice(0, 8)}
-                        {c.isNew && <span style={{ fontSize: 10, background: "var(--accent-primary)", color: "white", padding: "1px 4px", borderRadius: 3 }}>NEW</span>}
-                        {c.merged && <span style={{ fontSize: 10, background: "var(--warning-text)", color: "white", padding: "1px 4px", borderRadius: 3 }}>MERGED</span>}
+                        {c.isNew && <span className="imp-caller-badge imp-caller-badge-new">NEW</span>}
+                        {c.merged && <span className="imp-caller-badge imp-caller-badge-merged">MERGED</span>}
                       </Link>
                     ))}
                   </div>
@@ -664,20 +600,20 @@ export default function ImportPage() {
               )}
 
               {transcriptResult.savedToRaw && transcriptResult.savedToRaw.length > 0 && (
-                <div style={{ marginTop: 16, padding: 12, background: "var(--accent-bg)", borderRadius: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--accent-primary)", marginBottom: 4 }}>
+                <div className="imp-result-raw-saved">
+                  <div className="imp-result-raw-saved-text">
                     📁 Saved to raw folder ({transcriptResult.savedToRaw.length} files)
                   </div>
                 </div>
               )}
 
               {transcriptResult.errors && transcriptResult.errors.length > 0 && (
-                <div style={{ marginTop: 16, padding: 12, background: "var(--warning-bg)", borderRadius: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--warning-text)", marginBottom: 4 }}>
+                <div className="imp-result-warnings">
+                  <div className="imp-result-warnings-title">
                     Warnings:
                   </div>
                   {transcriptResult.errors.map((err, i) => (
-                    <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    <div key={i} className="imp-result-warning-item">
                       {err}
                     </div>
                   ))}
@@ -686,17 +622,7 @@ export default function ImportPage() {
 
               <button
                 onClick={resetImport}
-                style={{
-                  marginTop: 20,
-                  padding: "10px 20px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: "var(--surface-primary)",
-                  color: "var(--text-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                }}
+                className="imp-btn-reset"
               >
                 Import More
               </button>
@@ -705,7 +631,7 @@ export default function ImportPage() {
 
           {/* Error */}
           {transcriptError && (
-            <div style={{ marginTop: 20, padding: 16, background: "var(--error-bg)", color: "var(--error-text)", borderRadius: 8 }}>
+            <div className="imp-error">
               {transcriptError}
             </div>
           )}
@@ -724,15 +650,7 @@ export default function ImportPage() {
                 onDrop={handleSpecDrop}
                 onDragOver={(e) => e.preventDefault()}
                 onClick={() => specFileInputRef.current?.click()}
-                style={{
-                  border: "2px dashed var(--border-default)",
-                  borderRadius: 12,
-                  padding: 40,
-                  textAlign: "center",
-                  cursor: "pointer",
-                  background: specFiles.length > 0 ? "var(--warning-bg)" : "var(--surface-secondary)",
-                  transition: "all 0.15s",
-                }}
+                className={`imp-dropzone ${specFiles.length > 0 ? "imp-dropzone-spec-active" : ""}`}
               >
                 <input
                   ref={specFileInputRef}
@@ -740,24 +658,24 @@ export default function ImportPage() {
                   multiple
                   accept=".json,.spec.json"
                   onChange={handleSpecFileChange}
-                  style={{ display: "none" }}
+                  className="imp-hidden-input"
                 />
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
+                <div className="imp-dropzone-icon">📋</div>
                 {specFiles.length > 0 ? (
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)" }}>
+                    <div className="imp-dropzone-title-warning">
                       {specFiles.length} spec file(s) selected
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                    <div className="imp-dropzone-hint">
                       {specFiles.map((f) => f.name).join(", ")}
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <div className="imp-dropzone-title">
                       Drop .spec.json files here or click to browse
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                    <div className="imp-dropzone-hint">
                       BDD specification files (e.g., CA-001-cognitive-activation.spec.json)
                     </div>
                   </div>
@@ -765,17 +683,17 @@ export default function ImportPage() {
               </div>
 
               {/* Options */}
-              <div style={{ marginTop: 20, padding: 16, background: "var(--surface-secondary)", borderRadius: 8 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <div className="imp-options">
+                <label className="imp-checkbox-label-center">
                   <input
                     type="checkbox"
                     checked={autoActivate}
                     onChange={(e) => setAutoActivate(e.target.checked)}
-                    style={{ width: 18, height: 18 }}
+                    className="imp-checkbox-no-mt"
                   />
                   <div>
-                    <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>Auto-activate specs</span>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    <span className="imp-checkbox-text-default">Auto-activate specs</span>
+                    <div className="imp-checkbox-hint-inline">
                       Create Parameters, ScoringAnchors, and AnalysisSpec records automatically
                     </div>
                   </div>
@@ -783,20 +701,11 @@ export default function ImportPage() {
               </div>
 
               {/* Import Button */}
-              <div style={{ marginTop: 20 }}>
+              <div className="imp-btn-row">
                 <button
                   onClick={handleSpecImport}
                   disabled={specFiles.length === 0 || specImporting}
-                  style={{
-                    padding: "12px 24px",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    background: specFiles.length === 0 || specImporting ? "var(--text-placeholder)" : "var(--warning-text)",
-                    color: specFiles.length === 0 || specImporting ? "var(--text-muted)" : "white",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: specFiles.length === 0 || specImporting ? "not-allowed" : "pointer",
-                  }}
+                  className="imp-btn-import-warning"
                 >
                   {specImporting ? "Importing..." : "Import BDD Specs"}
                 </button>
@@ -804,59 +713,46 @@ export default function ImportPage() {
 
               {/* Error */}
               {specError && (
-                <div style={{ marginTop: 20, padding: 16, background: "var(--error-bg)", color: "var(--error-text)", borderRadius: 8 }}>
+                <div className="imp-error">
                   {specError}
                 </div>
               )}
 
               {/* Result */}
               {specResult && (
-                <div style={{ marginTop: 20, padding: 20, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 12 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--warning-text)", marginBottom: 12 }}>
+                <div className="imp-spec-result">
+                  <div className="imp-spec-result-title">
                     Import Complete
                   </div>
-                  <div style={{ display: "flex", gap: 24, fontSize: 14, color: "var(--text-primary)" }}>
+                  <div className="imp-spec-result-stats">
                     <span>Created: {specResult.created || 0}</span>
                     <span>Updated: {specResult.updated || 0}</span>
-                    {(specResult.errors || 0) > 0 && <span style={{ color: "var(--error-text)" }}>Errors: {specResult.errors}</span>}
+                    {(specResult.errors || 0) > 0 && <span className="imp-spec-result-error-count">Errors: {specResult.errors}</span>}
                   </div>
 
                   {specResult.results && specResult.results.length > 0 && (
-                    <div style={{ marginTop: 16 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: "var(--text-secondary)" }}>Results:</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div className="imp-spec-results-list">
+                      <div className="imp-spec-results-label">Results:</div>
+                      <div className="imp-spec-results-col">
                         {specResult.results.map((r) => (
                           <div
                             key={r.specId}
-                            style={{
-                              padding: "8px 12px",
-                              background: r.status === "error" ? "var(--error-bg)" : r.status === "created" ? "var(--success-bg)" : "var(--surface-secondary)",
-                              border: r.status === "error" ? "1px solid var(--error-border)" : "1px solid var(--border-default)",
-                              borderRadius: 6,
-                              fontSize: 13,
-                            }}
+                            className={`imp-spec-result-item ${r.status === "error" ? "imp-spec-result-item-error" : r.status === "created" ? "imp-spec-result-item-created" : ""}`}
                           >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{r.specId}</span>
+                            <div className="imp-spec-result-row">
+                              <span className="imp-spec-result-id">{r.specId}</span>
                               <span
-                                style={{
-                                  padding: "2px 8px",
-                                  borderRadius: 4,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  background: r.status === "error" ? "var(--error-text)" : r.status === "created" ? "var(--success-text)" : "var(--text-muted)",
-                                  color: "white",
-                                }}
+                                className={`imp-spec-result-badge ${r.status === "error" ? "imp-spec-result-badge-error" : r.status === "created" ? "imp-spec-result-badge-created" : "imp-spec-result-badge-updated"}`}
                               >
                                 {r.status.toUpperCase()}
                               </span>
                             </div>
-                            <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>{r.name}</div>
+                            <div className="imp-spec-result-name">{r.name}</div>
                             {r.error && (
-                              <div style={{ color: "var(--error-text)", fontSize: 11, marginTop: 4 }}>{r.error}</div>
+                              <div className="imp-spec-result-error-text">{r.error}</div>
                             )}
                             {r.compileWarnings && r.compileWarnings.length > 0 && (
-                              <div style={{ color: "var(--warning-text)", fontSize: 11, marginTop: 4 }}>
+                              <div className="imp-spec-result-warning-text">
                                 Warnings: {r.compileWarnings.join(", ")}
                               </div>
                             )}
@@ -869,14 +765,14 @@ export default function ImportPage() {
               )}
 
               {/* Help Section */}
-              <div style={{ marginTop: 32, padding: 20, background: "var(--surface-secondary)", borderRadius: 8 }}>
-                <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+              <div className="imp-help">
+                <h3 className="imp-help-title">
                   About BDD Specs
                 </h3>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
+                <div className="imp-help-body">
                   <p><strong>BDD Specs</strong> define analysis parameters, triggers, actions, and prompt guidance.</p>
                   <p>Each spec creates:</p>
-                  <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                  <ul className="imp-help-list">
                     <li><strong>BDDFeatureSet</strong> - Stores the raw spec JSON</li>
                     <li><strong>AnalysisSpec</strong> - Runtime spec with compiled promptTemplate</li>
                     <li><strong>Parameters</strong> - Measurable dimensions (traits, behaviors)</li>

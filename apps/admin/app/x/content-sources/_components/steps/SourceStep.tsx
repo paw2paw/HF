@@ -13,6 +13,7 @@ import {
 } from "../shared/badges";
 
 import type { StepProps } from "../types";
+import "./source-step.css";
 
 // ── Source Card ──────────────────────────────────────
 
@@ -31,56 +32,22 @@ function SourceCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
-      style={{
-        padding: 16,
-        borderRadius: 12,
-        border: isSelected
-          ? "2px solid var(--accent-primary)"
-          : "1px solid var(--border-default)",
-        background: isSelected
-          ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
-          : "var(--surface-secondary)",
-        cursor: "pointer",
-        transition: "all 0.15s ease",
-        position: "relative",
-      }}
+      className={`src-card${isSelected ? " src-card--selected" : ""}`}
     >
       {/* Selected checkmark */}
       {isSelected && (
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            width: 22,
-            height: 22,
-            borderRadius: "50%",
-            background: "var(--accent-primary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--button-primary-text, #fff)",
-            fontSize: 13,
-            fontWeight: 700,
-          }}
-        >
+        <div className="src-card-check">
           {"\u2713"}
         </div>
       )}
 
       <div
-        style={{
-          fontSize: 15,
-          fontWeight: 600,
-          color: isSelected ? "var(--accent-primary)" : "var(--text-primary)",
-          marginBottom: 8,
-          paddingRight: isSelected ? 28 : 0,
-        }}
+        className={`src-card-name${isSelected ? " src-card-name--selected" : ""}`}
       >
         {source.name}
       </div>
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+      <div className="src-card-badges">
         <TrustBadge level={source.trustLevel} />
         {source.documentType && (
           <DocumentTypeBadge
@@ -90,14 +57,7 @@ function SourceCard({
         )}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          fontSize: 12,
-          color: "var(--text-muted)",
-        }}
-      >
+      <div className="src-card-stats">
         <span>
           {source._count.assertions} teaching point
           {source._count.assertions !== 1 ? "s" : ""}
@@ -106,14 +66,7 @@ function SourceCard({
       </div>
 
       {source.qualificationRef && (
-        <div
-          style={{
-            fontSize: 11,
-            color: "var(--text-muted)",
-            marginTop: 4,
-            fontFamily: "monospace",
-          }}
-        >
+        <div className="src-card-qualification">
           {source.qualificationRef}
         </div>
       )}
@@ -389,40 +342,17 @@ function UploadNewSourceSection({
     }
   }
 
-  const inputStyle = {
-    width: "100%" as const,
-    padding: "6px 10px",
-    borderRadius: 4,
-    border: "1px solid var(--border-default)",
-    backgroundColor: "var(--surface-primary)",
-    color: "var(--text-primary)",
-    fontSize: 13,
-  };
-
   if (sourceCreated) {
     return (
-      <div className="hf-banner hf-banner-success" style={{ padding: 24, borderRadius: 12, textAlign: "center", display: "block" }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>{"\u2705"}</div>
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            marginBottom: 4,
-          }}
-        >
+      <div className="hf-banner hf-banner-success src-created-banner">
+        <div className="src-created-icon">{"\u2705"}</div>
+        <div className="src-created-title">
           {getData<boolean>("hasFile")
             ? `File uploaded & source created: ${getData<string>("sourceName")}`
             : `Source created: ${getData<string>("sourceName")}`}
         </div>
         {classificationResult && (
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              marginBottom: 16,
-            }}
-          >
+          <div className="src-created-classification">
             Classified as{" "}
             {DOCUMENT_TYPES.find((d) => d.value === classificationResult.type)
               ?.label}{" "}
@@ -431,8 +361,7 @@ function UploadNewSourceSection({
         )}
         <button
           onClick={onNext}
-          className="hf-btn hf-btn-primary"
-          style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
+          className="hf-btn hf-btn-primary src-created-btn"
         >
           {getData<boolean>("hasFile")
             ? "Continue to Extract"
@@ -445,14 +374,7 @@ function UploadNewSourceSection({
   return (
     <>
       {/* Two entry paths side by side */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 24,
-          marginBottom: 24,
-        }}
-      >
+      <div className="src-entry-grid">
         {/* Path A: Drop a file */}
         <div
           onDragOver={(e) => {
@@ -461,23 +383,7 @@ function UploadNewSourceSection({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          style={{
-            padding: 32,
-            borderRadius: 12,
-            border: dragOver
-              ? "2px dashed var(--accent-primary)"
-              : file
-                ? "2px solid var(--accent-primary)"
-                : "2px dashed var(--border-default)",
-            background: dragOver
-              ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
-              : file
-                ? "color-mix(in srgb, var(--accent-primary) 4%, transparent)"
-                : "var(--surface-secondary)",
-            textAlign: "center",
-            cursor: "pointer",
-            transition: "all 0.15s ease",
-          }}
+          className={`src-dropzone${dragOver ? " src-dropzone--dragover" : file ? " src-dropzone--has-file" : ""}`}
           onClick={() => {
             const input = document.createElement("input");
             input.type = "file";
@@ -504,36 +410,23 @@ function UploadNewSourceSection({
             input.click();
           }}
         >
-          <div style={{ fontSize: 36, marginBottom: 8 }}>
+          <div className="src-dropzone-icon">
             {file ? "\u2705" : "\uD83D\uDCC4"}
           </div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              marginBottom: 4,
-            }}
-          >
+          <div className="src-dropzone-title">
             {file ? file.name : "Drop a file here"}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <div className="src-dropzone-hint">
             {file ? `${(file.size / 1024).toFixed(1)} KB` : "PDF, TXT, MD, JSON"}
           </div>
         </div>
 
         {/* Path B: Describe it */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-            }}
-          >
+        <div className="src-describe-col">
+          <div className="src-describe-label">
             Or describe the source
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="src-describe-row">
             <input
               type="text"
               value={intentText}
@@ -546,8 +439,7 @@ function UploadNewSourceSection({
               }}
               placeholder='e.g. "CII R04 Insurance Syllabus 2025/26" or ISBN'
               disabled={suggesting}
-              className="hf-input"
-              style={{ flex: 1 }}
+              className="hf-input src-describe-input"
             />
             <button
               onClick={handleSuggest}
@@ -558,29 +450,12 @@ function UploadNewSourceSection({
             </button>
           </div>
           {suggestError && (
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--status-error-text)",
-                margin: 0,
-              }}
-            >
+            <p className="src-suggest-error">
               {suggestError}
             </p>
           )}
           {aiInterpretation && (
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                background:
-                  "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
-                border:
-                  "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
-                fontSize: 12,
-                color: "var(--text-secondary)",
-              }}
-            >
+            <div className="src-ai-interpretation">
               {"\u2728"} {aiInterpretation}
             </div>
           )}
@@ -589,64 +464,28 @@ function UploadNewSourceSection({
 
       {/* Metadata card */}
       {metadata && (
-        <div
-          style={{
-            padding: 16,
-            borderRadius: 8,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-secondary)",
-            marginBottom: 16,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 12,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--text-primary)",
-              }}
-            >
+        <div className="src-meta-card">
+          <div className="src-meta-header">
+            <span className="src-meta-title">
               Source Details
             </span>
             <button
               onClick={() => setEditingMetadata(!editingMetadata)}
-              style={{
-                padding: "4px 12px",
-                borderRadius: 4,
-                border: "1px solid var(--border-default)",
-                background: "transparent",
-                color: "var(--text-secondary)",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="src-meta-edit-btn"
             >
               {editingMetadata ? "Collapse" : "Edit"}
             </button>
           </div>
 
           {!editingMetadata ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 8,
-                fontSize: 13,
-              }}
-            >
+            <div className="src-meta-preview">
               <div>
-                <span style={{ color: "var(--text-muted)" }}>Name:</span>{" "}
+                <span className="src-meta-label">Name:</span>{" "}
                 <strong>{metadata.name}</strong>
               </div>
               <div>
-                <span style={{ color: "var(--text-muted)" }}>Slug:</span>{" "}
-                <code style={{ fontSize: 11 }}>{metadata.slug}</code>
+                <span className="src-meta-label">Slug:</span>{" "}
+                <code className="src-meta-slug">{metadata.slug}</code>
               </div>
               {metadata.documentType && (
                 <div>
@@ -660,13 +499,13 @@ function UploadNewSourceSection({
               )}
               {metadata.publisherOrg && (
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>Publisher:</span>{" "}
+                  <span className="src-meta-label">Publisher:</span>{" "}
                   {metadata.publisherOrg}
                 </div>
               )}
               {metadata.qualificationRef && (
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>
+                  <span className="src-meta-label">
                     Qualification:
                   </span>{" "}
                   {metadata.qualificationRef}
@@ -675,14 +514,7 @@ function UploadNewSourceSection({
             </div>
           ) : (
             <div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  gap: 10,
-                  marginBottom: 10,
-                }}
-              >
+              <div className="src-edit-grid">
                 {[
                   { key: "slug", label: "Slug *" },
                   { key: "name", label: "Name *" },
@@ -690,14 +522,7 @@ function UploadNewSourceSection({
                   { key: "qualificationRef", label: "Qualification Ref" },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--text-muted)",
-                        marginBottom: 2,
-                      }}
-                    >
+                    <div className="src-field-label">
                       {label}
                     </div>
                     <input
@@ -705,27 +530,14 @@ function UploadNewSourceSection({
                       onChange={(e) =>
                         setEditForm({ ...editForm, [key]: e.target.value })
                       }
-                      style={inputStyle}
+                      className="src-field-input"
                     />
                   </div>
                 ))}
               </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  gap: 10,
-                }}
-              >
+              <div className="src-edit-grid--no-mb">
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div className="src-field-label">
                     Document Type
                   </div>
                   <select
@@ -733,7 +545,7 @@ function UploadNewSourceSection({
                     onChange={(e) =>
                       setEditForm({ ...editForm, documentType: e.target.value })
                     }
-                    style={inputStyle}
+                    className="src-field-input"
                   >
                     <option value="">Auto-detect</option>
                     {DOCUMENT_TYPES.map((d) => (
@@ -744,14 +556,7 @@ function UploadNewSourceSection({
                   </select>
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div className="src-field-label">
                     Trust Level
                   </div>
                   <select
@@ -759,7 +564,7 @@ function UploadNewSourceSection({
                     onChange={(e) =>
                       setEditForm({ ...editForm, trustLevel: e.target.value })
                     }
-                    style={inputStyle}
+                    className="src-field-input"
                   >
                     {TRUST_LEVELS.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -769,14 +574,7 @@ function UploadNewSourceSection({
                   </select>
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div className="src-field-label">
                     Authors
                   </div>
                   <input
@@ -785,18 +583,11 @@ function UploadNewSourceSection({
                       setEditForm({ ...editForm, authors: e.target.value })
                     }
                     placeholder="Comma-separated"
-                    style={inputStyle}
+                    className="src-field-input"
                   />
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "var(--text-muted)",
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div className="src-field-label">
                     ISBN
                   </div>
                   <input
@@ -804,7 +595,7 @@ function UploadNewSourceSection({
                     onChange={(e) =>
                       setEditForm({ ...editForm, isbn: e.target.value })
                     }
-                    style={inputStyle}
+                    className="src-field-input"
                   />
                 </div>
               </div>
@@ -812,16 +603,7 @@ function UploadNewSourceSection({
           )}
 
           {classificationResult && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "8px 12px",
-                borderRadius: 6,
-                background:
-                  "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
-                fontSize: 12,
-              }}
-            >
+            <div className="src-classification">
               AI classified as{" "}
               <strong>
                 {DOCUMENT_TYPES.find(
@@ -835,29 +617,12 @@ function UploadNewSourceSection({
       )}
 
       {/* Subject selection */}
-      <div
-        style={{
-          padding: 16,
-          borderRadius: 8,
-          border: "1px solid var(--border-default)",
-          background: "var(--surface-secondary)",
-          marginBottom: 16,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 12,
-          }}
-        >
+      <div className="src-subject-card">
+        <div className="src-subject-title">
           Which subject does this belong to?
         </div>
-        <div
-          style={{ display: "flex", gap: 12, alignItems: "flex-end" }}
-        >
-          <div style={{ flex: 1 }}>
+        <div className="src-subject-row">
+          <div className="src-subject-select">
             <FancySelect
               options={subjects}
               value={selectedSubjectId}
@@ -865,22 +630,15 @@ function UploadNewSourceSection({
               placeholder="Select a subject..."
             />
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-muted)",
-              padding: "8px 0",
-            }}
-          >
+          <div className="src-subject-or">
             or
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="src-subject-new-row">
             <input
               value={newSubjectName}
               onChange={(e) => setNewSubjectName(e.target.value)}
               placeholder="New subject name"
-              className="hf-input"
-              style={{ width: "auto" }}
+              className="hf-input src-input-auto"
             />
             <button
               onClick={handleCreateSubject}
@@ -899,8 +657,7 @@ function UploadNewSourceSection({
       <button
         onClick={handleCreateSource}
         disabled={creating || classifying || !metadata?.name}
-        className="hf-btn hf-btn-primary"
-        style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
+        className="hf-btn hf-btn-primary src-btn-lg"
       >
         {creating
           ? "Creating source..."
@@ -1059,23 +816,10 @@ export default function SourceStep({
 
   return (
     <div>
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          color: "var(--text-primary)",
-          margin: "0 0 8px",
-        }}
-      >
+      <h2 className="src-heading">
         What do you want to teach from?
       </h2>
-      <p
-        style={{
-          fontSize: 14,
-          color: "var(--text-muted)",
-          margin: "0 0 24px",
-        }}
-      >
+      <p className="src-subtitle">
         Select an existing content source or upload a new one.
       </p>
 
@@ -1083,22 +827,13 @@ export default function SourceStep({
       {!showUploadNew && (
         <>
           {/* Search + filter row */}
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              marginBottom: 16,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <div className="src-filter-row">
             <input
               type="text"
               placeholder="Search sources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="hf-input"
-              style={{ flex: 1, minWidth: 200 }}
+              className="hf-input src-search-input"
             />
             {TRUST_LEVELS.map((t) => (
               <button
@@ -1106,24 +841,12 @@ export default function SourceStep({
                 onClick={() =>
                   setTrustFilter(trustFilter === t.value ? "" : t.value)
                 }
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border:
-                    trustFilter === t.value
-                      ? `1px solid ${t.color}`
-                      : "1px solid var(--border-default)",
-                  background:
-                    trustFilter === t.value
-                      ? t.bg
-                      : "var(--surface-secondary)",
-                  color:
-                    trustFilter === t.value ? t.color : "var(--text-muted)",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
+                className="src-trust-filter"
+                style={
+                  trustFilter === t.value
+                    ? { borderColor: t.color, background: t.bg, color: t.color }
+                    : undefined
+                }
               >
                 {t.label.replace(/^L\d\s/, "")}
               </button>
@@ -1131,44 +854,22 @@ export default function SourceStep({
           </div>
 
           {/* Source count */}
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--text-muted)",
-              marginBottom: 12,
-            }}
-          >
+          <div className="src-count">
             {filteredSources.length} source
             {filteredSources.length !== 1 ? "s" : ""} available
           </div>
 
           {/* Card grid */}
           {loadingSources ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}><div className="hf-spinner" /></div>
+            <div className="src-loading-center"><div className="hf-spinner" /></div>
           ) : filteredSources.length === 0 ? (
-            <div
-              style={{
-                padding: 32,
-                textAlign: "center",
-                color: "var(--text-muted)",
-                fontSize: 14,
-              }}
-            >
+            <div className="src-empty">
               {sources.length === 0
                 ? "No content sources yet. Upload one below to get started."
                 : "No sources match your search."}
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: 16,
-                maxHeight: 420,
-                overflowY: "auto",
-                paddingRight: 4,
-              }}
-            >
+            <div className="src-card-grid">
               {filteredSources.map((source) => (
                 <SourceCard
                   key={source.id}
@@ -1184,42 +885,16 @@ export default function SourceStep({
           {selectedSource && (
             <div
               ref={subjectPickerRef}
-              style={{
-                marginTop: 24,
-                padding: 16,
-                borderRadius: 8,
-                border: "1px solid var(--accent-primary)",
-                background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)",
-              }}
+              className="src-selected-picker"
             >
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  marginBottom: 4,
-                }}
-              >
+              <div className="src-picker-title">
                 Attach to a subject
               </div>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  margin: "0 0 12px",
-                }}
-              >
+              <p className="src-picker-desc">
                 Which subject will use &ldquo;{selectedSource.name}&rdquo;?
               </p>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-end",
-                  marginBottom: 16,
-                }}
-              >
-                <div style={{ flex: 1 }}>
+              <div className="src-picker-row">
+                <div className="src-subject-select">
                   <FancySelect
                     options={subjects}
                     value={selectedSubjectId}
@@ -1227,24 +902,15 @@ export default function SourceStep({
                     placeholder="Select a subject..."
                   />
                 </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--text-muted)",
-                    padding: "8px 0",
-                  }}
-                >
+                <div className="src-subject-or">
                   or
                 </div>
-                <div
-                  style={{ display: "flex", gap: 8, alignItems: "center" }}
-                >
+                <div className="src-subject-new-row">
                   <input
                     value={newSubjectName}
                     onChange={(e) => setNewSubjectName(e.target.value)}
                     placeholder="New subject name"
-                    className="hf-input"
-                    style={{ width: "auto" }}
+                    className="hf-input src-input-auto"
                   />
                   <button
                     onClick={handleCreateSubject}
@@ -1261,8 +927,7 @@ export default function SourceStep({
               <button
                 onClick={handleContinueWithExisting}
                 disabled={!selectedSubjectId}
-                className="hf-btn hf-btn-primary"
-                style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
+                className="hf-btn hf-btn-primary src-btn-lg"
               >
                 Continue to Plan Lessons
               </button>
@@ -1272,48 +937,20 @@ export default function SourceStep({
       )}
 
       {/* ── Divider toggle ── */}
-      <div
-        style={{
-          marginTop: 24,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            height: 1,
-            background: "var(--border-default)",
-          }}
-        />
+      <div className="src-divider-wrap">
+        <div className="src-divider-line" />
         <button
           onClick={() => setShowUploadNew(!showUploadNew)}
-          style={{
-            padding: "6px 16px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-secondary)",
-            color: "var(--text-secondary)",
-            fontSize: 13,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
+          className="src-divider-btn"
         >
           {showUploadNew ? "Back to library" : "Or upload a new source"}
         </button>
-        <div
-          style={{
-            flex: 1,
-            height: 1,
-            background: "var(--border-default)",
-          }}
-        />
+        <div className="src-divider-line" />
       </div>
 
       {/* ── Section B: Upload New (secondary) ── */}
       {showUploadNew && (
-        <div style={{ marginTop: 24 }}>
+        <div className="src-upload-section">
           <UploadNewSourceSection
             setData={setData}
             getData={getData}

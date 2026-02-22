@@ -175,16 +175,15 @@ export function WizardSummary({
         <div className="wiz-actions-spacer" />
         {secondaryActions?.map((action, i) => {
           const props = {
-            key: i,
             className: 'wiz-action-secondary',
             onClick: action.onClick,
           };
           return action.href ? (
-            <Link {...props} href={action.href}>
+            <Link key={i} {...props} href={action.href}>
               {action.icon}{action.label}
             </Link>
           ) : (
-            <button {...props}>{action.icon}{action.label}</button>
+            <button key={i} {...props}>{action.icon}{action.label}</button>
           );
         })}
         {primaryAction.href && !primaryAction.disabled ? (
