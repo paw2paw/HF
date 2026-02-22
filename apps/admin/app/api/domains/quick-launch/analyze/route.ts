@@ -12,6 +12,7 @@ import {
   fetchFewShotExamples,
 } from "@/lib/content-trust/classify-document";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
+import { segmentDocument } from "@/lib/content-trust/segment-document";
 import {
   createJob,
   updateJob,
@@ -502,6 +503,27 @@ async function runQuickLaunchBackground(
     console.warn("[quick-launch:analyze] Classification failed, using default extraction:", err.message);
   }
 
+  // ── Segment document into pedagogical sections ──
+  let documentStructure: AnalysisPreview["documentStructure"] | undefined;
+  try {
+    const segmentation = await segmentDocument(text, fileName);
+    if (segmentation.sections.length > 0) {
+      documentStructure = {
+        isComposite: segmentation.isComposite,
+        sections: segmentation.sections.map(s => ({
+          title: s.title,
+          sectionType: s.sectionType,
+          pedagogicalRole: s.pedagogicalRole,
+          hasQuestions: s.hasQuestions,
+          hasAnswerKey: s.hasAnswerKey,
+        })),
+      };
+      console.log(`[quick-launch:analyze] Segmented "${fileName}": ${segmentation.sections.length} sections, composite=${segmentation.isComposite}`);
+    }
+  } catch (err: any) {
+    console.warn("[quick-launch:analyze] Segmentation failed:", err.message);
+  }
+
   await updateJob(jobId, { status: "extracting" });
 
   // ── Extract assertions (with classified document type) ──
@@ -608,6 +630,7 @@ async function runQuickLaunchBackground(
       assertionSummary: summary,
       identityConfig,
       warnings: result.warnings,
+      documentStructure,
     };
 
     try {

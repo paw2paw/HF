@@ -74,6 +74,11 @@ export interface QuickLaunchResult {
   moduleCount: number;
   goalCount: number;
   warnings: string[];
+  /** Document structure from segmentation (upload mode only) */
+  documentStructure?: {
+    isComposite: boolean;
+    sections: DocumentStructureSection[];
+  };
 }
 
 /** Shared context accumulating results across steps */
@@ -827,6 +832,15 @@ export interface AssertionSummary {
   sampleAssertions: Array<{ assertion: string; category: string; chapter?: string }>;
 }
 
+/** Lightweight section info from document segmentation */
+export interface DocumentStructureSection {
+  title: string;
+  sectionType: string;
+  pedagogicalRole: string;
+  hasQuestions: boolean;
+  hasAnswerKey: boolean;
+}
+
 export interface AnalysisPreview {
   domainId: string;
   domainSlug: string;
@@ -838,6 +852,11 @@ export interface AnalysisPreview {
   identityConfig: GeneratedIdentityConfig | null;
   warnings: string[];
   mode?: "upload" | "generate";
+  /** Document structure from segmentation (upload mode only) */
+  documentStructure?: {
+    isComposite: boolean;
+    sections: DocumentStructureSection[];
+  };
 }
 
 export interface CommitOverrides {
@@ -1083,6 +1102,7 @@ export async function quickLaunchCommit(
       subjectId: preview.subjectId,
       identityConfig: effectiveIdentityConfig,
       assertionCount: preview.assertionCount,
+      documentStructure: preview.documentStructure,
       warnings: [],
     },
     onProgress,
@@ -1168,6 +1188,7 @@ export async function quickLaunchCommit(
     moduleCount: ctx.results.moduleCount || 0,
     goalCount: effectiveGoals.length,
     warnings: ctx.results.warnings || [],
+    documentStructure: preview.documentStructure,
   };
 
   onProgress({

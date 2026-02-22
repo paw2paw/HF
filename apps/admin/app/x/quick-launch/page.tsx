@@ -16,7 +16,10 @@ import { WizardSummary } from "@/components/shared/WizardSummary";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { Building2, BookOpen, User, FileText, PlayCircle, Target } from "lucide-react";
+import {
+  Building2, BookOpen, User, FileText, PlayCircle, Target,
+  HelpCircle, PenLine, Lightbulb, Eye, FileQuestion, Info,
+} from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
 
@@ -52,6 +55,16 @@ type LaunchResult = {
   identitySpecId?: string;
   contentSpecId?: string;
   playbookId?: string;
+  documentStructure?: {
+    isComposite: boolean;
+    sections: Array<{
+      title: string;
+      sectionType: string;
+      pedagogicalRole: string;
+      hasQuestions: boolean;
+      hasAnswerKey: boolean;
+    }>;
+  };
 };
 
 type CourseCheck = {
@@ -94,6 +107,28 @@ function FormCard({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+// ── Pedagogical Role → Icon mapping ──────────────────
+
+const ROLE_ICONS: Record<string, React.ReactNode> = {
+  INPUT: <FileText className="w-4 h-4" />,
+  CHECK: <HelpCircle className="w-4 h-4" />,
+  PRODUCE: <PenLine className="w-4 h-4" />,
+  ACTIVATE: <Lightbulb className="w-4 h-4" />,
+  REFLECT: <Eye className="w-4 h-4" />,
+  REFERENCE: <BookOpen className="w-4 h-4" />,
+  META: <FileQuestion className="w-4 h-4" />,
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  INPUT: "Teaching Content",
+  CHECK: "Questions",
+  PRODUCE: "Exercises",
+  ACTIVATE: "Warm-up",
+  REFLECT: "Review",
+  REFERENCE: "Reference",
+  META: "Non-content",
+};
 
 // ── Progress Bar ───────────────────────────────────
 
@@ -1066,7 +1101,15 @@ export default function QuickLaunchPage() {
 
       {/* ── Progress Bar (building/review) ── */}
       {(phase === "building" || phase === "review") && (
-        <ProgressBar progress={analysisProgress} label={analysisLabel} />
+        <div>
+          <ProgressBar progress={analysisProgress} label={analysisLabel} />
+          {phase === "building" && analysisProgress < 100 && (
+            <div className="ql-progress-hint">
+              You can leave this page &mdash; check progress anytime on the{" "}
+              <a href="/x/jobs" className="ql-progress-link">Jobs</a> page.
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Error Banner ── */}
@@ -1200,6 +1243,39 @@ export default function QuickLaunchPage() {
               { label: "Launch Another", onClick: handleReset },
             ]}
           >
+            {/* ── Document Structure (when file uploaded) ── */}
+            {result.documentStructure && result.documentStructure.sections.length > 0 && (
+              <div className="wiz-section">
+                <div className="wiz-section-label">Document Structure</div>
+                {result.assertionCount === 0 && (
+                  <div className="ql-doc-info">
+                    <Info className="w-4 h-4" style={{ flexShrink: 0 }} />
+                    <span>
+                      This document contains questions and exercises rather than teaching content
+                      {result.goalCount > 0 ? " — curriculum was generated from your learning goals instead." : "."}
+                    </span>
+                  </div>
+                )}
+                <div className="ql-doc-structure-list">
+                  {result.documentStructure.sections
+                    .filter(s => s.pedagogicalRole !== "META")
+                    .map((section, i) => (
+                    <div key={i} className="ql-doc-structure-row">
+                      <div className="ql-doc-structure-icon">
+                        {ROLE_ICONS[section.pedagogicalRole] || <FileText className="w-4 h-4" />}
+                      </div>
+                      <div className="ql-doc-structure-title">{section.title}</div>
+                      <div className="ql-doc-structure-pills">
+                        <span className="ql-doc-structure-pill">{ROLE_LABELS[section.pedagogicalRole] || section.pedagogicalRole}</span>
+                        {section.hasQuestions && <span className="ql-doc-structure-pill ql-doc-pill-questions">Q&amp;A</span>}
+                        {section.hasAnswerKey && <span className="ql-doc-structure-pill ql-doc-pill-answers">Answers</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* ── Editable agent name ── */}
             <div className="wiz-section">
               <div className="wiz-section-label">

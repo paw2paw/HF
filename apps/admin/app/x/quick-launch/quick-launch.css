@@ -126,3 +126,21 @@
 .ql-classroom-btn-active { background: var(--accent-primary); color: white; cursor: pointer; }
 .ql-classroom-btn-loading { background: var(--border-default); color: var(--text-muted); cursor: not-allowed; }
 .ql-open-preview-btn { padding: 8px 16px; border-radius: 8px; background: transparent; border: 1px solid var(--border-default); font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-secondary); align-self: flex-start; transition: border-color 0.15s; }
+
+/* ── Progress hint (link to Jobs) ── */
+.ql-progress-hint { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+.ql-progress-link { color: var(--accent-primary); font-weight: 600; text-decoration: none; }
+.ql-progress-link:hover { text-decoration: underline; }
+
+/* ── Document Structure panel ── */
+.ql-doc-info { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 10px; background: color-mix(in srgb, var(--accent-primary) 8%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent); font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+.ql-doc-info svg { color: var(--accent-primary); margin-top: 2px; }
+.ql-doc-structure-list { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 12px; background: var(--surface-secondary); border: 1px solid var(--border-default); }
+.ql-doc-structure-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.ql-doc-structure-row + .ql-doc-structure-row { border-top: 1px solid var(--border-subtle); padding-top: 8px; }
+.ql-doc-structure-icon { flex-shrink: 0; width: 20px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.ql-doc-structure-title { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ql-doc-structure-pills { display: flex; gap: 6px; flex-shrink: 0; }
+.ql-doc-structure-pill { display: inline-flex; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: color-mix(in srgb, var(--text-muted) 10%, transparent); color: var(--text-secondary); }
+.ql-doc-pill-questions { background: color-mix(in srgb, var(--status-warning-text) 12%, transparent); color: var(--status-warning-text); }
+.ql-doc-pill-answers { background: color-mix(in srgb, var(--status-success-text) 12%, transparent); color: var(--status-success-text); }
