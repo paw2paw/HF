@@ -314,7 +314,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main content */}
-        <div className="h-full min-w-0 flex flex-col">
+        <div className="h-full min-w-0 min-h-0 flex flex-col">
           <TopBar />
           <main
             className="flex-1 overflow-auto min-h-0 transition-all duration-200"
