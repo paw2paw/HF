@@ -14,7 +14,7 @@
  * Hidden on auth/sim/embed pages.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -23,6 +23,7 @@ import { useBranding } from '@/contexts/BrandingContext';
 import { useMasquerade } from '@/contexts/MasqueradeContext';
 import { useErrorCapture } from '@/contexts/ErrorCaptureContext';
 import { envLabel, envSidebarColor, envTextColor, showEnvBanner } from './EnvironmentBanner';
+import { JobsPopup } from './JobsPopup';
 
 /** Height of the status bar in pixels — use for layout calculations */
 export const STATUS_BAR_HEIGHT = 32;
@@ -71,6 +72,8 @@ export function StatusBar() {
   const { errorCount } = useErrorCapture();
 
   const router = useRouter();
+  const jobsChipRef = useRef<HTMLSpanElement>(null);
+  const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
   // System health RAG (ADMIN+ only, polls every 120s)
   const [healthRag, setHealthRag] = useState<'green' | 'amber' | 'red' | null>(null);
   // Deep logging toggle (ADMIN+ only)
@@ -254,17 +257,22 @@ export function StatusBar() {
               </span>
             )}
 
-            {/* Jobs indicator (OPERATOR+, only when active jobs exist) */}
-            {isOperator && jobsCount > 0 && (
+            {/* Jobs indicator (OPERATOR+, always visible, click opens popup) */}
+            {isOperator && (
               <span
-                className="hf-status-jobs-chip"
-                onClick={() => router.push('/x/jobs')}
-                title={`${jobsCount} active job${jobsCount !== 1 ? 's' : ''}`}
+                ref={jobsChipRef}
+                className={jobsCount > 0 ? 'hf-status-jobs-chip' : 'hf-status-jobs-chip-idle'}
+                onClick={() => setJobsPopupOpen((v) => !v)}
+                title={jobsCount > 0 ? `${jobsCount} active job${jobsCount !== 1 ? 's' : ''}` : 'Jobs'}
               >
-                <Cog size={12} className="hf-status-jobs-spin" />
-                <span className="hf-status-jobs-badge">
-                  {jobsCount > 9 ? '9+' : jobsCount}
-                </span>
+                <Cog size={12} className={jobsCount > 0 ? 'hf-status-jobs-spin' : ''} />
+                {jobsCount > 0 ? (
+                  <span className="hf-status-jobs-badge">
+                    {jobsCount > 9 ? '9+' : jobsCount}
+                  </span>
+                ) : (
+                  <span>Jobs</span>
+                )}
               </span>
             )}
           </>
@@ -306,6 +314,15 @@ export function StatusBar() {
           <span className="hf-status-version">v{APP_VERSION}</span>
         )}
       </div>
+
+      {/* Jobs popup (rendered outside clusters, positioned fixed) */}
+      {isOperator && (
+        <JobsPopup
+          open={jobsPopupOpen}
+          onClose={() => setJobsPopupOpen(false)}
+          anchorRef={jobsChipRef}
+        />
+      )}
     </div>
   );
 }

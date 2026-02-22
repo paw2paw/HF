@@ -8,10 +8,10 @@ The dev server runs via **nohup** so it survives SSH disconnects (laptop sleep, 
 
 ## Step 1: Kill stale processes
 
-**IMPORTANT:** Use the `[b]racket` trick in `pkill -f` patterns — without it, the pattern matches the SSH session's own command string and kills the connection (exit 255). `[n]ext` matches "next" but not the literal string "[n]ext" in the command line.
+**IMPORTANT:** Do NOT use `pkill` over SSH — any pattern can match the SSH session's own command string and kill the connection (exit 255). Use `killall` instead.
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "pkill -9 -f '[n]ext dev' 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED"
 ```
 
 Wait 5 seconds for IAP cooldown before the next SSH connection.
@@ -31,7 +31,7 @@ Wait ~5 seconds for the server to start, then proceed to step 3.
 **Always** kill any existing SSH tunnels before opening a new one — stale tunnels hold port 3000 and cause "address already in use" errors:
 
 ```bash
-pkill -f "ssh.*hf-dev.*3000" 2>/dev/null; sleep 1
+lsof -ti:3000 | xargs kill 2>/dev/null; sleep 1
 ```
 
 Then open the tunnel in the background:
