@@ -30,7 +30,7 @@
  *   9.  seed-educator-demo      → 3 schools, 10 teachers, 210 pupils   [full only]
  *   10. seed-school-institutions → School institution records           [full only]
  *   11. seed-demo-fixtures      → "Paul" demo caller, QM overlay       [full only]
- *   12. seed-demo-logins        → 5 demo login accounts (non-PROD)     [test, full]
+ *   12. seed-demo-logins        → 6 demo login accounts (non-PROD)     [test, full]
  */
 
 import { PrismaClient } from "@prisma/client";

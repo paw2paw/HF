@@ -1,12 +1,13 @@
 /**
  * Seed Demo Login Accounts
  *
- * Creates one EDUCATOR user per institution type with a known password.
+ * Creates one EDUCATOR user per institution type with a known password (6 types).
  * Non-PROD only — refuses to run when NEXT_PUBLIC_APP_ENV=LIVE.
  *
  * Accounts:
  *   school@hff.com     / hff2026  → School educator
  *   corporate@hff.com  / hff2026  → Corporate educator
+ *   training@hff.com   / hff2026  → Training educator
  *   community@hff.com  / hff2026  → Community facilitator
  *   coaching@hff.com   / hff2026  → Coaching educator
  *   healthcare@hff.com / hff2026  → Healthcare educator
@@ -29,6 +30,7 @@ interface DemoAccount {
 const DEMO_ACCOUNTS: DemoAccount[] = [
   { email: "school@hff.com", name: "Demo Teacher", typeSlug: "school", institutionName: "Demo School" },
   { email: "corporate@hff.com", name: "Demo Trainer", typeSlug: "corporate", institutionName: "Demo Organization" },
+  { email: "training@hff.com", name: "Demo Instructor", typeSlug: "training", institutionName: "Demo Training Co" },
   { email: "community@hff.com", name: "Demo Facilitator", typeSlug: "community", institutionName: "Demo Community Hub" },
   { email: "coaching@hff.com", name: "Demo Coach", typeSlug: "coaching", institutionName: "Demo Practice" },
   { email: "healthcare@hff.com", name: "Demo Provider", typeSlug: "healthcare", institutionName: "Demo Facility" },
