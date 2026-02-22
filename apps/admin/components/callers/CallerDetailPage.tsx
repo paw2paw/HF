@@ -10,6 +10,7 @@ import { SectionSelector, useSectionVisibility } from "@/components/shared/Secti
 import { CallerDomainSection } from "@/components/callers/CallerDomainSection";
 import { SimChat } from "@/components/sim/SimChat";
 import '@/app/x/sim/sim.css';
+import './caller-detail-page.css';
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 
 // Extracted sub-components
@@ -391,17 +392,17 @@ export default function CallerDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading caller profile...</div>
+      <div className="cdp-loading">Loading caller profile...</div>
     );
   }
 
   if (error || !data) {
     return (
-      <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
+      <div className="cdp-error-wrap">
+        <div className="cdp-error-box">
           {error || "Caller not found"}
         </div>
-        <Link href={backLink} style={{ display: "inline-block", marginTop: 16, color: "var(--button-primary-bg)" }}>
+        <Link href={backLink} className="cdp-error-back">
           ← Back to Callers
         </Link>
       </div>
@@ -419,76 +420,56 @@ export default function CallerDetailPage() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", maxWidth: 1920, margin: "0 auto", width: "100%" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="cdp-root">
       {/* Header */}
-      <div style={{ padding: "24px 24px 16px 24px", flexShrink: 0 }}>
-        <Link href={backLink} style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>
+      <div className="cdp-header">
+        <Link href={backLink} className="cdp-back-link">
           ← Back to Callers
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              background: "var(--border-default)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 28,
-            }}
-          >
+        <div className="cdp-header-row">
+          <div className="cdp-avatar">
             👤
           </div>
-          <div style={{ flex: 1, minWidth: 300 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>{getCallerLabel(data.caller)}</h1>
+          <div className="cdp-info">
+            <div className="cdp-name-row">
+              <h1 className="cdp-name">{getCallerLabel(data.caller)}</h1>
               {/* Domain Badge (click to expand domain section) */}
               <div
                 onClick={() => {
                   setActiveSection(null); // Navigate to Overview
                   setShowDomainSection(!showDomainSection);
                 }}
-                style={{
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  transition: "opacity 0.2s",
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = "0.7"}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+                className="cdp-domain-badge"
                 title="Click to manage domain & onboarding"
               >
                 {data.caller.domain ? (
                   <DomainPill label={data.caller.domain.name} size="compact" />
                 ) : (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 10px", background: "var(--surface-secondary)", borderRadius: 4 }}>
+                  <span className="cdp-no-domain">
                     No Domain
                   </span>
                 )}
-                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                <span className="cdp-domain-chevron">
                   {showDomainSection ? "▼" : "▶"}
                 </span>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 16, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="cdp-contact-row">
               {data.caller.phone && (
-                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>📱 {data.caller.phone}</span>
+                <span className="cdp-contact-item">📱 {data.caller.phone}</span>
               )}
               {data.caller.email && (
-                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>✉️ {data.caller.email}</span>
+                <span className="cdp-contact-item">✉️ {data.caller.email}</span>
               )}
               {data.caller.externalId && (
-                <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-placeholder)" }}>
+                <span className="cdp-external-id">
                   ID: {data.caller.externalId}
                 </span>
               )}
               {/* Compact Personality Profile - DYNAMIC (shows first 6 parameters) */}
               {data.personality && data.personality.parameterValues && paramConfig && (
-                <div style={{ display: "flex", gap: 6, marginLeft: 8, padding: "4px 8px", background: "var(--surface-secondary)", borderRadius: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>🧠</span>
+                <div className="cdp-personality-strip">
+                  <span className="cdp-personality-icon">🧠</span>
                   {Object.entries(data.personality.parameterValues)
                     .slice(0, 6)
                     .map(([key, value]) => {
@@ -500,13 +481,10 @@ export default function CallerDetailPage() {
                         <span
                           key={key}
                           title={`${info.label}: ${(value * 100).toFixed(0)}%`}
+                          className="cdp-param-chip"
                           style={{
-                            fontSize: 10,
-                            fontWeight: 600,
                             color: levelColor,
-                            padding: "1px 4px",
                             background: level === "HIGH" ? "var(--status-success-bg)" : level === "LOW" ? "var(--status-error-bg)" : "var(--border-default)",
-                            borderRadius: 3,
                           }}
                         >
                           {info.label.charAt(0)}{(value * 100).toFixed(0)}
@@ -565,19 +543,7 @@ export default function CallerDetailPage() {
               }
             }}
             title="Run personality & memory analysis on this caller's calls"
-            style={{
-              padding: "10px 20px",
-              background: "var(--button-success-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
+            className="cdp-btn-analyze"
           >
             🧠 Analyze
           </button>
@@ -587,19 +553,7 @@ export default function CallerDetailPage() {
             onClick={handlePromptAll}
             disabled={composing}
             title="Generate prompts for all calls without prompts (oldest first)"
-            style={{
-              padding: "10px 20px",
-              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: composing ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
+            className="cdp-btn-prompt-all"
           >
             {composing ? `Prompting... ${promptProgress}` : "Prompt ALL"}
           </button>
@@ -614,19 +568,7 @@ export default function CallerDetailPage() {
               }
             }}
             title="Ask AI Assistant (Cmd+Shift+K)"
-            style={{
-              padding: "10px 20px",
-              background: "rgba(139, 92, 246, 0.1)",
-              color: "var(--accent-secondary, #8b5cf6)",
-              border: "1px solid rgba(139, 92, 246, 0.2)",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
+            className="cdp-btn-ask-ai"
           >
             ✨ Ask AI
           </button>
@@ -655,19 +597,7 @@ export default function CallerDetailPage() {
             }}
             disabled={exporting}
             title="Export all caller data (GDPR)"
-            style={{
-              padding: "10px 20px",
-              background: exporting ? "var(--text-placeholder)" : "rgba(59, 130, 246, 0.1)",
-              color: exporting ? "var(--text-muted)" : "var(--accent-primary)",
-              border: "1px solid rgba(59, 130, 246, 0.2)",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: exporting ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
+            className="cdp-btn-export"
           >
             {exporting ? "Exporting..." : "Export Data"}
           </button>
@@ -676,17 +606,7 @@ export default function CallerDetailPage() {
 
       {/* Archive Banner */}
       {data.caller.archivedAt && (
-        <div style={{
-          padding: "12px 24px",
-          background: "var(--status-warning-bg)",
-          borderBottom: "1px solid var(--status-warning-border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: 14,
-          color: "var(--status-warning-text)",
-          flexShrink: 0,
-        }}>
+        <div className="cdp-archive-banner">
           <span>This caller was archived on {new Date(data.caller.archivedAt).toLocaleDateString()}</span>
           <button
             onClick={async () => {
@@ -702,16 +622,7 @@ export default function CallerDetailPage() {
                 }
               } catch {}
             }}
-            style={{
-              padding: "6px 12px",
-              fontSize: 13,
-              fontWeight: 600,
-              background: "var(--button-primary-bg)",
-              color: "var(--text-on-dark)",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+            className="cdp-btn-unarchive"
           >
             Unarchive
           </button>
@@ -720,36 +631,26 @@ export default function CallerDetailPage() {
 
       {/* Active Prompt Section - Shows most recent prompt for next call */}
       {composedPrompts.length > 0 && (
-        <div style={{ background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+        <div className="cdp-active-prompt">
           <button
             onClick={() => setActivePromptExpanded(!activePromptExpanded)}
-            style={{
-              width: "100%",
-              padding: "16px 24px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              textAlign: "left",
-            }}
+            className="cdp-active-prompt-toggle"
           >
-            <span style={{ fontSize: 16, fontWeight: 600 }}>🎯 Active Prompt</span>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            <span className="cdp-active-prompt-title">🎯 Active Prompt</span>
+            <span className="cdp-active-prompt-subtitle">
               (Will be used for the next call)
             </span>
             {composedPrompts.length > 1 && (
-              <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: "auto" }}>
+              <span className="cdp-active-prompt-count">
                 +{composedPrompts.length - 1} previous prompt{composedPrompts.length > 2 ? 's' : ''}
               </span>
             )}
-            <span style={{ fontSize: 12, marginLeft: composedPrompts.length === 1 ? "auto" : 0 }}>
+            <span className="cdp-active-prompt-chevron" style={{ marginLeft: composedPrompts.length === 1 ? "auto" : 0 }}>
               {activePromptExpanded ? "▼" : "▶"}
             </span>
           </button>
           {activePromptExpanded && (
-            <div style={{ padding: "0 24px 16px 24px" }}>
+            <div className="cdp-active-prompt-content">
               <UnifiedPromptSection
                 prompts={composedPrompts}
                 loading={promptsLoading}
@@ -765,77 +666,34 @@ export default function CallerDetailPage() {
 
       {/* Processing Banner */}
       {isProcessing && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 24px",
-            background: "var(--status-info-bg)",
-            borderBottom: "1px solid var(--status-info-border)",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--status-info-text)",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
+        <div className="cdp-processing-banner">
+          <span className="cdp-processing-spinner">⏳</span>
           Processing {processingCallIds.size === 1 ? "latest call" : `${processingCallIds.size} calls`} — extracting scores, memories, and generating prompt...
         </div>
       )}
 
       {/* Section Tabs */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", paddingBottom: 0, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", position: "sticky", top: 0, background: "var(--surface-primary)", zIndex: 10, padding: "8px 24px 0 24px", marginLeft: -24, marginRight: -24, flexShrink: 0 }}>
+      <div className="cdp-tab-bar">
         {sections.map((section) => {
           const isActive = activeSection === section.id;
           const isSpecial = section.special;
 
-          // Special styling for the Call tab (green background)
-          const specialStyles = isSpecial ? {
-            background: isActive ? "var(--button-success-bg)" : "var(--status-success-bg)",
-            color: isActive ? "var(--text-on-dark)" : "var(--status-success-text)",
-            borderRadius: 6,
-            marginLeft: 8,
-            borderBottom: "2px solid transparent",
-          } : {};
+          const cls = [
+            "cdp-tab",
+            isActive && "cdp-tab-active",
+            isSpecial && "cdp-tab-special",
+          ].filter(Boolean).join(" ");
 
           return (
-            <span key={section.id} style={{ display: "contents" }}>
+            <span key={section.id} className="cdp-tab-wrapper">
               <button
                 onClick={() => setActiveSection(section.id)}
-                style={{
-                  padding: "10px 12px",
-                  border: "none",
-                  background: "none",
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 400,
-                  color: isActive ? "var(--button-primary-bg)" : "var(--text-muted)",
-                  cursor: "pointer",
-                  borderBottom: isActive ? "2px solid var(--button-primary-bg)" : "2px solid transparent",
-                  marginBottom: -1,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  whiteSpace: "nowrap",
-                  ...specialStyles,
-                }}
+                className={cls}
               >
-                <span style={{ display: "flex", alignItems: "center" }}>{section.icon}</span>
+                <span className="cdp-tab-icon">{section.icon}</span>
                 {section.label}
                 {section.count !== undefined && section.count > 0 && (
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      lineHeight: "16px",
-                      minWidth: 18,
-                      textAlign: "center",
-                      padding: "1px 6px",
-                      borderRadius: 10,
-                      background: isActive ? "color-mix(in srgb, var(--button-primary-bg) 15%, transparent)" : "var(--surface-tertiary)",
-                      color: isActive ? "var(--button-primary-bg)" : "var(--text-secondary)",
-                    }}
-                  >
+                  <span className="cdp-tab-count">
                     {section.count}
                   </span>
                 )}
@@ -846,7 +704,7 @@ export default function CallerDetailPage() {
       </div>
 
       {/* Section Content - Scrollable */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px 24px" }}>
+      <div className="cdp-content">
       {activeSection === null && (
         <>
           {/* Domain & Onboarding Section - Collapsible */}
@@ -918,7 +776,7 @@ export default function CallerDetailPage() {
             {/* Memory category chips inline */}
             {data.memorySummary && profileVis.memories !== false && (
               <>
-                <div style={{ width: 1, height: 20, background: "var(--border-default)", margin: "0 4px", flexShrink: 0 }} />
+                <div className="cdp-section-divider" />
                 {[
                   { label: "Facts", count: data.memorySummary.factCount, color: CATEGORY_COLORS.FACT },
                   { label: "Prefs", count: data.memorySummary.preferenceCount, color: CATEGORY_COLORS.PREFERENCE },
@@ -927,17 +785,8 @@ export default function CallerDetailPage() {
                 ].map((stat) => (
                   <span
                     key={stat.label}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "4px 8px",
-                      fontSize: 11,
-                      background: stat.color.bg,
-                      color: stat.color.text,
-                      borderRadius: 12,
-                      fontWeight: 500,
-                    }}
+                    className="cdp-memory-cat-chip"
+                    style={{ background: stat.color.bg, color: stat.color.text }}
                   >
                     {stat.count} {stat.label}
                   </span>

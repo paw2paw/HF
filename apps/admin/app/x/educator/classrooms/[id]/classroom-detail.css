@@ -1,0 +1,235 @@
+/* ── Classroom Detail Page ────────────────────────── */
+/* Extracted from inline styles — imported by page.tsx */
+
+/* Loading / not-found states */
+.cls-loading {
+  padding: 32px;
+}
+.cls-loading-text {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* Header */
+.cls-header {
+  margin-bottom: 24px;
+}
+.cls-back-link {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.cls-back-link:hover {
+  color: var(--text-secondary);
+}
+.cls-title {
+  margin-bottom: 4px;
+}
+.cls-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.cls-header-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.cls-domain-badge {
+  padding: 1px 8px;
+  background: var(--surface-secondary);
+  border-radius: 4px;
+}
+.cls-send-btn {
+  font-size: 13px;
+}
+
+/* Join link banner */
+.cls-banner {
+  margin-bottom: 20px;
+}
+.cls-banner-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+.cls-banner-url {
+  font-family: monospace;
+  font-size: 12px;
+}
+.cls-copy-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+/* Tabs */
+.cls-tab-bar {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Invite section */
+.cls-invite-card {
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.cls-invite-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.cls-invite-input {
+  flex: 1;
+  font-size: 13px;
+}
+.cls-invite-btn {
+  font-size: 13px;
+}
+.cls-invite-result {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Empty state */
+.cls-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Student table */
+.cls-table-card {
+  overflow: hidden;
+  padding: 0;
+}
+.cls-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cls-table-head-row {
+  border-bottom: 1px solid var(--border-default);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cls-th {
+  padding: 10px 16px;
+  text-align: left;
+  font-weight: 600;
+}
+.cls-th-center {
+  padding: 10px 16px;
+  text-align: center;
+  font-weight: 600;
+}
+.cls-th-right {
+  padding: 10px 16px;
+  text-align: right;
+  font-weight: 600;
+}
+.cls-table-row {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cls-td {
+  padding: 10px 16px;
+}
+.cls-td-center {
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.cls-td-right {
+  padding: 10px 16px;
+  text-align: right;
+}
+
+/* Student name link */
+.cls-student-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.cls-student-link:hover {
+  color: var(--accent-primary);
+}
+
+/* Last call date */
+.cls-last-call {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* In-call badge */
+.cls-in-call-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--status-success-text);
+  text-decoration: none;
+  padding: 2px 8px;
+  background: var(--status-success-bg);
+  border-radius: 6px;
+  border: 1px solid var(--status-success-border);
+}
+.cls-in-call-badge:hover {
+  filter: brightness(0.95);
+}
+.cls-status-dot-active {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-success-text);
+}
+
+/* Status indicator (generic) */
+.cls-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.cls-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Remove button */
+.cls-remove-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.cls-remove-btn:hover {
+  color: var(--status-error-text);
+  background: var(--status-error-bg);
+}
+
+/* Settings tab */
+.cls-settings-field {
+  margin-bottom: 16px;
+}
+.cls-settings-field-lg {
+  margin-bottom: 20px;
+}
+.cls-settings-input {
+  width: 100%;
+}
+.cls-settings-textarea {
+  width: 100%;
+  resize: vertical;
+}

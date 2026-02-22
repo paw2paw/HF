@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef, type ComponentType } from "re
 import { WorkflowAIPanel } from "./WorkflowAIPanel";
 import { WorkflowStepper } from "./WorkflowStepper";
 import { ConditionCard } from "./ConditionCard";
+import "./workflow-orchestrator.css";
 import type {
   WorkflowState,
   WorkflowStep,
@@ -51,70 +52,23 @@ export function registerStepComponent(type: StepType, component: ComponentType<S
 
 function PlaceholderStep({ step, onComplete, onSkip }: StepFormProps) {
   return (
-    <div
-      style={{
-        padding: 40,
-        textAlign: "center",
-        border: "2px dashed var(--border-default)",
-        borderRadius: 16,
-        background: "var(--surface-secondary)",
-      }}
-    >
-      <div style={{ fontSize: 40, marginBottom: 16 }}>🚧</div>
-      <h3
-        style={{
-          fontSize: 18,
-          fontWeight: 700,
-          color: "var(--text-primary)",
-          marginBottom: 8,
-        }}
-      >
-        {step.title}
-      </h3>
-      <p
-        style={{
-          fontSize: 14,
-          color: "var(--text-muted)",
-          marginBottom: 24,
-          maxWidth: 400,
-          margin: "0 auto 24px",
-        }}
-      >
+    <div className="wo-placeholder">
+      <div className="wo-placeholder-icon">🚧</div>
+      <h3 className="wo-placeholder-title">{step.title}</h3>
+      <p className="wo-placeholder-desc">
         The <strong>{step.type}</strong> step form is being built.
         <br />
         {step.description}
       </p>
-      <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+      <div className="wo-placeholder-actions">
         {!step.required && (
-          <button
-            onClick={onSkip}
-            style={{
-              padding: "10px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 10,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={onSkip} className="wo-btn-skip">
             Skip
           </button>
         )}
         <button
           onClick={() => onComplete({ placeholder: true })}
-          style={{
-            padding: "10px 20px",
-            fontSize: 13,
-            fontWeight: 700,
-            borderRadius: 10,
-            border: "none",
-            background:
-              "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-            color: "var(--surface-primary)",
-            cursor: "pointer",
-          }}
+          className="wo-btn-complete"
         >
           Mark Complete (placeholder)
         </button>
@@ -135,94 +89,19 @@ function CompletionSummary({
   const completedSteps = state.steps.filter((s) => s.status === "completed");
 
   return (
-    <div
-      style={{
-        maxWidth: 600,
-        margin: "40px auto",
-        padding: 32,
-        borderRadius: 16,
-        border: "2px solid var(--success-border)",
-        background: "var(--success-bg)",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 16,
-          background: "var(--success-text)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto 20px",
-          fontSize: 28,
-          color: "var(--surface-primary)",
-        }}
-      >
-        ✓
-      </div>
-      <h2
-        style={{
-          fontSize: 24,
-          fontWeight: 800,
-          color: "var(--text-primary)",
-          marginBottom: 8,
-        }}
-      >
-        Workflow Complete
-      </h2>
-      <p
-        style={{
-          fontSize: 14,
-          color: "var(--text-secondary)",
-          marginBottom: 24,
-        }}
-      >
-        {state.plan?.summary}
-      </p>
+    <div className="wo-summary">
+      <div className="wo-summary-icon">✓</div>
+      <h2 className="wo-summary-title">Workflow Complete</h2>
+      <p className="wo-summary-desc">{state.plan?.summary}</p>
 
-      <div style={{ textAlign: "left", marginBottom: 24 }}>
+      <div className="wo-summary-steps">
         {completedSteps.map((step) => (
-          <div
-            key={step.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 0",
-              borderBottom: "1px solid var(--border-default)",
-            }}
-          >
-            <span
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                background: "var(--success-text)",
-                color: "var(--surface-primary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              ✓
-            </span>
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                }}
-              >
-                {step.title}
-              </div>
+          <div key={step.id} className="wo-summary-step-row">
+            <span className="wo-check-badge">✓</span>
+            <div className="hf-flex-1">
+              <div className="wo-step-title">{step.title}</div>
               {step.result?.name && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <div className="wo-step-meta">
                   Created: {step.result.name}
                 </div>
               )}
@@ -233,18 +112,7 @@ function CompletionSummary({
 
       <button
         onClick={() => (window.location.href = "/x")}
-        style={{
-          padding: "12px 24px",
-          fontSize: 14,
-          fontWeight: 700,
-          borderRadius: 10,
-          border: "none",
-          background:
-            "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-          color: "var(--surface-primary)",
-          cursor: "pointer",
-          boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-        }}
+        className="wo-btn-dashboard"
       >
         Go to Dashboard
       </button>
@@ -269,38 +137,14 @@ function StepNavButtons({
 }) {
   if (!prevStep && !nextStep) return null;
 
-  const btnBase: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "10px 18px",
-    fontSize: 13,
-    fontWeight: 600,
-    borderRadius: 10,
-    cursor: "pointer",
-    transition: "all 0.15s ease",
-  };
+  const isCurrent = nextStep?.id === currentStepId;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 24,
-        paddingTop: 16,
-        borderTop: "1px solid var(--border-default)",
-      }}
-    >
+    <div className="wo-nav-bar">
       {prevStep ? (
         <button
           onClick={() => onNavigate(prevStep.id)}
-          style={{
-            ...btnBase,
-            border: "1px solid var(--border-default)",
-            background: "var(--surface-secondary)",
-            color: "var(--text-secondary)",
-          }}
+          className="wo-nav-btn wo-nav-btn-secondary"
         >
           ← {prevStep.title}
         </button>
@@ -310,18 +154,9 @@ function StepNavButtons({
       {nextStep ? (
         <button
           onClick={() => onNavigate(nextStep.id)}
-          style={{
-            ...btnBase,
-            border: nextStep.id === currentStepId
-              ? "none"
-              : "1px solid var(--border-default)",
-            background: nextStep.id === currentStepId
-              ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)"
-              : "var(--surface-secondary)",
-            color: nextStep.id === currentStepId ? "var(--surface-primary)" : "var(--text-secondary)",
-          }}
+          className={`wo-nav-btn ${isCurrent ? "wo-nav-btn-primary" : "wo-nav-btn-secondary"}`}
         >
-          {nextStep.id === currentStepId ? "Back to Current Step" : nextStep.title} →
+          {isCurrent ? "Back to Current Step" : nextStep.title} →
         </button>
       ) : (
         <div />
@@ -862,119 +697,33 @@ export function WorkflowOrchestrator() {
     : {};
 
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div className="wo-root">
       {/* Draft Restore Modal */}
       {showDraftPrompt && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 20,
-              padding: 32,
-              maxWidth: 420,
-              width: "100%",
-              margin: 16,
-              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-              border: "1px solid var(--border-default)",
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 16,
-                background: "linear-gradient(135deg, var(--status-warning-text) 0%, var(--status-warning-text) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 20px",
-                fontSize: 28,
-              }}
-            >
-              📋
-            </div>
-            <h3
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: "var(--text-primary)",
-                marginBottom: 8,
-              }}
-            >
-              Resume Workflow?
-            </h3>
-            <p
-              style={{
-                fontSize: 14,
-                color: "var(--text-muted)",
-                marginBottom: 8,
-                lineHeight: 1.5,
-              }}
-            >
+        <div className="wo-modal-overlay">
+          <div className="wo-modal-card">
+            <div className="wo-modal-icon">📋</div>
+            <h3 className="wo-modal-title">Resume Workflow?</h3>
+            <p className="wo-modal-text">
               You have a saved workflow in progress:
             </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "var(--text-secondary)",
-                fontWeight: 600,
-                marginBottom: 24,
-              }}
-            >
+            <p className="wo-modal-intent">
               &ldquo;{savedDraft?.intentDescription || "Untitled workflow"}&rdquo;
               {savedDraft?.steps && savedDraft.steps.length > 0 && (
                 <>
                   <br />
-                  <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>
+                  <span className="wo-modal-intent-sub">
                     {savedDraft.steps.filter((s) => s.status === "completed").length} of{" "}
                     {savedDraft.steps.length} steps completed
                   </span>
                 </>
               )}
             </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button
-                onClick={handleDiscardDraft}
-                style={{
-                  padding: "12px 24px",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  borderRadius: 10,
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-secondary)",
-                  color: "var(--text-secondary)",
-                  cursor: "pointer",
-                }}
-              >
+            <div className="wo-modal-actions">
+              <button onClick={handleDiscardDraft} className="wo-btn-discard">
                 Start Fresh
               </button>
-              <button
-                onClick={handleRestoreDraft}
-                style={{
-                  padding: "12px 24px",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  borderRadius: 10,
-                  border: "none",
-                  background:
-                    "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-                  color: "var(--surface-primary)",
-                  cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-                }}
-              >
+              <button onClick={handleRestoreDraft} className="wo-btn-resume">
                 Resume
               </button>
             </div>
@@ -984,28 +733,18 @@ export function WorkflowOrchestrator() {
 
       {/* Planning Phase: Full-width AI panel */}
       {state.phase === "planning" && (
-        <div style={{ maxWidth: 700, margin: "0 auto", padding: "24px 16px" }}>
-          <div style={{ marginBottom: 24 }}>
-            <h1
-              style={{
-                fontSize: 28,
-                fontWeight: 800,
-                color: "var(--text-primary)",
-                margin: 0,
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 32 }}>✨</span>
+        <div className="wo-planning-wrapper">
+          <div className="wo-planning-header">
+            <h1 className="wo-planning-title">
+              <span className="wo-planning-title-icon">✨</span>
               New
             </h1>
-            <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "6px 0 0" }}>
+            <p className="wo-planning-subtitle">
               Describe what you want to build and the AI will guide you through every step
             </p>
           </div>
 
-          <div style={{ height: "calc(100vh - 160px)" }}>
+          <div className="wo-planning-chat">
             <WorkflowAIPanel
               phase={state.phase}
               chatThreads={state.chatThreads}
@@ -1025,16 +764,9 @@ export function WorkflowOrchestrator() {
 
       {/* Execution Phase: Side panel + step forms */}
       {state.phase === "executing" && (
-        <div style={{ display: "flex", height: "100vh" }}>
+        <div className="wo-exec-layout">
           {/* AI side panel */}
-          <div
-            style={{
-              width: 360,
-              flexShrink: 0,
-              height: "100%",
-              overflowY: "auto",
-            }}
-          >
+          <div className="wo-exec-sidebar">
             <WorkflowAIPanel
               phase={state.phase}
               chatThreads={state.chatThreads}
@@ -1051,7 +783,7 @@ export function WorkflowOrchestrator() {
           </div>
 
           {/* Main content area */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
+          <div className="wo-exec-main">
             {/* Step navigation */}
             <WorkflowStepper
               steps={state.steps}
@@ -1062,40 +794,16 @@ export function WorkflowOrchestrator() {
 
             {/* Viewing a completed step — show read-only summary + nav */}
             {isViewingCompleted && displayStep ? (
-              <div style={{ maxWidth: 800, paddingBottom: 60 }}>
-                <div
-                  style={{
-                    padding: "20px 24px",
-                    borderRadius: 14,
-                    border: "1px solid var(--success-border)",
-                    background: "var(--success-bg)",
-                    marginBottom: 20,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                    <span
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        background: "var(--success-text)",
-                        color: "var(--surface-primary)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        flexShrink: 0,
-                      }}
-                    >
-                      ✓
-                    </span>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+              <div className="wo-exec-content">
+                <div className="wo-completed-card">
+                  <div className="wo-completed-header">
+                    <span className="wo-check-badge-lg">✓</span>
+                    <h3 className="wo-completed-title">
                       {displayStep.title} — Completed
                     </h3>
                   </div>
                   {displayStep.result && (
-                    <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    <div className="wo-completed-detail">
                       {displayStep.result.name && (
                         <div><strong>Name:</strong> {displayStep.result.name}</div>
                       )}
@@ -1127,7 +835,7 @@ export function WorkflowOrchestrator() {
                 }
               />
             ) : StepComponent && displayStep ? (
-              <div style={{ maxWidth: 800, paddingBottom: 60 }}>
+              <div className="wo-exec-content">
                 <StepComponent
                   step={displayStep}
                   prefilled={resolvedPrefilled}

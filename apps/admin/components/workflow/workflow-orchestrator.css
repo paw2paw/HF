@@ -1,0 +1,419 @@
+/* ============================================================================
+   WorkflowOrchestrator — companion CSS (wo-* prefix)
+   All colors via CSS vars. Alpha via color-mix(). No hardcoded hex.
+   ============================================================================ */
+
+/* ── Root container ───────────────────────────────────────────────────────── */
+
+.wo-root {
+  min-height: 100vh;
+}
+
+/* ── Placeholder Step ─────────────────────────────────────────────────────── */
+
+.wo-placeholder {
+  padding: 40px;
+  text-align: center;
+  border: 2px dashed var(--border-default);
+  border-radius: 16px;
+  background: var(--surface-secondary);
+}
+
+.wo-placeholder-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.wo-placeholder-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.wo-placeholder-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 400px;
+  margin: 0 auto 24px;
+}
+
+.wo-placeholder-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.wo-btn-skip {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.wo-btn-skip:hover {
+  background: var(--surface-secondary);
+}
+
+.wo-btn-complete {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--surface-primary);
+  cursor: pointer;
+}
+
+.wo-btn-complete:hover {
+  opacity: 0.9;
+}
+
+/* ── Completion Summary ───────────────────────────────────────────────────── */
+
+.wo-summary {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 32px;
+  border-radius: 16px;
+  border: 2px solid var(--success-border);
+  background: var(--success-bg);
+  text-align: center;
+}
+
+.wo-summary-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--success-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 28px;
+  color: var(--surface-primary);
+}
+
+.wo-summary-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.wo-summary-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.wo-summary-steps {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.wo-summary-step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.wo-check-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--success-text);
+  color: var(--surface-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wo-check-badge-lg {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--success-text);
+  color: var(--surface-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.wo-step-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.wo-step-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.wo-btn-dashboard {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--surface-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.wo-btn-dashboard:hover {
+  opacity: 0.9;
+}
+
+/* ── Step Navigation Buttons ──────────────────────────────────────────────── */
+
+.wo-nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.wo-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wo-nav-btn:hover {
+  opacity: 0.85;
+}
+
+.wo-nav-btn-secondary {
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.wo-nav-btn-secondary:hover {
+  background: color-mix(in srgb, var(--surface-secondary) 80%, var(--border-default));
+}
+
+.wo-nav-btn-primary {
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--surface-primary);
+}
+
+.wo-nav-btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* ── Draft Restore Modal ──────────────────────────────────────────────────── */
+
+.wo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, black 60%, transparent);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.wo-modal-card {
+  background: var(--surface-primary);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 420px;
+  width: 100%;
+  margin: 16px;
+  box-shadow: 0 25px 50px -12px color-mix(in srgb, black 25%, transparent);
+  border: 1px solid var(--border-default);
+  text-align: center;
+}
+
+.wo-modal-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--status-warning-text) 0%, var(--status-warning-text) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 28px;
+}
+
+.wo-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.wo-modal-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.wo-modal-intent {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.wo-modal-intent-sub {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.wo-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.wo-btn-discard {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.wo-btn-discard:hover {
+  background: color-mix(in srgb, var(--surface-secondary) 80%, var(--border-default));
+}
+
+.wo-btn-resume {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--surface-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.wo-btn-resume:hover {
+  opacity: 0.9;
+}
+
+/* ── Planning Phase ───────────────────────────────────────────────────────── */
+
+.wo-planning-wrapper {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.wo-planning-header {
+  margin-bottom: 24px;
+}
+
+.wo-planning-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wo-planning-title-icon {
+  font-size: 32px;
+}
+
+.wo-planning-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+}
+
+.wo-planning-chat {
+  height: calc(100vh - 160px);
+}
+
+/* ── Execution Phase ──────────────────────────────────────────────────────── */
+
+.wo-exec-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.wo-exec-sidebar {
+  width: 360px;
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.wo-exec-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px;
+}
+
+.wo-exec-content {
+  max-width: 800px;
+  padding-bottom: 60px;
+}
+
+/* ── Completed Step Review ────────────────────────────────────────────────── */
+
+.wo-completed-card {
+  padding: 20px 24px;
+  border-radius: 14px;
+  border: 1px solid var(--success-border);
+  background: var(--success-bg);
+  margin-bottom: 20px;
+}
+
+.wo-completed-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.wo-completed-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.wo-completed-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

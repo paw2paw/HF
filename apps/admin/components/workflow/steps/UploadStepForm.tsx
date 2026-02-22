@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { StepFormProps } from "@/lib/workflow/types";
 import { useContentJobQueue } from "@/components/shared/ContentJobQueue";
+import "./upload-step-form.css";
 
 // ── Types ────────────────────────────────────────────────
 
@@ -227,30 +228,12 @@ export function UploadStepForm({
   // ── Render ──────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 16,
-        padding: 24,
-      }}
-    >
-      <h3
-        style={{
-          fontSize: 18,
-          fontWeight: 700,
-          color: "var(--text-primary)",
-          margin: "0 0 4px",
-        }}
-      >
-        {step.title}
-      </h3>
-      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 8px" }}>
-        {step.description}
-      </p>
+    <div className="hf-card">
+      <h3 className="usf-title">{step.title}</h3>
+      <p className="usf-desc">{step.description}</p>
 
       {sourceId && (
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 20px" }}>
+        <p className="usf-source-label">
           Uploading to: <strong>{sourceName}</strong>
         </p>
       )}
@@ -267,38 +250,24 @@ export function UploadStepForm({
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              padding: 40,
-              borderRadius: 12,
-              border: `2px dashed ${dragOver ? "var(--accent-primary)" : "var(--border-default)"}`,
-              background: dragOver
-                ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
-                : "var(--surface-secondary)",
-              textAlign: "center",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
+            className={`usf-dropzone${dragOver ? " usf-dropzone--active" : ""}`}
           >
-            <div style={{ fontSize: 32, marginBottom: 12 }}>
+            <div className="usf-dropzone-icon">
               {file ? "\u2705" : "\u{1F4C4}"}
             </div>
             {file ? (
               <>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                  {file.name}
-                </p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                <p className="usf-dropzone-filename">{file.name}</p>
+                <p className="usf-dropzone-hint">
                   {(file.size / 1024).toFixed(1)} KB — Click to change
                 </p>
               </>
             ) : (
               <>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                <p className="usf-dropzone-filename">
                   Drop a document here or click to browse
                 </p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
-                  Supports PDF, TXT, MD, JSON
-                </p>
+                <p className="usf-dropzone-hint">Supports PDF, TXT, MD, JSON</p>
               </>
             )}
           </div>
@@ -307,46 +276,22 @@ export function UploadStepForm({
             ref={fileInputRef}
             type="file"
             accept={ACCEPTED.join(",")}
-            style={{ display: "none" }}
+            className="usf-file-input-hidden"
             onChange={(e) => {
               if (e.target.files?.[0]) handleFile(e.target.files[0]);
             }}
           />
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
+          <div className="usf-actions">
             {/* Upload is always skippable — docs can be added later via /x/content-sources */}
-            <button
-              onClick={onSkip}
-              style={{
-                padding: "10px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 10,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={onSkip} className="usf-btn-skip">
               Skip — upload later
             </button>
             <button
               onClick={handleStart}
               disabled={!file}
-              style={{
-                padding: "10px 24px",
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 10,
-                border: "none",
-                background: file
-                  ? "var(--accent-primary)"
-                  : "var(--surface-tertiary)",
-                color: file ? "var(--button-primary-text, var(--surface-primary))" : "var(--text-muted)",
-                cursor: file ? "pointer" : "default",
-                boxShadow: file ? "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)" : "none",
-              }}
+              className="usf-btn-upload"
             >
               Upload &amp; Extract Teaching Points
             </button>
@@ -356,57 +301,16 @@ export function UploadStepForm({
 
       {/* ─── Running / Done Phase ─── */}
       {(isRunning || isDone) && (
-        <div style={{ padding: "12px 0" }}>
+        <div className="usf-phase-body">
           {/* Status header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 16,
-            }}
-          >
+          <div className="usf-status-header">
             {isRunning && (
-              <>
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: "var(--accent-primary)",
-                    animation: "pulse 1.5s ease-in-out infinite",
-                    flexShrink: 0,
-                  }}
-                />
-                <style>{`@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }`}</style>
-              </>
+              <span className="usf-pulse-dot" />
             )}
             {isDone && (
-              <span
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 6,
-                  background: "var(--success-text)",
-                  color: "var(--surface-primary)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                }}
-              >
-                {"\u2713"}
-              </span>
+              <span className="usf-done-badge">{"\u2713"}</span>
             )}
-            <span
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: isDone ? "var(--success-text)" : "var(--text-primary)",
-              }}
-            >
+            <span className={`usf-status-text${isDone ? " usf-status-text--done" : ""}`}>
               {isDone
                 ? `${progress?.importedCount ?? progress?.extractedCount ?? 0} teaching points imported`
                 : progress
@@ -414,52 +318,20 @@ export function UploadStepForm({
                   : "Starting extraction..."}
             </span>
             {isRunning && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  marginLeft: "auto",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {timeStr}
-              </span>
+              <span className="usf-elapsed">{timeStr}</span>
             )}
           </div>
 
           {/* Progress bar */}
           {progress && progress.totalChunks > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div
-                style={{
-                  height: 6,
-                  borderRadius: 3,
-                  background: "var(--surface-tertiary)",
-                  overflow: "hidden",
-                }}
-              >
+            <div className="usf-progress-wrap">
+              <div className="usf-progress-track">
                 <div
-                  style={{
-                    height: "100%",
-                    borderRadius: 3,
-                    background: isDone
-                      ? "var(--success-text)"
-                      : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
-                    width: isDone ? "100%" : `${chunkPct}%`,
-                    transition: "width 0.5s ease-out",
-                  }}
+                  className={`usf-progress-fill${isDone ? " usf-progress-fill--done" : ""}`}
+                  style={isDone ? undefined : { width: `${chunkPct}%` }}
                 />
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginTop: 4,
-                  fontSize: 11,
-                  color: "var(--text-muted)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
+              <div className="usf-progress-labels">
                 <span>
                   {progress.currentChunk} / {progress.totalChunks} chunks
                 </span>
@@ -470,36 +342,18 @@ export function UploadStepForm({
 
           {/* Indeterminate bar when starting (no progress yet) */}
           {!progress && isRunning && (
-            <div style={{ marginBottom: 12 }}>
-              <div
-                style={{
-                  height: 6,
-                  borderRadius: 3,
-                  background: "var(--surface-tertiary)",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    borderRadius: 3,
-                    width: "30%",
-                    background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
-                    animation: "indeterminate 1.5s ease-in-out infinite",
-                  }}
-                />
+            <div className="usf-progress-wrap">
+              <div className="usf-progress-track">
+                <div className="usf-progress-fill usf-progress-fill--indeterminate" />
               </div>
-              <style>{`@keyframes indeterminate { 0% { margin-left: 0; } 50% { margin-left: 70%; } 100% { margin-left: 0; } }`}</style>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+              <p className="usf-preparing-text">
                 Reading document and preparing chunks...
               </p>
             </div>
           )}
 
           {/* File name */}
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 4px" }}>
-            {file?.name}
-          </p>
+          <p className="usf-filename">{file?.name}</p>
 
           {/* Extraction details */}
           {isDone && (() => {
@@ -518,58 +372,34 @@ export function UploadStepForm({
             if (!hasDetails) return null;
 
             return (
-              <div style={{
-                marginTop: 12, padding: "10px 14px", borderRadius: 8,
-                background: "var(--surface-secondary)", fontSize: 12, lineHeight: 1.7,
-              }}>
+              <div className="usf-details-box">
                 {dupes > 0 && (
-                  <div style={{ color: "var(--text-muted)" }}>
+                  <div className="usf-detail-muted">
                     {dupes} duplicate{dupes !== 1 ? "s" : ""} skipped
                   </div>
                 )}
                 {skipped.map((s, i) => (
-                  <div key={`s-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                  <div key={`s-${i}`} className="usf-detail-muted">{s}</div>
                 ))}
                 {reference.map((s, i) => (
-                  <div key={`r-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                  <div key={`r-${i}`} className="usf-detail-muted">{s}</div>
                 ))}
                 {linked.map((s, i) => (
-                  <div key={`l-${i}`} style={{ color: "var(--status-success-text)" }}>{s}</div>
+                  <div key={`l-${i}`} className="usf-detail-success">{s}</div>
                 ))}
                 {orphaned.map((s, i) => (
-                  <div key={`o-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                  <div key={`o-${i}`} className="usf-detail-muted">{s}</div>
                 ))}
                 {other.map((s, i) => (
-                  <div key={`w-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                  <div key={`w-${i}`} className="usf-detail-muted">{s}</div>
                 ))}
               </div>
             );
           })()}
 
           {/* Actions — ALWAYS visible so user can continue */}
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              justifyContent: "flex-end",
-              marginTop: 20,
-            }}
-          >
-            <button
-              onClick={handleContinue}
-              style={{
-                padding: "10px 24px",
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 10,
-                border: "none",
-                background:
-                  "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%)",
-                color: "var(--surface-primary)",
-                cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(99, 102, 241, 0.3)",
-              }}
-            >
+          <div className="usf-actions">
+            <button onClick={handleContinue} className="usf-btn-continue">
               {isRunning ? "Continue (runs in background)" : "Continue"}
             </button>
           </div>
@@ -578,26 +408,14 @@ export function UploadStepForm({
 
       {/* ─── Error Phase ─── */}
       {phase === "error" && (
-        <div style={{ padding: "12px 0" }}>
-          <div
-            style={{
-              padding: "16px 20px",
-              borderRadius: 10,
-              background: "var(--error-bg)",
-              border: "1px solid var(--error-border)",
-              marginBottom: 16,
-            }}
-          >
-            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--error-text)", margin: 0 }}>
-              Extraction failed
-            </p>
+        <div className="usf-phase-body">
+          <div className="usf-error-box">
+            <p className="usf-error-title">Extraction failed</p>
             {error && (
-              <p style={{ fontSize: 13, color: "var(--error-text)", margin: "6px 0 0", opacity: 0.8 }}>
-                {error}
-              </p>
+              <p className="usf-error-detail">{error}</p>
             )}
           </div>
-          <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+          <div className="usf-actions usf-actions--flush">
             <button
               onClick={() => {
                 setPhase("upload");
@@ -605,16 +423,7 @@ export function UploadStepForm({
                 setJobId(null);
                 setProgress(null);
               }}
-              style={{
-                padding: "10px 20px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 10,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-              }}
+              className="usf-btn-skip"
             >
               Try Again
             </button>
@@ -624,19 +433,7 @@ export function UploadStepForm({
 
       {/* Inline error for upload phase */}
       {phase === "upload" && error && (
-        <div
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "var(--error-bg)",
-            border: "1px solid var(--error-border)",
-            color: "var(--error-text)",
-            fontSize: 13,
-            marginTop: 16,
-          }}
-        >
-          {error}
-        </div>
+        <div className="usf-inline-error">{error}</div>
       )}
     </div>
   );

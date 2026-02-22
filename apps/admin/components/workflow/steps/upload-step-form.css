@@ -1,0 +1,319 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   UploadStepForm — usf-* prefix
+   Companion CSS for UploadStepForm.tsx
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+
+@keyframes usf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes usf-indeterminate {
+  0% { margin-left: 0; }
+  50% { margin-left: 70%; }
+  100% { margin-left: 0; }
+}
+
+/* ── Title & description ───────────────────────────────────────────────── */
+
+.usf-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.usf-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.usf-source-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 20px;
+}
+
+/* ── Drop zone ─────────────────────────────────────────────────────────── */
+
+.usf-dropzone {
+  padding: 40px;
+  border-radius: 12px;
+  border: 2px dashed var(--border-default);
+  background: var(--surface-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.usf-dropzone--active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.usf-dropzone-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.usf-dropzone-filename {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.usf-dropzone-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Actions row ───────────────────────────────────────────────────────── */
+
+.usf-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.usf-actions--flush {
+  margin-top: 0;
+}
+
+/* ── Skip / Try Again button ───────────────────────────────────────────── */
+
+.usf-btn-skip {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.usf-btn-skip:hover {
+  background: var(--surface-tertiary);
+}
+
+/* ── Upload / primary action button ────────────────────────────────────── */
+
+.usf-btn-upload {
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent-primary);
+  color: var(--button-primary-text, var(--surface-primary));
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.usf-btn-upload:hover {
+  filter: brightness(1.1);
+}
+
+.usf-btn-upload:disabled {
+  background: var(--surface-tertiary);
+  color: var(--text-muted);
+  cursor: default;
+  box-shadow: none;
+  filter: none;
+}
+
+/* ── Continue button ───────────────────────────────────────────────────── */
+
+.usf-btn-continue {
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 100%);
+  color: var(--surface-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.usf-btn-continue:hover {
+  filter: brightness(1.1);
+}
+
+/* ── Running / Done phase ──────────────────────────────────────────────── */
+
+.usf-phase-body {
+  padding: 12px 0;
+}
+
+.usf-status-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* Pulsing dot (running state) */
+.usf-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  animation: usf-pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* Done checkmark badge */
+.usf-done-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--status-success-text);
+  color: var(--surface-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Status label text */
+.usf-status-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.usf-status-text--done {
+  color: var(--status-success-text);
+}
+
+/* Elapsed time */
+.usf-elapsed {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Progress bar ──────────────────────────────────────────────────────── */
+
+.usf-progress-wrap {
+  margin-bottom: 12px;
+}
+
+.usf-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-tertiary);
+  overflow: hidden;
+}
+
+.usf-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary));
+  transition: width 0.5s ease-out;
+}
+
+.usf-progress-fill--done {
+  background: var(--status-success-text);
+  width: 100%;
+}
+
+/* Indeterminate progress bar */
+.usf-progress-fill--indeterminate {
+  width: 30%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-primary));
+  animation: usf-indeterminate 1.5s ease-in-out infinite;
+}
+
+.usf-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.usf-preparing-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── File name (below progress) ────────────────────────────────────────── */
+
+.usf-filename {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+}
+
+/* ── Extraction details box ────────────────────────────────────────────── */
+
+.usf-details-box {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.usf-detail-muted {
+  color: var(--text-muted);
+}
+
+.usf-detail-success {
+  color: var(--status-success-text);
+}
+
+/* ── Error phase ───────────────────────────────────────────────────────── */
+
+.usf-error-box {
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  margin-bottom: 16px;
+}
+
+.usf-error-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--status-error-text);
+  margin: 0;
+}
+
+.usf-error-detail {
+  font-size: 13px;
+  color: var(--status-error-text);
+  margin: 6px 0 0;
+  opacity: 0.8;
+}
+
+/* ── Inline upload error ───────────────────────────────────────────────── */
+
+.usf-inline-error {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  color: var(--status-error-text);
+  font-size: 13px;
+  margin-top: 16px;
+}
+
+/* ── Hidden file input ─────────────────────────────────────────────────── */
+
+.usf-file-input-hidden {
+  display: none;
+}

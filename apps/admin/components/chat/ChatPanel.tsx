@@ -7,6 +7,7 @@ import { useChatContext, useChatKeyboardShortcut, MODE_CONFIG } from "@/contexts
 import { useEntityContext, ENTITY_COLORS, EntityBreadcrumb } from "@/contexts/EntityContext";
 import { useEntityDetection } from "@/hooks/useEntityDetection";
 import { AIModelBadge } from "@/components/shared/AIModelBadge";
+import "./chat-panel.css";
 
 // Sub-components
 function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[] }) {
@@ -19,53 +20,27 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
 
   if (uniqueBreadcrumbs.length === 0) {
     return (
-      <div
-        style={{
-          padding: "8px 16px",
-          fontSize: 12,
-          color: "var(--text-muted)",
-          background: "var(--surface-secondary)",
-          borderBottom: "1px solid var(--border-default)",
-        }}
-      >
+      <div className="chat-breadcrumb-empty">
         No context selected - navigate to a caller or call to add context
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        padding: "8px 16px",
-        background: "var(--surface-secondary)",
-        borderBottom: "1px solid var(--border-default)",
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        flexWrap: "wrap",
-        fontSize: 12,
-      }}
-    >
+    <div className="chat-breadcrumb-stripe">
       {uniqueBreadcrumbs.map((crumb, i) => {
         const colors = ENTITY_COLORS[crumb.type];
         return (
           <React.Fragment key={crumb.id}>
-            {i > 0 && <span style={{ color: "var(--text-muted)" }}>›</span>}
+            {i > 0 && <span className="chat-breadcrumb-sep">›</span>}
             <button
               onClick={() => clearToEntity(crumb.id)}
+              className="chat-breadcrumb-btn"
               style={{
                 background: colors.bg,
                 color: colors.text,
-                padding: "2px 8px",
-                borderRadius: 4,
                 border: `1px solid ${colors.border}`,
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 500,
-                transition: "opacity 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
               title={`Click to clear context after ${crumb.label}`}
             >
               {crumb.type}: {crumb.label}
@@ -91,24 +66,13 @@ function ChatMessages() {
   if (currentMessages.length === 0) {
     const config = MODE_CONFIG[mode];
     return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          color: "var(--text-muted)",
-          textAlign: "center",
-        }}
-      >
-        <span style={{ fontSize: 48, marginBottom: 16 }}>{config.icon}</span>
-        <p style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>
+      <div className="chat-empty">
+        <span className="chat-empty-icon">{config.icon}</span>
+        <p className="chat-empty-title">
           {config.label} Mode
         </p>
-        <p style={{ fontSize: 12 }}>{config.description}</p>
-        <p style={{ fontSize: 11, marginTop: 16, color: "var(--text-muted)" }}>
+        <p className="chat-empty-desc">{config.description}</p>
+        <p className="chat-empty-hint">
           Type a message or use /help for commands
         </p>
       </div>
@@ -116,61 +80,32 @@ function ChatMessages() {
   }
 
   return (
-    <div
-      style={{
-        flex: 1,
-        overflowY: "auto",
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
+    <div className="chat-messages">
       {currentMessages.map((msg) => {
         const isUser = msg.role === "user";
         const isCurrentStreaming = isStreaming && msg.id === streamingMessageId;
         const hasError = msg.metadata?.error;
         const toolCalls = msg.metadata?.toolCalls;
 
+        const bubbleClass = isUser
+          ? "chat-bubble chat-bubble--user"
+          : hasError
+            ? "chat-bubble chat-bubble--error"
+            : "chat-bubble chat-bubble--assistant";
+
         return (
           <div
             key={msg.id}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: isUser ? "flex-end" : "flex-start",
-            }}
+            className={`chat-msg ${isUser ? "chat-msg--user" : "chat-msg--assistant"}`}
           >
             {/* Tool usage indicator */}
             {!isUser && toolCalls && toolCalls > 0 && (
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--accent-secondary, #8b5cf6)",
-                  marginBottom: 4,
-                  paddingLeft: 4,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <span style={{ fontSize: 12 }}>&#x1F527;</span>
+              <div className="chat-tool-indicator">
+                <span className="chat-tool-indicator-icon">&#x1F527;</span>
                 <span>Used {toolCalls} tool{toolCalls > 1 ? "s" : ""}</span>
               </div>
             )}
-            <div
-              style={{
-                maxWidth: "85%",
-                padding: "10px 14px",
-                borderRadius: 12,
-                background: isUser ? "var(--accent-primary)" : hasError ? "color-mix(in srgb, var(--status-error-text) 10%, transparent)" : "var(--surface-secondary)",
-                color: isUser ? "white" : hasError ? "var(--status-error-text)" : "var(--text-primary)",
-                fontSize: 13,
-                lineHeight: 1.5,
-                wordBreak: "break-word",
-                ...(isUser ? { whiteSpace: "pre-wrap" as const } : {}),
-              }}
-            >
+            <div className={bubbleClass}>
               {isUser ? (
                 msg.content || ""
               ) : (
@@ -178,92 +113,15 @@ function ChatMessages() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      p: ({ children }) => <p style={{ margin: "0 0 8px 0" }}>{children}</p>,
-                      strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+                      pre: ({ children }) => <div>{children}</div>,
                       code: ({ children, className }) => {
                         const isBlock = className?.includes("language-");
-                        if (isBlock) {
-                          return (
-                            <code
-                              style={{
-                                display: "block",
-                                background: "var(--text-primary)",
-                                color: "var(--border-default)",
-                                padding: 12,
-                                borderRadius: 6,
-                                fontSize: 12,
-                                overflowX: "auto",
-                                whiteSpace: "pre",
-                                margin: "8px 0",
-                              }}
-                            >
-                              {children}
-                            </code>
-                          );
-                        }
                         return (
-                          <code
-                            style={{
-                              background: "var(--border-default)",
-                              padding: "1px 4px",
-                              borderRadius: 3,
-                              fontSize: 12,
-                            }}
-                          >
+                          <code className={isBlock ? "chat-code-block" : "chat-code-inline"}>
                             {children}
                           </code>
                         );
                       },
-                      pre: ({ children }) => <div>{children}</div>,
-                      ul: ({ children }) => <ul style={{ margin: "4px 0", paddingLeft: 20 }}>{children}</ul>,
-                      ol: ({ children }) => <ol style={{ margin: "4px 0", paddingLeft: 20 }}>{children}</ol>,
-                      li: ({ children }) => <li style={{ margin: "2px 0" }}>{children}</li>,
-                      table: ({ children }) => (
-                        <table
-                          style={{
-                            borderCollapse: "collapse",
-                            fontSize: 12,
-                            margin: "8px 0",
-                            width: "100%",
-                          }}
-                        >
-                          {children}
-                        </table>
-                      ),
-                      th: ({ children }) => (
-                        <th
-                          style={{
-                            border: "1px solid var(--border-default)",
-                            padding: "4px 8px",
-                            background: "var(--border-default)",
-                            fontWeight: 600,
-                            textAlign: "left",
-                          }}
-                        >
-                          {children}
-                        </th>
-                      ),
-                      td: ({ children }) => (
-                        <td style={{ border: "1px solid var(--border-default)", padding: "4px 8px" }}>{children}</td>
-                      ),
-                      h3: ({ children }) => (
-                        <h3 style={{ fontSize: 14, fontWeight: 600, margin: "12px 0 4px 0" }}>{children}</h3>
-                      ),
-                      h4: ({ children }) => (
-                        <h4 style={{ fontSize: 13, fontWeight: 600, margin: "8px 0 4px 0" }}>{children}</h4>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote
-                          style={{
-                            borderLeft: "3px solid var(--accent-secondary, #8b5cf6)",
-                            paddingLeft: 12,
-                            margin: "8px 0",
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {children}
-                        </blockquote>
-                      ),
                     }}
                   >
                     {msg.content || (isCurrentStreaming ? "..." : "")}
@@ -271,33 +129,13 @@ function ChatMessages() {
                 </div>
               )}
               {isCurrentStreaming && (
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 6,
-                    height: 14,
-                    background: "var(--text-muted)",
-                    marginLeft: 2,
-                    animation: "blink 1s infinite",
-                  }}
-                />
+                <span className="chat-cursor" />
               )}
             </div>
-            <div
-              style={{
-                fontSize: 10,
-                color: "var(--text-muted)",
-                marginTop: 4,
-                paddingLeft: isUser ? 0 : 4,
-                paddingRight: isUser ? 4 : 0,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+            <div className={`chat-timestamp ${isUser ? "chat-timestamp--user" : "chat-timestamp--assistant"}`}>
               {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               {msg.metadata?.command && (
-                <span style={{ marginLeft: 8, color: "var(--accent-secondary, #8b5cf6)" }}>{msg.metadata.command}</span>
+                <span className="chat-timestamp-command">{msg.metadata.command}</span>
               )}
               {!isUser && <AIModelBadge callPoint={`chat.${mode.toLowerCase()}`} variant="text" size="sm" />}
             </div>
@@ -305,12 +143,6 @@ function ChatMessages() {
         );
       })}
       <div ref={messagesEndRef} />
-      <style>{`
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -339,21 +171,8 @@ function ChatInput() {
   const config = MODE_CONFIG[mode];
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        padding: 12,
-        borderTop: "1px solid var(--border-default)",
-        background: "var(--surface-primary)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "flex-end",
-        }}
-      >
+    <form onSubmit={handleSubmit} className="chat-input-form">
+      <div className="chat-input-row">
         <textarea
           ref={inputRef}
           value={input}
@@ -361,61 +180,25 @@ function ChatInput() {
           onKeyDown={handleKeyDown}
           placeholder={`Message ${config.label}... (or /help)`}
           disabled={isStreaming}
-          style={{
-            flex: 1,
-            padding: "10px 12px",
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            fontSize: 13,
-            resize: "none",
-            minHeight: 40,
-            maxHeight: 120,
-            outline: "none",
-            fontFamily: "inherit",
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            caretColor: "var(--text-primary)",
-            WebkitTextFillColor: "var(--text-primary)",
-          } as React.CSSProperties}
+          className="chat-textarea"
           rows={1}
         />
         {isStreaming ? (
-          <button
-            type="button"
-            onClick={cancelStream}
-            style={{
-              padding: "10px 16px",
-              background: "var(--status-error-text)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
+          <button type="button" onClick={cancelStream} className="chat-stop-btn">
             Stop
           </button>
         ) : (
           <button
             type="submit"
             disabled={!input.trim()}
-            style={{
-              padding: "10px 16px",
-              background: input.trim() ? config.color : "var(--border-default)",
-              color: input.trim() ? "white" : "var(--text-muted)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: input.trim() ? "pointer" : "not-allowed",
-            }}
+            className="chat-send-btn"
+            style={input.trim() ? { background: config.color } : undefined}
           >
             Send
           </button>
         )}
       </div>
-      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, textAlign: "center" }}>
+      <div className="chat-input-hint">
         Press Enter to send, Shift+Enter for new line
       </div>
     </form>
@@ -434,58 +217,6 @@ export function ChatPanel() {
 
   const config = MODE_CONFIG[mode];
 
-  // Layout-specific styles
-  const getLayoutStyles = (): React.CSSProperties => {
-    const baseStyles: React.CSSProperties = {
-      position: "fixed",
-      background: "var(--surface-primary)",
-      display: "flex",
-      flexDirection: "column",
-      zIndex: 50,
-      transition: "all 200ms ease-out",
-    };
-
-    switch (chatLayout) {
-      case "horizontal":
-        return {
-          ...baseStyles,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 320,
-          borderTop: "1px solid var(--border-default)",
-          boxShadow: isOpen ? "0 -4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)" : "none",
-          transform: isOpen ? "translateY(0)" : "translateY(100%)",
-        };
-      case "popout":
-        return {
-          ...baseStyles,
-          right: 24,
-          bottom: 24,
-          width: 420,
-          height: 560,
-          borderRadius: 12,
-          border: "1px solid var(--border-default)",
-          boxShadow: isOpen ? "0 8px 32px color-mix(in srgb, var(--text-primary) 15%, transparent)" : "none",
-          transform: isOpen ? "scale(1)" : "scale(0.9)",
-          opacity: isOpen ? 1 : 0,
-          pointerEvents: isOpen ? "auto" : "none",
-        };
-      case "vertical":
-      default:
-        return {
-          ...baseStyles,
-          right: 0,
-          top: 0,
-          width: 400,
-          height: "100vh",
-          borderLeft: "1px solid var(--border-default)",
-          boxShadow: isOpen ? "-4px 0 24px color-mix(in srgb, var(--text-primary) 10%, transparent)" : "none",
-          transform: isOpen ? "translateX(0)" : "translateX(100%)",
-        };
-    }
-  };
-
   const layoutLabels: Record<string, { icon: string; title: string }> = {
     vertical: { icon: "│", title: "Vertical (sidebar)" },
     horizontal: { icon: "─", title: "Horizontal (bottom)" },
@@ -498,78 +229,38 @@ export function ChatPanel() {
     setChatLayout(layouts[(idx + 1) % layouts.length]);
   };
 
+  const panelClass = `chat-panel chat-panel--${chatLayout}${isOpen ? " chat-panel--open" : ""}`;
+  const headerClass = `chat-header${chatLayout === "popout" ? " chat-header--popout" : ""}`;
+
   return (
     <>
       {/* Backdrop for mobile */}
       {isOpen && (
-        <div
-          onClick={closePanel}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "color-mix(in srgb, var(--text-primary) 30%, transparent)",
-            zIndex: 40,
-            display: "none", // Hidden on desktop, show on mobile via media query
-          }}
-        />
+        <div onClick={closePanel} className="chat-backdrop" />
       )}
 
       {/* Panel */}
-      <div style={getLayoutStyles()}>
+      <div className={panelClass}>
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 16px",
-            borderBottom: "1px solid var(--border-default)",
-            background: "var(--surface-primary)",
-            borderRadius: chatLayout === "popout" ? "12px 12px 0 0" : undefined,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 20 }}>{config.icon}</span>
+        <div className={headerClass}>
+          <div className="chat-header-left">
+            <span className="chat-header-icon">{config.icon}</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>AI Assistant</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{config.description}</div>
+              <div className="chat-header-title">AI Assistant</div>
+              <div className="chat-header-subtitle">{config.description}</div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div className="chat-header-actions">
             <button
               onClick={cycleLayout}
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                background: "var(--surface-primary)",
-                cursor: "pointer",
-                fontSize: 14,
-                color: "var(--text-muted)",
-              }}
+              className="chat-header-btn chat-header-btn--layout"
               title={`Layout: ${layoutLabels[chatLayout].title} (click to change)`}
             >
               {layoutLabels[chatLayout].icon}
             </button>
             <button
               onClick={closePanel}
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                background: "var(--surface-primary)",
-                cursor: "pointer",
-                fontSize: 16,
-                color: "var(--text-muted)",
-              }}
+              className="chat-header-btn chat-header-btn--close"
               title="Close (Cmd+K)"
             >
               ×

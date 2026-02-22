@@ -1,0 +1,269 @@
+/* ── AppearancePanel: ap-* classes ─────────────────── */
+
+/* Theme section: extra margin-bottom on desc */
+.ap-section-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* Theme options grid */
+.ap-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Theme option button (base) */
+.ap-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.ap-theme-option:hover {
+  background: var(--surface-secondary);
+}
+.ap-theme-option.selected {
+  border: 2px solid var(--accent-primary);
+  background: var(--surface-secondary);
+}
+.ap-theme-option.selected .hf-icon-box-lg {
+  color: var(--accent-primary);
+}
+
+/* Selected check badge (top-right) */
+.ap-check-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Theme option text block */
+.ap-option-text {
+  text-align: center;
+}
+.ap-option-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.ap-option-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Palette grid (two columns) */
+.ap-palette-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Palette card (no margin-bottom unlike hf-card) */
+.ap-palette-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+/* Palette header row */
+.ap-palette-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ap-palette-icon {
+  color: var(--text-muted);
+}
+.ap-palette-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.ap-palette-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* Palette preset list */
+.ap-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Palette preset row button (base) */
+.ap-preset-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ap-preset-btn:hover {
+  border-color: var(--accent-primary);
+}
+.ap-preset-btn.selected {
+  border: 2px solid var(--accent-primary);
+}
+
+/* Color swatches row */
+.ap-swatches {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.ap-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+.ap-swatch-light {
+  border: 1px solid color-mix(in srgb, black 10%, transparent);
+}
+.ap-swatch-dark {
+  border: 1px solid color-mix(in srgb, white 10%, transparent);
+}
+
+/* Preset text block */
+.ap-preset-text {
+  flex: 1;
+  text-align: left;
+}
+.ap-preset-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.ap-preset-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Active indicator dot */
+.ap-active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-success-text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-success-text) 20%, transparent);
+}
+
+/* Small check badge (palette selected, not active) */
+.ap-check-badge-sm {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Developer tools card */
+.ap-devtools-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+/* Bug reporter button */
+.ap-devtools-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s ease;
+}
+.ap-devtools-btn:hover {
+  border-color: var(--accent-primary);
+}
+
+/* Bug icon box (uses hf-icon-box base, override color dynamically) */
+.ap-bug-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.ap-bug-icon.enabled {
+  color: var(--status-error-text);
+}
+
+/* Text block inside devtools button */
+.ap-devtools-text {
+  flex: 1;
+  text-align: left;
+}
+.ap-devtools-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.ap-devtools-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Toggle switch */
+.ap-toggle-track {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--surface-tertiary);
+  position: relative;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.ap-toggle-track.on {
+  background: var(--accent-primary);
+}
+.ap-toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface-primary);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s ease;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-primary) 20%, transparent);
+}
+.ap-toggle-track.on .ap-toggle-knob {
+  left: 20px;
+}

@@ -1,0 +1,311 @@
+/* ── Content Explorer Page ────────────────────────── */
+/* Extracted from inline styles — imported by content-explorer/page.tsx */
+
+/* Page wrapper */
+.ce-page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Header section */
+.ce-header {
+  margin-bottom: 24px;
+}
+.ce-header .hf-page-title {
+  margin-bottom: 4px;
+}
+.ce-header-loading .hf-page-title {
+  margin-bottom: 8px;
+}
+.ce-subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.ce-error-text {
+  color: var(--status-error-text);
+}
+
+/* Stats grid */
+.ce-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Stat card */
+.ce-stat-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-primary);
+}
+.ce-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.ce-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Category pill bar */
+.ce-category-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.ce-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ce-category-pill:hover {
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+}
+.ce-category-count {
+  opacity: 0.7;
+}
+
+/* Filters bar */
+.ce-filters-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.ce-search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  outline: none;
+}
+.ce-search-input:focus {
+  border-color: var(--accent-primary);
+}
+.ce-spec-filter-wrap {
+  width: 200px;
+}
+.ce-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ce-checkbox-label input[type="checkbox"] {
+  accent-color: var(--status-success-text);
+}
+
+/* Results count */
+.ce-results-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* Fragment table */
+.ce-table {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ce-table-header {
+  display: grid;
+  grid-template-columns: 90px 140px 1fr 60px 60px;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+.ce-col-right {
+  text-align: right;
+}
+.ce-col-center {
+  text-align: center;
+}
+
+/* Scrollable rows container */
+.ce-table-body {
+  max-height: calc(100vh - 420px);
+  overflow-y: auto;
+}
+
+/* Empty state */
+.ce-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Fragment row */
+.ce-row {
+  display: grid;
+  grid-template-columns: 90px 140px 1fr 60px 60px;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-default);
+  cursor: pointer;
+  background: var(--surface-primary);
+  transition: background 0.1s;
+}
+.ce-row:hover {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
+.ce-row-expanded {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+.ce-row-expanded:hover {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+/* Category pill inside row */
+.ce-fragment-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 10px;
+}
+
+/* Spec slug column */
+.ce-spec-slug {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* Fragment label + value preview */
+.ce-fragment-content {
+  overflow: hidden;
+}
+.ce-fragment-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ce-fragment-preview {
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* Length column */
+.ce-fragment-length {
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Prompt consumed indicator */
+.ce-prompt-indicator {
+  text-align: center;
+}
+.ce-prompt-yes {
+  color: var(--status-success-text);
+  font-weight: 600;
+}
+.ce-prompt-no {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* Expanded row panel */
+.ce-expanded-panel {
+  padding: 12px 16px 12px 106px;
+  border-bottom: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+.ce-expanded-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.ce-expanded-meta code {
+  font-family: monospace;
+}
+.ce-expanded-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+}
+.ce-expanded-textarea:focus {
+  border-color: var(--accent-primary);
+}
+.ce-expanded-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* Cancel button */
+.ce-btn-cancel {
+  padding: 6px 14px;
+  font-size: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ce-btn-cancel:hover {
+  background: var(--surface-secondary);
+}
+
+/* Save button */
+.ce-btn-save {
+  padding: 6px 14px;
+  font-size: 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--status-success-text);
+  color: var(--text-on-dark);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ce-btn-save:hover {
+  filter: brightness(1.1);
+}

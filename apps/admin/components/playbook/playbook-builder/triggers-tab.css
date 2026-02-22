@@ -1,0 +1,303 @@
+/* ── Triggers Tab ──────────────────────────────── */
+/* Extracted from inline styles — imported by TriggersTab.tsx */
+/* Prefix: tt-* */
+
+/* Root container */
+.tt-root {
+  margin-top: 24px;
+}
+
+/* Loading / error states */
+.tt-status {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Main layout */
+.tt-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Filter Bar ─────────────────────────────────── */
+
+.tt-filter-bar {
+  padding: 16px;
+  background: var(--background);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Filter chip (button) — base */
+.tt-filter-chip {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tt-filter-chip:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-secondary);
+}
+
+/* Filter chip — active state */
+.tt-filter-chip.tt-active {
+  border: 2px solid var(--button-primary-bg);
+  background: var(--status-info-bg);
+}
+
+/* Label inside filter chip */
+.tt-filter-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* Count inside filter chip */
+.tt-filter-count {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.tt-filter-chip.tt-active .tt-filter-count {
+  color: var(--button-primary-bg);
+}
+
+/* ── Category Panel ─────────────────────────────── */
+
+.tt-category-panel {
+  background: var(--surface-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+}
+
+/* Category header row */
+.tt-category-header {
+  padding: 12px 16px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border-default);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tt-category-header:hover {
+  background: var(--surface-secondary);
+}
+
+.tt-category-icon {
+  font-size: 18px;
+}
+
+.tt-category-name {
+  font-weight: 600;
+}
+
+.tt-category-count {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.tt-category-desc {
+  margin-left: 8px;
+  color: var(--text-placeholder);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.tt-chevron {
+  margin-left: auto;
+  color: var(--text-placeholder);
+  font-size: 12px;
+}
+
+/* ── Spec List ──────────────────────────────────── */
+
+.tt-spec-list {
+  padding: 8px 0;
+}
+
+/* Spec header row */
+.tt-spec-header {
+  padding: 8px 16px 8px 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tt-spec-header:hover {
+  background: var(--surface-secondary);
+}
+
+.tt-spec-slug {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tt-spec-name {
+  font-weight: 500;
+}
+
+.tt-spec-count {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.tt-spec-chevron {
+  margin-left: auto;
+  color: var(--text-placeholder);
+  font-size: 11px;
+}
+
+/* ── Trigger Cards ──────────────────────────────── */
+
+.tt-trigger-list {
+  padding: 8px 16px 8px 48px;
+}
+
+.tt-trigger-card {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--status-warning-bg);
+  border-radius: 6px;
+  border: 1px solid var(--status-warning-border);
+}
+
+/* Trigger header (clickable area) */
+.tt-trigger-header {
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.tt-trigger-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.tt-trigger-icon {
+  font-size: 14px;
+}
+
+.tt-trigger-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tt-trigger-action-count {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.tt-trigger-chevron {
+  margin-left: auto;
+  color: var(--text-placeholder);
+  font-size: 10px;
+}
+
+/* Given / When / Then block */
+.tt-gwt {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.tt-gwt-given {
+  color: var(--badge-purple-text);
+  font-weight: 500;
+}
+
+.tt-gwt-when {
+  color: var(--status-warning-text);
+  font-weight: 500;
+}
+
+.tt-gwt-then {
+  color: var(--status-success-text);
+  font-weight: 500;
+}
+
+/* ── Actions Section ────────────────────────────── */
+
+.tt-actions-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--status-warning-border);
+}
+
+.tt-actions-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.tt-action-card {
+  padding: 6px 10px;
+  background: var(--surface-primary);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  border: 1px solid var(--border-default);
+}
+
+.tt-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.tt-action-desc {
+  flex: 1;
+}
+
+.tt-action-weight {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.tt-action-param {
+  margin-left: 24px;
+  font-size: 11px;
+  color: var(--button-primary-bg);
+}
+
+.tt-action-learn {
+  margin-left: 24px;
+  font-size: 11px;
+  color: var(--badge-purple-text);
+}
+
+/* ── Empty State ────────────────────────────────── */
+
+.tt-empty {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-placeholder);
+}

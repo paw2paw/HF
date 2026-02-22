@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
+import "./content-explorer.css";
 
 type ContentFragment = {
   id: string;
@@ -142,22 +143,26 @@ export default function ContentExplorerPage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <h1 className="hf-page-title" style={{ marginBottom: 8 }}>
-          Content Explorer
-        </h1>
-        <p style={{ color: "var(--text-muted)" }}>Loading fragments...</p>
+      <div className="ce-page">
+        <div className="ce-header-loading">
+          <h1 className="hf-page-title">
+            Content Explorer
+          </h1>
+        </div>
+        <p className="ce-subtitle">Loading fragments...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <h1 className="hf-page-title" style={{ marginBottom: 8 }}>
-          Content Explorer
-        </h1>
-        <p style={{ color: "var(--status-error-text)" }}>Error: {error}</p>
+      <div className="ce-page">
+        <div className="ce-header-loading">
+          <h1 className="hf-page-title">
+            Content Explorer
+          </h1>
+        </div>
+        <p className="ce-error-text">Error: {error}</p>
       </div>
     );
   }
@@ -165,89 +170,56 @@ export default function ContentExplorerPage() {
   const stats = data!.stats;
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div className="ce-page">
       <AdvancedBanner />
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
+      <div className="ce-header">
+        <h1 className="hf-page-title">
           Content Explorer
         </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+        <p className="ce-subtitle">
           All text fragments extracted from spec configs. Toggle &quot;Prompt-Used Only&quot; to see what actually reaches the AI.
         </p>
       </div>
 
       {/* Stats cards */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: 12,
-        marginBottom: 24,
-      }}>
+      <div className="ce-stats-grid">
         <StatCard label="Total Fragments" value={stats.totalFragments} />
-        <StatCard label="Prompt-Used" value={stats.promptConsumed} color="var(--status-success-text, #059669)" />
-        <StatCard label="Metadata Only" value={stats.metadataOnly} color="var(--text-muted, #737373)" />
+        <StatCard label="Prompt-Used" value={stats.promptConsumed} color="var(--status-success-text)" />
+        <StatCard label="Metadata Only" value={stats.metadataOnly} color="var(--text-muted)" />
         <StatCard label="Total Characters" value={`${(stats.totalChars / 1000).toFixed(0)}K`} />
       </div>
 
       {/* Category breakdown */}
-      <div style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 6,
-        marginBottom: 20,
-      }}>
+      <div className="ce-category-bar">
         {Object.entries(stats.byCategory).sort((a, b) => b[1] - a[1]).map(([cat, count]) => (
           <button
             key={cat}
             onClick={() => setCategoryFilter(categoryFilter === cat ? "" : cat)}
+            className="ce-category-pill"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 10px",
-              fontSize: 12,
-              fontWeight: 500,
-              borderRadius: 12,
-              border: `1px solid ${categoryFilter === cat ? CATEGORY_COLORS[cat] || "var(--text-muted)" : "var(--border-default)"}`,
+              borderColor: categoryFilter === cat ? CATEGORY_COLORS[cat] || "var(--text-muted)" : undefined,
               background: categoryFilter === cat
                 ? `color-mix(in srgb, ${CATEGORY_COLORS[cat] || "var(--text-muted)"} 15%, transparent)`
-                : "transparent",
+                : undefined,
               color: CATEGORY_COLORS[cat] || "var(--text-muted)",
-              cursor: "pointer",
             }}
           >
-            {cat} <span style={{ opacity: 0.7 }}>{count}</span>
+            {cat} <span className="ce-category-count">{count}</span>
           </button>
         ))}
       </div>
 
       {/* Filters bar */}
-      <div style={{
-        display: "flex",
-        gap: 12,
-        alignItems: "center",
-        marginBottom: 16,
-        flexWrap: "wrap",
-      }}>
+      <div className="ce-filters-bar">
         <input
           type="text"
           placeholder="Search fragments..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 200,
-            padding: "8px 12px",
-            fontSize: 14,
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-            outline: "none",
-          }}
+          className="ce-search-input"
         />
-        <div style={{ width: 200 }}>
+        <div className="ce-spec-filter-wrap">
           <FancySelect
             value={specFilter}
             onChange={setSpecFilter}
@@ -255,61 +227,36 @@ export default function ContentExplorerPage() {
             placeholder="All Specs"
           />
         </div>
-        <label style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 13,
-          color: "var(--text-muted)",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}>
+        <label className="ce-checkbox-label">
           <input
             type="checkbox"
             checked={promptOnly}
             onChange={e => setPromptOnly(e.target.checked)}
-            style={{ accentColor: "var(--status-success-text, #059669)" }}
           />
           Prompt-Used Only
         </label>
       </div>
 
       {/* Results count */}
-      <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
+      <div className="ce-results-count">
         Showing {filtered.length} of {stats.totalFragments} fragments
       </div>
 
       {/* Fragment table */}
-      <div style={{
-        border: "1px solid var(--border-default)",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}>
+      <div className="ce-table">
         {/* Header */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "90px 140px 1fr 60px 60px",
-          gap: 8,
-          padding: "10px 16px",
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: "var(--text-muted)",
-          background: "var(--surface-secondary)",
-          borderBottom: "1px solid var(--border-default)",
-        }}>
+        <div className="ce-table-header">
           <div>Category</div>
           <div>Spec</div>
           <div>Fragment</div>
-          <div style={{ textAlign: "right" }}>Chars</div>
-          <div style={{ textAlign: "center" }}>Used</div>
+          <div className="ce-col-right">Chars</div>
+          <div className="ce-col-center">Used</div>
         </div>
 
         {/* Rows */}
-        <div style={{ maxHeight: "calc(100vh - 420px)", overflowY: "auto" }}>
+        <div className="ce-table-body">
           {filtered.length === 0 && (
-            <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)" }}>
+            <div className="ce-empty">
               No fragments match your filters.
             </div>
           )}
@@ -317,149 +264,75 @@ export default function ContentExplorerPage() {
             <React.Fragment key={fragment.id}>
               <div
                 onClick={() => handleExpand(fragment)}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "90px 140px 1fr 60px 60px",
-                  gap: 8,
-                  padding: "8px 16px",
-                  fontSize: 13,
-                  borderBottom: "1px solid var(--border-default)",
-                  cursor: "pointer",
-                  background: expandedId === fragment.id
-                    ? "color-mix(in srgb, var(--text-primary) 5%, transparent)"
-                    : "var(--surface-primary)",
-                  transition: "background 0.1s",
-                }}
+                className={`ce-row ${expandedId === fragment.id ? "ce-row-expanded" : ""}`}
               >
                 {/* Category pill */}
                 <div>
-                  <span style={{
-                    display: "inline-block",
-                    padding: "2px 8px",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    borderRadius: 10,
-                    color: CATEGORY_COLORS[fragment.category] || "var(--text-muted)",
-                    background: `color-mix(in srgb, ${CATEGORY_COLORS[fragment.category] || "var(--text-muted)"} 12%, transparent)`,
-                  }}>
+                  <span
+                    className="ce-fragment-pill"
+                    style={{
+                      color: CATEGORY_COLORS[fragment.category] || "var(--text-muted)",
+                      background: `color-mix(in srgb, ${CATEGORY_COLORS[fragment.category] || "var(--text-muted)"} 12%, transparent)`,
+                    }}
+                  >
                     {fragment.category}
                   </span>
                 </div>
 
                 {/* Spec slug */}
-                <div style={{
-                  color: "var(--text-muted)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  fontSize: 12,
-                }}>
+                <div className="ce-spec-slug">
                   {fragment.specSlug.replace("spec-", "")}
                 </div>
 
                 {/* Label + value preview */}
-                <div style={{ overflow: "hidden" }}>
-                  <div style={{
-                    fontWeight: 500,
-                    color: "var(--text-primary)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}>
+                <div className="ce-fragment-content">
+                  <div className="ce-fragment-label">
                     {fragment.label}
                   </div>
-                  <div style={{
-                    color: "var(--text-muted)",
-                    fontSize: 12,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    marginTop: 2,
-                  }}>
+                  <div className="ce-fragment-preview">
                     {fragment.value.substring(0, 120)}
                   </div>
                 </div>
 
                 {/* Length */}
-                <div style={{ textAlign: "right", color: "var(--text-muted)", fontSize: 12 }}>
+                <div className="ce-fragment-length">
                   {fragment.length}
                 </div>
 
                 {/* Prompt consumed indicator */}
-                <div style={{ textAlign: "center" }}>
+                <div className="ce-prompt-indicator">
                   {fragment.isPromptConsumed ? (
-                    <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>YES</span>
+                    <span className="ce-prompt-yes">YES</span>
                   ) : (
-                    <span style={{ color: "var(--text-muted)", opacity: 0.5 }}>no</span>
+                    <span className="ce-prompt-no">no</span>
                   )}
                 </div>
               </div>
 
               {/* Expanded row: full text view */}
               {expandedId === fragment.id && (
-                <div style={{
-                  padding: "12px 16px 12px 106px",
-                  borderBottom: "1px solid var(--border-default)",
-                  background: "color-mix(in srgb, var(--text-primary) 3%, transparent)",
-                }}>
-                  <div style={{
-                    display: "flex",
-                    gap: 8,
-                    marginBottom: 8,
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                  }}>
-                    <span>Path: <code style={{ fontFamily: "monospace" }}>{fragment.path}</code></span>
+                <div className="ce-expanded-panel">
+                  <div className="ce-expanded-meta">
+                    <span>Path: <code>{fragment.path}</code></span>
                     <span>|</span>
                     <span>Spec: {fragment.specName}</span>
                     <span>|</span>
-                    <span>Role: {fragment.specRole || "—"}</span>
+                    <span>Role: {fragment.specRole || "\u2014"}</span>
                   </div>
                   <textarea
                     value={editValue}
                     onChange={e => setEditValue(e.target.value)}
-                    style={{
-                      width: "100%",
-                      minHeight: 80,
-                      padding: 10,
-                      fontSize: 13,
-                      fontFamily: "inherit",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      background: "var(--surface-primary)",
-                      color: "var(--text-primary)",
-                      resize: "vertical",
-                      outline: "none",
-                    }}
+                    className="ce-expanded-textarea"
                   />
-                  <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
+                  <div className="ce-expanded-actions">
                     <button
                       onClick={() => setExpandedId(null)}
-                      style={{
-                        padding: "6px 14px",
-                        fontSize: 12,
-                        border: "1px solid var(--border-default)",
-                        borderRadius: 6,
-                        background: "var(--surface-primary)",
-                        color: "var(--text-muted)",
-                        cursor: "pointer",
-                      }}
+                      className="ce-btn-cancel"
                     >
                       Cancel
                     </button>
                     {editValue !== fragment.value && (
-                      <button
-                        style={{
-                          padding: "6px 14px",
-                          fontSize: 12,
-                          border: "none",
-                          borderRadius: 6,
-                          background: "var(--status-success-text)",
-                          color: "white",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
+                      <button className="ce-btn-save">
                         Save (coming soon)
                       </button>
                     )}
@@ -476,14 +349,9 @@ export default function ContentExplorerPage() {
 
 function StatCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <div style={{
-      padding: "14px 16px",
-      border: "1px solid var(--border-default)",
-      borderRadius: 10,
-      background: "var(--surface-primary)",
-    }}>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: color || "var(--text-primary)" }}>{value}</div>
+    <div className="ce-stat-card">
+      <div className="ce-stat-label">{label}</div>
+      <div className="ce-stat-value" style={color ? { color } : undefined}>{value}</div>
     </div>
   );
 }

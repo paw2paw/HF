@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SendArtifactModal } from "@/components/educator/SendArtifactModal";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import "./classroom-detail.css";
 
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
@@ -157,16 +158,16 @@ export default function ClassroomDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading {lower("cohort")}...</div>
+      <div className="cls-loading">
+        <div className="cls-loading-text">Loading {lower("cohort")}...</div>
       </div>
     );
   }
 
   if (!classroom) {
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>{terms.cohort} not found.</div>
+      <div className="cls-loading">
+        <div className="cls-loading-text">{terms.cohort} not found.</div>
       </div>
     );
   }
@@ -176,35 +177,25 @@ export default function ClassroomDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Link
-          href="/x/educator/classrooms"
-          style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none" }}
-        >
+      <div className="cls-header">
+        <Link href="/x/educator/classrooms" className="cls-back-link">
           &larr; {plural("cohort")}
         </Link>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+        <div className="cls-header-row">
           <div>
-            <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
+            <h1 className="hf-page-title cls-title">
               {classroom.name}
             </h1>
-            <div style={{ display: "flex", gap: 12, fontSize: 13, color: "var(--text-muted)" }}>
+            <div className="cls-header-meta">
               <span>{classroom.memberCount} {classroom.memberCount !== 1 ? lowerPlural("caller") : lower("caller")}</span>
-              <span
-                style={{
-                  padding: "1px 8px",
-                  background: "var(--surface-secondary)",
-                  borderRadius: 4,
-                }}
-              >
+              <span className="cls-domain-badge">
                 {classroom.domain.name}
               </span>
             </div>
           </div>
           <button
             onClick={() => setShowSendModal(true)}
-            className="hf-btn hf-btn-primary flex-shrink-0"
-            style={{ fontSize: 13 }}
+            className="hf-btn hf-btn-primary flex-shrink-0 cls-send-btn"
           >
             Send to Class
           </button>
@@ -213,20 +204,14 @@ export default function ClassroomDetailPage() {
 
       {/* Join Link Banner */}
       {classroom.joinToken && (
-        <div
-          className="hf-banner hf-banner-info flex items-center gap-3"
-          style={{ marginBottom: 20 }}
-        >
-          <span style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>
-            Invite link: <span style={{ fontFamily: "monospace", fontSize: 12 }}>{joinUrl}</span>
+        <div className="hf-banner hf-banner-info flex items-center gap-3 cls-banner">
+          <span className="cls-banner-text">
+            Invite link: <span className="cls-banner-url">{joinUrl}</span>
           </span>
           <button
             onClick={copyLink}
-            className="hf-btn hf-btn-primary"
-            style={{
-              padding: "4px 12px", fontSize: 12,
-              background: copied ? "var(--status-success-text)" : undefined,
-            }}
+            className="hf-btn hf-btn-primary cls-copy-btn"
+            style={copied ? { background: "var(--status-success-text)" } : undefined}
           >
             {copied ? "Copied!" : "Copy"}
           </button>
@@ -234,7 +219,7 @@ export default function ClassroomDetailPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1" style={{ marginBottom: 20, borderBottom: "1px solid var(--border-default)" }}>
+      <div className="flex gap-1 cls-tab-bar">
         {(["roster", "settings"] as Tab[]).map((t) => (
           <button
             key={t}
@@ -250,8 +235,8 @@ export default function ClassroomDetailPage() {
       {tab === "roster" && (
         <div>
           {/* Invite section */}
-          <div className="hf-card-compact" style={{ padding: 16, marginBottom: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+          <div className="hf-card-compact cls-invite-card">
+            <div className="cls-invite-title">
               Invite {plural("caller")}
             </div>
             <div className="flex gap-2">
@@ -260,20 +245,18 @@ export default function ClassroomDetailPage() {
                 value={inviteEmails}
                 onChange={(e) => setInviteEmails(e.target.value)}
                 placeholder="Enter email addresses (comma-separated)"
-                className="hf-input"
-                style={{ flex: 1, fontSize: 13 }}
+                className="hf-input cls-invite-input"
               />
               <button
                 disabled={inviting || !inviteEmails.trim()}
                 onClick={handleInvite}
-                className="hf-btn hf-btn-primary"
-                style={{ fontSize: 13 }}
+                className="hf-btn hf-btn-primary cls-invite-btn"
               >
                 {inviting ? "Sending..." : "Send Invites"}
               </button>
             </div>
             {inviteResult && (
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+              <div className="cls-invite-result">
                 {inviteResult}
               </div>
             )}
@@ -281,35 +264,20 @@ export default function ClassroomDetailPage() {
 
           {/* Student List */}
           {members.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "40px 20px",
-                color: "var(--text-muted)",
-                fontSize: 14,
-              }}
-            >
+            <div className="cls-empty">
               No {lowerPlural("caller")} yet. Share the invite link or send email invites above.
             </div>
           ) : (
-            <div className="hf-card-compact" style={{ overflow: "hidden", padding: 0 }}>
+            <div className="hf-card-compact cls-table-card">
 
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <table className="cls-table">
                 <thead>
-                  <tr
-                    style={{
-                      borderBottom: "1px solid var(--border-default)",
-                      fontSize: 12,
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>Name</th>
-                    <th style={{ padding: "10px 16px", textAlign: "center", fontWeight: 600 }}>Calls</th>
-                    <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>Last Call</th>
-                    <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600 }}>Status</th>
-                    <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600 }}></th>
+                  <tr className="cls-table-head-row">
+                    <th className="cls-th">Name</th>
+                    <th className="cls-th-center">Calls</th>
+                    <th className="cls-th">Last Call</th>
+                    <th className="cls-th">Status</th>
+                    <th className="cls-th-right"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -321,86 +289,49 @@ export default function ClassroomDetailPage() {
                     const statusLabel = neverCalled ? "Not started" : isActive ? "Active" : "Inactive";
 
                     return (
-                      <tr
-                        key={m.id}
-                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                      >
-                        <td style={{ padding: "10px 16px" }}>
+                      <tr key={m.id} className="cls-table-row">
+                        <td className="cls-td">
                           <Link
                             href={`/x/educator/students/${m.id}`}
-                            style={{
-                              fontSize: 14,
-                              fontWeight: 500,
-                              color: "var(--text-primary)",
-                              textDecoration: "none",
-                            }}
+                            className="cls-student-link"
                           >
                             {m.name}
                           </Link>
                         </td>
-                        <td style={{ padding: "10px 16px", textAlign: "center", fontSize: 14, color: "var(--text-secondary)" }}>
+                        <td className="cls-td-center">
                           {m.totalCalls}
                         </td>
-                        <td style={{ padding: "10px 16px", fontSize: 13, color: "var(--text-muted)" }}>
+                        <td className="cls-td cls-last-call">
                           {m.lastCallAt
                             ? new Date(m.lastCallAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
                             : "—"}
                         </td>
-                        <td style={{ padding: "10px 16px" }}>
+                        <td className="cls-td">
                           {activeCalls.has(m.id) ? (
                             <Link
                               href={`/x/educator/observe/${activeCalls.get(m.id)}`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--status-success-text)",
-                                textDecoration: "none",
-                                padding: "2px 8px",
-                                background: "var(--status-success-bg)",
-                                borderRadius: 6,
-                                border: "1px solid var(--status-success-border)",
-                              }}
+                              className="cls-in-call-badge"
                             >
-                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-success-text)" }} />
+                              <span className="cls-status-dot-active" />
                               In Call
                             </Link>
                           ) : (
                             <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                fontSize: 12,
-                                color: statusColor,
-                              }}
+                              className="cls-status-indicator"
+                              style={{ color: statusColor }}
                             >
                               <span
-                                style={{
-                                  width: 6,
-                                  height: 6,
-                                  borderRadius: "50%",
-                                  background: statusColor,
-                                }}
+                                className="cls-status-dot"
+                                style={{ background: statusColor }}
                               />
                               {statusLabel}
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                        <td className="cls-td-right">
                           <button
                             onClick={() => handleRemoveMember(m.id, m.name)}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              fontSize: 12,
-                              color: "var(--text-muted)",
-                              cursor: "pointer",
-                              padding: "4px 8px",
-                              borderRadius: 4,
-                            }}
+                            className="cls-remove-btn"
                             title={`Remove ${lower("caller")}`}
                           >
                             Remove
@@ -419,24 +350,22 @@ export default function ClassroomDetailPage() {
       {/* Settings Tab */}
       {tab === "settings" && (
         <div className="hf-card">
-          <div style={{ marginBottom: 16 }}>
+          <div className="cls-settings-field">
             <label className="hf-label">{terms.cohort} Name</label>
             <input
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="hf-input"
-              style={{ width: "100%" }}
+              className="hf-input cls-settings-input"
             />
           </div>
-          <div style={{ marginBottom: 20 }}>
+          <div className="cls-settings-field-lg">
             <label className="hf-label">Description</label>
             <textarea
               value={editDesc}
               onChange={(e) => setEditDesc(e.target.value)}
               rows={3}
-              className="hf-input"
-              style={{ width: "100%", resize: "vertical" }}
+              className="hf-input cls-settings-textarea"
             />
           </div>
           <div className="flex gap-3">

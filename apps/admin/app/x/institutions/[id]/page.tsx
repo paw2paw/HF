@@ -10,6 +10,7 @@ import {
   PRESET_OPTIONS,
   resolveTerminology,
 } from "@/lib/terminology/types";
+import "./institution-detail.css";
 
 interface InstitutionDetail {
   id: string;
@@ -114,25 +115,18 @@ export default function InstitutionDetailPage() {
   };
 
   if (loading) {
-    return <div style={{ padding: 32, color: "var(--text-muted)", fontSize: 14 }}>Loading...</div>;
+    return <div className="inst-loading">Loading...</div>;
   }
 
   if (fetchError === "forbidden") {
     return (
-      <div style={{ padding: 32 }}>
-        <p style={{ color: "var(--status-error-text)", fontSize: 14, marginBottom: 12 }}>
+      <div className="inst-forbidden">
+        <p className="inst-forbidden-msg">
           You don&apos;t have permission to view this institution.
         </p>
         <button
           onClick={() => router.push("/x")}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--accent-primary)",
-            cursor: "pointer",
-            fontSize: 13,
-            padding: 0,
-          }}
+          className="inst-link-btn"
         >
           &larr; Go to dashboard
         </button>
@@ -141,175 +135,127 @@ export default function InstitutionDetailPage() {
   }
 
   if (!institution) {
-    return <div style={{ padding: 32, color: "var(--status-error-text)", fontSize: 14 }}>Institution not found</div>;
+    return <div className="inst-error">Institution not found</div>;
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid var(--input-border)",
-    borderRadius: 8,
-    fontSize: 14,
-    background: "var(--input-bg)",
-    color: "var(--text-primary)",
-    boxSizing: "border-box",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "var(--text-secondary)",
-    marginBottom: 6,
-  };
-
   return (
-    <div style={{ paddingBottom: 40, maxWidth: 720 }}>
-      <div style={{ marginBottom: 24 }}>
+    <div className="inst-page">
+      <div className="inst-header">
         <button
           onClick={() => router.push("/x/institutions")}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--accent-primary)",
-            cursor: "pointer",
-            fontSize: 13,
-            padding: 0,
-            marginBottom: 8,
-          }}
+          className="inst-back-btn"
         >
           &larr; Back to Institutions
         </button>
         <h1 className="hf-page-title">
           {institution.name}
         </h1>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", fontFamily: "monospace" }}>
+        <p className="inst-slug">
           {institution.slug}
         </p>
       </div>
 
       {/* Branding Preview */}
-      <div
-        style={{
-          background: "var(--surface-secondary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 24,
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
+      <div className="inst-preview">
         {logoUrl ? (
           <img
             src={logoUrl}
             alt="Logo preview"
-            style={{ height: 40, objectFit: "contain" }}
+            className="inst-preview-logo"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
             }}
           />
         ) : (
-          <div style={{ width: 40, height: 40, borderRadius: 8, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 18 }}>
+          <div className="inst-preview-avatar" style={{ background: primaryColor }}>
             {name.charAt(0)}
           </div>
         )}
         <div>
-          <div style={{ fontWeight: 600, fontSize: 16, color: "var(--text-primary)" }}>{name || "Institution Name"}</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <div className="inst-preview-name">{name || "Institution Name"}</div>
+          <div className="inst-preview-stats">
             {institution.userCount} users, {institution.cohortCount} cohorts
           </div>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 6, background: primaryColor, border: "1px solid var(--border-default)" }} title="Primary" />
-          <div style={{ width: 24, height: 24, borderRadius: 6, background: secondaryColor, border: "1px solid var(--border-default)" }} title="Secondary" />
+        <div className="inst-preview-swatches">
+          <div className="inst-swatch" style={{ background: primaryColor }} title="Primary" />
+          <div className="inst-swatch" style={{ background: secondaryColor }} title="Secondary" />
         </div>
       </div>
 
       {/* Edit Form */}
-      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 24, marginBottom: 24 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="inst-form-card">
+        <div className="inst-form-fields">
           <div>
-            <label style={labelStyle}>Name</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Institution name" style={inputStyle} />
+            <label className="inst-label">Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Institution name" className="inst-input" />
           </div>
 
           <div>
-            <label style={labelStyle}>Logo URL</label>
-            <input type="text" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" style={inputStyle} />
+            <label className="inst-label">Logo URL</label>
+            <input type="text" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className="inst-input" />
           </div>
 
           <div>
-            <label style={labelStyle}>Primary Color</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <label className="inst-label">Primary Color</label>
+            <div className="inst-color-row">
               <input
                 type="color"
                 value={primaryColor}
                 onChange={(e) => setPrimaryColor(e.target.value)}
-                style={{ width: 48, height: 40, border: "1px solid var(--input-border)", borderRadius: 6, cursor: "pointer" }}
+                className="inst-color-picker"
               />
-              <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#4f46e5" style={{ ...inputStyle, flex: 1 }} />
+              <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#4f46e5" className="inst-input hf-flex-1" />
             </div>
           </div>
 
           <div>
-            <label style={labelStyle}>Secondary Color</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <label className="inst-label">Secondary Color</label>
+            <div className="inst-color-row">
               <input
                 type="color"
                 value={secondaryColor}
                 onChange={(e) => setSecondaryColor(e.target.value)}
-                style={{ width: 48, height: 40, border: "1px solid var(--input-border)", borderRadius: 6, cursor: "pointer" }}
+                className="inst-color-picker"
               />
-              <input type="text" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} placeholder="#3b82f6" style={{ ...inputStyle, flex: 1 }} />
+              <input type="text" value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} placeholder="#3b82f6" className="inst-input hf-flex-1" />
             </div>
           </div>
 
           <div>
-            <label style={labelStyle}>Welcome Message (shown on join page)</label>
+            <label className="inst-label">Welcome Message (shown on join page)</label>
             <textarea
               value={welcomeMessage}
               onChange={(e) => setWelcomeMessage(e.target.value)}
               placeholder="Welcome to our learning platform!"
               rows={3}
-              style={{ ...inputStyle, resize: "vertical" }}
+              className="inst-textarea"
             />
           </div>
         </div>
       </div>
 
       {/* Terminology Profile */}
-      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 24, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+      <div className="inst-form-card">
+        <h2 className="inst-term-title">
           Terminology Profile
         </h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+        <p className="inst-term-desc">
           Choose how your institution labels key concepts. This affects sidebar navigation and dashboard labels for all users in this institution.
         </p>
 
         {/* Preset Picker */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 16 }}>
+        <div className="inst-preset-grid">
           {PRESET_OPTIONS.map((opt) => (
             <button
               key={opt.id}
               onClick={() => { setTermPreset(opt.id); setTermOverrides({}); setShowTermCustomize(false); }}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                padding: "12px 14px",
-                background: termPreset === opt.id ? "var(--surface-active)" : "var(--surface-secondary)",
-                border: termPreset === opt.id ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                borderRadius: 10,
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "all 0.15s",
-              }}
+              className={`inst-preset-btn ${termPreset === opt.id ? "inst-preset-btn-active" : ""}`}
             >
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>
+              <div className="inst-preset-label">
                 {opt.label}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <div className="inst-preset-desc">
                 {opt.description}
               </div>
             </button>
@@ -317,18 +263,18 @@ export default function InstitutionDetailPage() {
         </div>
 
         {/* Preview Table */}
-        <div style={{ background: "var(--surface-secondary)", borderRadius: 8, padding: "12px 16px", marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+        <div className="inst-preview-table">
+          <div className="inst-preview-heading">
             Preview
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "4px 12px", fontSize: 13 }}>
+          <div className="inst-preview-grid">
             {(["institution", "cohort", "learner", "instructor", "supervisor"] as const).map((key) => (
-              <div key={key} style={{ display: "contents" }}>
-                <span style={{ color: "var(--text-muted)", textTransform: "capitalize" }}>{key}</span>
-                <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
+              <div key={key} className="inst-preview-row">
+                <span className="inst-preview-key">{key}</span>
+                <span className="inst-preview-value">
                   {resolvedTerms[key]}
                   {termOverrides[key] && (
-                    <span style={{ fontSize: 11, color: "var(--badge-purple-text)", marginLeft: 6 }}>custom</span>
+                    <span className="inst-custom-badge">custom</span>
                   )}
                 </span>
               </div>
@@ -339,25 +285,17 @@ export default function InstitutionDetailPage() {
         {/* Customize Toggle */}
         <button
           onClick={() => setShowTermCustomize(!showTermCustomize)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--accent-primary)",
-            cursor: "pointer",
-            fontSize: 13,
-            padding: 0,
-            fontWeight: 500,
-          }}
+          className="inst-customize-btn"
         >
           {showTermCustomize ? "Hide customization" : "Customize individual terms"}
         </button>
 
         {/* Customize Fields */}
         {showTermCustomize && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+          <div className="inst-customize-fields">
             {(["institution", "cohort", "learner", "instructor", "supervisor"] as const).map((key) => (
               <div key={key}>
-                <label style={{ ...labelStyle, textTransform: "capitalize" }}>{key}</label>
+                <label className="inst-label inst-label-capitalize">{key}</label>
                 <input
                   type="text"
                   value={termOverrides[key] ?? ""}
@@ -373,7 +311,7 @@ export default function InstitutionDetailPage() {
                     });
                   }}
                   placeholder={TERMINOLOGY_PRESETS[termPreset][key]}
-                  style={inputStyle}
+                  className="inst-input"
                 />
               </div>
             ))}
@@ -382,25 +320,16 @@ export default function InstitutionDetailPage() {
       </div>
 
       {/* Save Button */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div className="inst-save-row">
         <button
           onClick={handleSave}
           disabled={saving || !name.trim()}
-          style={{
-            padding: "12px 24px",
-            background: saving || !name.trim() ? "var(--border-default)" : "var(--button-primary-bg)",
-            color: saving || !name.trim() ? "var(--text-muted)" : "var(--button-primary-text)",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: saving || !name.trim() ? "not-allowed" : "pointer",
-          }}
+          className="inst-save-btn"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
         {message && (
-          <span style={{ fontSize: 13, color: message === "Saved" ? "var(--status-success-text)" : "var(--status-error-text)" }}>
+          <span className={`inst-save-message ${message === "Saved" ? "inst-save-success" : "inst-save-error"}`}>
             {message}
           </span>
         )}
