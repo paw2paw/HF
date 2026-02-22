@@ -67,6 +67,8 @@ export default function CallerDetailPage() {
   const [progressVis, toggleProgressVis] = useSectionVisibility("caller-progress", {
     scores: true, behaviour: true, goals: true, exam: true,
   });
+  const [hasExamData, setHasExamData] = useState(false);
+  const [hasPlanData, setHasPlanData] = useState(false);
 
   // Expanded states
   const [expandedCall, setExpandedCall] = useState<string | null>(null);
@@ -831,8 +833,8 @@ export default function CallerDetailPage() {
               { id: "behaviour", label: "Behaviour", icon: <Brain size={13} />, count: (data.counts.callerTargets || 0) + (data.counts.measurements || 0) },
               { id: "goals", label: "Goals", icon: <Target size={13} />, count: data.counts.activeGoals || 0 },
               { id: "topics", label: "Topics", icon: <BookOpen size={13} />, count: (data.memorySummary?.topicCount || 0) + (data.counts.keyFacts || 0) },
-              { id: "exam", label: "Exam", icon: <ClipboardCheck size={13} /> },
-              { id: "plan", label: "Plan", icon: <CheckSquare size={13} /> },
+              ...(hasExamData ? [{ id: "exam" as const, label: "Exam", icon: <ClipboardCheck size={13} /> }] : []),
+              ...(hasPlanData ? [{ id: "plan" as const, label: "Plan", icon: <CheckSquare size={13} /> }] : []),
             ]}
             visible={progressVis}
             onToggle={toggleProgressVis}
@@ -845,8 +847,8 @@ export default function CallerDetailPage() {
           {progressVis.topics !== false && (
             <TopicsCoveredSection memorySummary={data.memorySummary} keyFactCount={data.counts.keyFacts || 0} />
           )}
-          {progressVis.exam !== false && <ExamReadinessSection callerId={callerId} />}
-          {progressVis.plan !== false && <PlanProgressSection callerId={callerId} calls={data.calls} domainId={data.caller?.domainId} />}
+          {progressVis.exam !== false && <ExamReadinessSection callerId={callerId} onDataLoaded={setHasExamData} />}
+          {progressVis.plan !== false && <PlanProgressSection callerId={callerId} calls={data.calls} domainId={data.caller?.domainId} onDataLoaded={setHasPlanData} />}
         </>
       )}
 

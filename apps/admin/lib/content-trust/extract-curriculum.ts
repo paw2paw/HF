@@ -207,6 +207,7 @@ Generate a structured curriculum from these assertions.`;
         { role: "system", content: CURRICULUM_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
+      timeoutMs: 90000, // Assertion-based curriculum can process 300+ assertions into modules
     });
 
     const content = response.content || "";
@@ -322,6 +323,7 @@ Generate a structured curriculum for this subject.`;
         { role: "system", content: GOALS_CURRICULUM_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
+      timeoutMs: 60000, // Curriculum generation produces large structured JSON (4-8 modules)
     });
 
     const content = response.content || "";

@@ -700,7 +700,7 @@ function formatRelativeDate(dateStr: string): string {
 // =====================================================
 
 // Exam Readiness Section - shows readiness scores, gate status, weak modules, attempt history
-export function ExamReadinessSection({ callerId }: { callerId: string }) {
+export function ExamReadinessSection({ callerId, onDataLoaded }: { callerId: string; onDataLoaded?: (hasData: boolean) => void }) {
   const [curricula, setCurricula] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -710,41 +710,21 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
       .then((r) => r.json())
       .then((result) => {
         if (result.ok) {
-          setCurricula(result.curricula || []);
+          const data = result.curricula || [];
+          setCurricula(data);
+          onDataLoaded?.(data.length > 0);
         } else {
           setError(result.error || "Failed to load exam readiness");
+          onDataLoaded?.(false);
         }
       })
-      .catch(() => setError("Network error"))
+      .catch(() => { setError("Network error"); onDataLoaded?.(false); })
       .finally(() => setLoading(false));
   }, [callerId]);
 
-  if (loading) {
-    return (
-      <div className="hf-text-center hf-text-muted hf-p-lg">
-        Loading exam readiness...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="hf-empty-state">
-        <div className="hf-empty-state-icon">⚠️</div>
-        <div className="hf-text-md hf-text-secondary">{error}</div>
-      </div>
-    );
-  }
-
-  if (curricula.length === 0) {
-    return (
-      <div className="hf-empty-state">
-        <div className="hf-empty-state-icon">📝</div>
-        <div className="hf-empty-state-title">No exam data yet</div>
-        <div className="hf-empty-state-desc">Exam readiness is computed once a caller has curriculum progress and a domain with exams enabled</div>
-      </div>
-    );
-  }
+  // Don't render anything if no data (chip won't show either)
+  if (loading) return null;
+  if (error || curricula.length === 0) return null;
 
   const LEVEL_CONFIG = EXAM_LEVEL_CONFIG;
 
@@ -1089,10 +1069,12 @@ export function PlanProgressSection({
   callerId,
   calls,
   domainId,
+  onDataLoaded,
 }: {
   callerId: string;
   calls: Call[];
   domainId: string | null | undefined;
+  onDataLoaded?: (hasData: boolean) => void;
 }) {
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -1100,6 +1082,7 @@ export function PlanProgressSection({
   useEffect(() => {
     if (!domainId) {
       setLoading(false);
+      onDataLoaded?.(false);
       return;
     }
     // Find curriculum for this caller's domain, then fetch its lesson plan
@@ -1110,6 +1093,7 @@ export function PlanProgressSection({
         const domainData = await domainRes.json();
         if (!domainData.ok || !domainData.domain?.subjects?.length) {
           setLoading(false);
+          onDataLoaded?.(false);
           return;
         }
         const subjectId = domainData.domain.subjects[0].subjectId;
@@ -1119,6 +1103,7 @@ export function PlanProgressSection({
         const currData = await currRes.json();
         if (!currData.curriculum?.id) {
           setLoading(false);
+          onDataLoaded?.(false);
           return;
         }
 
@@ -1127,33 +1112,20 @@ export function PlanProgressSection({
         const planData = await planRes.json();
         if (planData.ok && planData.plan) {
           setPlan(planData.plan);
+          onDataLoaded?.(true);
+        } else {
+          onDataLoaded?.(false);
         }
       } catch {
-        // silent
+        onDataLoaded?.(false);
       }
       setLoading(false);
     })();
   }, [domainId]);
 
-  if (loading) {
-    return (
-      <div className="hf-p-md">
-        <h3 className="hf-section-title">Plan Progress</h3>
-        <p className="hf-text-sm hf-text-muted">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!plan || !plan.entries?.length) {
-    return (
-      <div className="hf-p-md">
-        <h3 className="hf-section-title">Plan Progress</h3>
-        <p className="hf-text-sm hf-text-muted">
-          No lesson plan configured for this caller&apos;s domain. Create one from the Subject page.
-        </p>
-      </div>
-    );
-  }
+  // Don't render anything if no data
+  if (loading) return null;
+  if (!plan || !plan.entries?.length) return null;
 
   const entries: any[] = plan.entries;
   const completedCalls = calls.length;

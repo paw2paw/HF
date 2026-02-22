@@ -29,7 +29,7 @@ export function classifyAIError(error: unknown): AIErrorCode {
   const name = error.name.toLowerCase();
 
   // Timeout detection
-  if (name === "aborterror" || message.includes("timeout") || message.includes("timed out")) {
+  if (name === "aborterror" || message.includes("timeout") || message.includes("timed out") || message.includes("was aborted")) {
     return "TIMEOUT";
   }
 
