@@ -442,13 +442,13 @@ export default function CallerDetailPage() {
                   setShowDomainSection(!showDomainSection);
                 }}
                 className="cdp-domain-badge"
-                title="Click to manage domain & onboarding"
+                title="Click to manage institution & onboarding"
               >
                 {data.caller.domain ? (
                   <DomainPill label={data.caller.domain.name} size="compact" />
                 ) : (
                   <span className="cdp-no-domain">
-                    No Domain
+                    No Institution
                   </span>
                 )}
                 <span className="cdp-domain-chevron">

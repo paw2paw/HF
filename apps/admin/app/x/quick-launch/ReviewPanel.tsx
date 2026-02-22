@@ -629,7 +629,7 @@ export default function ReviewPanel({
                   />
 
                   <EditableTagList
-                    label="Domain Vocabulary"
+                    label="Institution Vocabulary"
                     tags={effectiveIdentity.domainVocabulary || []}
                     onChange={(tags) => updateIdentityOverride("domainVocabulary", tags)}
                   />

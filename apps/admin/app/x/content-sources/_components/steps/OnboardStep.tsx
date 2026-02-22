@@ -221,7 +221,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
               value={newDomainName}
               onChange={(e) => setNewDomainName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateDomain(); if (e.key === "Escape") setCreatingDomain(false); }}
-              placeholder="Domain name..."
+              placeholder="Institution name..."
               autoFocus
               style={{
                 flex: 1, padding: "8px 12px", borderRadius: 6, fontSize: 13,
@@ -239,13 +239,13 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
             </button>
           </div>
         ) : loadingDomains ? (
-          <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading domains...</div>
+          <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading institutions...</div>
         ) : (
           <FancySelect
             value={domainId}
             onChange={handleDomainChange}
             options={domains}
-            placeholder="Select a domain..."
+            placeholder="Select an institution..."
             searchable
           />
         )}

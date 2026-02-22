@@ -333,7 +333,7 @@ export function SpecStepForm({
           </div>
 
           <div>
-            <label className="hf-label">Domain</label>
+            <label className="hf-label">Institution</label>
             <input
               type="text"
               value={domain}
@@ -510,7 +510,7 @@ export function SpecStepForm({
               { label: "Spec ID", value: specId },
               { label: "Title", value: title },
               { label: "Version", value: version || "1.0" },
-              { label: "Domain", value: domain || "\u2014" },
+              { label: "Institution", value: domain || "\u2014" },
               { label: "Type", value: specType },
               { label: "Role", value: specRole || "\u2014" },
               { label: "Output", value: outputType || "\u2014" },

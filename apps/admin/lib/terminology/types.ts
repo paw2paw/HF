@@ -64,7 +64,7 @@ export const TERM_KEY_LABELS: Record<TermKey, string> = {
  * Shown to ADMIN/SUPERADMIN/SUPER_TESTER.
  */
 export const TECHNICAL_TERMS: TermMap = {
-  domain: "Domain",
+  domain: "Institution",
   playbook: "Playbook",
   spec: "Spec",
   caller: "Caller",

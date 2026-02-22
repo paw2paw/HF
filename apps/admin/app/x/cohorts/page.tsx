@@ -146,7 +146,7 @@ export default function CohortsPage() {
           searchable={false}
           style={{ minWidth: 160 }}
           options={[
-            { value: "all", label: "All Domains" },
+            { value: "all", label: "All Institutions" },
             ...domains.map((d) => ({ value: d.id, label: d.name })),
           ]}
         />
@@ -354,7 +354,7 @@ function CreateCohortModal({
       return;
     }
     if (!domainId) {
-      setError("Select a domain");
+      setError("Select an institution");
       return;
     }
 
@@ -420,7 +420,7 @@ function CreateCohortModal({
         />
 
         {/* Domain */}
-        <label className="ch-modal-label">Domain</label>
+        <label className="ch-modal-label">Institution</label>
         <FancySelect
           value={domainId}
           onChange={setDomainId}

@@ -293,12 +293,12 @@ export default function DictionaryPage() {
         <FancySelect
           value={filterDomain}
           onChange={setFilterDomain}
-          placeholder="All Domains"
+          placeholder="All Institutions"
           clearable={!!filterDomain}
           searchable={domainGroups.length > 5}
           style={{ minWidth: 160 }}
           options={[
-            { value: "", label: "All Domains" },
+            { value: "", label: "All Institutions" },
             ...domainGroups.map((g) => ({ value: g, label: g })),
           ]}
         />

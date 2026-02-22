@@ -36,7 +36,7 @@ describe("GET /api/institution/terminology", () => {
 
     expect(body.ok).toBe(true);
     // Route maps unified terms to legacy shape
-    expect(body.terminology.institution).toBe("Domain");
+    expect(body.terminology.institution).toBe("Institution");
     expect(body.terminology.learner).toBe("Caller");
     expect(body.preset).toBeNull(); // presets are now DB-driven
     expect(body.overrides).toBeNull();

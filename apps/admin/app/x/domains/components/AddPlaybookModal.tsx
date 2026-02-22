@@ -212,7 +212,7 @@ export function AddPlaybookModal({ domainId, domainName, open, onClose, onPlaybo
                             {playbookStatusBadge(pb.status)}
                           </div>
                           <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                            From: {pb.domain?.name || "No domain"} &bull; {pb._count?.items || 0} specs
+                            From: {pb.domain?.name || "No institution"} &bull; {pb._count?.items || 0} specs
                           </div>
                         </div>
                         <button

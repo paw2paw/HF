@@ -277,7 +277,7 @@ function PipelineLiveView() {
                     <FancySelect
                       value={selectedDomainId}
                       onChange={setSelectedDomainId}
-                      placeholder="All Domains (System specs only)"
+                      placeholder="All Institutions (System specs only)"
                       clearable
                       options={data.allDomains.map((domain) => ({
                         value: domain.id,

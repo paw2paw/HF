@@ -790,7 +790,7 @@ export default function AnalyticsPage() {
                   color: "var(--text-secondary)",
                 }}
               >
-                <div>Domain</div>
+                <div>Institution</div>
                 <div style={{ textAlign: "right" }}>Total</div>
                 <div style={{ textAlign: "right" }}>Completed</div>
                 <div style={{ textAlign: "right" }}>Rate</div>

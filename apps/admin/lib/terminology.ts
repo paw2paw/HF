@@ -22,7 +22,7 @@ import type { UserRole } from "@prisma/client";
 export type { TermKey, TermMap } from "@/lib/terminology/types";
 export { TECHNICAL_TERMS, TERM_KEYS, pluralize, lc } from "@/lib/terminology/types";
 
-import { TECHNICAL_TERMS, TERM_KEYS } from "@/lib/terminology/types";
+import { TECHNICAL_TERMS, TERM_KEYS, pluralize } from "@/lib/terminology/types";
 import type { TermKey, TermMap } from "@/lib/terminology/types";
 
 /** Roles that always see technical terms */

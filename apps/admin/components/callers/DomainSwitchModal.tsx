@@ -193,10 +193,10 @@ export function DomainSwitchModal({
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>
-            Switch Domain
+            Switch Institution
           </h2>
           <p style={{ margin: "8px 0 0 0", fontSize: 14, color: "var(--text-muted)" }}>
-            Move this caller to a different domain with optional re-onboarding
+            Move this caller to a different institution with optional re-onboarding
           </p>
         </div>
 
@@ -210,7 +210,7 @@ export function DomainSwitchModal({
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
-            Current Domain
+            Current Institution
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
             {currentDomain.name}
@@ -239,7 +239,7 @@ export function DomainSwitchModal({
               color: "var(--text-primary)",
             }}
           >
-            <option value="">Select a domain...</option>
+            <option value="">Select an institution...</option>
             {switchableDomains.map((domain) => (
               <option key={domain.id} value={domain.id}>
                 {domain.name} {domain.isDefault ? "(Default)" : ""}
@@ -435,7 +435,7 @@ export function DomainSwitchModal({
                   : "not-allowed",
             }}
           >
-            {switching ? "Switching..." : "Switch Domain"}
+            {switching ? "Switching..." : "Switch Institution"}
           </button>
         </div>
       </div>

@@ -304,7 +304,7 @@ export default function DataManagementPage() {
           <div className="dm-stats-loading">Loading...</div>
         ) : stats ? (
           <div className="dm-stats-grid">
-            <StatItem label="Domains" value={stats.domains} icon="🌐" />
+            <StatItem label="Institutions" value={stats.domains} icon="🌐" />
             <StatItem label="Playbooks" value={stats.playbooks} icon="📚" />
             <StatItem label="Specs" value={stats.specs} icon="📐" />
             <StatItem label="Callers" value={stats.callers} icon="👥" />

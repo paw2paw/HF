@@ -101,7 +101,7 @@ const nodeSizes: Record<CallerNodeType, number> = {
 // Display names for type filter
 const displayNames: Record<CallerNodeType, string> = {
   caller:       "Caller",
-  domain:       "Domain",
+  domain:       "Institution",
   paramGroup:   "Param Groups",
   personality:  "Personality",
   memoryGroup:  "Memory Groups",

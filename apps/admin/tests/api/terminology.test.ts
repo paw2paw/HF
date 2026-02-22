@@ -38,7 +38,7 @@ describe('GET /api/terminology', () => {
     } as any);
     vi.mocked(isAuthError).mockReturnValue(false);
     vi.mocked(resolveTerminology).mockResolvedValue({
-      domain: 'Domain',
+      domain: 'Institution',
       playbook: 'Playbook',
       spec: 'Spec',
       caller: 'Caller',
@@ -56,7 +56,7 @@ describe('GET /api/terminology', () => {
 
     expect(res.status).toBe(200);
     expect(data.ok).toBe(true);
-    expect(data.terms.domain).toBe('Domain');
+    expect(data.terms.domain).toBe('Institution');
     expect(data.terms.caller).toBe('Caller');
     expect(resolveTerminology).toHaveBeenCalledWith('ADMIN', null);
   });
@@ -101,7 +101,7 @@ describe('GET /api/terminology', () => {
     } as any);
     vi.mocked(isAuthError).mockReturnValue(false);
     vi.mocked(resolveTerminology).mockResolvedValue({
-      domain: 'Domain',
+      domain: 'Institution',
       playbook: 'Playbook',
       spec: 'Spec',
       caller: 'Caller',

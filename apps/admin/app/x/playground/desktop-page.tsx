@@ -2070,14 +2070,14 @@ export default function PlaygroundPage() {
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
-                  Domain (optional)
+                  Institution (optional)
                 </label>
                 <FancySelect
                   value={newCallerDomainId}
                   onChange={setNewCallerDomainId}
-                  placeholder="No domain"
+                  placeholder="No institution"
                   options={[
-                    { value: "", label: "No domain" },
+                    { value: "", label: "No institution" },
                     ...domains.map((d) => ({ value: d.id, label: d.name })),
                   ]}
                 />
@@ -2200,12 +2200,12 @@ export default function PlaygroundPage() {
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
-                  Domain *
+                  Institution *
                 </label>
                 <FancySelect
                   value={newPlaybookDomainId}
                   onChange={setNewPlaybookDomainId}
-                  placeholder="Select domain..."
+                  placeholder="Select institution..."
                   options={domains.map((d) => ({ value: d.id, label: d.name }))}
                 />
               </div>
@@ -2463,12 +2463,12 @@ export default function PlaygroundPage() {
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4, color: "var(--text-secondary)" }}>
-                  Domain *
+                  Institution *
                 </label>
                 <FancySelect
                   value={newPlaybookDomainId}
                   onChange={setNewPlaybookDomainId}
-                  placeholder="Select domain..."
+                  placeholder="Select institution..."
                   options={domains.map((d) => ({ value: d.id, label: d.name }))}
                 />
               </div>

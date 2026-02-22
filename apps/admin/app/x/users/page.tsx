@@ -417,7 +417,7 @@ export default function UsersPage() {
                 className="hf-input hf-text-sm"
                 style={{ width: "auto", minWidth: 160, cursor: "pointer" }}
               >
-                <option value="">Any domain (chooser)</option>
+                <option value="">Any institution (chooser)</option>
                 {domains.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
@@ -451,7 +451,7 @@ export default function UsersPage() {
                   <span className="hf-text-primary">{[newInviteFirstName, newInviteLastName].filter(Boolean).join(" ")}</span>
                 </>}
                 {newInviteDomainId && <>
-                  <span className="hf-text-muted hf-text-bold">Domain</span>
+                  <span className="hf-text-muted hf-text-bold">Institution</span>
                   <span className="hf-text-primary">{domains.find(d => d.id === newInviteDomainId)?.name || newInviteDomainId}</span>
                 </>}
               </div>

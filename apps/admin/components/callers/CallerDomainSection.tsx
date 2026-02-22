@@ -77,7 +77,7 @@ export function CallerDomainSection({
         }}
       >
         <h3 style={{ margin: "0 0 12px 0", fontSize: 18, fontWeight: 700 }}>
-          Domain & Onboarding
+          Institution & Onboarding
         </h3>
         <div
           style={{
@@ -87,7 +87,7 @@ export function CallerDomainSection({
             borderRadius: 8,
           }}
         >
-          ⚠️ No domain assigned
+          ⚠️ No institution assigned
         </div>
       </div>
     );
@@ -113,7 +113,7 @@ export function CallerDomainSection({
           }}
         >
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-            Domain & Onboarding
+            Institution & Onboarding
           </h3>
           <button
             onClick={() => setShowSwitchModal(true)}
@@ -128,7 +128,7 @@ export function CallerDomainSection({
               cursor: "pointer",
             }}
           >
-            Switch Domain
+            Switch Institution
           </button>
         </div>
 
@@ -152,7 +152,7 @@ export function CallerDomainSection({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
-              Current Domain
+              Current Institution
             </div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
               {caller.domain.name}
@@ -164,7 +164,7 @@ export function CallerDomainSection({
 
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
-              Domain Switches
+              Institution Switches
             </div>
             <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
               {caller.domainSwitchCount}

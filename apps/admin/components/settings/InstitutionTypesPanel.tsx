@@ -300,7 +300,7 @@ export function InstitutionTypesPanel(_props: PanelProps) {
             </div>
             <div>
               <label className="itp-form-label">
-                Default Domain Kind
+                Default Institution Kind
               </label>
               <select
                 value={formDomainKind}

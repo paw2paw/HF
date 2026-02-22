@@ -826,11 +826,11 @@ export default function PlaybooksPage() {
           >
             <h2 className="pb-modal-title">New {terms.playbook}</h2>
             <div className="pb-modal-field">
-              <label className="pb-modal-label">Domain</label>
+              <label className="pb-modal-label">Institution</label>
               <FancySelect
                 value={newPlaybook.domainId}
                 onChange={(v) => setNewPlaybook({ ...newPlaybook, domainId: v })}
-                placeholder="Select domain..."
+                placeholder="Select institution..."
                 options={domains.map((d) => ({ value: d.id, label: d.name }))}
               />
             </div>

@@ -823,7 +823,7 @@ export default function MeteringPage() {
                 <div className="metering-table-header metering-cols-caller">
                   <div>#</div>
                   <div>Caller</div>
-                  <div>Domain</div>
+                  <div>Institution</div>
                   <div className="metering-cell-right">Events</div>
                   <div className="metering-cell-right">Total Cost</div>
                 </div>
@@ -919,7 +919,7 @@ export default function MeteringPage() {
                 {/* Header */}
                 <div className="metering-table-header metering-cols-domain">
                   <div>#</div>
-                  <div>Domain</div>
+                  <div>Institution</div>
                   <div className="metering-cell-right">Callers</div>
                   <div className="metering-cell-right">Events</div>
                   <div className="metering-cell-right">Total Cost</div>

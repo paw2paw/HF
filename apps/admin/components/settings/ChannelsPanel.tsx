@@ -111,7 +111,7 @@ export function ChannelsPanel() {
       {/* Domain-specific overrides summary */}
       {channels.filter((c) => c.domainId).length > 0 && (
         <div style={{ marginTop: 20 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Domain Overrides</h4>
+          <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Institution Overrides</h4>
           {channels.filter((c) => c.domainId).map((c) => (
             <div key={c.id} style={{ fontSize: 12, color: 'var(--text-primary)', padding: '4px 0' }}>
               <strong>{c.domain?.name}</strong>: {c.channelType} {c.isEnabled ? '(enabled)' : '(disabled)'}

@@ -505,10 +505,10 @@ export default function DomainsPage() {
               </div>
             </div>
           ) : detailLoading ? (
-            <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>Loading domain...</div>
+            <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>Loading institution...</div>
           ) : detailError || !domain ? (
             <div className="hf-banner hf-banner-error" style={{ borderRadius: 8 }}>
-              {detailError || "Domain not found"}
+              {detailError || "Institution not found"}
             </div>
           ) : (
             <>
@@ -787,7 +787,7 @@ export default function DomainsPage() {
               {activeTab === "callers" && (
                 <div>
                   <h3 className="hf-heading-lg hf-mb-md">
-                    Callers in this Domain
+                    Callers in this Institution
                   </h3>
 
                   {domain.callers.length === 0 ? (

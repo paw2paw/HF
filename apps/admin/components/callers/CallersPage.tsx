@@ -1062,12 +1062,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
               <div>
                 <label className="hf-field-label">
-                  Domain (optional)
+                  Institution (optional)
                 </label>
                 <FancySelect
                   value={newCallerDomainId}
                   onChange={setNewCallerDomainId}
-                  placeholder="Select domain..."
+                  placeholder="Select institution..."
                   clearable
                   options={domains.map((d) => ({ value: d.id, label: d.name }))}
                 />

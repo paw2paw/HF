@@ -139,12 +139,12 @@ describe('lib/terminology (two-tier resolution)', () => {
   describe('resolveTermLabel', () => {
     it('should return singular label for admin', async () => {
       const label = await resolveTermLabel('domain', 'ADMIN');
-      expect(label).toBe('Domain');
+      expect(label).toBe('Institution');
     });
 
     it('should return plural label when requested', async () => {
       const label = await resolveTermLabel('domain', 'ADMIN', undefined, true);
-      expect(label).toBe('Domains');
+      expect(label).toBe('Institutions');
     });
 
     it('should return institution-specific label for educator', async () => {

@@ -430,17 +430,17 @@ export default function TestHarnessPage() {
 
       {/* Domain Selector */}
       <div className="th-domain-selector">
-        <label className="th-domain-label">Domain</label>
+        <label className="th-domain-label">Institution</label>
         {domains.length === 0 ? (
           <p className="th-no-domains">
-            No domains found. Run seed-domains first.
+            No institutions found. Run seed-domains first.
           </p>
         ) : (
           <FancySelect
             value={selectedDomainId}
             onChange={setSelectedDomainId}
             options={domainOptions}
-            placeholder="Select a domain..."
+            placeholder="Select an institution..."
             searchable={domains.length > 5}
             clearable
             style={{ maxWidth: 480 }}
