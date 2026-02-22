@@ -11,7 +11,7 @@
  *   Content Sources OnboardStep → Domain.onboardingDefaultTargets only
  */
 
-import { prisma } from "@/lib/prisma";
+import { db, type TxClient } from "@/lib/prisma";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -336,22 +336,24 @@ export async function applyBehaviorTargets(
   playbookId: string,
   parameterMap: Record<string, number>,
   confidence = 0.5,
+  tx?: TxClient,
 ): Promise<number> {
   const entries = Object.entries(parameterMap);
   if (entries.length === 0) return 0;
 
+  const p = db(tx);
   const now = new Date();
   let applied = 0;
 
   // Validate parameter IDs exist in the DB
-  const validParams = await prisma.parameter.findMany({
+  const validParams = await p.parameter.findMany({
     where: {
       parameterId: { in: entries.map(([id]) => id) },
       parameterType: "BEHAVIOR",
     },
     select: { parameterId: true },
   });
-  const validIds = new Set(validParams.map((p) => p.parameterId));
+  const validIds = new Set(validParams.map((pp) => pp.parameterId));
 
   for (const [parameterId, targetValue] of entries) {
     if (!validIds.has(parameterId)) {
@@ -362,7 +364,7 @@ export async function applyBehaviorTargets(
     const clamped = Math.max(0, Math.min(1, targetValue));
 
     // Supersede any existing active target for this param+playbook
-    const existing = await prisma.behaviorTarget.findFirst({
+    const existing = await p.behaviorTarget.findFirst({
       where: {
         parameterId,
         playbookId,
@@ -375,13 +377,13 @@ export async function applyBehaviorTargets(
       // If value is effectively the same, skip
       if (Math.abs(existing.targetValue - clamped) < 0.005) continue;
 
-      await prisma.behaviorTarget.update({
+      await p.behaviorTarget.update({
         where: { id: existing.id },
         data: { effectiveUntil: now },
       });
     }
 
-    await prisma.behaviorTarget.create({
+    await p.behaviorTarget.create({
       data: {
         parameterId,
         playbookId,

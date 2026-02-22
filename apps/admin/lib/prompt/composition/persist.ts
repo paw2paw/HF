@@ -5,7 +5,7 @@
  * Shared by both the compose-prompt API route and the pipeline COMPOSE stage.
  */
 
-import { prisma } from "@/lib/prisma";
+import { db, type TxClient } from "@/lib/prisma";
 import type { CompositionResult } from "./types";
 
 export interface PersistOptions {
@@ -31,12 +31,14 @@ export interface PersistedPrompt {
  * @param composition - The result from executeComposition()
  * @param promptSummary - The rendered prompt markdown from renderPromptSummary()
  * @param options - Persistence options (callerId, trigger info, etc.)
+ * @param tx - Optional transaction client for atomic operations
  * @returns The created ComposedPrompt record
  */
 export async function persistComposedPrompt(
   composition: CompositionResult,
   promptSummary: string,
   options: PersistOptions,
+  tx?: TxClient,
 ): Promise<PersistedPrompt> {
   const {
     callerId,
@@ -46,9 +48,10 @@ export async function persistComposedPrompt(
     specConfig,
   } = options;
 
+  const p = db(tx);
   const { llmPrompt, callerContext, loadedData, resolvedSpecs, metadata } = composition;
 
-  const composedPrompt = await prisma.composedPrompt.create({
+  const composedPrompt = await p.composedPrompt.create({
     data: {
       callerId,
       prompt: promptSummary,
@@ -80,7 +83,7 @@ export async function persistComposedPrompt(
   });
 
   // Supersede previous active prompts for this caller
-  await prisma.composedPrompt.updateMany({
+  await p.composedPrompt.updateMany({
     where: {
       callerId,
       id: { not: composedPrompt.id },

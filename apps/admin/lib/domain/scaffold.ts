@@ -10,7 +10,7 @@
  * Idempotent: safe to run multiple times on the same domain.
  */
 
-import { prisma } from "@/lib/prisma";
+import { db, type TxClient } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { getFlowPhasesFallback } from "@/lib/fallback-settings";
 
@@ -41,11 +41,12 @@ export interface ScaffoldResult {
 
 // ── Main scaffold function ─────────────────────────────
 
-export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions): Promise<ScaffoldResult> {
+export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions, tx?: TxClient): Promise<ScaffoldResult> {
   const skipped: string[] = [];
+  const p = db(tx);
 
   // 1. Load domain
-  const domain = await prisma.domain.findUnique({
+  const domain = await p.domain.findUnique({
     where: { id: domainId },
     select: { id: true, slug: true, name: true, description: true },
   });
@@ -57,7 +58,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   // 2. Check for existing published playbook — already scaffolded
   //    Skip this check when forceNewPlaybook=true (new class in existing school)
   if (!options?.forceNewPlaybook) {
-    const existingPublished = await prisma.playbook.findFirst({
+    const existingPublished = await p.playbook.findFirst({
       where: { domainId, status: "PUBLISHED" },
       select: { id: true, name: true },
     });
@@ -75,7 +76,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
 
   // 3. Find or create Identity spec
   const identitySlug = `${domain.slug}-identity`;
-  let identitySpec = await prisma.analysisSpec.findFirst({
+  let identitySpec = await p.analysisSpec.findFirst({
     where: { slug: identitySlug },
     select: { id: true, slug: true, name: true },
   });
@@ -99,7 +100,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
           ],
         };
 
-    identitySpec = await prisma.analysisSpec.create({
+    identitySpec = await p.analysisSpec.create({
       data: {
         slug: identitySlug,
         name: `${domain.name} Identity`,
@@ -138,7 +139,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   let playbook: { id: string; name: string } | null = null;
 
   if (!options?.forceNewPlaybook) {
-    playbook = await prisma.playbook.findFirst({
+    playbook = await p.playbook.findFirst({
       where: { domainId, status: "DRAFT" },
       select: { id: true, name: true },
     });
@@ -148,7 +149,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   if (!playbook) {
-    playbook = await prisma.playbook.create({
+    playbook = await p.playbook.create({
       data: {
         name: pbName,
         domainId,
@@ -160,12 +161,12 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 5. Add Identity spec to playbook (if not already linked)
-  const existingItem = await prisma.playbookItem.findFirst({
+  const existingItem = await p.playbookItem.findFirst({
     where: { playbookId: playbook.id, specId: identitySpec.id },
   });
 
   if (!existingItem) {
-    await prisma.playbookItem.create({
+    await p.playbookItem.create({
       data: {
         playbookId: playbook.id,
         itemType: "SPEC",
@@ -177,7 +178,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 6. Enable system specs via config.systemSpecToggles
-  const systemSpecs = await prisma.analysisSpec.findMany({
+  const systemSpecs = await p.analysisSpec.findMany({
     where: { specType: "SYSTEM", isActive: true },
     select: { id: true },
   });
@@ -188,13 +189,13 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // Merge with any existing config
-  const currentPlaybook = await prisma.playbook.findUnique({
+  const currentPlaybook = await p.playbook.findUnique({
     where: { id: playbook.id },
     select: { config: true },
   });
   const currentConfig = (currentPlaybook?.config as Record<string, any>) || {};
 
-  await prisma.playbook.update({
+  await p.playbook.update({
     where: { id: playbook.id },
     data: {
       config: {
@@ -211,7 +212,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   //    When forceNewPlaybook=true, keep existing published playbooks (multiple classes coexist).
   //    Otherwise archive them (original behavior — one published playbook per domain).
   if (!options?.forceNewPlaybook) {
-    await prisma.playbook.updateMany({
+    await p.playbook.updateMany({
       where: {
         domainId,
         status: "PUBLISHED",
@@ -221,7 +222,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     });
   }
 
-  await prisma.playbook.update({
+  await p.playbook.update({
     where: { id: playbook.id },
     data: {
       status: "PUBLISHED",
@@ -235,7 +236,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   });
 
   // 8. Configure onboarding
-  await prisma.domain.update({
+  await p.domain.update({
     where: { id: domainId },
     data: {
       onboardingIdentitySpecId: identitySpec.id,

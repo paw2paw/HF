@@ -9,7 +9,7 @@
  * Tuning args (maxAssertions, maxSampleSize) = edit the spec, zero code changes.
  */
 
-import { prisma } from "@/lib/prisma";
+import { prisma, db, type TxClient } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import {
   extractText,
@@ -92,6 +92,8 @@ interface LaunchContext {
   results: Partial<QuickLaunchResult> & { [key: string]: any };
   onProgress: ProgressCallback;
   userId: string;
+  /** Transaction client — set during commit phase for atomic operations */
+  tx?: TxClient;
 }
 
 type StepExecutor = (ctx: LaunchContext, step: LaunchStep) => Promise<void>;
@@ -210,12 +212,13 @@ const stepExecutors: Record<string, StepExecutor> = {
    */
   create_domain: async (ctx) => {
     const { subjectName, brief, qualificationRef, domainId: existingDomainId, kind, institutionId } = ctx.input;
+    const p = db(ctx.tx);
 
     let domain;
 
     if (existingDomainId) {
       // Use existing domain — creating a new playbook (class) within it
-      domain = await prisma.domain.findUnique({
+      domain = await p.domain.findUnique({
         where: { id: existingDomainId },
       });
       if (!domain) {
@@ -228,9 +231,9 @@ const stepExecutors: Record<string, StepExecutor> = {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
 
-      domain = await prisma.domain.findFirst({ where: { slug } });
+      domain = await p.domain.findFirst({ where: { slug } });
       if (!domain) {
-        domain = await prisma.domain.create({
+        domain = await p.domain.create({
           data: {
             slug,
             name: subjectName,
@@ -249,9 +252,9 @@ const stepExecutors: Record<string, StepExecutor> = {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
+    let subject = await p.subject.findFirst({ where: { slug: subjectSlug } });
     if (!subject) {
-      subject = await prisma.subject.create({
+      subject = await p.subject.create({
         data: {
           slug: subjectSlug,
           name: subjectName,
@@ -262,11 +265,11 @@ const stepExecutors: Record<string, StepExecutor> = {
     }
 
     // Link subject to domain (idempotent)
-    const existing = await prisma.subjectDomain.findFirst({
+    const existing = await p.subjectDomain.findFirst({
       where: { subjectId: subject.id, domainId: domain.id },
     });
     if (!existing) {
-      await prisma.subjectDomain.create({
+      await p.subjectDomain.create({
         data: { subjectId: subject.id, domainId: domain.id },
       });
     }
@@ -348,6 +351,7 @@ const stepExecutors: Record<string, StepExecutor> = {
 
     const { file } = ctx.input;
     if (!file) return;
+    const p = db(ctx.tx);
     const subjectId = ctx.results.subjectId!;
     const subjectSlug = ctx.results.subjectSlug || "quick-launch";
 
@@ -363,12 +367,12 @@ const stepExecutors: Record<string, StepExecutor> = {
     // Create ContentSource (handle slug conflict)
     let source;
     try {
-      source = await prisma.contentSource.create({
+      source = await p.contentSource.create({
         data: { slug: sourceSlug, name: displayName, trustLevel: "UNVERIFIED" },
       });
     } catch (err: any) {
       if (err.code === "P2002") {
-        source = await prisma.contentSource.create({
+        source = await p.contentSource.create({
           data: { slug: `${sourceSlug}-${Date.now()}`, name: displayName, trustLevel: "UNVERIFIED" },
         });
       } else {
@@ -377,18 +381,18 @@ const stepExecutors: Record<string, StepExecutor> = {
     }
 
     // Attach to subject
-    const existingLink = await prisma.subjectSource.findFirst({
+    const existingLink = await p.subjectSource.findFirst({
       where: { subjectId, sourceId: source.id },
     });
     if (!existingLink) {
-      await prisma.subjectSource.create({
+      await p.subjectSource.create({
         data: { subjectId, sourceId: source.id, tags: ["content"] },
       });
     }
 
     // Save assertions
     if (assertions.length > 0) {
-      await prisma.contentAssertion.createMany({
+      await p.contentAssertion.createMany({
         data: assertions.map((a) => ({
           sourceId: source.id,
           assertion: a.assertion,

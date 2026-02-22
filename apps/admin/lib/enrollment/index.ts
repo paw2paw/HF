@@ -5,14 +5,8 @@
  * can be composed inside existing transactions (e.g. invite accept, domain switch).
  */
 
-import { prisma } from "@/lib/prisma";
-import type { PrismaClient, Prisma, CallerPlaybook, CohortPlaybook } from "@prisma/client";
-
-type TxClient = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
-
-function db(tx?: TxClient): TxClient {
-  return tx ?? prisma;
-}
+import { db, type TxClient } from "@/lib/prisma";
+import type { Prisma, CallerPlaybook, CohortPlaybook } from "@prisma/client";
 
 /**
  * Enroll a caller in a specific playbook. Upserts — safe to call multiple times.

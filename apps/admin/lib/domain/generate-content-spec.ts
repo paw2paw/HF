@@ -9,7 +9,7 @@
  * Idempotent: skips if content spec already exists.
  */
 
-import { prisma } from "@/lib/prisma";
+import { db, type TxClient } from "@/lib/prisma";
 import { extractCurriculumFromAssertions } from "@/lib/content-trust/extract-curriculum";
 
 // ── Types ──────────────────────────────────────────────
@@ -25,11 +25,12 @@ export interface ContentSpecResult {
 
 // ── Main function ──────────────────────────────────────
 
-export async function generateContentSpec(domainId: string): Promise<ContentSpecResult> {
+export async function generateContentSpec(domainId: string, tx?: TxClient): Promise<ContentSpecResult> {
   const skipped: string[] = [];
+  const p = db(tx);
 
   // 1. Load domain
-  const domain = await prisma.domain.findUnique({
+  const domain = await p.domain.findUnique({
     where: { id: domainId },
     select: { id: true, slug: true, name: true },
   });
@@ -40,7 +41,7 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
 
   // 2. Check if content spec already exists
   const contentSlug = `${domain.slug}-content`;
-  const existing = await prisma.analysisSpec.findFirst({
+  const existing = await p.analysisSpec.findFirst({
     where: { slug: contentSlug },
     select: { id: true, slug: true, name: true },
   });
@@ -56,7 +57,7 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
   }
 
   // 3. Load assertions from domain's subject sources
-  const subjectSources = await prisma.subjectSource.findMany({
+  const subjectSources = await p.subjectSource.findMany({
     where: {
       subject: {
         domains: { some: { domainId } },
@@ -85,7 +86,7 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
   }
 
   const sourceIds = subjectSources.map((ss) => ss.sourceId);
-  const assertions = await prisma.contentAssertion.findMany({
+  const assertions = await p.contentAssertion.findMany({
     where: { sourceId: { in: sourceIds } },
     select: {
       assertion: true,
@@ -136,7 +137,7 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
   }
 
   // 6. Create Content spec
-  const contentSpec = await prisma.analysisSpec.create({
+  const contentSpec = await p.analysisSpec.create({
     data: {
       slug: contentSlug,
       name: `${domain.name} Curriculum`,
@@ -173,25 +174,25 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
 
   // 7. Add to published playbook
   let addedToPlaybook = false;
-  const playbook = await prisma.playbook.findFirst({
+  const playbook = await p.playbook.findFirst({
     where: { domainId, status: "PUBLISHED" },
     select: { id: true },
   });
 
   if (playbook) {
-    const existingItem = await prisma.playbookItem.findFirst({
+    const existingItem = await p.playbookItem.findFirst({
       where: { playbookId: playbook.id, specId: contentSpec.id },
     });
 
     if (!existingItem) {
       // Find max sort order to append at end
-      const maxItem = await prisma.playbookItem.findFirst({
+      const maxItem = await p.playbookItem.findFirst({
         where: { playbookId: playbook.id },
         orderBy: { sortOrder: "desc" },
         select: { sortOrder: true },
       });
 
-      await prisma.playbookItem.create({
+      await p.playbookItem.create({
         data: {
           playbookId: playbook.id,
           itemType: "SPEC",
@@ -202,7 +203,7 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
       });
 
       // Re-publish to update stats
-      await prisma.playbook.update({
+      await p.playbook.update({
         where: { id: playbook.id },
         data: { publishedAt: new Date() },
       });
@@ -231,8 +232,9 @@ export async function generateContentSpec(domainId: string): Promise<ContentSpec
  *
  * This patch adds both without touching the existing modules[] (legacy compat).
  */
-export async function patchContentSpecForContract(specId: string): Promise<void> {
-  const spec = await prisma.analysisSpec.findUnique({
+export async function patchContentSpecForContract(specId: string, tx?: TxClient): Promise<void> {
+  const p = db(tx);
+  const spec = await p.analysisSpec.findUnique({
     where: { id: specId },
     select: { config: true },
   });
@@ -274,7 +276,7 @@ export async function patchContentSpecForContract(specId: string): Promise<void>
     }));
   }
 
-  await prisma.analysisSpec.update({
+  await p.analysisSpec.update({
     where: { id: specId },
     data: { config: cfg },
   });
