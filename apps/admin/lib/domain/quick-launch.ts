@@ -449,6 +449,7 @@ const stepExecutors: Record<string, StepExecutor> = {
    */
   scaffold_domain: async (ctx) => {
     const domainId = ctx.results.domainId!;
+    const p = db(ctx.tx);
 
     // Load persona flow phases from INIT-001 spec
     const flowPhases = await loadPersonaFlowPhases(ctx.input.persona);
@@ -458,7 +459,7 @@ const stepExecutors: Record<string, StepExecutor> = {
       flowPhases: flowPhases || undefined,
       forceNewPlaybook: !!ctx.results.useExistingDomain,
       playbookName: ctx.results.useExistingDomain ? ctx.input.subjectName : undefined,
-    });
+    }, ctx.tx);
 
     if (scaffoldResult.identitySpec) {
       ctx.results.identitySpecId = scaffoldResult.identitySpec.id;
@@ -480,14 +481,14 @@ const stepExecutors: Record<string, StepExecutor> = {
       if (ctx.input.matrixPositions) {
         targetPayload._matrixPositions = ctx.input.matrixPositions;
       }
-      await prisma.domain.update({
+      await p.domain.update({
         where: { id: domainId },
         data: { onboardingDefaultTargets: targetPayload },
       });
 
       // Apply as PLAYBOOK-scoped BehaviorTarget rows (always-active)
       if (ctx.results.playbookId) {
-        const applied = await applyBehaviorTargets(ctx.results.playbookId, targets);
+        const applied = await applyBehaviorTargets(ctx.results.playbookId, targets, 0.5, ctx.tx);
         if (applied > 0) {
           ctx.onProgress({
             phase: "scaffold_domain",
@@ -506,14 +507,15 @@ const stepExecutors: Record<string, StepExecutor> = {
    */
   generate_curriculum: async (ctx) => {
     const domainId = ctx.results.domainId!;
+    const p = db(ctx.tx);
 
     // Try assertion-based generation first (upload mode)
-    const result = await generateContentSpec(domainId);
+    const result = await generateContentSpec(domainId, ctx.tx);
 
     if (result.contentSpec) {
       ctx.results.contentSpecId = result.contentSpec.id;
       ctx.results.moduleCount = result.moduleCount;
-      await patchContentSpecForContract(result.contentSpec.id);
+      await patchContentSpecForContract(result.contentSpec.id, ctx.tx);
       return;
     }
 
@@ -555,7 +557,7 @@ const stepExecutors: Record<string, StepExecutor> = {
     }
 
     // Create CONTENT spec from skeleton
-    const domain = await prisma.domain.findUnique({
+    const domain = await p.domain.findUnique({
       where: { id: domainId },
       select: { slug: true, name: true },
     });
@@ -563,7 +565,7 @@ const stepExecutors: Record<string, StepExecutor> = {
     const contentSlug = `${domain!.slug}-content`;
 
     // Check idempotency
-    const existing = await prisma.analysisSpec.findFirst({
+    const existing = await p.analysisSpec.findFirst({
       where: { slug: contentSlug },
       select: { id: true, slug: true, name: true },
     });
@@ -575,7 +577,7 @@ const stepExecutors: Record<string, StepExecutor> = {
       return;
     }
 
-    const contentSpec = await prisma.analysisSpec.create({
+    const contentSpec = await p.analysisSpec.create({
       data: {
         slug: contentSlug,
         name: `${domain!.name} Curriculum`,
@@ -610,24 +612,24 @@ const stepExecutors: Record<string, StepExecutor> = {
     });
 
     // Add to published playbook
-    const playbook = await prisma.playbook.findFirst({
+    const playbook = await p.playbook.findFirst({
       where: { domainId, status: "PUBLISHED" },
       select: { id: true },
     });
 
     if (playbook) {
-      const existingItem = await prisma.playbookItem.findFirst({
+      const existingItem = await p.playbookItem.findFirst({
         where: { playbookId: playbook.id, specId: contentSpec.id },
       });
 
       if (!existingItem) {
-        const maxItem = await prisma.playbookItem.findFirst({
+        const maxItem = await p.playbookItem.findFirst({
           where: { playbookId: playbook.id },
           orderBy: { sortOrder: "desc" },
           select: { sortOrder: true },
         });
 
-        await prisma.playbookItem.create({
+        await p.playbookItem.create({
           data: {
             playbookId: playbook.id,
             itemType: "SPEC",
@@ -637,7 +639,7 @@ const stepExecutors: Record<string, StepExecutor> = {
           },
         });
 
-        await prisma.playbook.update({
+        await p.playbook.update({
           where: { id: playbook.id },
           data: { publishedAt: new Date() },
         });
@@ -647,21 +649,15 @@ const stepExecutors: Record<string, StepExecutor> = {
     ctx.results.contentSpecId = contentSpec.id;
     ctx.results.moduleCount = skeleton.modules.length;
 
-    await patchContentSpecForContract(contentSpec.id);
+    await patchContentSpecForContract(contentSpec.id, ctx.tx);
 
-    // Phase 2: Fire-and-forget async enrichment with Sonnet
-    // Only if we used the skeleton (not the full fallback)
+    // Phase 2: Deferred async enrichment with Sonnet
+    // Collected here but executed AFTER the transaction commits (see quickLaunchCommit)
     if (skeleton.modules[0]?.learningOutcomes?.length === 0) {
-      try {
-        const enrichTaskId = await startCurriculumEnrichment(
-          contentSpec.id,
-          { subjectName, persona, learningGoals, qualificationRef, domainId },
-          ctx.userId,
-        );
-        ctx.results.enrichmentTaskId = enrichTaskId;
-      } catch (err: any) {
-        ctx.results.warnings!.push(`Background enrichment failed to start: ${err.message}`);
-      }
+      ctx.results._deferredEnrichment = {
+        specId: contentSpec.id,
+        opts: { subjectName, persona, learningGoals, qualificationRef, domainId },
+      };
     }
   },
 
@@ -673,9 +669,10 @@ const stepExecutors: Record<string, StepExecutor> = {
     const domainId = ctx.results.domainId!;
     const { subjectName } = ctx.input;
     let { learningGoals } = ctx.input;
+    const p = db(ctx.tx);
 
     // Create test caller
-    const caller = await prisma.caller.create({
+    const caller = await p.caller.create({
       data: {
         name: `Test Caller — ${subjectName}`,
         domainId,
@@ -693,7 +690,7 @@ const stepExecutors: Record<string, StepExecutor> = {
     // Create Goal records for each learning goal
     const contentSpecId = ctx.results.contentSpecId || undefined;
     for (const goalName of learningGoals) {
-      await prisma.goal.create({
+      await p.goal.create({
         data: {
           callerId: caller.id,
           type: "LEARN",
@@ -708,7 +705,7 @@ const stepExecutors: Record<string, StepExecutor> = {
 
     // Enroll caller in the newly created playbook
     if (ctx.results.playbookId) {
-      await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch");
+      await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch", ctx.tx);
     }
   },
 
@@ -732,7 +729,7 @@ const stepExecutors: Record<string, StepExecutor> = {
       triggerType: "quick-launch",
       composeSpecSlug: specSlug,
       specConfig: fullSpecConfig,
-    });
+    }, ctx.tx);
   },
 };
 
@@ -1122,41 +1119,13 @@ export async function quickLaunchCommit(
   onProgress: ProgressCallback,
   userId: string,
 ): Promise<QuickLaunchResult> {
-  // Apply domain overrides first
-  if (overrides.domainName || overrides.domainSlug) {
-    const updateData: Record<string, string> = {};
-    if (overrides.domainName) updateData.name = overrides.domainName;
-    if (overrides.domainSlug) updateData.slug = overrides.domainSlug;
-    await prisma.domain.update({ where: { id: domainId }, data: updateData });
-  }
-
   const effectiveDomainName = overrides.domainName || preview.domainName;
   const effectiveDomainSlug = overrides.domainSlug || preview.domainSlug;
-
-  // Merge identity config overrides
   const effectiveIdentityConfig = preview.identityConfig
     ? { ...preview.identityConfig, ...overrides.identityConfig }
     : null;
-
   const effectiveGoals = overrides.learningGoals ?? input.learningGoals;
   const effectiveCallerName = overrides.callerName || `Test Caller — ${effectiveDomainName}`;
-
-  // Build a context for the commit steps
-  const ctx: LaunchContext = {
-    input: { ...input, learningGoals: effectiveGoals },
-    results: {
-      domainId,
-      domainSlug: effectiveDomainSlug,
-      domainName: effectiveDomainName,
-      subjectId: preview.subjectId,
-      identityConfig: effectiveIdentityConfig,
-      assertionCount: preview.assertionCount,
-      documentStructure: preview.documentStructure,
-      warnings: [],
-    },
-    onProgress,
-    userId,
-  };
 
   const steps = await loadLaunchSteps();
   const commitOps = ["scaffold_domain", "generate_curriculum", "create_caller", "compose_prompt"];
@@ -1168,79 +1137,124 @@ export async function quickLaunchCommit(
     totalSteps: commitSteps.length,
   });
 
-  for (let i = 0; i < commitSteps.length; i++) {
-    const step = commitSteps[i];
+  // Run all commit steps inside a single transaction — all-or-nothing.
+  // AI calls (curriculum generation, goal generation, prompt composition) run
+  // inside the transaction; the 120s timeout gives 4× headroom for slow AI.
+  const { result, deferredEnrichment } = await prisma.$transaction(async (tx) => {
+    const ctx: LaunchContext = {
+      input: { ...input, learningGoals: effectiveGoals },
+      results: {
+        domainId,
+        domainSlug: effectiveDomainSlug,
+        domainName: effectiveDomainName,
+        subjectId: preview.subjectId,
+        identityConfig: effectiveIdentityConfig,
+        assertionCount: preview.assertionCount,
+        documentStructure: preview.documentStructure,
+        warnings: [],
+      },
+      onProgress,
+      userId,
+      tx,
+    };
 
-    // For create_caller, inject the overridden caller name
-    if (step.operation === "create_caller") {
-      // Override the caller name in the executor by patching input temporarily
-      ctx.input = {
-        ...ctx.input,
-        subjectName: effectiveCallerName.replace(/^Test Caller — /, "") || ctx.input.subjectName,
-      };
+    // Apply domain overrides first
+    if (overrides.domainName || overrides.domainSlug) {
+      const updateData: Record<string, string> = {};
+      if (overrides.domainName) updateData.name = overrides.domainName;
+      if (overrides.domainSlug) updateData.slug = overrides.domainSlug;
+      await db(tx).domain.update({ where: { id: domainId }, data: updateData });
     }
 
-    const executor = stepExecutors[step.operation];
-    if (!executor) {
-      const msg = `Unknown step operation: "${step.operation}"`;
-      if (step.onError === "abort") throw new Error(msg);
-      ctx.results.warnings!.push(msg);
-      continue;
-    }
+    for (let i = 0; i < commitSteps.length; i++) {
+      const step = commitSteps[i];
 
-    onProgress({
-      phase: step.id,
-      message: step.progressMessage,
-      stepIndex: i,
-      totalSteps: commitSteps.length,
-    });
+      // For create_caller, inject the overridden caller name
+      if (step.operation === "create_caller") {
+        ctx.input = {
+          ...ctx.input,
+          subjectName: effectiveCallerName.replace(/^Test Caller — /, "") || ctx.input.subjectName,
+        };
+      }
 
-    try {
-      await executor(ctx, step);
+      const executor = stepExecutors[step.operation];
+      if (!executor) {
+        const msg = `Unknown step operation: "${step.operation}"`;
+        if (step.onError === "abort") throw new Error(msg);
+        ctx.results.warnings!.push(msg);
+        continue;
+      }
+
       onProgress({
         phase: step.id,
-        message: `${step.name} ✓`,
+        message: step.progressMessage,
         stepIndex: i,
         totalSteps: commitSteps.length,
       });
-    } catch (err: any) {
-      console.error(`[quick-launch:commit] Step "${step.id}" failed:`, err.message);
-      if (step.onError === "abort") {
-        onProgress({ phase: step.id, message: `Failed: ${err.message}`, stepIndex: i, totalSteps: commitSteps.length });
-        throw err;
+
+      try {
+        await executor(ctx, step);
+        onProgress({
+          phase: step.id,
+          message: `${step.name} ✓`,
+          stepIndex: i,
+          totalSteps: commitSteps.length,
+        });
+      } catch (err: any) {
+        console.error(`[quick-launch:commit] Step "${step.id}" failed:`, err.message);
+        if (step.onError === "abort") {
+          onProgress({ phase: step.id, message: `Failed: ${err.message}`, stepIndex: i, totalSteps: commitSteps.length });
+          throw err;
+        }
+        ctx.results.warnings!.push(`${step.name}: ${err.message}`);
+        onProgress({ phase: step.id, message: `${step.name} — skipped (${err.message})`, stepIndex: i, totalSteps: commitSteps.length });
       }
-      ctx.results.warnings!.push(`${step.name}: ${err.message}`);
-      onProgress({ phase: step.id, message: `${step.name} — skipped (${err.message})`, stepIndex: i, totalSteps: commitSteps.length });
     }
-  }
 
-  // If caller name was overridden, update it directly
-  if (overrides.callerName && ctx.results.callerId) {
-    await prisma.caller.update({
-      where: { id: ctx.results.callerId },
-      data: { name: overrides.callerName },
-    });
-    ctx.results.callerName = overrides.callerName;
-  }
+    // If caller name was overridden, update it directly
+    if (overrides.callerName && ctx.results.callerId) {
+      await db(tx).caller.update({
+        where: { id: ctx.results.callerId },
+        data: { name: overrides.callerName },
+      });
+      ctx.results.callerName = overrides.callerName;
+    }
 
-  const result: QuickLaunchResult = {
-    domainId: ctx.results.domainId!,
-    domainSlug: effectiveDomainSlug,
-    domainName: effectiveDomainName,
-    subjectId: preview.subjectId,
-    sourceId: ctx.results.sourceId || preview.sourceId || undefined,
-    callerId: ctx.results.callerId!,
-    callerName: ctx.results.callerName || effectiveCallerName,
-    identitySpecId: ctx.results.identitySpecId,
-    contentSpecId: ctx.results.contentSpecId,
-    playbookId: ctx.results.playbookId,
-    assertionCount: preview.assertionCount,
-    moduleCount: ctx.results.moduleCount || 0,
-    goalCount: ctx.results.goalCount ?? effectiveGoals.length,
-    enrichmentTaskId: ctx.results.enrichmentTaskId,
-    warnings: ctx.results.warnings || [],
-    documentStructure: preview.documentStructure,
-  };
+    const txResult: QuickLaunchResult = {
+      domainId: ctx.results.domainId!,
+      domainSlug: effectiveDomainSlug,
+      domainName: effectiveDomainName,
+      subjectId: preview.subjectId,
+      sourceId: ctx.results.sourceId || preview.sourceId || undefined,
+      callerId: ctx.results.callerId!,
+      callerName: ctx.results.callerName || effectiveCallerName,
+      identitySpecId: ctx.results.identitySpecId,
+      contentSpecId: ctx.results.contentSpecId,
+      playbookId: ctx.results.playbookId,
+      assertionCount: preview.assertionCount,
+      moduleCount: ctx.results.moduleCount || 0,
+      goalCount: ctx.results.goalCount ?? effectiveGoals.length,
+      enrichmentTaskId: ctx.results.enrichmentTaskId,
+      warnings: ctx.results.warnings || [],
+      documentStructure: preview.documentStructure,
+    };
+
+    return {
+      result: txResult,
+      deferredEnrichment: ctx.results._deferredEnrichment as
+        | { specId: string; opts: any }
+        | undefined,
+    };
+  }, { timeout: 120_000 });
+
+  // Fire deferred enrichment AFTER transaction commits (reads committed data)
+  if (deferredEnrichment) {
+    startCurriculumEnrichment(deferredEnrichment.specId, deferredEnrichment.opts, userId)
+      .then((taskId) => {
+        if (taskId) result.enrichmentTaskId = taskId;
+      })
+      .catch((err) => console.warn("[quick-launch] Deferred enrichment failed:", err.message));
+  }
 
   onProgress({
     phase: "complete",
