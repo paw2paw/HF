@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MemoryCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { parsePagination } from "@/lib/api-utils";
 
 /**
  * @api GET /api/memories
@@ -29,8 +30,7 @@ export async function GET(req: Request) {
     const category = url.searchParams.get("category");
     const search = url.searchParams.get("search");
     const includeSuperseded = url.searchParams.get("includeSuperseded") === "true";
-    const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const { limit, offset } = parsePagination(url.searchParams);
 
     const where: any = {};
 

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { SendArtifactModal } from "@/components/educator/SendArtifactModal";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
@@ -87,15 +88,13 @@ export default function ClassroomDetailPage() {
     loadClassroom();
   }, [loadClassroom]);
 
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
   const joinUrl = classroom?.joinToken
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/join/${classroom.joinToken}`
     : "";
 
   const copyLink = () => {
-    navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyText(joinUrl);
   };
 
   const handleSave = async () => {

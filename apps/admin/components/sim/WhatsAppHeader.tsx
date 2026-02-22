@@ -13,7 +13,7 @@ interface WhatsAppHeaderProps {
   avatarColor?: string;
 }
 
-export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, mediaLibraryActive, callActive, avatarColor = '#6B7B8D' }: WhatsAppHeaderProps) {
+export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, mediaLibraryActive, callActive, avatarColor = 'var(--text-muted)' }: WhatsAppHeaderProps) {
   const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (

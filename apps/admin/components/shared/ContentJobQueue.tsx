@@ -6,7 +6,7 @@ import { TASK_STATUS, isTerminal, POLL_INTERVAL_MS as DEFAULT_POLL_INTERVAL, POL
 
 // ── Types ──
 
-type BackgroundTaskType = "extraction" | "curriculum_generation" | "course_setup";
+type BackgroundTaskType = "extraction" | "curriculum_generation" | "course_setup" | "snapshot_take" | "snapshot_restore";
 
 interface TaskProgress {
   status: string;            // "in_progress" | "completed" | "abandoned"
@@ -24,6 +24,13 @@ interface TaskProgress {
   moduleCount?: number;
   // Course setup fields (from context)
   message?: string;
+  // Snapshot fields (from context)
+  snapshotName?: string;
+  snapshotOperation?: "take" | "restore";
+  currentTable?: string;
+  totalTables?: number;
+  progress?: number;         // 0-100
+  totalRows?: number;
   // Common
   warnings?: string[];
   error?: string;
@@ -46,6 +53,7 @@ interface BackgroundTaskQueueContextValue {
   addExtractionJob: (taskId: string, sourceId: string, sourceName: string, fileName: string, subjectId?: string) => void;
   addCurriculumJob: (taskId: string, subjectId: string, subjectName: string) => void;
   addCourseSetupJob: (taskId: string, courseName: string) => void;
+  addSnapshotJob: (taskId: string, snapshotName: string, operation: "take" | "restore") => void;
   /** @deprecated Use addExtractionJob */
   addJob: (taskId: string, sourceId: string, sourceName: string, fileName: string) => void;
   dismissJob: (taskId: string) => void;
@@ -57,6 +65,7 @@ const BackgroundTaskQueueContext = createContext<BackgroundTaskQueueContextValue
   addExtractionJob: () => {},
   addCurriculumJob: () => {},
   addCourseSetupJob: () => {},
+  addSnapshotJob: () => {},
   addJob: () => {},
   dismissJob: () => {},
   activeCount: 0,
@@ -145,6 +154,12 @@ function serverTaskToProgress(task: any): TaskProgress {
     message: ctx.message,
     assertionCount: ctx.assertionCount,
     moduleCount: ctx.moduleCount,
+    snapshotName: ctx.snapshotName,
+    snapshotOperation: ctx.snapshotOperation,
+    currentTable: ctx.currentTable,
+    totalTables: ctx.totalTables,
+    progress: ctx.progress,
+    totalRows: ctx.totalRows,
     warnings: ctx.warnings,
     error: ctx.error,
   };
@@ -252,7 +267,7 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
         }
 
         // Check server for any auto-triggered tasks we don't know about yet
-        const backgroundTypes: BackgroundTaskType[] = ["extraction", "curriculum_generation", "course_setup"];
+        const backgroundTypes: BackgroundTaskType[] = ["extraction", "curriculum_generation", "course_setup", "snapshot_take", "snapshot_restore"];
         const knownIds = new Set(current.map((j) => j.taskId));
         for (const st of serverTasks) {
           if (backgroundTypes.includes(st.taskType) && !knownIds.has(st.id)) {
@@ -264,7 +279,11 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
                 ? ctx.fileName || "Content Extraction"
                 : st.taskType === "curriculum_generation"
                   ? ctx.subjectName || "Curriculum Generation"
-                  : ctx.courseName || "Course Setup",
+                  : st.taskType === "snapshot_take"
+                    ? `Take: ${ctx.snapshotName || "Snapshot"}`
+                    : st.taskType === "snapshot_restore"
+                      ? `Restore: ${ctx.snapshotName || "Snapshot"}`
+                      : ctx.courseName || "Course Setup",
               subjectId: ctx.subjectId,
               sourceId: ctx.sourceId,
               startedAt: new Date(st.startedAt).getTime(),
@@ -366,6 +385,33 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
     []
   );
 
+  const addSnapshotJob = useCallback(
+    (taskId: string, snapshotName: string, operation: "take" | "restore") => {
+      setJobs((prev) => {
+        if (prev.some((j) => j.taskId === taskId)) return prev;
+        const taskType = operation === "take" ? "snapshot_take" : "snapshot_restore";
+        return [
+          {
+            taskId,
+            taskType: taskType as BackgroundTaskType,
+            label: `${operation === "take" ? "Take" : "Restore"}: ${snapshotName}`,
+            startedAt: Date.now(),
+            progress: {
+              status: "in_progress",
+              currentStep: 1,
+              totalSteps: operation === "take" ? 2 : 4,
+              snapshotName,
+              snapshotOperation: operation,
+              warnings: [],
+            },
+          },
+          ...prev,
+        ];
+      });
+    },
+    []
+  );
+
   // Backward-compat alias
   const addJob = useCallback(
     (taskId: string, sourceId: string, sourceName: string, fileName: string) => {
@@ -382,7 +428,7 @@ export function ContentJobQueueProvider({ children }: { children: React.ReactNod
 
   return (
     <BackgroundTaskQueueContext.Provider
-      value={{ jobs, addExtractionJob, addCurriculumJob, addCourseSetupJob, addJob, dismissJob, activeCount }}
+      value={{ jobs, addExtractionJob, addCurriculumJob, addCourseSetupJob, addSnapshotJob, addJob, dismissJob, activeCount }}
     >
       {children}
     </BackgroundTaskQueueContext.Provider>
@@ -433,6 +479,18 @@ export function ContentJobQueue() {
       if (isDone(j)) return "Course ready";
       return p.message || `Step ${p.currentStep}/${p.totalSteps}`;
     }
+    if (j.taskType === "snapshot_take") {
+      if (isError(j)) return p.error || "Failed";
+      if (isDone(j)) return `${p.totalRows?.toLocaleString() ?? 0} rows saved`;
+      return p.currentTable ? `Exporting ${p.currentTable}` : "Starting...";
+    }
+    if (j.taskType === "snapshot_restore") {
+      if (isError(j)) return p.error || "Failed";
+      if (isDone(j)) return "Restored";
+      if (p.phase === "clearing") return `Clearing ${p.currentTable || ""}`;
+      if (p.phase === "inserting") return `Inserting ${p.currentTable || ""}`;
+      return "Validating...";
+    }
     return isActive(j) ? "Running..." : isDone(j) ? "Done" : "Failed";
   };
 
@@ -442,7 +500,11 @@ export function ContentJobQueue() {
       if (chunks > 0) return Math.round(((j.progress.currentChunk || 0) / chunks) * 100);
       return 0;
     }
-    // Curriculum: step-based
+    // Snapshot: use context progress field
+    if (j.taskType === "snapshot_take" || j.taskType === "snapshot_restore") {
+      return j.progress.progress ?? Math.round((j.progress.currentStep / j.progress.totalSteps) * 100);
+    }
+    // Curriculum + course setup: step-based
     return Math.round((j.progress.currentStep / j.progress.totalSteps) * 100);
   };
 
@@ -467,6 +529,8 @@ export function ContentJobQueue() {
       router.push(`/x/subjects/${j.subjectId}`);
     } else if (j.taskType === "course_setup") {
       router.push("/x/courses");
+    } else if (j.taskType === "snapshot_take" || j.taskType === "snapshot_restore") {
+      router.push("/x/snapshots");
     }
     setExpanded(false);
   };
@@ -598,6 +662,8 @@ export function ContentJobQueue() {
                     >
                       {job.taskType === "extraction" ? "Content Extraction"
                         : job.taskType === "curriculum_generation" ? "Curriculum Generation"
+                        : job.taskType === "snapshot_take" ? "Snapshot Take"
+                        : job.taskType === "snapshot_restore" ? "Snapshot Restore"
                         : "Course Setup"}
                     </div>
                   </div>

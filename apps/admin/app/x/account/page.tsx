@@ -601,10 +601,10 @@ export default function AccountPage() {
                       ))}
                     </div>
                     <div style={{ flex: 1, textAlign: "left" }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
                         {preset.name}
                       </div>
-                      <div style={{ fontSize: 10, color: "#6b7280" }}>{preset.description}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{preset.description}</div>
                     </div>
                     {isActive && (
                       <div
@@ -675,7 +675,7 @@ export default function AccountPage() {
                       borderRadius: 10,
                       border: isSelected
                         ? "2px solid var(--accent-primary)"
-                        : "1px solid #3f3f46",
+                        : "1px solid var(--border-default)",
                       background: colors.surfacePrimary,
                       cursor: "pointer",
                       transition: "all 0.15s ease",
@@ -701,10 +701,10 @@ export default function AccountPage() {
                       ))}
                     </div>
                     <div style={{ flex: 1, textAlign: "left" }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "#e5e7eb" }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
                         {preset.name}
                       </div>
-                      <div style={{ fontSize: 10, color: "#9ca3af" }}>{preset.description}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{preset.description}</div>
                     </div>
                     {isActive && (
                       <div

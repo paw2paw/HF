@@ -3281,6 +3281,7 @@ model ContentSource {
 
   // Lifecycle
   isActive       Boolean        @default(true)
+  archivedAt     DateTime? // Set when archived; null = active
   supersededById String?        @unique // If a newer edition replaces this
   supersededBy   ContentSource? @relation("SourceSupersession", fields: [supersededById], references: [id], onDelete: SetNull)
   supersedes     ContentSource? @relation("SourceSupersession")
@@ -3301,6 +3302,7 @@ model ContentSource {
   @@index([qualificationRef])
   @@index([validUntil])
   @@index([isActive])
+  @@index([archivedAt])
   @@index([classificationCorrected])
 }
 

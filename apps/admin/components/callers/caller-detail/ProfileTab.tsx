@@ -28,7 +28,7 @@ export function MemoriesSection({
     <div>
       {/* Summary Cards - hidden when shown inline in SectionSelector */}
       {!hideSummary && summary && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <div className="hf-flex hf-flex-wrap hf-gap-md hf-mb-lg">
           {[
             { label: "Facts", count: summary.factCount, color: CATEGORY_COLORS.FACT },
             { label: "Preferences", count: summary.preferenceCount, color: CATEGORY_COLORS.PREFERENCE },
@@ -45,7 +45,7 @@ export function MemoriesSection({
               }}
             >
               <div style={{ fontSize: 20, fontWeight: 600, color: stat.color.text }}>{stat.count}</div>
-              <div style={{ fontSize: 11, color: stat.color.text }}>{stat.label}</div>
+              <div className="hf-text-xs" style={{ color: stat.color.text }}>{stat.label}</div>
             </div>
           ))}
         </div>
@@ -53,13 +53,13 @@ export function MemoriesSection({
 
       {/* Memories List */}
       {memories.length === 0 ? (
-        <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>💭</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No memories extracted yet</div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run the Memory Extractor agent</div>
+        <div className="hf-empty-state">
+          <div className="hf-empty-state-icon">💭</div>
+          <div className="hf-empty-state-title">No memories extracted yet</div>
+          <div className="hf-empty-state-desc">Run the Memory Extractor agent</div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="hf-flex-col hf-gap-sm">
           {memories.map((memory) => {
             const isExpanded = expandedMemory === memory.id;
             const categoryStyle = CATEGORY_COLORS[memory.category] || CATEGORY_COLORS.FACT;
@@ -70,16 +70,14 @@ export function MemoriesSection({
                   style={{
                     width: "100%",
                     padding: "12px 16px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
                     background: isExpanded ? "var(--background)" : "var(--surface-primary)",
                     border: "none",
                     cursor: "pointer",
                     textAlign: "left",
                   }}
+                  className="hf-flex-between"
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div className="hf-flex hf-gap-md">
                     <span
                       style={{
                         fontSize: 10,
@@ -92,17 +90,17 @@ export function MemoriesSection({
                     >
                       {memory.category}
                     </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>{memory.key}</span>
-                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>= "{memory.value}"</span>
+                    <span className="hf-text-sm hf-text-bold hf-text-secondary">{memory.key}</span>
+                    <span className="hf-text-sm hf-text-muted">= &quot;{memory.value}&quot;</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div className="hf-flex hf-gap-sm">
                     {memory.decayFactor != null && memory.decayFactor < 1 && (
-                      <span style={{ fontSize: 10, color: "var(--text-placeholder)", opacity: 0.8 }} title={`Decay: ${memory.decayFactor.toFixed(2)}`}>
+                      <span className="hf-text-placeholder" style={{ fontSize: 10, opacity: 0.8 }} title={`Decay: ${memory.decayFactor.toFixed(2)}`}>
                         {memory.decayFactor >= 0.8 ? "●" : memory.decayFactor >= 0.5 ? "◐" : "○"}
                       </span>
                     )}
-                    <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{(memory.confidence * 100).toFixed(0)}%</span>
-                    <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+                    <span className="hf-text-placeholder" style={{ fontSize: 10 }}>{(memory.confidence * 100).toFixed(0)}%</span>
+                    <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
                       {(() => {
                         const d = new Date(memory.extractedAt);
                         const now = new Date();
@@ -113,18 +111,18 @@ export function MemoriesSection({
                         return `${Math.floor(days / 30)}mo ago`;
                       })()}
                     </span>
-                    <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>{isExpanded ? "▼" : "▶"}</span>
+                    <span className="hf-text-placeholder" style={{ fontSize: 12 }}>{isExpanded ? "▼" : "▶"}</span>
                   </div>
                 </button>
                 {isAdvanced && isExpanded && (
-                  <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)", fontSize: 13 }}>
+                  <div className="hf-text-sm" style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
                     {memory.evidence && (
                       <>
-                        <div style={{ fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Evidence:</div>
-                        <div style={{ fontStyle: "italic", color: "var(--text-secondary)", marginBottom: 8 }}>"{memory.evidence}"</div>
+                        <div className="hf-text-muted hf-mb-xs" style={{ fontWeight: 500 }}>Evidence:</div>
+                        <div className="hf-text-secondary hf-mb-sm" style={{ fontStyle: "italic" }}>&quot;{memory.evidence}&quot;</div>
                       </>
                     )}
-                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 11, color: "var(--text-placeholder)" }}>
+                    <div className="hf-flex hf-flex-wrap hf-gap-lg hf-text-xs hf-text-placeholder">
                       <span>Extracted {new Date(memory.extractedAt).toLocaleString()}</span>
                       {memory.normalizedKey && memory.normalizedKey !== memory.key && (
                         <span>Key: {memory.normalizedKey}</span>
@@ -164,20 +162,20 @@ export function PersonalitySection({
   // Show message if no paramConfig loaded
   if (!paramConfig) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⚙️</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>Loading parameter configuration...</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Fetching dynamic parameter metadata from database</div>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">⚙️</div>
+        <div className="hf-empty-state-title">Loading parameter configuration...</div>
+        <div className="hf-empty-state-desc">Fetching dynamic parameter metadata from database</div>
       </div>
     );
   }
 
   if (!personality && observations.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No trait data yet</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run analysis to measure personality traits</div>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">🧠</div>
+        <div className="hf-empty-state-title">No trait data yet</div>
+        <div className="hf-empty-state-desc">Run analysis to measure personality traits</div>
       </div>
     );
   }
@@ -186,10 +184,10 @@ export function PersonalitySection({
     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
       {/* Aggregated Profile - FULLY DYNAMIC from database */}
       {personality && personality.parameterValues && Object.keys(personality.parameterValues).length > 0 && (
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16 }}>
+        <div className="hf-card-compact" style={{ padding: 20, marginBottom: 0 }}>
+          <h3 className="hf-text-md hf-text-bold hf-text-secondary hf-mb-md">
             Measured Traits
-            <span style={{ fontWeight: 400, color: "var(--text-placeholder)", marginLeft: 8 }}>
+            <span className="hf-text-placeholder" style={{ fontWeight: 400, marginLeft: 8 }}>
               ({Object.keys(personality.parameterValues).length} parameters across {Object.keys(paramConfig.grouped).length} groups)
             </span>
           </h3>
@@ -209,7 +207,7 @@ export function PersonalitySection({
               }));
             if (radarTraits.length < 3) return null;
             return (
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+              <div className="hf-flex-center hf-mb-lg">
                 <PersonalityRadar traits={radarTraits} />
               </div>
             );
@@ -224,30 +222,29 @@ export function PersonalitySection({
 
               return (
                 <div key={groupName}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-placeholder)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <div className="hf-category-label hf-mb-md">
                     {groupName}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div className="hf-flex-col hf-gap-lg">
                     {params.map(param => {
                       const value = personality.parameterValues[param.parameterId];
                       if (value === undefined) return null;
                       return (
                         <div key={param.parameterId}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 500 }}>{param.label}</span>
-                            <span style={{ fontSize: 13, fontWeight: 600 }}>{value !== null ? (value * 100).toFixed(0) : "—"}</span>
+                          <div className="hf-flex-between hf-mb-xs">
+                            <span className="hf-text-sm" style={{ fontWeight: 500 }}>{param.label}</span>
+                            <span className="hf-text-sm hf-text-bold">{value !== null ? (value * 100).toFixed(0) : "—"}</span>
                           </div>
-                          <div style={{ height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
+                          <div className="hf-progress-track">
                             <div
+                              className="hf-progress-fill"
                               style={{
-                                height: "100%",
                                 width: `${(value || 0) * 100}%`,
                                 background: param.color,
-                                borderRadius: 5,
                               }}
                             />
                           </div>
-                          <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginTop: 4 }}>{param.description}</div>
+                          <div className="hf-text-xs hf-text-placeholder hf-mt-xs">{param.description}</div>
                         </div>
                       );
                     })}
@@ -258,7 +255,7 @@ export function PersonalitySection({
           </div>
 
           {personality.lastUpdatedAt && (
-            <div style={{ marginTop: 16, fontSize: 11, color: "var(--text-placeholder)" }}>
+            <div className="hf-text-xs hf-text-placeholder hf-mt-md">
               Last updated: {new Date(personality.lastUpdatedAt).toLocaleString()}
             </div>
           )}
@@ -267,11 +264,11 @@ export function PersonalitySection({
 
       {/* Trait History with Sparklines - Fully Dynamic */}
       {observations.length > 1 && personality && personality.parameterValues && paramConfig && (
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
+        <div className="hf-card-compact" style={{ padding: 20, marginBottom: 0 }}>
+          <h3 className="hf-text-md hf-text-bold hf-text-secondary hf-mb-xs">
             📈 Trait History
           </h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+          <p className="hf-section-desc">
             Showing trends across {observations.length} observations
           </p>
 
@@ -291,8 +288,8 @@ export function PersonalitySection({
             if (paramsWithHistory.length === 0) return null;
 
             return (
-              <div key={groupName} style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-placeholder)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              <div key={groupName} className="hf-mb-lg">
+                <div className="hf-category-label hf-mb-md">
                   {groupName}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
@@ -326,9 +323,9 @@ export function PersonalitySection({
 
                     return (
                       <div key={param.parameterId} style={{ padding: 12, background: "var(--surface-secondary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <div className="hf-flex-between hf-mb-sm">
                           <span style={{ fontSize: 12, fontWeight: 500 }}>{param.label}</span>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: param.color }}>
+                          <span className="hf-text-md hf-text-bold" style={{ color: param.color }}>
                             {((currentValue || 0) * 100).toFixed(0)}%
                           </span>
                         </div>
@@ -349,7 +346,7 @@ export function PersonalitySection({
                             fill={param.color}
                           />
                         </svg>
-                        <div style={{ fontSize: 10, color: "var(--text-placeholder)", marginTop: 4 }}>
+                        <div className="hf-text-placeholder hf-mt-xs" style={{ fontSize: 10 }}>
                           {history.length} observations · Range: {(min * 100).toFixed(0)}%-{(max * 100).toFixed(0)}%
                         </div>
                       </div>
@@ -368,21 +365,21 @@ export function PersonalitySection({
       {/* TODO: Simplify display, enhance with history sparklines showing parameter trends over time */}
       {isAdvanced && observations.length > 0 && (
         <details style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
-          <summary style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, background: "var(--badge-yellow-bg)", color: "var(--badge-yellow-text)", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>DEPRECATED</span>
+          <summary className="hf-flex hf-gap-sm hf-text-md hf-text-bold hf-text-muted" style={{ cursor: "pointer", listStyle: "none" }}>
+            <span className="hf-badge hf-badge-warning">DEPRECATED</span>
             Observation History ({observations.length}) - Legacy Big Five Only
-            <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-placeholder)" }}>Click to expand</span>
+            <span className="hf-text-xs hf-text-placeholder" style={{ marginLeft: "auto" }}>Click to expand</span>
           </summary>
-          <div style={{ fontSize: 11, color: "var(--text-placeholder)", marginTop: 12, marginBottom: 16, padding: 12, background: "var(--background)", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
+          <div className="hf-text-xs hf-text-placeholder" style={{ marginTop: 12, marginBottom: 16, padding: 12, background: "var(--background)", borderRadius: 8, border: "1px solid var(--border-subtle)" }}>
             ⚠️ <strong>Legacy data</strong> - This table stores only Big Five (OCEAN) traits in hardcoded columns.
-            <br />Current system uses dynamic <code style={{ background: "var(--surface-secondary)", padding: "2px 4px", borderRadius: 3 }}>CallerPersonalityProfile.parameterValues</code> which measures all parameters shown above.
+            <br />Current system uses dynamic <code className="hf-mono" style={{ background: "var(--surface-secondary)", padding: "2px 4px", borderRadius: 3 }}>CallerPersonalityProfile.parameterValues</code> which measures all parameters shown above.
             <br />See TODO in API route: Migrate PersonalityObservation to dynamic storage.
           </div>
 
           {/* OCEAN Header Row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 0", borderBottom: "2px solid var(--border-default)", marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", width: 140 }}>Date/Time</span>
-            <div style={{ display: "flex", gap: 8, flex: 1 }}>
+          <div className="hf-flex hf-gap-lg hf-mb-sm" style={{ padding: "8px 0", borderBottom: "2px solid var(--border-default)" }}>
+            <span className="hf-text-xs hf-text-bold hf-text-secondary" style={{ width: 140 }}>Date/Time</span>
+            <div className="hf-flex hf-gap-sm" style={{ flex: 1 }}>
               {[
                 { label: "O", title: "Openness", color: "var(--trait-openness)" },
                 { label: "C", title: "Conscientiousness", color: "var(--trait-conscientiousness)" },
@@ -390,20 +387,20 @@ export function PersonalitySection({
                 { label: "A", title: "Agreeableness", color: "var(--trait-agreeableness)" },
                 { label: "N", title: "Neuroticism", color: "var(--trait-neuroticism)" },
               ].map((trait) => (
-                <div key={trait.label} style={{ display: "flex", alignItems: "center", gap: 4 }} title={trait.title}>
+                <div key={trait.label} className="hf-flex hf-gap-xs" title={trait.title}>
                   <span style={{ fontSize: 10, fontWeight: 600, color: trait.color, width: 10 }}>{trait.label}</span>
                   <div style={{ width: 40, height: 6 }} />
                 </div>
               ))}
             </div>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)" }}>Conf</span>
+            <span style={{ fontSize: 10, fontWeight: 600 }} className="hf-text-secondary">Conf</span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="hf-flex-col hf-gap-sm">
             {observations.slice(0, 10).map((obs) => (
-              <div key={obs.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <span style={{ fontSize: 11, color: "var(--text-placeholder)", width: 140 }}>{new Date(obs.observedAt).toLocaleString()}</span>
-                <div style={{ display: "flex", gap: 8, flex: 1 }}>
+              <div key={obs.id} className="hf-flex hf-gap-lg" style={{ padding: "8px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                <span className="hf-text-xs hf-text-placeholder" style={{ width: 140 }}>{new Date(obs.observedAt).toLocaleString()}</span>
+                <div className="hf-flex hf-gap-sm" style={{ flex: 1 }}>
                   {/* Legacy observations use old field names */}
                   {[
                     { key: "openness", label: "O", color: "var(--trait-openness)" },
@@ -414,8 +411,8 @@ export function PersonalitySection({
                   ].map((trait) => {
                     const value = obs[trait.key as keyof PersonalityObservation] as number | null;
                     return (
-                      <div key={trait.key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{trait.label}</span>
+                      <div key={trait.key} className="hf-flex hf-gap-xs">
+                        <span className="hf-text-placeholder" style={{ fontSize: 10 }}>{trait.label}</span>
                         <div style={{ width: 40, height: 6, background: "var(--border-default)", borderRadius: 3, overflow: "hidden" }}>
                           <div
                             style={{
@@ -429,7 +426,7 @@ export function PersonalitySection({
                     );
                   })}
                 </div>
-                <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+                <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
                   {obs.confidence !== null ? `${(obs.confidence * 100).toFixed(0)}% conf` : ""}
                 </span>
               </div>
@@ -504,8 +501,8 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "var(--text-muted)" }}>Loading slugs...</div>
+      <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>
+        Loading slugs...
       </div>
     );
   }
@@ -513,17 +510,17 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
   if (!slugsData || slugsData.tree.length === 0) {
     const hasAvailableVars = (slugsData?.counts?.available ?? 0) > 0;
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🏷️</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">🏷️</div>
+        <div className="hf-empty-state-title">
           {hasAvailableVars ? "No values yet" : "No template variables"}
         </div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+        <div className="hf-empty-state-desc">
           {hasAvailableVars
             ? `${slugsData!.counts.available} template variables are defined but awaiting values.`
             : "This caller has no memories, scores, or personalized targets yet."}
         </div>
-        <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 8 }}>
+        <div className="hf-empty-state-hint">
           Process calls through the pipeline to populate slug values.
         </div>
       </div>
@@ -547,25 +544,25 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="hf-flex-col hf-gap-lg">
       {/* Header with context */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 12,
-        background: "var(--background)",
-        borderRadius: 8,
-        border: "1px solid var(--border-default)",
-      }}>
+      <div
+        className="hf-flex-between"
+        style={{
+          padding: 12,
+          background: "var(--background)",
+          borderRadius: 8,
+          border: "1px solid var(--border-default)",
+        }}
+      >
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>
+          <div className="hf-text-md hf-text-bold hf-text-secondary">
             Caller Template Variables
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+          <div className="hf-section-desc" style={{ marginBottom: 0, marginTop: 2 }}>
             {slugsData.counts.total} with values: {slugsData.counts.memories} memories, {slugsData.counts.scores} scores, {slugsData.counts.targets} targets
             {slugsData.counts.available > 0 && (
-              <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
+              <span className="hf-text-placeholder" style={{ marginLeft: 8 }}>
                 • {slugsData.counts.available} available in templates
               </span>
             )}
@@ -589,12 +586,7 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
       </div>
 
       {/* Tree view */}
-      <div style={{
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}>
+      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden" }}>
         {slugsData.tree.map((category) => {
           const isExpanded = expandedNodes.has(category.id);
           const colors = categoryColors[category.name] || { bg: "var(--surface-secondary)", border: "var(--border-default)", text: "var(--text-secondary)" };
@@ -605,21 +597,19 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
               {/* Category header */}
               <div
                 onClick={() => toggleNode(category.id)}
+                className="hf-flex hf-gap-sm"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
                   padding: "12px 16px",
                   background: colors.bg,
                   borderBottom: `1px solid ${colors.border}`,
                   cursor: "pointer",
                 }}
               >
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <span style={{ fontSize: 12 }} className="hf-text-muted">
                   {isExpanded ? "▼" : "▶"}
                 </span>
                 <span style={{ fontSize: 16 }}>{icon}</span>
-                <span style={{ fontWeight: 600, color: colors.text }}>{category.name}</span>
+                <span className="hf-text-bold" style={{ color: colors.text }}>{category.name}</span>
                 {category.meta?.count !== undefined && (
                   <span style={{
                     fontSize: 10,
@@ -671,10 +661,8 @@ function SlugSpecNode({
     <div>
       <div
         onClick={() => hasChildren && onToggle(spec.id)}
+        className="hf-flex hf-gap-sm"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
           padding: "8px 16px 8px 32px",
           background: isExpanded ? "var(--background)" : "var(--surface-primary)",
           borderBottom: "1px solid var(--border-subtle)",
@@ -682,23 +670,23 @@ function SlugSpecNode({
         }}
       >
         {hasChildren ? (
-          <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+          <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
             {isExpanded ? "▼" : "▶"}
           </span>
         ) : (
           <span style={{ width: 10 }} />
         )}
         <span style={{ fontSize: 12 }}>📄</span>
-        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)" }}>
+        <span className="hf-text-sm hf-text-secondary" style={{ fontWeight: 500 }}>
           {spec.name}
         </span>
         {spec.specSlug && (
           <Link
             href={`/analysis-specs?slug=${spec.specSlug}`}
             onClick={(e) => e.stopPropagation()}
+            className="hf-text-muted"
             style={{
               fontSize: 10,
-              color: "var(--text-muted)",
               textDecoration: "none",
             }}
           >
@@ -706,7 +694,7 @@ function SlugSpecNode({
           </Link>
         )}
         {spec.meta?.count !== undefined && (
-          <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+          <span className="hf-text-placeholder" style={{ fontSize: 10 }}>
             ({spec.meta.count} items)
           </span>
         )}
@@ -734,32 +722,29 @@ function SlugVariableNode({ variable }: { variable: SlugNode }) {
 
   return (
     <div
+      className="hf-flex hf-gap-sm"
       style={{
-        display: "flex",
         alignItems: "flex-start",
-        gap: 8,
         padding: "6px 16px 6px 56px",
         background: "var(--background)",
         borderBottom: "1px solid var(--border-subtle)",
         fontSize: 12,
       }}
     >
-      <code style={{
+      <code className="hf-mono" style={{
         padding: "2px 6px",
         background: "var(--border-default)",
         borderRadius: 4,
-        fontFamily: "monospace",
-        fontSize: 11,
         color: "var(--text-secondary)",
         whiteSpace: "nowrap",
       }}>
         {variable.path || variable.name}
       </code>
-      <span style={{ color: "var(--text-placeholder)" }}>=</span>
+      <span className="hf-text-placeholder">=</span>
       <span
+        className="hf-text-secondary"
         style={{
           flex: 1,
-          color: "var(--text-secondary)",
           wordBreak: "break-word",
           cursor: isLong ? "pointer" : "default",
         }}
@@ -900,30 +885,22 @@ export function CallerEnrollmentsSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>Loading enrollments...</div>
+      <div className="hf-text-center hf-text-muted hf-p-lg">Loading enrollments...</div>
     );
   }
 
   if (enrollments.length === 0 && !showEnroll) {
     return (
-      <div style={{ padding: 24, textAlign: "center", background: "var(--background)", borderRadius: 12, marginTop: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>No enrolled playbooks</div>
-        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+      <div className="hf-empty-state hf-mt-sm" style={{ padding: 24 }}>
+        <div className="hf-text-md hf-text-bold hf-text-secondary hf-mb-xs">No enrolled playbooks</div>
+        <div className="hf-section-desc hf-mb-md" style={{ marginBottom: 12 }}>
           This caller is not enrolled in any specific playbooks.
         </div>
         {domainId && (
           <button
             onClick={() => { setShowEnroll(true); fetchAvailable(); }}
-            style={{
-              padding: "6px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-primary"
+            style={{ padding: "6px 14px", fontSize: 12 }}
           >
             Enroll in Playbook
           </button>
@@ -933,23 +910,21 @@ export function CallerEnrollmentsSection({
   }
 
   return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+    <div className="hf-mt-sm">
+      <div className="hf-flex-between hf-mb-sm">
+        <span className="hf-category-label">
           Enrolled Playbooks
         </span>
         {domainId && (
           <button
             onClick={() => { setShowEnroll(!showEnroll); if (!showEnroll) fetchAvailable(); }}
+            className="hf-btn hf-text-bold"
             style={{
               padding: "4px 10px",
               fontSize: 11,
-              fontWeight: 600,
+              borderRadius: 5,
               background: showEnroll ? "var(--surface-secondary)" : "var(--button-primary-bg)",
               color: showEnroll ? "var(--text-secondary)" : "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 5,
-              cursor: "pointer",
             }}
           >
             {showEnroll ? "Cancel" : "+ Enroll"}
@@ -959,34 +934,31 @@ export function CallerEnrollmentsSection({
 
       {/* Enroll picker */}
       {showEnroll && (
-        <div style={{ padding: 12, background: "var(--surface-secondary)", borderRadius: 8, marginBottom: 8 }}>
+        <div className="hf-p-md hf-mb-sm" style={{ background: "var(--surface-secondary)", borderRadius: 8 }}>
           {availablePlaybooks.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
+            <div className="hf-section-desc hf-text-center" style={{ marginBottom: 0 }}>
               No more playbooks available to enroll in.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="hf-flex-col hf-gap-xs">
               {availablePlaybooks.map((pb) => (
                 <button
                   key={pb.id}
                   onClick={() => handleEnroll(pb.id)}
                   disabled={enrolling === pb.id}
+                  className="hf-flex-between hf-text-sm"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
                     padding: "8px 12px",
                     background: "var(--surface-primary)",
                     border: "1px solid var(--border-default)",
                     borderRadius: 6,
                     cursor: enrolling === pb.id ? "not-allowed" : "pointer",
                     opacity: enrolling === pb.id ? 0.6 : 1,
-                    fontSize: 13,
                     color: "var(--text-primary)",
                   }}
                 >
-                  <span>{pb.name} <span style={{ fontSize: 11, color: "var(--text-muted)" }}>v{pb.version}</span></span>
-                  <span style={{ fontSize: 11, color: "var(--button-primary-bg)", fontWeight: 600 }}>
+                  <span>{pb.name} <span className="hf-text-xs hf-text-muted">v{pb.version}</span></span>
+                  <span className="hf-text-xs hf-text-bold" style={{ color: "var(--button-primary-bg)" }}>
                     {enrolling === pb.id ? "Enrolling..." : "Enroll"}
                   </span>
                 </button>
@@ -997,27 +969,24 @@ export function CallerEnrollmentsSection({
       )}
 
       {/* Enrollment list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="hf-flex-col" style={{ gap: 6 }}>
         {enrollments.map((enr) => {
           const colors = ENROLLMENT_STATUS_COLORS[enr.status] || ENROLLMENT_STATUS_COLORS.ACTIVE;
           const isUpdating = updating === enr.id;
           return (
             <div
               key={enr.id}
+              className="hf-flex hf-gap-sm hf-text-sm"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
                 padding: "8px 12px",
                 background: "var(--surface-primary)",
                 border: "1px solid var(--border-default)",
                 borderRadius: 8,
-                fontSize: 13,
               }}
             >
               <Link href={`/x/playbooks/${enr.playbook.id}`} style={{ flex: 1, textDecoration: "none", color: "var(--text-primary)", fontWeight: 500 }}>
                 {enr.playbook.name}
-                <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 4 }}>v{enr.playbook.version}</span>
+                <span className="hf-text-xs hf-text-muted" style={{ marginLeft: 4 }}>v{enr.playbook.version}</span>
               </Link>
               <span
                 style={{
@@ -1034,23 +1003,23 @@ export function CallerEnrollmentsSection({
                 {enr.status}
               </span>
               {enr.enrolledBy && (
-                <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>{enr.enrolledBy}</span>
+                <span className="hf-text-placeholder" style={{ fontSize: 10 }}>{enr.enrolledBy}</span>
               )}
               {/* Status actions */}
               {!isUpdating && enr.status === "ACTIVE" && (
                 <>
-                  <button onClick={() => handleStatusChange(enr.id, "PAUSED")} title="Pause" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-muted)", padding: "2px 4px" }}>Pause</button>
-                  <button onClick={() => handleStatusChange(enr.id, "COMPLETED")} title="Complete" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--badge-green-text)", padding: "2px 4px" }}>Complete</button>
+                  <button onClick={() => handleStatusChange(enr.id, "PAUSED")} title="Pause" className="hf-btn-inline hf-text-muted">Pause</button>
+                  <button onClick={() => handleStatusChange(enr.id, "COMPLETED")} title="Complete" className="hf-btn-inline" style={{ color: "var(--badge-green-text)" }}>Complete</button>
                 </>
               )}
               {!isUpdating && enr.status === "PAUSED" && (
-                <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Resume" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--button-primary-bg)", padding: "2px 4px" }}>Resume</button>
+                <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Resume" className="hf-btn-inline" style={{ color: "var(--button-primary-bg)" }}>Resume</button>
               )}
               {!isUpdating && enr.status === "DROPPED" && (
-                <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Re-enroll" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--button-primary-bg)", padding: "2px 4px" }}>Re-enroll</button>
+                <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Re-enroll" className="hf-btn-inline" style={{ color: "var(--button-primary-bg)" }}>Re-enroll</button>
               )}
               {isUpdating && (
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>...</span>
+                <span className="hf-text-xs hf-text-muted">...</span>
               )}
             </div>
           );

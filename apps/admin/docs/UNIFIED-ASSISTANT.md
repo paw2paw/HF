@@ -110,7 +110,7 @@ function SpecEditorPage() {
 function DashboardPage() {
   const assistant = useAssistant({
     layout: "sidebar",
-    defaultTab: "tasks",
+    defaultTab: "jobs",
   });
 
   return (
@@ -153,7 +153,7 @@ function DashboardPage() {
 | `location` | `AssistantLocation` | - | Current page/route context |
 | `defaultTab` | `AssistantTab` | `"chat"` | Initial tab to show |
 | `layout` | `AssistantLayout` | `"popout"` | Layout mode |
-| `enabledTabs` | `AssistantTab[]` | `["chat", "tasks", "data", "spec"]` | Which tabs to show |
+| `enabledTabs` | `AssistantTab[]` | `["chat", "jobs", "data", "spec"]` | Which tabs to show |
 | `endpoint` | `string` | `"/api/ai/assistant"` | API endpoint |
 
 ### AssistantContext
@@ -227,7 +227,7 @@ The assistant calls `/api/ai/assistant` with:
   message: string;
   context?: AssistantContext;
   location?: AssistantLocation;
-  mode: "chat" | "tasks" | "data" | "spec"; // Current tab
+  mode: "chat" | "jobs" | "data" | "spec"; // Current tab
   history: Array<{ role: string; content: string }>;
 }
 ```

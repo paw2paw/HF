@@ -334,14 +334,8 @@ function SourceAuthorityPanel({
     const info = TRUST_LEVEL_COLORS[level] || TRUST_LEVEL_COLORS.UNVERIFIED;
     return (
       <span
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          padding: "2px 6px",
-          borderRadius: 4,
-          background: info.bg,
-          color: info.text,
-        }}
+        className="hf-trust-badge"
+        style={{ background: info.bg, color: info.text }}
       >
         {info.label}
       </span>
@@ -356,64 +350,35 @@ function SourceAuthorityPanel({
   );
 
   return (
-    <div
-      style={{
-        marginBottom: 20,
-        border: "1px solid var(--border-default)",
-        borderRadius: 8,
-        overflow: "hidden",
-      }}
-    >
+    <div className="hf-source-panel">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 14px",
-          background: "var(--surface-secondary)",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 600,
-          color: "var(--text-secondary)",
-        }}
+        className="hf-source-panel-header"
       >
         <span>Source Authority {primarySource ? `(${primarySource.slug})` : "(not configured)"}</span>
-        <span style={{ fontSize: 10 }}>{expanded ? "▼" : "▶"}</span>
+        <span className="hf-text-xs">{expanded ? "▼" : "▶"}</span>
       </button>
 
       {expanded && (
-        <div style={{ padding: 14 }}>
+        <div className="hf-source-panel-body">
           {/* Primary Source */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+          <div className="hf-mb-md">
+            <label className="hf-trigger-label">
               Primary Source
             </label>
             {primarySource ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 12px",
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                }}
-              >
+              <div className="hf-source-row">
                 <TrustBadge level={primarySource.trustLevel} />
-                <span style={{ fontSize: 12, fontWeight: 500 }}>{primarySource.name || primarySource.slug}</span>
+                <span className="hf-source-name">{primarySource.name || primarySource.slug}</span>
                 {primarySource.publisherOrg && (
-                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>({primarySource.publisherOrg})</span>
+                  <span className="hf-text-xs hf-text-muted">({primarySource.publisherOrg})</span>
                 )}
                 {!disabled && (
                   <button
                     type="button"
                     onClick={removePrimarySource}
-                    style={{ marginLeft: "auto", fontSize: 10, color: "var(--status-error-text)", background: "none", border: "none", cursor: "pointer" }}
+                    className="hf-btn-remove-link"
                   >
                     Remove
                   </button>
@@ -424,15 +389,7 @@ function SourceAuthorityPanel({
                 disabled={disabled || loadingSources}
                 onChange={(e) => { if (e.target.value) setPrimarySource(e.target.value); }}
                 value=""
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  fontSize: 12,
-                  borderRadius: 6,
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-primary)",
-                  color: "var(--text-primary)",
-                }}
+                className="hf-source-select"
               >
                 <option value="">
                   {loadingSources ? "Loading sources..." : "Select primary source..."}
@@ -448,31 +405,22 @@ function SourceAuthorityPanel({
           </div>
 
           {/* Secondary Sources */}
-          <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+          <div className="hf-mb-sm">
+            <label className="hf-trigger-label">
               Secondary Sources ({secondarySources.length})
             </label>
             {secondarySources.map((src: any) => (
               <div
                 key={src.slug}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 12px",
-                  marginBottom: 4,
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: 6,
-                }}
+                className="hf-source-row hf-source-row-secondary"
               >
                 <TrustBadge level={src.trustLevel} />
-                <span style={{ fontSize: 12 }}>{src.name || src.slug}</span>
+                <span className="hf-source-name-secondary">{src.name || src.slug}</span>
                 {!disabled && (
                   <button
                     type="button"
                     onClick={() => removeSecondarySource(src.slug)}
-                    style={{ marginLeft: "auto", fontSize: 10, color: "var(--status-error-text)", background: "none", border: "none", cursor: "pointer" }}
+                    className="hf-btn-remove-link"
                   >
                     Remove
                   </button>
@@ -483,16 +431,7 @@ function SourceAuthorityPanel({
               <select
                 onChange={(e) => { if (e.target.value) addSecondarySource(e.target.value); }}
                 value=""
-                style={{
-                  width: "100%",
-                  padding: "6px 12px",
-                  fontSize: 11,
-                  borderRadius: 6,
-                  border: "1px dashed var(--border-default)",
-                  background: "var(--surface-primary)",
-                  color: "var(--text-secondary)",
-                  marginTop: 4,
-                }}
+                className="hf-source-select hf-source-select-secondary"
               >
                 <option value="">Add secondary source...</option>
                 {unassignedSources.map((s) => (
@@ -506,8 +445,8 @@ function SourceAuthorityPanel({
           </div>
 
           {/* Link to source registry */}
-          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
-            <a href="/x/content-sources" target="_blank" rel="noopener" style={{ color: "var(--accent-primary)" }}>
+          <div className="hf-text-xs hf-text-muted">
+            <a href="/x/content-sources" target="_blank" rel="noopener" className="hf-link-accent">
               Manage sources in registry →
             </a>
           </div>
@@ -1282,20 +1221,12 @@ export default function SpecsPage() {
     <button
       onClick={onClick}
       title={tooltip}
-      style={{
-        padding: "4px 10px",
-        fontSize: 11,
-        fontWeight: 600,
-        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
-        borderRadius: 5,
-        cursor: "pointer",
-        background: isActive ? colors.bg : "var(--surface-secondary)",
-        color: isActive ? colors.text : "var(--text-placeholder)",
-        transition: "all 0.15s",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-      }}
+      className="hf-filter-pill"
+      style={isActive ? {
+        border: `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)`,
+        background: colors.bg,
+        color: colors.text,
+      } : undefined}
     >
       {icon && <span>{icon}</span>}
       {label}
@@ -1306,17 +1237,7 @@ export default function SpecsPage() {
     show ? (
       <button
         onClick={onClick}
-        style={{
-          padding: "0 4px",
-          fontSize: 12,
-          fontWeight: 400,
-          border: "none",
-          borderRadius: 3,
-          cursor: "pointer",
-          background: "transparent",
-          color: "var(--text-placeholder)",
-          lineHeight: 1,
-        }}
+        className="hf-btn-unstyled hf-btn-clear"
         title="Clear filter"
       >
         ×
@@ -1330,67 +1251,28 @@ export default function SpecsPage() {
   const hasPromptTemplate = spec?.promptTemplate && spec.promptTemplate.length > 100;
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="hf-page-full">
       <AdvancedBanner />
       {/* Header */}
       <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          marginBottom: 16,
-        }}
+        className="hf-card-compact hf-header-card"
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Analysis Specs</h1>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div className="hf-flex-between hf-mb-sm">
+          <h1 className="hf-section-title">Analysis Specs</h1>
+          <div className="hf-flex hf-gap-sm">
             <Link
               href="/x/specs/new"
-              style={{
-                padding: "6px 12px",
-                background: "var(--accent-primary)",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                fontWeight: 500,
-                fontSize: 12,
-                textDecoration: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
+              className="hf-btn hf-btn-primary hf-btn-sm"
             >
               + New Spec
             </Link>
             {unimportedCount > 0 && (
               <Link
                 href="/x/admin/spec-sync"
-                style={{
-                  padding: "4px 10px",
-                  background: "var(--status-warning-bg)",
-                  color: "var(--status-warning-text)",
-                  border: "1px solid var(--status-warning-border)",
-                  borderRadius: 6,
-                  fontWeight: 600,
-                  fontSize: 11,
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                }}
+                className="hf-badge-warning hf-flex hf-gap-xs hf-sync-badge"
                 title={`${unimportedCount} spec${unimportedCount === 1 ? "" : "s"} found in spec files but not imported to database`}
               >
-                <span
-                  style={{
-                    background: "var(--status-warning-text)",
-                    color: "white",
-                    borderRadius: 10,
-                    padding: "1px 6px",
-                    fontSize: 10,
-                    fontWeight: 700,
-                  }}
-                >
+                <span className="hf-sync-count">
                   {unimportedCount}
                 </span>
                 Sync
@@ -1398,19 +1280,7 @@ export default function SpecsPage() {
             )}
             <Link
               href="/x/spec-schema"
-              style={{
-                padding: "6px 12px",
-                background: "var(--surface-secondary)",
-                color: "var(--text-secondary)",
-                border: "1px solid var(--input-border)",
-                borderRadius: 6,
-                fontWeight: 500,
-                fontSize: 12,
-                textDecoration: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
+              className="hf-btn hf-btn-secondary hf-btn-sm"
             >
               Schema
             </Link>
@@ -1421,19 +1291,7 @@ export default function SpecsPage() {
                     assistant.openWithSpec(spec);
                   }
                 }}
-                style={{
-                  padding: "6px 12px",
-                  background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary, #8b5cf6) 100%)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  fontWeight: 500,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
+                className="hf-btn hf-btn-ai"
                 title="Ask AI about this spec"
               >
                 🤖 Ask AI
@@ -1443,29 +1301,22 @@ export default function SpecsPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+        <div className="hf-flex-wrap" style={{ gap: 16, alignItems: "flex-start" }}>
           <input
             type="text"
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--input-border)",
-              borderRadius: 6,
-              width: 160,
-              fontSize: 12,
-              alignSelf: "center",
-            }}
+            className="hf-search-input"
           />
 
-          <div style={{ width: 1, height: 24, background: "var(--border-default)", alignSelf: "center" }} />
+          <div className="hf-divider-v" style={{ alignSelf: "center" }} /> {/* alignSelf needed for flex alignment */}
 
           {/* Scope */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by specification scope">Scope</span>
+          <div className="hf-flex hf-gap-xs">
+            <span className="hf-text-xs hf-text-muted hf-text-bold" title="Filter by specification scope">Scope</span>
             <ClearBtn onClick={() => setSelectedScopes(new Set())} show={selectedScopes.size > 0} />
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="hf-flex hf-gap-xs">
               {SCOPES.map((scope) => {
                 const config = scopeColors[scope];
                 return (
@@ -1483,13 +1334,13 @@ export default function SpecsPage() {
             </div>
           </div>
 
-          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+          <div className="hf-divider-v" />
 
           {/* Type */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by output type">Type</span>
+          <div className="hf-flex hf-gap-xs">
+            <span className="hf-text-xs hf-text-muted hf-text-bold" title="Filter by output type">Type</span>
             <ClearBtn onClick={() => setSelectedTypes(new Set())} show={selectedTypes.size > 0} />
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="hf-flex hf-gap-xs">
               {TYPES.map((type) => {
                 const config = outputTypeColors[type];
                 return (
@@ -1507,13 +1358,13 @@ export default function SpecsPage() {
             </div>
           </div>
 
-          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+          <div className="hf-divider-v" />
 
           {/* Role */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Filter by spec role">Role</span>
+          <div className="hf-flex hf-gap-xs">
+            <span className="hf-text-xs hf-text-muted hf-text-bold" title="Filter by spec role">Role</span>
             <ClearBtn onClick={() => setSelectedRoles(new Set())} show={selectedRoles.size > 0} />
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            <div className="hf-flex hf-flex-wrap hf-gap-xs">
               {ROLES.map((role) => {
                 const config = roleColors[role as keyof typeof roleColors];
                 const count = specs.filter(s => s.specRole === role).length;
@@ -1534,51 +1385,36 @@ export default function SpecsPage() {
           </div>
 
           {/* Results count */}
-          <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: "auto", alignSelf: "center" }}>
+          <span className="hf-text-xs hf-placeholder" style={{ marginLeft: "auto", alignSelf: "center" }}>
             {filteredSpecs.length} of {specs.length}
           </span>
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
+        <div className="hf-banner hf-banner-error hf-mb-lg">
           {error}
         </div>
       )}
 
       {freshness && (
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "8px 14px",
-            marginBottom: 12,
-            borderRadius: 8,
-            background: freshness.expired > 0 ? "var(--status-error-bg)" : "var(--status-warning-bg)",
-            border: `1px solid ${freshness.expired > 0 ? "var(--status-error-border)" : "var(--status-warning-border)"}`,
-            fontSize: 12,
-          }}
+          className={`hf-banner ${freshness.expired > 0 ? "hf-banner-error" : "hf-banner-warning"}`}
+          style={{ padding: "8px 14px", marginBottom: 12, borderRadius: 8, fontSize: 12 }} /* compact freshness banner */
         >
-          <span style={{ fontWeight: 600, color: freshness.expired > 0 ? "var(--status-error-text)" : "var(--status-warning-text)" }}>
+          <span className="hf-text-bold">
             {freshness.expired > 0
               ? `${freshness.expired} expired source${freshness.expired > 1 ? "s" : ""}`
               : `${freshness.expiring} source${freshness.expiring > 1 ? "s" : ""} expiring soon`}
           </span>
           {freshness.expired > 0 && freshness.expiring > 0 && (
-            <span style={{ color: "var(--status-warning-text)" }}>
+            <span className="hf-text-warning">
               + {freshness.expiring} expiring soon
             </span>
           )}
           <Link
             href="/x/content-sources"
-            style={{
-              marginLeft: "auto",
-              fontSize: 11,
-              fontWeight: 600,
-              color: freshness.expired > 0 ? "var(--status-error-text)" : "var(--status-warning-text)",
-              textDecoration: "underline",
-            }}
+            className="hf-freshness-link"
           >
             Manage sources
           </Link>
@@ -1586,32 +1422,21 @@ export default function SpecsPage() {
       )}
 
       {/* Master-Detail Layout */}
-      <div style={{ display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
+      <div className="hf-master-detail">
         {/* List/Tree Panel */}
-        <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        <div className="hf-sidebar-panel">
           {/* View Toggle Header */}
           <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "8px 12px",
-              background: "var(--surface-secondary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "8px 8px 0 0",
-              borderBottom: "none",
-            }}
+            className="hf-flex-between hf-view-toggle-header"
           >
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="hf-flex hf-gap-xs">
               <button
                 onClick={() => setViewMode("list")}
+                className="hf-toggle-btn hf-toggle-btn-sm"
                 style={{
-                  padding: "4px 10px",
-                  fontSize: 11,
                   fontWeight: 600,
                   border: viewMode === "list" ? "1px solid var(--accent-primary)" : "1px solid var(--input-border)",
                   borderRadius: 4,
-                  cursor: "pointer",
                   background: viewMode === "list" ? "var(--surface-selected)" : "var(--surface-primary)",
                   color: viewMode === "list" ? "var(--accent-primary)" : "var(--text-muted)",
                 }}
@@ -1620,13 +1445,11 @@ export default function SpecsPage() {
               </button>
               <button
                 onClick={() => setViewMode("tree")}
+                className="hf-toggle-btn hf-toggle-btn-sm"
                 style={{
-                  padding: "4px 10px",
-                  fontSize: 11,
                   fontWeight: 600,
                   border: viewMode === "tree" ? "1px solid var(--accent-primary)" : "1px solid var(--input-border)",
                   borderRadius: 4,
-                  cursor: "pointer",
                   background: viewMode === "tree" ? "var(--surface-selected)" : "var(--surface-primary)",
                   color: viewMode === "tree" ? "var(--accent-primary)" : "var(--text-muted)",
                 }}
@@ -1635,35 +1458,17 @@ export default function SpecsPage() {
               </button>
             </div>
             {viewMode === "tree" && explorerTree && (
-              <div style={{ display: "flex", gap: 4 }}>
+              <div className="hf-flex hf-gap-xs">
                 <button
                   onClick={expandAllNodes}
-                  style={{
-                    padding: "2px 6px",
-                    fontSize: 9,
-                    fontWeight: 600,
-                    border: "1px solid var(--input-border)",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    background: "var(--surface-primary)",
-                    color: "var(--text-muted)",
-                  }}
+                  className="hf-btn-icon hf-btn-micro"
                   title="Expand All"
                 >
                   [+]
                 </button>
                 <button
                   onClick={collapseAllNodes}
-                  style={{
-                    padding: "2px 6px",
-                    fontSize: 9,
-                    fontWeight: 600,
-                    border: "1px solid var(--input-border)",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    background: "var(--surface-primary)",
-                    color: "var(--text-muted)",
-                  }}
+                  className="hf-btn-icon hf-btn-micro"
                   title="Collapse All"
                 >
                   [-]
@@ -1671,7 +1476,7 @@ export default function SpecsPage() {
               </div>
             )}
             {viewMode === "list" && (
-              <span style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
+              <span className="hf-text-xs hf-placeholder">
                 {filteredSpecs.length} specs
               </span>
             )}
@@ -1692,66 +1497,39 @@ export default function SpecsPage() {
               // List View
               <>
                 {loading ? (
-                  <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+                  <div className="hf-empty hf-text-muted">Loading...</div>
                 ) : filteredSpecs.length === 0 ? (
-                  <div
-                    style={{
-                      padding: 40,
-                      textAlign: "center",
-                      background: "var(--surface-secondary)",
-                      borderRadius: 12,
-                      margin: 8,
-                    }}
-                  >
-                    <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+                  <div className="hf-empty-state" style={{ margin: 8 }}>
+                    <div className="hf-empty-state-icon">🎯</div>
+                    <div className="hf-empty-state-title">
                       {search || selectedScopes.size > 0 || selectedTypes.size > 0 ? "No specs match filters" : "No specs yet"}
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8 }}>
+                  <div className="hf-flex-col hf-gap-sm hf-p-sm">
                     {filteredSpecs.map((s) => (
                       <div
                         key={s.id}
                         onClick={() => selectSpec(s.id)}
-                        style={{
-                          background: selectedId === s.id ? "var(--surface-selected)" : "var(--surface-primary)",
-                          border: selectedId === s.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                          borderRadius: 8,
-                          padding: 12,
-                          cursor: "pointer",
-                          transition: "border-color 0.15s, box-shadow 0.15s",
-                        }}
+                        className={`hf-spec-card${selectedId === s.id ? " hf-spec-card-selected" : ""}`}
                       >
-                        <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                        <div className="hf-flex hf-flex-wrap hf-gap-xs hf-mb-sm">
                           <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 600,
-                              padding: "2px 6px",
-                              background: scopeColors[s.scope]?.bg,
-                              color: scopeColors[s.scope]?.text,
-                              borderRadius: 4,
-                            }}
+                            className="hf-micro-badge"
+                            style={{ background: scopeColors[s.scope]?.bg, color: scopeColors[s.scope]?.text }}
                           >
                             {s.scope}
                           </span>
                           <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 600,
-                              padding: "2px 6px",
-                              background: outputTypeColors[s.outputType]?.bg || "var(--border-default)",
-                              color: outputTypeColors[s.outputType]?.text || "var(--text-primary)",
-                              borderRadius: 4,
-                            }}
+                            className="hf-micro-badge"
+                            style={{ background: outputTypeColors[s.outputType]?.bg || "var(--border-default)", color: outputTypeColors[s.outputType]?.text || "var(--text-primary)" }}
                           >
                             {s.outputType}
                           </span>
                           {s.specRole && <SpecRoleBadge role={s.specRole} size="sm" />}
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>{s.name}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
+                        <div className="hf-text-sm hf-text-bold" style={{ marginBottom: 2 }}>{s.name}</div>
+                        <div className="hf-text-xs hf-text-muted hf-mono">{s.slug}</div>
                       </div>
                     ))}
                   </div>
@@ -1761,9 +1539,9 @@ export default function SpecsPage() {
               // Tree View
               <>
                 {explorerLoading ? (
-                  <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading tree...</div>
+                  <div className="hf-empty hf-text-muted">Loading tree...</div>
                 ) : !explorerTree ? (
-                  <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Failed to load tree</div>
+                  <div className="hf-empty hf-text-muted">Failed to load tree</div>
                 ) : (
                   <div
                     ref={treeContainerRef}
@@ -1774,7 +1552,7 @@ export default function SpecsPage() {
                         setSelectedTreeNode(explorerTree);
                       }
                     }}
-                    style={{ outline: "none", minHeight: "100%" }}
+                    style={{ outline: "none", minHeight: "100%" }} /* outline:none required for keyboard focus container */
                   >
                     <ExplorerTreeNode
                       node={explorerTree}
@@ -1793,60 +1571,47 @@ export default function SpecsPage() {
         </div>
 
         {/* Detail Panel */}
-        <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 20, overflowY: "auto" }}>
+        <div className="hf-card-compact hf-detail-panel">
           {!selectedId ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-placeholder)" }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-                <div style={{ fontSize: 14 }}>Select a spec to view details</div>
+            <div className="hf-flex-center hf-placeholder" style={{ height: "100%" }}>
+              <div className="hf-text-center">
+                <div className="hf-empty-icon-lg">📋</div>
+                <div className="hf-text-md">Select a spec to view details</div>
               </div>
             </div>
           ) : detailLoading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading spec...</div>
+            <div className="hf-empty hf-text-muted">Loading spec...</div>
           ) : detailError || !spec ? (
-            <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
+            <div className="hf-banner hf-banner-error">
               {detailError || "Spec not found"}
             </div>
           ) : (
             <>
               {/* Detail Header */}
-              <div style={{ marginBottom: 20 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{spec.name}</h2>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace", marginTop: 4 }}>{spec.slug}</div>
+              <div className="hf-mb-lg">
+                <h2 className="hf-detail-title">{spec.name}</h2>
+                <div className="hf-mono hf-text-muted hf-mt-sm">{spec.slug}</div>
               </div>
 
               {/* Badges */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+              <div className="hf-flex hf-flex-wrap hf-gap-sm hf-mb-lg">
                 <span
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: scopeColors[spec.scope]?.bg,
-                    color: scopeColors[spec.scope]?.text,
-                  }}
+                  className="hf-badge"
+                  style={{ background: scopeColors[spec.scope]?.bg, color: scopeColors[spec.scope]?.text }}
                 >
                   {spec.scope}
                 </span>
                 <span
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: outputTypeColors[spec.outputType]?.bg,
-                    color: outputTypeColors[spec.outputType]?.text,
-                  }}
+                  className="hf-badge"
+                  style={{ background: outputTypeColors[spec.outputType]?.bg, color: outputTypeColors[spec.outputType]?.text }}
                 >
                   {spec.outputType}
                 </span>
                 {spec.specRole && roleColors[spec.specRole] && (
-                  <span style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    background: roleColors[spec.specRole].bg,
-                    color: roleColors[spec.specRole].text,
-                  }}>
+                  <span
+                    className="hf-badge"
+                    style={{ background: roleColors[spec.specRole].bg, color: roleColors[spec.specRole].text }}
+                  >
                     {roleColors[spec.specRole].icon} {roleColors[spec.specRole].label}
                   </span>
                 )}
@@ -1854,41 +1619,21 @@ export default function SpecsPage() {
                   <DomainPill label={spec.domain} size="compact" />
                 )}
                 {featureSet && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--status-success-bg)", color: "var(--status-success-text)" }}>
-                    Has Source Spec
-                  </span>
+                  <span className="hf-badge hf-badge-success">Has Source Spec</span>
                 )}
                 {spec.isLocked && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--status-error-bg)", color: "var(--status-error-text)" }}>
-                    Locked
-                  </span>
+                  <span className="hf-badge hf-badge-error">Locked</span>
                 )}
                 {spec.isDeletable === false && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--status-warning-bg)", color: "var(--status-warning-text)", fontWeight: 600 }}>
-                    🔒 Cannot Delete
-                  </span>
+                  <span className="hf-badge hf-badge-warning hf-text-bold">🔒 Cannot Delete</span>
                 )}
                 {!spec.isActive && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
-                    Inactive
-                  </span>
+                  <span className="hf-badge hf-badge-muted">Inactive</span>
                 )}
                 {/* View in Graph Button */}
                 <Link
                   href={`/x/taxonomy-graph?focus=spec/${spec.slug}`}
-                  style={{
-                    fontSize: 11,
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-primary)",
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    marginLeft: "auto",
-                  }}
+                  className="hf-badge hf-badge-muted hf-badge-link"
                   title="View this spec in the taxonomy graph visualizer"
                 >
                   🌌 Graph
@@ -1896,28 +1641,26 @@ export default function SpecsPage() {
               </div>
 
               {spec.description && (
-                <div style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12, marginBottom: 20, fontSize: 13, color: "var(--text-secondary)" }}>
-                  {spec.description}
-                </div>
+                <div className="hf-spec-desc">{spec.description}</div>
               )}
 
               {/* Data Flow Overview */}
               {featureSet && (
-                <div style={{ background: "linear-gradient(to right, var(--status-info-bg), var(--surface-selected))", border: "1px solid var(--status-info-border)", borderRadius: 8, padding: 12, marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)", marginBottom: 8 }}>Data Flow</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, flexWrap: "wrap" }}>
-                    <span style={{ background: "var(--status-info-bg)", color: "var(--accent-primary)", padding: "3px 8px", borderRadius: 4, fontFamily: "monospace" }}>
+                <div className="hf-data-flow">
+                  <div className="hf-data-flow-heading">Data Flow</div>
+                  <div className="hf-flex hf-flex-wrap hf-gap-sm hf-text-xs">
+                    <span className="hf-badge hf-mono" style={{ background: "var(--status-info-bg)", color: "var(--accent-primary)" }}>
                       {featureSet.featureId}.spec.json
                     </span>
                     <span style={{ color: "var(--accent-primary)" }}>→</span>
-                    <span style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", padding: "3px 8px", borderRadius: 4 }}>
+                    <span className="hf-badge" style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" }}>
                       BDDFeatureSet
                     </span>
                     <span style={{ color: "var(--badge-purple-text)" }}>→</span>
-                    <span style={{ background: "var(--status-info-bg)", color: "var(--button-primary-bg)", padding: "3px 8px", borderRadius: 4 }}>
+                    <span className="hf-badge" style={{ background: "var(--status-info-bg)", color: "var(--button-primary-bg)" }}>
                       AnalysisSpec
                     </span>
-                    <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
+                    <span className="hf-placeholder" style={{ marginLeft: 8 }}>
                       ({featureSet.parameterCount} params, {featureSet.constraintCount} constraints)
                     </span>
                   </div>
@@ -1939,10 +1682,8 @@ export default function SpecsPage() {
               {activeTab === "derived" && (
                 <>
                   {/* Spec Role Selector */}
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>
-                      Spec Role
-                    </label>
+                  <div className="hf-mb-lg">
+                    <label className="hf-label">Spec Role</label>
                     <FancySelect
                       value={specRole}
                       onChange={handleSpecRoleChange}
@@ -1971,17 +1712,17 @@ export default function SpecsPage() {
 
                   {/* Prompt Template */}
                   {(isMeasureSpec || hasPromptTemplate) && (
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
+                    <div className="hf-mb-lg">
+                      <div className="hf-flex-between" style={{ marginBottom: 6 }}>
+                        <label className="hf-label" style={{ marginBottom: 0 }}>
                           Compiled Prompt Template
                           {isMeasureSpec && (
-                            <span style={{ marginLeft: 8, fontSize: 10, background: "var(--status-success-bg)", color: "var(--status-success-text)", padding: "2px 6px", borderRadius: 4 }}>
+                            <span className="hf-badge hf-badge-success hf-text-xs" style={{ marginLeft: 8 }}>
                               Primary output for MEASURE specs
                             </span>
                           )}
                         </label>
-                        <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
+                        <span className="hf-text-xs hf-placeholder">
                           {promptTemplate.length.toLocaleString()} chars
                         </span>
                       </div>
@@ -1990,16 +1731,8 @@ export default function SpecsPage() {
                         onChange={(e) => handlePromptTemplateChange(e.target.value)}
                         disabled={spec.isLocked}
                         rows={isMeasureSpec ? 16 : 8}
-                        style={{
-                          width: "100%",
-                          fontFamily: "monospace",
-                          fontSize: 11,
-                          border: "1px solid var(--input-border)",
-                          borderRadius: 8,
-                          padding: 12,
-                          background: spec.isLocked ? "var(--surface-disabled)" : "var(--surface-primary)",
-                          resize: "vertical",
-                        }}
+                        className="hf-prompt-textarea"
+                        style={spec.isLocked ? { background: "var(--surface-disabled)" } : undefined}
                         placeholder="Compiled prompt template..."
                       />
                     </div>
@@ -2007,12 +1740,12 @@ export default function SpecsPage() {
 
                   {/* Config Editor */}
                   {(!isMeasureSpec || hasRichConfig) && (
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)" }}>
+                    <div className="hf-mb-lg">
+                      <div className="hf-flex-between" style={{ marginBottom: 6 }}>
+                        <label className="hf-label" style={{ marginBottom: 0 }}>
                           Config
                           {isIdentityOrContent && (
-                            <span style={{ marginLeft: 8, fontSize: 10, background: "var(--status-info-bg)", color: "var(--button-primary-bg)", padding: "2px 6px", borderRadius: 4 }}>
+                            <span className="hf-badge hf-badge-info hf-text-xs" style={{ marginLeft: 8 }}>
                               Primary output for {spec.specRole} specs
                             </span>
                           )}
@@ -2038,17 +1771,12 @@ export default function SpecsPage() {
                   )}
 
                   {/* Save / Recompile Buttons */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div className="hf-flex hf-flex-wrap hf-gap-md">
                     <button
                       onClick={handleSave}
                       disabled={saving || spec.isLocked || !hasChanges}
+                      className="hf-btn hf-btn-action"
                       style={{
-                        padding: "8px 16px",
-                        borderRadius: 6,
-                        fontWeight: 500,
-                        fontSize: 13,
-                        border: "none",
-                        cursor: saving || spec.isLocked || !hasChanges ? "not-allowed" : "pointer",
                         background: saving || spec.isLocked || !hasChanges ? "var(--surface-disabled)" : "var(--accent-primary)",
                         color: saving || spec.isLocked || !hasChanges ? "var(--text-placeholder)" : "white",
                       }}
@@ -2059,13 +1787,8 @@ export default function SpecsPage() {
                       <button
                         onClick={handleRecompile}
                         disabled={recompiling || spec.isLocked}
+                        className="hf-btn hf-btn-action"
                         style={{
-                          padding: "8px 16px",
-                          borderRadius: 6,
-                          fontWeight: 500,
-                          fontSize: 13,
-                          border: "none",
-                          cursor: recompiling || spec.isLocked ? "not-allowed" : "pointer",
                           background: recompiling || spec.isLocked ? "var(--surface-disabled)" : "var(--status-warning-text)",
                           color: recompiling || spec.isLocked ? "var(--text-placeholder)" : "white",
                         }}
@@ -2077,13 +1800,8 @@ export default function SpecsPage() {
                       <button
                         onClick={handleExportToSource}
                         disabled={exporting || spec.isLocked}
+                        className="hf-btn hf-btn-action"
                         style={{
-                          padding: "8px 16px",
-                          borderRadius: 6,
-                          fontWeight: 500,
-                          fontSize: 13,
-                          border: "none",
-                          cursor: exporting || spec.isLocked ? "not-allowed" : "pointer",
                           background: exporting || spec.isLocked ? "var(--surface-disabled)" : "var(--status-error-text)",
                           color: exporting || spec.isLocked ? "var(--text-placeholder)" : "white",
                         }}
@@ -2093,31 +1811,21 @@ export default function SpecsPage() {
                       </button>
                     )}
                     {saveMessage && (
-                      <span style={{ fontSize: 12, color: saveMessage.type === "success" ? "var(--status-success-text)" : "var(--status-error-text)" }}>
+                      <span className={`hf-text-xs ${saveMessage.type === "success" ? "hf-text-success" : "hf-text-error"}`}>
                         {saveMessage.text}
                       </span>
                     )}
                     {hasChanges && !saveMessage && (
-                      <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>Unsaved changes</span>
+                      <span className="hf-text-warning hf-text-xs">Unsaved changes</span>
                     )}
                   </div>
 
                   {/* Triggers Grid */}
-                  <div style={{ marginTop: 24, borderTop: "1px solid var(--border-default)", paddingTop: 20 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <div className="hf-section-sep hf-mt-lg">
+                    <div className="hf-flex hf-gap-sm hf-mb-md">
                       <button
                         onClick={() => setShowTriggers(!showTriggers)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "var(--text-secondary)",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                        }}
+                        className="hf-collapse-toggle"
                       >
                         <span>{showTriggers ? "▼" : "▶"}</span>
                         Triggers ({spec.triggers?.length || 0})
@@ -2125,17 +1833,7 @@ export default function SpecsPage() {
                       {showTriggers && !spec.isLocked && (
                         <button
                           onClick={handleAddTrigger}
-                          style={{
-                            marginLeft: "auto",
-                            padding: "4px 10px",
-                            borderRadius: 4,
-                            border: "1px solid var(--accent-primary)",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: "var(--accent-primary)",
-                            background: "transparent",
-                            cursor: "pointer",
-                          }}
+                          className="hf-btn hf-btn-secondary hf-btn-add-trigger"
                         >
                           + Add Trigger
                         </button>
@@ -2145,19 +1843,19 @@ export default function SpecsPage() {
                     {showTriggers && (
                       <>
                         {(!spec.triggers || spec.triggers.length === 0) ? (
-                          <div style={{ padding: 16, fontSize: 12, color: "var(--text-muted)", textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
+                          <div className="hf-empty-dashed hf-text-sm hf-text-muted hf-p-md">
                             No triggers defined yet.{!spec.isLocked && " Click \"+ Add Trigger\" to create one."}
                           </div>
                         ) : (
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                          <table className="hf-table">
                             <thead>
                               <tr>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: 28 }}>#</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: "14%" }}>Name</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--badge-purple-text)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Given</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--accent-primary)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>When</th>
-                                <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: 10, color: "var(--status-success-text)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase" }}>Then</th>
-                                <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: 600, fontSize: 10, color: "var(--text-muted)", borderBottom: "2px solid var(--border-default)", textTransform: "uppercase", width: 44 }}></th>
+                                <th className="hf-th" style={{ width: 28 }}>#</th>
+                                <th className="hf-th" style={{ width: "14%" }}>Name</th>
+                                <th className="hf-th" style={{ color: "var(--badge-purple-text)" }}>Given</th>
+                                <th className="hf-th" style={{ color: "var(--accent-primary)" }}>When</th>
+                                <th className="hf-th" style={{ color: "var(--status-success-text)" }}>Then</th>
+                                <th className="hf-th hf-text-center" style={{ width: 44 }}></th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2173,8 +1871,8 @@ export default function SpecsPage() {
                                         transition: "background-color 0.3s",
                                       }}
                                     >
-                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top", fontWeight: 600, color: "var(--text-muted)", fontSize: 11 }}>{tIdx + 1}</td>
-                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                      <td className="hf-td hf-text-bold hf-text-muted hf-text-xs">{tIdx + 1}</td>
+                                      <td className="hf-td">
                                         <InlineCell
                                           cellKey={`trigger-${trigger.id}-name`}
                                           value={trigger.name || ""}
@@ -2189,7 +1887,7 @@ export default function SpecsPage() {
                                           onCancel={() => setEditingCell(null)}
                                         />
                                       </td>
-                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                      <td className="hf-td">
                                         <InlineCell
                                           cellKey={`trigger-${trigger.id}-given`}
                                           value={trigger.given || ""}
@@ -2204,7 +1902,7 @@ export default function SpecsPage() {
                                           onCancel={() => setEditingCell(null)}
                                         />
                                       </td>
-                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                      <td className="hf-td">
                                         <InlineCell
                                           cellKey={`trigger-${trigger.id}-when`}
                                           value={trigger.when || ""}
@@ -2219,7 +1917,7 @@ export default function SpecsPage() {
                                           onCancel={() => setEditingCell(null)}
                                         />
                                       </td>
-                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top" }}>
+                                      <td className="hf-td">
                                         <InlineCell
                                           cellKey={`trigger-${trigger.id}-then`}
                                           value={trigger.then || ""}
@@ -2234,23 +1932,12 @@ export default function SpecsPage() {
                                           onCancel={() => setEditingCell(null)}
                                         />
                                       </td>
-                                      <td style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-default)", verticalAlign: "top", textAlign: "center" }}>
+                                      <td className="hf-td hf-text-center">
                                         {!spec.isLocked && (
                                           <button
                                             onClick={() => handleDeleteTrigger(trigger.id)}
                                             title="Delete trigger"
-                                            style={{
-                                              padding: "2px 4px",
-                                              borderRadius: 4,
-                                              border: "none",
-                                              background: "transparent",
-                                              fontSize: 12,
-                                              cursor: "pointer",
-                                              color: "var(--status-error-text)",
-                                              opacity: 0.6,
-                                            }}
-                                            onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; }}
-                                            onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0.6"; }}
+                                            className="hf-btn-remove"
                                           >
                                             ✕
                                           </button>
@@ -2270,21 +1957,20 @@ export default function SpecsPage() {
                                           ref={isActionHighlighted ? setHighlightedRef : undefined}
                                           style={{ background: actionBg, transition: "background-color 0.3s" }}
                                         >
-                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", fontSize: 10 }}></td>
-                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
-                                            <span style={{
-                                              fontSize: 9,
-                                              fontWeight: 600,
-                                              padding: "1px 5px",
-                                              borderRadius: 3,
-                                              background: spec.outputType === "LEARN" ? "var(--status-warning-bg)" : "var(--status-info-bg)",
-                                              color: spec.outputType === "LEARN" ? "var(--status-warning-text)" : "var(--button-primary-bg)",
-                                            }}>
+                                          <td className="hf-td-sub hf-text-xs"></td>
+                                          <td className="hf-td-sub">
+                                            <span
+                                              className="hf-micro-badge"
+                                              style={{
+                                                background: spec.outputType === "LEARN" ? "var(--status-warning-bg)" : "var(--status-info-bg)",
+                                                color: spec.outputType === "LEARN" ? "var(--status-warning-text)" : "var(--button-primary-bg)",
+                                              }}
+                                            >
                                               {badgeLabel}{aIdx + 1}
                                             </span>
                                           </td>
                                           {/* Description spans given column */}
-                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                          <td className="hf-td-sub">
                                             <InlineCell
                                               cellKey={`action-${action.id}-description`}
                                               value={action.description || ""}
@@ -2302,7 +1988,7 @@ export default function SpecsPage() {
                                           {/* Type-specific columns */}
                                           {spec.outputType === "MEASURE" ? (
                                             <>
-                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                              <td className="hf-td-sub">
                                                 <InlineCell
                                                   cellKey={`action-${action.id}-parameterId`}
                                                   value={action.parameterId || ""}
@@ -2318,7 +2004,7 @@ export default function SpecsPage() {
                                                   onCancel={() => setEditingCell(null)}
                                                 />
                                               </td>
-                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                              <td className="hf-td-sub">
                                                 <InlineCell
                                                   cellKey={`action-${action.id}-weight`}
                                                   value={String(action.weight ?? 1.0)}
@@ -2338,7 +2024,7 @@ export default function SpecsPage() {
                                             </>
                                           ) : spec.outputType === "LEARN" ? (
                                             <>
-                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                              <td className="hf-td-sub">
                                                 <InlineCell
                                                   cellKey={`action-${action.id}-learnCategory`}
                                                   value={action.learnCategory || ""}
@@ -2362,7 +2048,7 @@ export default function SpecsPage() {
                                                   onCancel={() => setEditingCell(null)}
                                                 />
                                               </td>
-                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
+                                              <td className="hf-td-sub">
                                                 <InlineCell
                                                   cellKey={`action-${action.id}-learnKeyPrefix`}
                                                   value={action.learnKeyPrefix || ""}
@@ -2381,27 +2067,16 @@ export default function SpecsPage() {
                                             </>
                                           ) : (
                                             <>
-                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}></td>
-                                              <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)" }}></td>
+                                              <td className="hf-td-sub"></td>
+                                              <td className="hf-td-sub"></td>
                                             </>
                                           )}
-                                          <td style={{ padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", textAlign: "center" }}>
+                                          <td className="hf-td-sub hf-text-center">
                                             {!spec.isLocked && (
                                               <button
                                                 onClick={() => handleRemoveAction(trigger, action.id)}
                                                 title="Remove action"
-                                                style={{
-                                                  padding: "1px 4px",
-                                                  borderRadius: 3,
-                                                  border: "none",
-                                                  background: "transparent",
-                                                  fontSize: 10,
-                                                  cursor: "pointer",
-                                                  color: "var(--text-muted)",
-                                                  opacity: 0.5,
-                                                }}
-                                                onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; (e.target as HTMLElement).style.color = "var(--status-error-text)"; }}
-                                                onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0.5"; (e.target as HTMLElement).style.color = "var(--text-muted)"; }}
+                                                className="hf-btn-remove-sm"
                                               >
                                                 ✕
                                               </button>
@@ -2413,20 +2088,12 @@ export default function SpecsPage() {
 
                                     {/* + Action row */}
                                     {!spec.isLocked && (
-                                      <tr style={{ background: "var(--surface-secondary)" }}>
-                                        <td colSpan={6} style={{ padding: "4px 8px", borderBottom: "2px solid var(--border-default)" }}>
+                                      <tr className="hf-add-action-row">
+                                        <td colSpan={6} className="hf-add-action-cell">
                                           <button
                                             onClick={() => handleAddAction(trigger)}
                                             disabled={cellSaving === `trigger-${trigger.id}-actions`}
-                                            style={{
-                                              padding: "2px 8px",
-                                              borderRadius: 3,
-                                              border: "none",
-                                              background: "transparent",
-                                              fontSize: 10,
-                                              color: "var(--text-muted)",
-                                              cursor: "pointer",
-                                            }}
+                                            className="hf-btn-unstyled hf-text-xs hf-text-muted hf-add-action-btn"
                                           >
                                             {cellSaving === `trigger-${trigger.id}-actions` ? "Saving..." : "+ Action"}
                                           </button>
@@ -2448,67 +2115,50 @@ export default function SpecsPage() {
               {activeTab === "source" && featureSet && (
                 <>
                   {/* Parameters */}
-                  <div style={{ marginBottom: 20 }}>
+                  <div className="hf-mb-lg">
                     <button
                       onClick={() => setShowParameters(!showParameters)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--text-secondary)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        marginBottom: 12,
-                      }}
+                      className="hf-collapse-toggle hf-collapse-toggle-light hf-mb-md"
                     >
                       <span>{showParameters ? "▼" : "▶"}</span>
                       Parameters ({featureSet.parameterCount})
                     </button>
                     {showParameters && featureSet.parameters && featureSet.parameters.length > 0 && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div className="hf-flex-col hf-gap-md">
                         {featureSet.parameters.map((param: any, idx: number) => (
-                          <div key={param.id || idx} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
-                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div key={param.id || idx} className="hf-card-compact hf-card-compact-flush">
+                            <div className="hf-flex-between hf-mb-sm" style={{ alignItems: "flex-start" }}> {/* flex-start needed for multi-line names */}
                               <div>
-                                <div style={{ fontWeight: 500, color: "var(--text-primary)" }}>{param.name}</div>
-                                <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{param.id}</div>
+                                <div className="hf-text-medium">{param.name}</div>
+                                <div className="hf-text-xs hf-text-muted hf-mono">{param.id}</div>
                               </div>
                               {param.targetRange && (
-                                <span style={{ fontSize: 11, background: "var(--status-success-bg)", color: "var(--status-success-text)", padding: "2px 8px", borderRadius: 4 }}>
+                                <span className="hf-badge hf-badge-success hf-text-xs">
                                   Target: {param.targetRange.min}-{param.targetRange.max}
                                 </span>
                               )}
                             </div>
                             {param.definition && (
-                              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px 0" }}>{param.definition}</p>
+                              <p className="hf-text-sm hf-text-secondary hf-mb-sm" style={{ margin: 0 }}>{param.definition}</p>
                             )}
                             {param.interpretationScale && (
-                              <div style={{ marginTop: 8 }}>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Interpretation Scale:</div>
-                                <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                                  <span style={{ background: "var(--status-error-bg)", color: "var(--status-error-text)", padding: "2px 8px", borderRadius: 4 }}>
-                                    Low: {param.interpretationScale.low}
-                                  </span>
-                                  <span style={{ background: "var(--status-warning-bg)", color: "var(--status-warning-text)", padding: "2px 8px", borderRadius: 4 }}>
-                                    Mid: {param.interpretationScale.mid}
-                                  </span>
-                                  <span style={{ background: "var(--status-success-bg)", color: "var(--status-success-text)", padding: "2px 8px", borderRadius: 4 }}>
-                                    High: {param.interpretationScale.high}
-                                  </span>
+                              <div className="hf-mt-sm">
+                                <div className="hf-text-xs hf-text-muted" style={{ fontWeight: 500, marginBottom: 4 }} /* sub-label */>Interpretation Scale:</div>
+                                <div className="hf-flex hf-gap-sm hf-text-xs">
+                                  <span className="hf-badge hf-badge-error">Low: {param.interpretationScale.low}</span>
+                                  <span className="hf-badge hf-badge-warning">Mid: {param.interpretationScale.mid}</span>
+                                  <span className="hf-badge hf-badge-success">High: {param.interpretationScale.high}</span>
                                 </div>
                               </div>
                             )}
                             {param.scoringAnchors && param.scoringAnchors.length > 0 && (
-                              <div style={{ marginTop: 8 }}>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--text-muted)", marginBottom: 4 }}>Scoring Anchors:</div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4, fontSize: 10 }}>
+                              <div className="hf-mt-sm">
+                                <div className="hf-text-xs hf-text-muted" style={{ fontWeight: 500, marginBottom: 4 }} /* sub-label */>Scoring Anchors:</div>
+                                <div className="hf-anchor-grid">
                                   {param.scoringAnchors.map((anchor: any, ai: number) => (
-                                    <div key={ai} style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 4, padding: "4px 6px", textAlign: "center" }}>
-                                      <div style={{ fontWeight: 600 }}>{anchor.score}</div>
-                                      <div style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={anchor.label}>
+                                    <div key={ai} className="hf-anchor-cell">
+                                      <div className="hf-text-bold">{anchor.score}</div>
+                                      <div className="hf-text-muted hf-truncate" title={anchor.label}>
                                         {anchor.label}
                                       </div>
                                     </div>
@@ -2521,43 +2171,32 @@ export default function SpecsPage() {
                       </div>
                     )}
                     {showParameters && (!featureSet.parameters || featureSet.parameters.length === 0) && (
-                      <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No parameters defined in source spec</p>
+                      <p className="hf-text-sm hf-placeholder">No parameters defined in source spec</p>
                     )}
                   </div>
 
                   {/* Prompt Guidance */}
-                  <div style={{ marginBottom: 20 }}>
+                  <div className="hf-mb-lg">
                     <button
                       onClick={() => setShowPromptGuidance(!showPromptGuidance)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--text-secondary)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        marginBottom: 12,
-                      }}
+                      className="hf-collapse-toggle hf-collapse-toggle-light hf-mb-md"
                     >
                       <span>{showPromptGuidance ? "▼" : "▶"}</span>
                       Prompt Guidance ({featureSet.promptGuidance?.length || 0})
                     </button>
                     {showPromptGuidance && featureSet.promptGuidance && featureSet.promptGuidance.length > 0 && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div className="hf-flex-col hf-gap-md">
                         {featureSet.promptGuidance.map((guidance: any, idx: number) => (
-                          <div key={idx} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 500, color: "var(--text-primary)", marginBottom: 8 }}>{guidance.parameterId}</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 12 }}>
+                          <div key={idx} className="hf-card-compact hf-card-compact-flush">
+                            <div className="hf-text-medium hf-mb-sm">{guidance.parameterId}</div>
+                            <div className="hf-grid-2 hf-text-xs" style={{ gap: 16 }}>
                               <div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--status-success-text)", marginBottom: 4 }}>When High:</div>
-                                <p style={{ color: "var(--text-secondary)", margin: 0 }}>{guidance.whenHigh}</p>
+                                <div className="hf-text-xs hf-text-success" style={{ fontWeight: 500, marginBottom: 4 }} /* sub-label */>When High:</div>
+                                <p className="hf-text-secondary" style={{ margin: 0 }}> {/* flush paragraph */}{guidance.whenHigh}</p>
                               </div>
                               <div>
-                                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--status-error-text)", marginBottom: 4 }}>When Low:</div>
-                                <p style={{ color: "var(--text-secondary)", margin: 0 }}>{guidance.whenLow}</p>
+                                <div className="hf-text-xs hf-text-error" style={{ fontWeight: 500, marginBottom: 4 }} /* sub-label */>When Low:</div>
+                                <p className="hf-text-secondary" style={{ margin: 0 }}> {/* flush paragraph */}{guidance.whenLow}</p>
                               </div>
                             </div>
                           </div>
@@ -2567,62 +2206,51 @@ export default function SpecsPage() {
                   </div>
 
                   {/* Raw Spec JSON */}
-                  <div style={{ marginBottom: 20 }}>
+                  <div className="hf-mb-lg">
                     <button
                       onClick={() => setShowRawSpec(!showRawSpec)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--text-secondary)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        marginBottom: 12,
-                      }}
+                      className="hf-collapse-toggle hf-collapse-toggle-light hf-mb-md"
                     >
                       <span>{showRawSpec ? "▼" : "▶"}</span>
                       Raw Spec JSON (Source)
                     </button>
                     {showRawSpec && featureSet.rawSpec && (
-                      <pre style={{ background: "var(--code-block-bg)", color: "var(--code-block-text)", fontSize: 11, fontFamily: "monospace", padding: 12, borderRadius: 8, overflow: "auto", maxHeight: 400 }}>
+                      <pre className="hf-code-block-sm">
                         {JSON.stringify(featureSet.rawSpec, null, 2)}
                       </pre>
                     )}
                     {showRawSpec && !featureSet.rawSpec && (
-                      <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>No rawSpec stored</p>
+                      <p className="hf-text-sm hf-placeholder">No rawSpec stored</p>
                     )}
                   </div>
 
                   {/* Feature Set Metadata */}
-                  <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 20 }}>
-                    <h3 style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 12 }}>BDDFeatureSet Metadata</h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, fontSize: 12 }}>
+                  <div className="hf-section-sep">
+                    <h3 className="hf-text-sm hf-text-secondary hf-section-heading">BDDFeatureSet Metadata</h3>
+                    <div className="hf-meta-grid">
                       <div>
-                        <div style={{ color: "var(--text-muted)" }}>Feature ID</div>
-                        <div style={{ fontFamily: "monospace", color: "var(--text-primary)" }}>{featureSet.featureId}</div>
+                        <div className="hf-meta-label">Feature ID</div>
+                        <div className="hf-meta-value hf-mono">{featureSet.featureId}</div>
                       </div>
                       <div>
-                        <div style={{ color: "var(--text-muted)" }}>Version</div>
-                        <div style={{ color: "var(--text-primary)" }}>{featureSet.version}</div>
+                        <div className="hf-meta-label">Version</div>
+                        <div className="hf-meta-value">{featureSet.version}</div>
                       </div>
                       <div>
-                        <div style={{ color: "var(--text-muted)" }}>Spec Type</div>
-                        <div style={{ color: "var(--text-primary)" }}>{featureSet.specType}</div>
+                        <div className="hf-meta-label">Spec Type</div>
+                        <div className="hf-meta-value">{featureSet.specType}</div>
                       </div>
                       <div>
-                        <div style={{ color: "var(--text-muted)" }}>Updated At</div>
-                        <div style={{ color: "var(--text-primary)" }}>{new Date(featureSet.updatedAt).toLocaleString()}</div>
+                        <div className="hf-meta-label">Updated At</div>
+                        <div className="hf-meta-value">{new Date(featureSet.updatedAt).toLocaleString()}</div>
                       </div>
                       <div>
-                        <div style={{ color: "var(--text-muted)" }}>Activated At</div>
-                        <div style={{ color: "var(--text-primary)" }}>{featureSet.activatedAt ? new Date(featureSet.activatedAt).toLocaleString() : "—"}</div>
+                        <div className="hf-meta-label">Activated At</div>
+                        <div className="hf-meta-value">{featureSet.activatedAt ? new Date(featureSet.activatedAt).toLocaleString() : "—"}</div>
                       </div>
                       <div>
-                        <div style={{ color: "var(--text-muted)" }}>Status</div>
-                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: featureSet.isActive ? "var(--status-success-bg)" : "var(--surface-secondary)", color: featureSet.isActive ? "var(--status-success-text)" : "var(--text-muted)" }}>
+                        <div className="hf-meta-label">Status</div>
+                        <span className={featureSet.isActive ? "hf-badge hf-badge-success" : "hf-badge hf-badge-muted"}>
                           {featureSet.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
@@ -2632,32 +2260,32 @@ export default function SpecsPage() {
               )}
 
               {/* AnalysisSpec Metadata */}
-              <div style={{ borderTop: "1px solid var(--border-default)", paddingTop: 20, marginTop: 20 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 12 }}>AnalysisSpec Metadata</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, fontSize: 12 }}>
+              <div className="hf-section-sep-spaced">
+                <h3 className="hf-text-sm hf-text-secondary hf-section-heading">AnalysisSpec Metadata</h3>
+                <div className="hf-meta-grid">
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>ID</div>
-                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-primary)" }}>{spec.id}</div>
+                    <div className="hf-meta-label">ID</div>
+                    <div className="hf-meta-value hf-mono hf-text-xs">{spec.id}</div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Priority</div>
-                    <div style={{ color: "var(--text-primary)" }}>{spec.priority}</div>
+                    <div className="hf-meta-label">Priority</div>
+                    <div className="hf-meta-value">{spec.priority}</div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Version</div>
-                    <div style={{ color: "var(--text-primary)" }}>{spec.version || "—"}</div>
+                    <div className="hf-meta-label">Version</div>
+                    <div className="hf-meta-value">{spec.version || "—"}</div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Compiled At</div>
-                    <div style={{ color: "var(--text-primary)" }}>{spec.compiledAt ? new Date(spec.compiledAt).toLocaleString() : "Never"}</div>
+                    <div className="hf-meta-label">Compiled At</div>
+                    <div className="hf-meta-value">{spec.compiledAt ? new Date(spec.compiledAt).toLocaleString() : "Never"}</div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Created</div>
-                    <div style={{ color: "var(--text-primary)" }}>{new Date(spec.createdAt).toLocaleDateString()}</div>
+                    <div className="hf-meta-label">Created</div>
+                    <div className="hf-meta-value">{new Date(spec.createdAt).toLocaleDateString()}</div>
                   </div>
                   <div>
-                    <div style={{ color: "var(--text-muted)" }}>Linked FeatureSet</div>
-                    <div style={{ fontFamily: "monospace", fontSize: 10, color: "var(--text-primary)" }}>
+                    <div className="hf-meta-label">Linked FeatureSet</div>
+                    <div className="hf-meta-value hf-mono hf-text-xs">
                       {spec.compiledSetId ? spec.compiledSetId.slice(0, 8) + "..." : "None"}
                     </div>
                   </div>
@@ -2772,79 +2400,44 @@ function TriggerFormModal({
   const isEdit = !!trigger;
   const canSubmit = given.trim() && when.trim() && thenVal.trim() && !saving;
 
-  const inputStyle = {
-    width: "100%",
-    padding: "6px 8px",
-    borderRadius: 4,
-    border: "1px solid var(--border-default)",
-    background: "var(--surface-primary)",
-    fontSize: 12,
-    color: "var(--text-primary)",
-    fontFamily: "inherit",
-    resize: "vertical" as const,
-  };
-
-  const labelStyle = {
-    fontSize: 11,
-    fontWeight: 600 as const,
-    color: "var(--text-secondary)",
-    marginBottom: 3,
-    display: "block" as const,
-  };
+  // Using CSS classes: hf-trigger-input and hf-trigger-label
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="hf-modal-overlay"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--surface-primary)",
-          borderRadius: 16,
-          padding: 28,
-          width: 640,
-          maxWidth: "90vw",
-          maxHeight: "90vh",
-          overflow: "auto",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-        }}
+        className="hf-modal-trigger"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+        <h3 className="hf-modal-title">
           {isEdit ? "Edit Trigger" : "Add Trigger"}
         </h3>
-        <p style={{ margin: "4px 0 20px", fontSize: 12, color: "var(--text-muted)" }}>
+        <p className="hf-text-sm hf-text-muted hf-modal-subtitle">
           Define a Given/When/Then scenario that describes when this spec activates.
         </p>
 
         {error && (
-          <div style={{ padding: 10, background: "var(--status-error-bg)", border: "1px solid var(--status-error-border)", borderRadius: 8, marginBottom: 16, fontSize: 12, color: "var(--status-error-text)" }}>
+          <div className="hf-banner hf-banner-error hf-text-xs">
             {error}
           </div>
         )}
 
         {/* Name */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Name (optional)</label>
+        <div className="hf-form-group">
+          <label className="hf-trigger-label">Name (optional)</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Short name for this trigger"
-            style={inputStyle}
+            className="hf-trigger-input"
           />
         </div>
 
         {/* Given */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>
+        <div className="hf-form-group">
+          <label className="hf-trigger-label">
             <span style={{ color: "var(--badge-purple-text)" }}>Given</span> *
           </label>
           <textarea
@@ -2852,13 +2445,13 @@ function TriggerFormModal({
             onChange={(e) => setGiven(e.target.value)}
             placeholder="A caller sharing personal information during conversation"
             rows={2}
-            style={inputStyle}
+            className="hf-trigger-input"
           />
         </div>
 
         {/* When */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>
+        <div className="hf-form-group">
+          <label className="hf-trigger-label">
             <span style={{ color: "var(--accent-primary)" }}>When</span> *
           </label>
           <textarea
@@ -2866,13 +2459,13 @@ function TriggerFormModal({
             onChange={(e) => setWhen(e.target.value)}
             placeholder="The system identifies factual statements about the caller"
             rows={2}
-            style={inputStyle}
+            className="hf-trigger-input"
           />
         </div>
 
         {/* Then */}
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>
+        <div className="hf-form-group">
+          <label className="hf-trigger-label">
             <span style={{ color: "var(--status-success-text)" }}>Then</span> *
           </label>
           <textarea
@@ -2880,76 +2473,53 @@ function TriggerFormModal({
             onChange={(e) => setThenVal(e.target.value)}
             placeholder="Personal facts are extracted with confidence scores"
             rows={2}
-            style={inputStyle}
+            className="hf-trigger-input"
           />
         </div>
 
         {/* Notes */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Notes (optional)</label>
+        <div className="hf-mb-md">
+          <label className="hf-trigger-label">Notes (optional)</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Implementation notes..."
             rows={2}
-            style={inputStyle}
+            className="hf-trigger-input"
           />
         </div>
 
         {/* Actions */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>
+        <div className="hf-mb-md">
+          <div className="hf-flex-between hf-mb-sm">
+            <label className="hf-trigger-label" style={{ marginBottom: 0 }}>
               Actions ({actions.length})
             </label>
             <button
               onClick={addAction}
-              style={{
-                padding: "3px 10px",
-                borderRadius: 4,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                fontSize: 11,
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-              }}
+              className="hf-btn-icon"
+              style={{ padding: "3px 10px", fontSize: 11 }}
             >
               + Action
             </button>
           </div>
 
           {actions.length === 0 && (
-            <div style={{ padding: 12, fontSize: 12, color: "var(--text-muted)", textAlign: "center", background: "var(--surface-secondary)", borderRadius: 6 }}>
+            <div className="hf-text-sm hf-text-muted hf-text-center" style={{ padding: 12, background: "var(--surface-secondary)", borderRadius: 6 }}>
               No actions yet. Actions define what the trigger measures or extracts.
             </div>
           )}
 
           {actions.map((action, idx) => (
-            <div
-              key={idx}
-              style={{
-                marginBottom: 8,
-                padding: 10,
-                border: "1px solid var(--border-default)",
-                borderRadius: 6,
-                background: "var(--surface-secondary)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>
+            <div key={idx} className="hf-action-card">
+              <div className="hf-flex-between" style={{ marginBottom: 6 }}>
+                <span className="hf-text-xs hf-text-bold hf-text-muted">
                   Action {idx + 1}
                 </span>
                 <button
                   onClick={() => removeAction(idx)}
-                  style={{
-                    padding: "2px 6px",
-                    borderRadius: 4,
-                    border: "none",
-                    background: "transparent",
-                    fontSize: 11,
-                    color: "var(--status-error-text)",
-                    cursor: "pointer",
-                  }}
+                  className="hf-btn-unstyled hf-text-xs hf-text-error"
+                  style={{ padding: "2px 6px" }}
                 >
                   Remove
                 </button>
@@ -2960,23 +2530,23 @@ function TriggerFormModal({
                   value={action.description}
                   onChange={(e) => updateAction(idx, "description", e.target.value)}
                   placeholder="What does this action look for?"
-                  style={inputStyle}
+                  className="hf-trigger-input"
                 />
               </div>
 
               {outputType === "MEASURE" && (
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="hf-flex hf-gap-sm">
                   <div style={{ flex: 1 }}>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Parameter ID</label>
+                    <label className="hf-trigger-label hf-trigger-label-xs">Parameter ID</label>
                     <input
                       value={action.parameterId}
                       onChange={(e) => updateAction(idx, "parameterId", e.target.value)}
                       placeholder="e.g. warmth_actual"
-                      style={inputStyle}
+                      className="hf-trigger-input"
                     />
                   </div>
                   <div style={{ width: 70 }}>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Weight</label>
+                    <label className="hf-trigger-label hf-trigger-label-xs">Weight</label>
                     <input
                       type="number"
                       step="0.1"
@@ -2984,21 +2554,22 @@ function TriggerFormModal({
                       max="10"
                       value={action.weight}
                       onChange={(e) => updateAction(idx, "weight", parseFloat(e.target.value) || 1.0)}
-                      style={{ ...inputStyle, fontFamily: "monospace" }}
+                      className="hf-trigger-input hf-mono"
                     />
                   </div>
                 </div>
               )}
 
               {outputType === "LEARN" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ display: "flex", gap: 8 }}>
+                <div className="hf-flex-col" style={{ gap: 6 }}>
+                  <div className="hf-flex hf-gap-sm">
                     <div style={{ flex: 1 }}>
-                      <label style={{ ...labelStyle, fontSize: 10 }}>Category</label>
+                      <label className="hf-trigger-label hf-trigger-label-xs">Category</label>
                       <select
                         value={action.learnCategory}
                         onChange={(e) => updateAction(idx, "learnCategory", e.target.value)}
-                        style={{ ...inputStyle, cursor: "pointer" }}
+                        className="hf-trigger-input"
+                        style={{ cursor: "pointer" }}
                       >
                         <option value="">Select...</option>
                         <option value="FACT">FACT</option>
@@ -3010,22 +2581,22 @@ function TriggerFormModal({
                       </select>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ ...labelStyle, fontSize: 10 }}>Key Prefix</label>
+                      <label className="hf-trigger-label hf-trigger-label-xs">Key Prefix</label>
                       <input
                         value={action.learnKeyPrefix}
                         onChange={(e) => updateAction(idx, "learnKeyPrefix", e.target.value)}
                         placeholder="e.g. location"
-                        style={inputStyle}
+                        className="hf-trigger-input"
                       />
                     </div>
                   </div>
                   <div>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Key Hint</label>
+                    <label className="hf-trigger-label hf-trigger-label-xs">Key Hint</label>
                     <input
                       value={action.learnKeyHint}
                       onChange={(e) => updateAction(idx, "learnKeyHint", e.target.value)}
                       placeholder="Hint for key generation"
-                      style={inputStyle}
+                      className="hf-trigger-input"
                     />
                   </div>
                 </div>
@@ -3035,34 +2606,26 @@ function TriggerFormModal({
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div className="hf-flex" style={{ gap: 10, justifyContent: "flex-end" }}>
           <button
             onClick={onClose}
             disabled={saving}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-secondary)",
-              fontSize: 12,
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary"
+            style={{ padding: "8px 16px", borderRadius: 6, fontSize: 12 }}
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
+            className="hf-btn"
             style={{
               padding: "8px 16px",
               borderRadius: 6,
-              border: "none",
-              background: canSubmit ? "var(--accent-primary)" : "var(--surface-disabled)",
               fontSize: 12,
               fontWeight: 600,
+              background: canSubmit ? "var(--accent-primary)" : "var(--surface-disabled)",
               color: canSubmit ? "white" : "var(--text-muted)",
-              cursor: canSubmit ? "pointer" : "default",
             }}
           >
             {saving ? "Saving..." : isEdit ? "Update Trigger" : "Add Trigger"}
@@ -3131,15 +2694,7 @@ function InlineCell({
           onKeyDown={(e) => {
             if (e.key === "Escape") onCancel();
           }}
-          style={{
-            width: "100%",
-            padding: "3px 4px",
-            border: "1px solid var(--accent-primary)",
-            borderRadius: 3,
-            fontSize: 11,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-          }}
+          className="hf-inline-edit"
         >
           <option value="">—</option>
           {options.map((o) => (
@@ -3164,16 +2719,7 @@ function InlineCell({
             if (e.key === "Enter") onSave();
             if (e.key === "Escape") onCancel();
           }}
-          style={{
-            width: "100%",
-            padding: "3px 4px",
-            border: "1px solid var(--accent-primary)",
-            borderRadius: 3,
-            fontSize: 11,
-            fontFamily: "monospace",
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-          }}
+          className="hf-inline-edit hf-mono"
         />
       );
     }
@@ -3189,18 +2735,8 @@ function InlineCell({
           if (e.key === "Escape") onCancel();
         }}
         rows={Math.max(1, Math.ceil((editingValue || "").length / 40))}
-        style={{
-          width: "100%",
-          padding: "3px 4px",
-          border: "1px solid var(--accent-primary)",
-          borderRadius: 3,
-          fontSize: 11,
-          fontFamily: mono ? "monospace" : "inherit",
-          background: "var(--surface-primary)",
-          color: "var(--text-primary)",
-          resize: "vertical",
-          lineHeight: 1.4,
-        }}
+        className={`hf-inline-edit hf-inline-edit-textarea${mono ? " hf-mono" : ""}`}
+        style={mono ? undefined : { fontFamily: "inherit" }}
       />
     );
   }
@@ -3210,25 +2746,10 @@ function InlineCell({
     <div
       onClick={() => !disabled && onStartEdit(cellKey, value || "")}
       title={disabled ? undefined : "Click to edit"}
+      className={`hf-inline-cell${disabled ? " hf-inline-cell-disabled" : ""}${isSaving ? " hf-inline-cell-saving" : ""}${mono ? " hf-mono" : ""}`}
       style={{
-        cursor: disabled ? "default" : "text",
-        padding: "2px 4px",
-        borderRadius: 3,
-        minHeight: 18,
-        fontSize: 11,
-        lineHeight: 1.4,
         color: isSaving ? "var(--text-muted)" : (color || "var(--text-primary)"),
-        fontFamily: mono ? "monospace" : "inherit",
-        opacity: isSaving ? 0.6 : 1,
-        border: "1px solid transparent",
-        transition: "border-color 0.15s",
-        ...(disabled ? {} : { ":hover": { borderColor: "var(--border-default)" } }),
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "transparent";
+        ...(mono ? {} : { fontFamily: "inherit" }),
       }}
     >
       {value || <span style={{ color: "var(--text-placeholder)", fontStyle: "italic" }}>{placeholder || "—"}</span>}

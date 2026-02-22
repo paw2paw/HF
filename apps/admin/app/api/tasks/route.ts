@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const { session } = authResult;
 
     const body = await request.json();
-    const { taskType, context } = body;
+    const { taskType, context, currentStep } = body;
 
     if (!taskType) {
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const taskId = await startTaskTracking(session.user.id, taskType, context);
+    const taskId = await startTaskTracking(session.user.id, taskType, context, currentStep);
 
     return NextResponse.json({
       ok: true,
@@ -133,20 +133,31 @@ export async function GET(request: NextRequest) {
       const { prisma } = await import("@/lib/prisma");
       const limitParam = searchParams.get("limit");
       const offsetParam = searchParams.get("offset");
+      const taskType = searchParams.get("taskType");
       const limit = limitParam ? Math.min(parseInt(limitParam, 10) || 50, 100) : 50;
       const offset = offsetParam ? parseInt(offsetParam, 10) || 0 : 0;
 
       // "archived" is a virtual status — filter completed tasks with archivedAt set
       const where: any = { userId: session.user.id };
-      if (status === "archived") {
+
+      // Support comma-separated status values (e.g. "in_progress,completed")
+      const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (statuses.length === 1 && statuses[0] === "archived") {
         where.status = "completed";
         where.archivedAt = { not: null };
-      } else {
-        where.status = status;
-        // For completed, exclude archived tasks
-        if (status === "completed") {
+      } else if (statuses.length === 1) {
+        where.status = statuses[0];
+        if (statuses[0] === "completed") {
           where.archivedAt = null;
         }
+      } else {
+        where.status = { in: statuses.filter((s) => s !== "archived") };
+        where.archivedAt = null;
+      }
+
+      // Filter by taskType if provided
+      if (taskType) {
+        where.taskType = taskType;
       }
 
       const [tasks, total] = await Promise.all([
@@ -187,9 +198,9 @@ export async function GET(request: NextRequest) {
  * @scope tasks:archive
  * @auth session
  * @tags tasks
- * @description Archives or unarchives completed tasks in bulk.
- * @body taskIds string[] - Array of task IDs to archive/unarchive (required)
- * @body action "archive" | "unarchive" - Whether to archive or unarchive (default: "archive")
+ * @description Archives, unarchives, or permanently deletes completed tasks in bulk.
+ * @body taskIds string[] - Array of task IDs to act on (required)
+ * @body action "archive" | "unarchive" | "delete" - Action to perform (default: "archive")
  * @response 200 { ok: true, count: number }
  * @response 400 { ok: false, error: "..." }
  * @response 500 { ok: false, error: "..." }
@@ -212,6 +223,20 @@ export async function PATCH(request: NextRequest) {
 
     const { prisma } = await import("@/lib/prisma");
 
+    // Hard delete — only archived jobs can be permanently removed
+    if (action === "delete") {
+      const result = await prisma.userTask.deleteMany({
+        where: {
+          id: { in: taskIds },
+          userId: session.user.id,
+          status: "completed",
+          archivedAt: { not: null },
+        },
+      });
+      return NextResponse.json({ ok: true, count: result.count });
+    }
+
+    // Archive / unarchive
     const result = await prisma.userTask.updateMany({
       where: {
         id: { in: taskIds },

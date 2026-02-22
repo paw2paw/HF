@@ -8,6 +8,7 @@ import { useErrorCapture } from "@/contexts/ErrorCaptureContext";
 import { useEntityContext } from "@/contexts";
 import ReactMarkdown from "react-markdown";
 import { registerBugReportOpener, unregisterBugReportOpener, STATUS_BAR_HEIGHT } from "./StatusBar";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
 
@@ -25,7 +26,7 @@ export function BugReportButton() {
     { role: string; content: string }[]
   >([]);
   const [showContext, setShowContext] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyToClipboard } = useCopyToClipboard();
   const [disabledByUser, setDisabledByUser] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const responseRef = useRef<HTMLDivElement>(null);
@@ -220,11 +221,7 @@ export function BugReportButton() {
             <div style={{ display: "flex", gap: 4 }}>
               {response && !isStreaming && (
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(`Bug reporter:\n\n${response}`);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
+                  onClick={() => copyToClipboard(`Bug reporter:\n\n${response}`)}
                   style={{
                     background: "none",
                     border: "none",

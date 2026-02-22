@@ -12,6 +12,7 @@ import {
   FreshnessIndicator,
   DocumentTypeBadge,
   UsedByCell,
+  ArchivedBadge,
 } from "./shared/badges";
 
 // ── Inline Uploader (background extraction) ─────────────
@@ -136,158 +137,88 @@ function InlineUploader({
       : 0;
 
   return (
-    <div
-      style={{
-        padding: 16,
-        borderRadius: 10,
-        border: "1px solid var(--border-default)",
-        background: "var(--surface-secondary)",
-        marginTop: 8,
-      }}
-    >
+    <div className="hf-upload-panel">
       {phase === "pick" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div className="hf-flex hf-gap-md hf-flex-wrap">
           <input
             ref={fileRef}
             type="file"
             accept=".pdf,.txt,.md,.markdown,.json"
-            style={{ display: "none" }}
+            className="hf-hidden"
             onChange={(e) => { if (e.target.files?.[0]) setFile(e.target.files[0]); }}
           />
           <button
             onClick={() => fileRef.current?.click()}
-            style={{
-              padding: "6px 16px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              color: "var(--text-primary)",
-              fontSize: 13,
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary"
           >
             {file ? file.name : "Choose file..."}
           </button>
           {file && (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            <span className="hf-text-xs hf-text-muted">
               {(file.size / 1024).toFixed(1)} KB
             </span>
           )}
           <button
             onClick={handleUpload}
             disabled={!file}
-            style={{
-              padding: "6px 16px",
-              borderRadius: 6,
-              border: "none",
-              background: file ? "var(--accent-primary)" : "var(--surface-tertiary)",
-              color: file ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: file ? "pointer" : "default",
-              marginLeft: "auto",
-            }}
+            className="hf-btn hf-btn-primary hf-ml-auto"
           >
             Extract &amp; Import
           </button>
-          {error && <span style={{ fontSize: 12, color: "var(--status-error-text)", width: "100%" }}>{error}</span>}
+          {error && <span className="hf-text-xs hf-text-error hf-w-full">{error}</span>}
         </div>
       )}
 
       {phase === "running" && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "var(--accent-primary)",
-                animation: "pulse 1.5s ease-in-out infinite",
-              }}
-            />
-            <style>{`@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }`}</style>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
-              {progress ? `Extracting — ${progress.extractedCount} assertions found` : "Starting..."}
+          <div className="hf-flex hf-gap-sm hf-mb-sm">
+            <span className="hf-pulse-dot" />
+            <span className="hf-text-sm hf-text-bold hf-text-primary">
+              {progress ? `Extracting \u2014 ${progress.extractedCount} assertions found` : "Starting..."}
             </span>
-            <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+            <span className="hf-text-xs hf-text-muted hf-ml-auto hf-tabular-nums">
               {timeStr}
             </span>
           </div>
           {progress && progress.totalChunks > 0 && (
-            <div style={{ height: 4, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
-              <div
-                style={{
-                  height: "100%",
-                  borderRadius: 2,
-                  background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
-                  width: `${pct}%`,
-                  transition: "width 0.5s ease-out",
-                }}
-              />
+            <div className="hf-progress-bar-track">
+              <div className="hf-progress-bar-fill" style={{ width: `${pct}%` }} />
             </div>
           )}
           {!progress && (
-            <div style={{ height: 4, borderRadius: 2, background: "var(--surface-tertiary)", overflow: "hidden" }}>
-              <div
-                style={{
-                  height: "100%",
-                  borderRadius: 2,
-                  width: "30%",
-                  background: "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
-                  animation: "indeterminate 1.5s ease-in-out infinite",
-                }}
-              />
-              <style>{`@keyframes indeterminate { 0% { margin-left:0 } 50% { margin-left:70% } 100% { margin-left:0 } }`}</style>
+            <div className="hf-progress-bar-track">
+              <div className="hf-progress-bar-indeterminate" />
             </div>
           )}
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-            {file?.name}{progress && progress.totalChunks > 0 ? ` — chunk ${progress.currentChunk}/${progress.totalChunks}` : ""}
+          <div className="hf-text-xs hf-text-muted hf-mt-xs">
+            {file?.name}{progress && progress.totalChunks > 0 ? ` \u2014 chunk ${progress.currentChunk}/${progress.totalChunks}` : ""}
           </div>
         </div>
       )}
 
       {phase === "done" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="hf-flex hf-gap-md">
           <span style={{ fontSize: 18 }}>{"\u2705"}</span>
           <div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--status-success-text)" }}>
+            <span className="hf-text-sm hf-text-bold hf-text-success">
               {progress?.importedCount ?? progress?.extractedCount ?? 0} assertions imported
             </span>
             {(progress?.duplicatesSkipped ?? 0) > 0 && (
-              <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>
+              <span className="hf-text-xs hf-text-muted" style={{ marginLeft: 8 }}>
                 ({progress?.duplicatesSkipped} duplicates skipped)
               </span>
             )}
           </div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="hf-flex hf-gap-sm hf-ml-auto">
             <Link
               href={`/x/content-sources/${sourceId}`}
-              style={{
-                padding: "6px 16px",
-                borderRadius: 6,
-                border: "1px solid var(--accent-primary)",
-                background: "transparent",
-                color: "var(--accent-primary)",
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
+              className="hf-btn hf-btn-secondary hf-no-decoration"
             >
               Review Assertions
             </Link>
             <button
               onClick={onDone}
-              style={{
-                padding: "6px 16px",
-                borderRadius: 6,
-                border: "none",
-                background: "var(--accent-primary)",
-                color: "var(--button-primary-text, #fff)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-primary"
             >
               Done
             </button>
@@ -296,22 +227,13 @@ function InlineUploader({
       )}
 
       {phase === "error" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "var(--status-error-text)", fontWeight: 600 }}>
+        <div className="hf-flex hf-gap-md">
+          <span className="hf-text-sm hf-text-bold hf-text-error">
             Failed: {error}
           </span>
           <button
             onClick={() => { setPhase("pick"); setError(null); setProgress(null); }}
-            style={{
-              marginLeft: "auto",
-              padding: "6px 16px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "transparent",
-              color: "var(--text-secondary)",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary hf-ml-auto"
           >
             Try Again
           </button>
@@ -338,6 +260,9 @@ function SourceRow({
 }) {
   const [extracting, setExtracting] = useState(false);
   const [changingType, setChangingType] = useState(false);
+  const [archiveAction, setArchiveAction] = useState(false);
+
+  const isArchived = !!s.archivedAt;
 
   const awaiting = s._count.assertions === 0 && s.documentTypeSource?.startsWith("ai:");
   const confidence = s.documentTypeSource?.startsWith("ai:")
@@ -377,99 +302,108 @@ function SourceRow({
     }
   }
 
+  async function handleArchiveToggle() {
+    setArchiveAction(true);
+    try {
+      if (isArchived) {
+        const res = await fetch(`/api/content-sources/${s.id}/unarchive`, { method: "POST" });
+        if (!res.ok) return;
+      } else {
+        const res = await fetch(`/api/content-sources/${s.id}?force=true`, { method: "DELETE" });
+        if (!res.ok) return;
+      }
+      onRefresh();
+    } finally {
+      setArchiveAction(false);
+    }
+  }
+
   const hasExpandedRow = isUploading || awaiting;
 
   return (
     <>
-      <tr style={{
-        borderBottom: hasExpandedRow ? "none" : "1px solid var(--border-subtle)",
-        ...(awaiting ? { background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)" } : {}),
-      }}>
-        <td style={{ padding: "10px 12px" }}>
-          <Link href={`/x/content-sources/${s.id}`} style={{ fontWeight: 600, color: "var(--text-primary)", textDecoration: "none" }}>{s.name}</Link>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</div>
+      <tr
+        className={`${hasExpandedRow ? "hf-tr-no-border" : "hf-tr-border"} ${awaiting ? "hf-tr-awaiting" : ""}`}
+        style={{ opacity: isArchived ? 0.55 : 1 }}
+      >
+        <td className="cs-td">
+          <div className="hf-flex hf-gap-xs">
+            <Link href={`/x/content-sources/${s.id}`} className="hf-text-bold hf-text-primary hf-no-decoration">{s.name}</Link>
+            {isArchived && <ArchivedBadge archivedAt={s.archivedAt} />}
+          </div>
+          <div className="hf-text-xs hf-text-muted hf-mono">{s.slug}</div>
           {s.authors.length > 0 && (
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.authors.join(", ")}</div>
+            <div className="hf-text-xs hf-text-muted">{s.authors.join(", ")}</div>
           )}
         </td>
-        <td style={{ padding: "10px 12px" }}>
+        <td className="cs-td">
           <DocumentTypeBadge type={s.documentType} source={s.documentTypeSource} />
         </td>
-        <td style={{ padding: "10px 12px" }}>
+        <td className="cs-td">
           <TrustBadge level={s.trustLevel} />
         </td>
-        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>
+        <td className="cs-td hf-text-secondary">
           {s.qualificationRef || "-"}
           {s.accreditationRef && (
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.accreditationRef}</div>
+            <div className="hf-text-xs hf-text-muted">{s.accreditationRef}</div>
           )}
         </td>
-        <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>
+        <td className="cs-td hf-text-secondary">
           {s.publisherOrg || "-"}
           {s.accreditingBody && (
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Accredited by: {s.accreditingBody}</div>
+            <div className="hf-text-xs hf-text-muted">Accredited by: {s.accreditingBody}</div>
           )}
         </td>
-        <td style={{ padding: "10px 12px" }}>
+        <td className="cs-td">
           <FreshnessIndicator validUntil={s.validUntil} />
         </td>
-        <td style={{ padding: "10px 12px" }}>
+        <td className="cs-td">
           <UsedByCell subjects={s.subjects} />
         </td>
-        <td style={{ padding: "10px 12px", textAlign: "right" }}>
+        <td className="cs-td-right">
           {s._count.assertions > 0 ? (
-            <Link href={`/x/content-sources/${s.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+            <Link href={`/x/content-sources/${s.id}`} className="hf-no-decoration hf-text-500" style={{ color: "var(--accent-primary)" }}>
               {s._count.assertions}
             </Link>
           ) : (
-            <span style={{ color: "var(--text-muted)" }}>0</span>
+            <span className="hf-text-muted">0</span>
           )}
         </td>
-        <td style={{ padding: "10px 12px", textAlign: "right" }}>
-          <button
-            onClick={onToggleUpload}
-            style={{
-              padding: "4px 12px",
-              borderRadius: 6,
-              border: isUploading ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
-              backgroundColor: isUploading ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
-              color: isUploading ? "var(--accent-primary)" : "var(--text-secondary)",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {isUploading ? "Close" : "Upload"}
-          </button>
+        <td className="cs-td-right">
+          <div className="hf-flex hf-gap-xs hf-justify-end">
+            {!isArchived && (
+              <button
+                onClick={onToggleUpload}
+                className={`hf-btn hf-btn-xs ${isUploading ? "hf-btn-primary" : "hf-btn-secondary"}`}
+              >
+                {isUploading ? "Close" : "Upload"}
+              </button>
+            )}
+            <button
+              onClick={handleArchiveToggle}
+              disabled={archiveAction}
+              title={isArchived ? "Restore this source" : "Archive this source"}
+              className="hf-btn hf-btn-secondary hf-btn-xs"
+            >
+              {archiveAction ? "..." : isArchived ? "Unarchive" : "Archive"}
+            </button>
+          </div>
         </td>
       </tr>
       {awaiting && !isUploading && (
-        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+        <tr className="hf-tr-border">
           <td colSpan={9} style={{ padding: "0 12px 12px" }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 16px",
-              borderRadius: 8,
-              border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-              background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)",
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)" }}>
+            <div className="hf-classified-row">
+              <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
                 Classified{confidence !== null ? ` (${confidence}%)` : ""}
               </span>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Type:</span>
+              <span className="hf-text-xs hf-text-muted">Type:</span>
               <select
                 value={s.documentType}
                 onChange={(e) => handleChangeType(e.target.value)}
                 disabled={changingType}
-                style={{
-                  fontSize: 12,
-                  padding: "4px 8px",
-                  borderRadius: 4,
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-primary)",
-                }}
+                className="hf-input-compact"
+                style={{ width: "auto", padding: "4px 8px", background: "var(--surface-primary)" }}
               >
                 {DOCUMENT_TYPES.map((d) => (
                   <option key={d.value} value={d.value}>{d.icon} {d.label}</option>
@@ -478,21 +412,12 @@ function SourceRow({
               <button
                 onClick={handleExtract}
                 disabled={extracting}
-                style={{
-                  padding: "4px 14px",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "var(--accent-primary)",
-                  color: "var(--button-primary-text, #fff)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: extracting ? "not-allowed" : "pointer",
-                  opacity: extracting ? 0.6 : 1,
-                }}
+                className="hf-btn hf-btn-primary hf-btn-xs"
+                style={{ padding: "4px 14px" }}
               >
                 {extracting ? "Starting..." : "Extract Assertions"}
               </button>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto" }}>
+              <span className="hf-text-xs hf-text-muted hf-ml-auto">
                 Confirm type before extracting
               </span>
             </div>
@@ -500,7 +425,7 @@ function SourceRow({
         </tr>
       )}
       {isUploading && (
-        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+        <tr className="hf-tr-border">
           <td colSpan={9} style={{ padding: "0 12px 16px" }}>
             <InlineUploader sourceId={s.id} sourceName={s.name} onDone={onUploadDone} />
           </td>
@@ -588,99 +513,85 @@ function CreateSourceForm({ onCreated, onCancel }: { onCreated: () => void; onCa
     }
   }
 
-  const inputStyle = {
-    padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-default)",
-    backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: "100%",
-  };
-  const labelStyle = { fontSize: 12, fontWeight: 600 as const, color: "var(--text-muted)", marginBottom: 2 };
-
   return (
-    <form onSubmit={handleSubmit} style={{ padding: 16, border: "1px solid var(--border-default)", borderRadius: 8, marginBottom: 16, backgroundColor: "var(--surface-secondary)" }}>
-      <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Add Content Source</h3>
+    <form onSubmit={handleSubmit} className="hf-form-panel">
+      <h3 className="hf-heading-sm" style={{ margin: "0 0 12px", fontSize: 16 }}>Add Content Source</h3>
 
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div className="hf-mb-md">
+        <div className="hf-flex hf-gap-sm">
           <input type="text" value={intentText} onChange={(e) => setIntentText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && intentText.trim() && !suggesting) { e.preventDefault(); handleSuggest(); } }}
             placeholder='Describe the source... e.g. "CII R04 Insurance Syllabus 2025/26" or paste an ISBN'
-            disabled={suggesting} style={{ ...inputStyle, flex: 1, padding: "8px 12px" }}
+            disabled={suggesting}
+            className="hf-input-compact hf-flex-1"
+            style={{ padding: "8px 12px" }}
           />
           <button type="button" onClick={handleSuggest} disabled={!intentText.trim() || suggesting}
-            style={{
-              padding: "8px 14px", fontSize: 13, fontWeight: 500,
-              background: !intentText.trim() || suggesting ? "var(--surface-secondary)" : "var(--accent-primary)",
-              color: !intentText.trim() || suggesting ? "var(--text-muted)" : "var(--button-primary-text, #fff)",
-              border: "none", borderRadius: 4, cursor: !intentText.trim() || suggesting ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" as const,
-            }}
+            className="hf-btn hf-btn-primary hf-nowrap"
           >
             {suggesting ? (
-              <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />Thinking...</>
+              <><span className="hf-spinner-inline" />Thinking...</>
             ) : (
               <><span style={{ fontSize: 14 }}>&#10024;</span>Fill</>
             )}
           </button>
         </div>
-        {suggestError && <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--status-error-text)" }}>{suggestError}</p>}
+        {suggestError && <p className="hf-text-xs hf-text-error" style={{ margin: "4px 0 0" }}>{suggestError}</p>}
         {aiInterpretation && (
-          <div style={{ marginTop: 6, padding: "6px 10px", borderRadius: 4, background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)", fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13 }}>&#10024;</span>
+          <div className="hf-ai-interpretation">
+            <span className="hf-text-sm">&#10024;</span>
             {aiInterpretation}
-            <button type="button" onClick={() => setAiInterpretation(null)}
-              style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}>
+            <button type="button" onClick={() => setAiInterpretation(null)} className="hf-btn-dismiss">
               &times;
             </button>
           </div>
         )}
       </div>
 
-      {error && <p style={{ color: "var(--status-error-text)", fontSize: 13, marginBottom: 8 }}>{error}</p>}
+      {error && <p className="hf-text-sm hf-text-error hf-mb-sm">{error}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-        <div><div style={labelStyle}>Slug *</div><input style={inputStyle} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="e.g., cii-r04-syllabus-2025" required /></div>
-        <div><div style={labelStyle}>Name *</div><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., CII R04 Syllabus 2025/26" required /></div>
-        <div><div style={labelStyle}>Document Type</div>
-          <select style={inputStyle} value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })}>
+      <div className="hf-grid-4 hf-mb-md">
+        <div><div className="hf-label-compact">Slug *</div><input className="hf-input-compact" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="e.g., cii-r04-syllabus-2025" required /></div>
+        <div><div className="hf-label-compact">Name *</div><input className="hf-input-compact" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., CII R04 Syllabus 2025/26" required /></div>
+        <div><div className="hf-label-compact">Document Type</div>
+          <select className="hf-input-compact" value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })}>
             <option value="">Auto-detect</option>
             {DOCUMENT_TYPES.map((d) => (<option key={d.value} value={d.value}>{d.icon} {d.label}</option>))}
           </select>
         </div>
-        <div><div style={labelStyle}>Trust Level</div>
-          <select style={inputStyle} value={form.trustLevel} onChange={(e) => setForm({ ...form, trustLevel: e.target.value })}>
+        <div><div className="hf-label-compact">Trust Level</div>
+          <select className="hf-input-compact" value={form.trustLevel} onChange={(e) => setForm({ ...form, trustLevel: e.target.value })}>
             {TRUST_LEVELS.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
           </select>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-        <div><div style={labelStyle}>Publisher</div><input style={inputStyle} value={form.publisherOrg} onChange={(e) => setForm({ ...form, publisherOrg: e.target.value })} placeholder="e.g., Chartered Insurance Institute" /></div>
-        <div><div style={labelStyle}>Accrediting Body</div><input style={inputStyle} value={form.accreditingBody} onChange={(e) => setForm({ ...form, accreditingBody: e.target.value })} placeholder="e.g., CII, Ofqual" /></div>
-        <div><div style={labelStyle}>Qualification Ref</div><input style={inputStyle} value={form.qualificationRef} onChange={(e) => setForm({ ...form, qualificationRef: e.target.value })} placeholder="e.g., CII R04" /></div>
+      <div className="hf-grid-3 hf-mb-md">
+        <div><div className="hf-label-compact">Publisher</div><input className="hf-input-compact" value={form.publisherOrg} onChange={(e) => setForm({ ...form, publisherOrg: e.target.value })} placeholder="e.g., Chartered Insurance Institute" /></div>
+        <div><div className="hf-label-compact">Accrediting Body</div><input className="hf-input-compact" value={form.accreditingBody} onChange={(e) => setForm({ ...form, accreditingBody: e.target.value })} placeholder="e.g., CII, Ofqual" /></div>
+        <div><div className="hf-label-compact">Qualification Ref</div><input className="hf-input-compact" value={form.qualificationRef} onChange={(e) => setForm({ ...form, qualificationRef: e.target.value })} placeholder="e.g., CII R04" /></div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
-        <div><div style={labelStyle}>Authors (comma-separated)</div><input style={inputStyle} value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} placeholder="e.g., Richard Sprenger" /></div>
-        <div><div style={labelStyle}>ISBN</div><input style={inputStyle} value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} /></div>
-        <div><div style={labelStyle}>Edition</div><input style={inputStyle} value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })} placeholder="e.g., 37th Edition" /></div>
-        <div><div style={labelStyle}>Publication Year</div><input style={inputStyle} type="number" value={form.publicationYear} onChange={(e) => setForm({ ...form, publicationYear: e.target.value })} /></div>
+      <div className="hf-grid-4 hf-mb-md">
+        <div><div className="hf-label-compact">Authors (comma-separated)</div><input className="hf-input-compact" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} placeholder="e.g., Richard Sprenger" /></div>
+        <div><div className="hf-label-compact">ISBN</div><input className="hf-input-compact" value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} /></div>
+        <div><div className="hf-label-compact">Edition</div><input className="hf-input-compact" value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })} placeholder="e.g., 37th Edition" /></div>
+        <div><div className="hf-label-compact">Publication Year</div><input className="hf-input-compact" type="number" value={form.publicationYear} onChange={(e) => setForm({ ...form, publicationYear: e.target.value })} /></div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-        <div><div style={labelStyle}>Valid From</div><input style={inputStyle} type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></div>
-        <div><div style={labelStyle}>Valid Until</div><input style={inputStyle} type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} /></div>
+      <div className="hf-grid-2 hf-mb-md">
+        <div><div className="hf-label-compact">Valid From</div><input className="hf-input-compact" type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} /></div>
+        <div><div className="hf-label-compact">Valid Until</div><input className="hf-input-compact" type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} /></div>
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" disabled={saving}
-          style={{ padding: "8px 20px", borderRadius: 6, border: "none", backgroundColor: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+      <div className="hf-flex hf-gap-sm">
+        <button type="submit" disabled={saving} className="hf-btn hf-btn-primary">
           {saving ? "Saving..." : "Create Source"}
         </button>
-        <button type="button" onClick={onCancel}
-          style={{ padding: "8px 20px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "transparent", color: "var(--text-secondary)", fontSize: 13, cursor: "pointer" }}>
+        <button type="button" onClick={onCancel} className="hf-btn hf-btn-secondary">
           Cancel
         </button>
       </div>
-      <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
     </form>
   );
 }
@@ -693,6 +604,7 @@ export default function ContentSourcesLibrary() {
   const [error, setError] = useState<string | null>(null);
   const [filterTrust, setFilterTrust] = useState("");
   const [search, setSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [uploadSourceId, setUploadSourceId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -703,6 +615,7 @@ export default function ContentSourcesLibrary() {
     try {
       const params = new URLSearchParams();
       if (filterTrust) params.set("trustLevel", filterTrust);
+      if (showArchived) params.set("activeOnly", "false");
       const res = await fetch(`/api/content-sources?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -716,7 +629,7 @@ export default function ContentSourcesLibrary() {
 
   useEffect(() => {
     fetchSources();
-  }, [filterTrust]);
+  }, [filterTrust, showArchived]);
 
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -801,71 +714,61 @@ export default function ContentSourcesLibrary() {
     >
       <AdvancedBanner />
       {dragOver && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 50, display: "flex",
-          alignItems: "center", justifyContent: "center",
-          background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
-          border: "2px dashed var(--accent-primary)", borderRadius: 12, pointerEvents: "none",
-        }}>
-          <div style={{ padding: "24px 40px", background: "var(--surface-primary)", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>&#128196;</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>Drop to create source &amp; classify</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>PDF, TXT, MD, JSON</div>
+        <div className="hf-drop-overlay">
+          <div className="hf-drop-card">
+            <div className="hf-mb-sm" style={{ fontSize: 32 }}>&#128196;</div>
+            <div className="hf-text-bold" style={{ fontSize: 16, color: "var(--text-primary)" }}>Drop to create source &amp; classify</div>
+            <div className="hf-text-xs hf-text-muted hf-mt-xs">PDF, TXT, MD, JSON</div>
           </div>
         </div>
       )}
 
       {dropStatus.phase !== "idle" && (
-        <div style={{
-          padding: "10px 16px", marginBottom: 16, borderRadius: 8, fontSize: 13, fontWeight: 500,
-          display: "flex", alignItems: "center", gap: 8,
-          ...(dropStatus.phase === "error"
-            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid var(--status-error-border, #FFCDD2)" }
-            : dropStatus.phase === "done"
-              ? { background: "var(--status-success-bg)", color: "var(--status-success-text)", border: "1px solid var(--status-success-border, #C8E6C9)" }
-              : { background: "var(--status-info-bg, #EBF3FC)", color: "var(--status-info-text, #1565C0)", border: "1px solid var(--status-info-border, #BBDEFB)" }),
-        }}>
+        <div className={`hf-banner ${dropStatus.phase === "error" ? "hf-banner-error" : dropStatus.phase === "done" ? "hf-banner-success" : "hf-banner-info"}`}>
           {(dropStatus.phase === "creating" || dropStatus.phase === "classifying") && (
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "currentColor", animation: "pulse 1.5s ease-in-out infinite" }} />
+            <span className="hf-pulse-dot" style={{ background: "currentColor" }} />
           )}
           {dropStatus.message}
-          <style>{`@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }`}</style>
         </div>
       )}
 
       <ActiveJobsBanner onJobDone={fetchSources} />
 
       {(expired.length > 0 || expiringSoon.length > 0) && (
-        <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="hf-flex hf-gap-md hf-flex-wrap hf-mb-md">
           {expired.length > 0 && (
-            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-error-bg)", border: "1px solid var(--status-error-border, #FFCDD2)", fontSize: 13 }}>
-              <span style={{ fontWeight: 600, color: "var(--status-error-text)" }}>{expired.length} expired</span>
-              <span style={{ color: "var(--status-error-text)" }}> source{expired.length > 1 ? "s" : ""} need{expired.length === 1 ? "s" : ""} updating</span>
+            <div className="hf-banner hf-banner-error hf-text-sm hf-mb-0">
+              <span className="hf-text-bold hf-text-error">{expired.length} expired</span>
+              <span className="hf-text-error"> source{expired.length > 1 ? "s" : ""} need{expired.length === 1 ? "s" : ""} updating</span>
             </div>
           )}
           {expiringSoon.length > 0 && (
-            <div style={{ padding: "8px 16px", borderRadius: 8, backgroundColor: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border, #FFE0B2)", fontSize: 13 }}>
-              <span style={{ fontWeight: 600, color: "var(--status-warning-text)" }}>{expiringSoon.length}</span>
-              <span style={{ color: "var(--status-warning-text)" }}> source{expiringSoon.length > 1 ? "s" : ""} expiring within 60 days</span>
+            <div className="hf-banner hf-banner-warning hf-text-sm hf-mb-0">
+              <span className="hf-text-bold hf-text-warning">{expiringSoon.length}</span>
+              <span className="hf-text-warning"> source{expiringSoon.length > 1 ? "s" : ""} expiring within 60 days</span>
             </div>
           )}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="hf-flex hf-gap-md hf-mb-md hf-flex-wrap">
         <input type="text" placeholder="Search sources..." value={search} onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 240 }}
+          className="hf-input" style={{ width: 240 }}
         />
         <select value={filterTrust} onChange={(e) => setFilterTrust(e.target.value)}
-          style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13 }}>
+          className="hf-input" style={{ width: "auto" }}>
           <option value="">All trust levels</option>
           {TRUST_LEVELS.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
         </select>
+        <label className="hf-checkbox-label">
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+          Show archived
+        </label>
         <button onClick={() => setShowCreateForm(!showCreateForm)}
-          style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          className="hf-btn hf-btn-primary">
           + Add Source
         </button>
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{filtered.length} source{filtered.length !== 1 ? "s" : ""}</span>
+        <span className="hf-text-xs hf-text-muted">{filtered.length} source{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
       {showCreateForm && (
@@ -873,25 +776,25 @@ export default function ContentSourcesLibrary() {
       )}
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading sources...</p>
+        <div className="hf-flex hf-justify-center" style={{ padding: "24px 0" }}><div className="hf-spinner" /></div>
       ) : error ? (
-        <p style={{ color: "var(--status-error-text)" }}>Error: {error}</p>
+        <div className="hf-banner hf-banner-error">Error: {error}</div>
       ) : filtered.length === 0 ? (
-        <p style={{ color: "var(--text-muted)" }}>No content sources found. Add one to get started.</p>
+        <p className="hf-text-muted">No content sources found. Add one to get started.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <table className="hf-html-table">
             <thead>
-              <tr style={{ borderBottom: "2px solid var(--border-default)" }}>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Source</th>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Type</th>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Trust Level</th>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Qualification</th>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Publisher</th>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Validity</th>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Used by</th>
-                <th style={{ textAlign: "right", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Assertions</th>
-                <th style={{ textAlign: "right", padding: "8px 12px", color: "var(--text-muted)", fontWeight: 600 }}>Actions</th>
+              <tr className="hf-thead-border">
+                <th className="cs-th">Source</th>
+                <th className="cs-th">Type</th>
+                <th className="cs-th">Trust Level</th>
+                <th className="cs-th">Qualification</th>
+                <th className="cs-th">Publisher</th>
+                <th className="cs-th">Validity</th>
+                <th className="cs-th">Used by</th>
+                <th className="cs-th-right">Assertions</th>
+                <th className="cs-th-right">Actions</th>
               </tr>
             </thead>
             <tbody>

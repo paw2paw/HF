@@ -4,7 +4,7 @@
  * StatusBar — persistent bottom bar consolidating all status indicators.
  *
  * Normal mode:
- *   Left:  [Institution chip] [ENV badge] [Health RAG]
+ *   Left:  [Institution chip] [ENV badge] [Health RAG] [Jobs chip]
  *   Right: [Bug trigger] [Version]
  *
  * Masquerade mode (entire bar turns purple):
@@ -16,15 +16,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Building2, VenetianMask, X, Bug, Radio } from 'lucide-react';
+import { Building2, VenetianMask, X, Bug, Radio, Cog } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
 import { useMasquerade } from '@/contexts/MasqueradeContext';
 import { useErrorCapture } from '@/contexts/ErrorCaptureContext';
-import { envLabel, envSidebarColor, showEnvBanner } from './EnvironmentBanner';
+import { envLabel, envSidebarColor, envTextColor, showEnvBanner } from './EnvironmentBanner';
 
 /** Height of the status bar in pixels — use for layout calculations */
-export const STATUS_BAR_HEIGHT = 28;
+export const STATUS_BAR_HEIGHT = 32;
 
 const ROLE_LABELS: Record<string, string> = {
   SUPERADMIN: 'Super Admin',
@@ -69,10 +70,13 @@ export function StatusBar() {
   const { isMasquerading, masquerade, stopMasquerade } = useMasquerade();
   const { errorCount } = useErrorCapture();
 
+  const router = useRouter();
   // System health RAG (ADMIN+ only, polls every 120s)
   const [healthRag, setHealthRag] = useState<'green' | 'amber' | 'red' | null>(null);
   // Deep logging toggle (ADMIN+ only)
   const [deepLogging, setDeepLogging] = useState(false);
+  // Active jobs count (OPERATOR+, polls every 20s)
+  const [jobsCount, setJobsCount] = useState(0);
   const userRole = (session?.user?.role as string) || '';
   const roleLevel = ROLE_LEVEL[userRole] ?? 0;
   const isAdmin = roleLevel >= 4;
@@ -117,6 +121,26 @@ export function StatusBar() {
     const interval = setInterval(fetchDeepLogging, 30000);
     return () => clearInterval(interval);
   }, [isAdmin, session?.user]);
+
+  // Active jobs count (OPERATOR+ only, polls every 20s)
+  useEffect(() => {
+    if (!isOperator || !session?.user) return;
+
+    const fetchJobsCount = async () => {
+      try {
+        const res = await fetch('/api/tasks/counts');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok) setJobsCount(data.counts?.processing ?? 0);
+      } catch {
+        // Silent fail
+      }
+    };
+
+    fetchJobsCount();
+    const interval = setInterval(fetchJobsCount, 20000);
+    return () => clearInterval(interval);
+  }, [isOperator, session?.user]);
 
   const handleToggleDeepLogging = useCallback(async () => {
     const newValue = !deepLogging;
@@ -200,7 +224,7 @@ export function StatusBar() {
             {showEnvBanner && envLabel && envSidebarColor && (
               <span
                 className="hf-status-env-badge"
-                style={{ background: envSidebarColor }}
+                style={{ background: envSidebarColor, ...(envTextColor ? { color: envTextColor } : {}) }}
               >
                 {envLabel}
               </span>
@@ -226,6 +250,20 @@ export function StatusBar() {
                     : healthRag === 'amber'
                       ? 'Degraded'
                       : 'Unhealthy'}
+                </span>
+              </span>
+            )}
+
+            {/* Jobs indicator (OPERATOR+, only when active jobs exist) */}
+            {isOperator && jobsCount > 0 && (
+              <span
+                className="hf-status-jobs-chip"
+                onClick={() => router.push('/x/jobs')}
+                title={`${jobsCount} active job${jobsCount !== 1 ? 's' : ''}`}
+              >
+                <Cog size={12} className="hf-status-jobs-spin" />
+                <span className="hf-status-jobs-badge">
+                  {jobsCount > 9 ? '9+' : jobsCount}
                 </span>
               </span>
             )}

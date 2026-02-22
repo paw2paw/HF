@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
 import type { StepProps } from '../CourseSetupWizard';
 
@@ -12,14 +13,21 @@ type PersonaOption = {
   icon: string;
 };
 
-export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
+interface ExistingCourse {
+  name: string;
+  id: string;
+  domainId?: string;
+}
+
+export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepProps) {
   const { terms, lower } = useTerminology();
+  const router = useRouter();
   const [courseName, setCourseName] = useState('');
   const [outcomes, setOutcomes] = useState<string[]>(['', '', '']);
   const [persona, setPersona] = useState<string | undefined>();
   const [personas, setPersonas] = useState<PersonaOption[]>([]);
   const [personasLoading, setPersonasLoading] = useState(true);
-  const [existingCourseWarning, setExistingCourseWarning] = useState<string | null>(null);
+  const [existingCourse, setExistingCourse] = useState<ExistingCourse | null>(null);
   const [checkingCourse, setCheckingCourse] = useState(false);
 
   // Load saved data
@@ -69,7 +77,7 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
   // Check for existing course when name changes
   useEffect(() => {
     if (!courseName.trim()) {
-      setExistingCourseWarning(null);
+      setExistingCourse(null);
       return;
     }
 
@@ -80,9 +88,13 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
         if (res.ok) {
           const data = await res.json();
           if (data.existingCourse) {
-            setExistingCourseWarning(data.existingCourse.name);
+            setExistingCourse({
+              name: data.existingCourse.name,
+              id: data.existingCourse.id,
+              domainId: data.existingCourse.domain?.id,
+            });
           } else {
-            setExistingCourseWarning(null);
+            setExistingCourse(null);
           }
         }
       } catch (err) {
@@ -134,14 +146,36 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
             value={courseName}
             onChange={(e) => setCourseName(e.target.value)}
             placeholder="e.g., High School Biology 101"
-            className="w-full px-4 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="hf-input"
           />
-          {existingCourseWarning && (
-            <div className="mt-2 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 flex gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-yellow-700 dark:text-yellow-200">
-                <p className="font-medium">Course exists: &quot;{existingCourseWarning}&quot;</p>
-                <p className="mt-1">Would you like to enroll more students in it, or create a new version?</p>
+          {existingCourse && (
+            <div className="hf-banner hf-banner-warning" style={{ marginTop: 8, flexWrap: "wrap" }}>
+              <AlertCircle style={{ width: 20, height: 20, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontSize: 13 }}>
+                <p style={{ fontWeight: 600, margin: 0 }}>Course exists: &quot;{existingCourse.name}&quot;</p>
+                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      endFlow();
+                      router.push(existingCourse.domainId
+                        ? `/x/teach?domainId=${existingCourse.domainId}`
+                        : '/x/courses');
+                    }}
+                    className="hf-btn hf-btn-secondary"
+                    style={{ padding: "4px 10px", fontSize: 12 }}
+                  >
+                    Go to existing <ExternalLink style={{ width: 12, height: 12 }} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExistingCourse(null)}
+                    className="hf-btn hf-btn-ghost"
+                    style={{ padding: "4px 10px", fontSize: 12 }}
+                  >
+                    Create new anyway
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -161,7 +195,7 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
                   value={outcome}
                   onChange={(e) => handleOutcomeChange(i, e.target.value)}
                   placeholder={`Outcome ${i + 1}`}
-                  className="flex-1 px-4 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  className="hf-input"
                 />
               </div>
             ))}
@@ -177,9 +211,9 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
             Choose a {lower('persona')}
           </label>
           {personasLoading ? (
-            <div className="flex items-center gap-2 text-[var(--text-muted)] py-4">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Loading {lower('persona')}s...</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 0", color: "var(--text-muted)" }}>
+              <div className="hf-spinner" style={{ width: 16, height: 16 }} />
+              <span style={{ fontSize: 14 }}>Loading {lower('persona')}s...</span>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -187,16 +221,13 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
                 <button
                   key={p.slug}
                   onClick={() => setPersona(p.slug)}
-                  className={`p-4 rounded-lg border-2 text-left transition-all ${
-                    persona === p.slug
-                      ? 'border-[var(--accent)] bg-[var(--accent)] bg-opacity-10'
-                      : 'border-[var(--border-default)] hover:border-[var(--border-default)]'
-                  }`}
+                  className={persona === p.slug ? "hf-chip hf-chip-selected" : "hf-chip"}
+                  style={{ padding: 16, textAlign: "left", display: "block", borderRadius: 10, borderWidth: 2 }}
                 >
-                  <div className="text-2xl mb-2">{p.icon}</div>
-                  <h3 className="font-semibold text-[var(--text-primary)]">{p.name}</h3>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>{p.icon}</div>
+                  <h3 style={{ fontWeight: 600, color: "var(--text-primary)" }}>{p.name}</h3>
                   {p.description && (
-                    <p className="text-sm text-[var(--text-secondary)] mt-1">{p.description}</p>
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{p.description}</p>
                   )}
                 </button>
               ))}
@@ -206,20 +237,20 @@ export function IntentStep({ setData, getData, onNext, onPrev }: StepProps) {
       </div>
 
       {/* Navigation */}
-      <div className="p-6 border-t border-[var(--border-default)] bg-[var(--surface-secondary)] flex justify-between items-center">
+      <div className="hf-step-footer">
         <button
           onClick={onPrev}
           disabled
-          className="px-6 py-2 text-[var(--text-secondary)] disabled:opacity-50"
+          className="hf-btn hf-btn-ghost"
         >
           Back
         </button>
         <button
           onClick={handleNext}
           disabled={!isValid}
-          className="flex items-center gap-2 px-6 py-2 bg-[var(--accent)] text-white rounded-lg disabled:opacity-50 hover:opacity-90 transition-opacity"
+          className="hf-btn hf-btn-primary"
         >
-          Next <ArrowRight className="w-4 h-4" />
+          Next <ArrowRight style={{ width: 16, height: 16 }} />
         </button>
       </div>
     </div>

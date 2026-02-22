@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Users } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { ErrorBanner } from '@/components/shared/ErrorBanner';
 
 type Community = {
   id: string;
@@ -93,11 +94,7 @@ export default function CommunitiesPage() {
       </div>
 
       {/* Error Banner */}
-      {error && (
-        <div className="mb-6 hf-banner hf-banner-error">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} className="mb-6" />
 
       {/* Communities Grid */}
       {loading ? (

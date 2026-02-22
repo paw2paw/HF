@@ -2,14 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-
-interface StepProps {
-  setData: (key: string, value: unknown) => void;
-  getData: <T = unknown>(key: string) => T | undefined;
-  onNext: () => void;
-  onPrev: () => void;
-  endFlow: () => void;
-}
+import type { StepProps } from "../types";
 
 type Assertion = {
   id: string;

@@ -2,10 +2,11 @@
  * Tests for StepFlowContext
  *
  * Validates: sessionStorage persistence, step transitions,
- * data management, flow lifecycle, hydration guard.
+ * data management, flow lifecycle, hydration guard,
+ * DB sync (debounced + immediate), taskId lifecycle.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import React from "react";
 import { StepFlowProvider, useStepFlow } from "@/contexts/StepFlowContext";
@@ -19,6 +20,14 @@ const mockSessionStorage = {
 };
 
 Object.defineProperty(window, "sessionStorage", { value: mockSessionStorage });
+
+// Mock fetch for DB sync calls
+const mockFetch = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+vi.stubGlobal("fetch", mockFetch);
+
+// Mock navigator.sendBeacon
+const mockSendBeacon = vi.fn(() => true);
+Object.defineProperty(navigator, "sendBeacon", { value: mockSendBeacon, writable: true });
 
 const DEMO_STEPS = [
   { id: "domain", label: "Select Domain", activeLabel: "Selecting Domain" },
@@ -35,6 +44,11 @@ describe("StepFlowContext", () => {
   beforeEach(() => {
     Object.keys(store).forEach((k) => delete store[k]);
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("starts inactive", () => {
@@ -183,5 +197,177 @@ describe("StepFlowContext", () => {
     act(() => { result.current.setData("key", "val"); });
 
     expect(result.current.isActive).toBe(false);
+  });
+
+  // ── DB Sync Tests ──────────────────────────────────
+
+  describe("DB sync", () => {
+    it("stores taskId and taskType when provided", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "course",
+          steps: DEMO_STEPS,
+          returnPath: "/x/courses",
+          taskType: "course_setup",
+          taskId: "task-123",
+        });
+      });
+
+      expect(result.current.state?.taskId).toBe("task-123");
+      expect(result.current.state?.taskType).toBe("course_setup");
+      expect(result.current.taskId).toBe("task-123");
+    });
+
+    it("exposes taskId via context value", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+          taskId: "t-abc",
+        });
+      });
+
+      expect(result.current.taskId).toBe("t-abc");
+    });
+
+    it("taskId is undefined when no taskId provided", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+        });
+      });
+
+      expect(result.current.taskId).toBeUndefined();
+    });
+
+    it("debounced sync on setData — fires after 3s", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+          taskId: "task-sync-1",
+        });
+      });
+      mockFetch.mockClear();
+
+      act(() => {
+        result.current.setData("courseName", "Bio 101");
+      });
+
+      // Should NOT have called fetch yet (debounce is 3s)
+      expect(mockFetch).not.toHaveBeenCalled();
+
+      // Advance timer past debounce threshold
+      act(() => { vi.advanceTimersByTime(3100); });
+
+      // Now the sync should have fired
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/tasks",
+        expect.objectContaining({
+          method: "PUT",
+          body: expect.stringContaining("task-sync-1"),
+        }),
+      );
+    });
+
+    it("immediate sync on step change", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+          taskId: "task-step-1",
+        });
+      });
+      mockFetch.mockClear();
+
+      act(() => {
+        result.current.nextStep();
+      });
+
+      // Immediate — no timer needed
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/tasks",
+        expect.objectContaining({
+          method: "PUT",
+          body: expect.stringContaining("task-step-1"),
+        }),
+      );
+    });
+
+    it("no DB sync when taskId is not set", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+          // no taskId
+        });
+      });
+      mockFetch.mockClear();
+
+      act(() => { result.current.setData("key", "val"); });
+      act(() => { vi.advanceTimersByTime(5000); });
+      act(() => { result.current.nextStep(); });
+
+      // No DB sync calls (only sessionStorage)
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("endFlow calls DELETE on task when taskId present", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+          taskId: "task-to-complete",
+        });
+      });
+      mockFetch.mockClear();
+
+      act(() => { result.current.endFlow(); });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/tasks?taskId=task-to-complete",
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
+
+    it("startFlow with initialData and initialStep pre-populates state", () => {
+      const { result } = renderHook(() => useStepFlow(), { wrapper });
+
+      act(() => {
+        result.current.startFlow({
+          flowId: "resume-test",
+          steps: DEMO_STEPS,
+          returnPath: "/test",
+          taskId: "task-resume",
+          initialData: { courseName: "Math 201", domainId: "d-1" },
+          initialStep: 2,
+        });
+      });
+
+      expect(result.current.state?.currentStep).toBe(2);
+      expect(result.current.getData("courseName")).toBe("Math 201");
+      expect(result.current.getData("domainId")).toBe("d-1");
+    });
   });
 });

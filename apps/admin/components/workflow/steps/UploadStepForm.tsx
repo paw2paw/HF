@@ -21,7 +21,7 @@ interface JobProgress {
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Starting...",
-  extracting: "Extracting assertions",
+  extracting: "Extracting teaching points",
   importing: "Saving to database",
   done: "Complete",
   error: "Failed",
@@ -348,7 +348,7 @@ export function UploadStepForm({
                 boxShadow: file ? "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)" : "none",
               }}
             >
-              Upload &amp; Extract
+              Upload &amp; Extract Teaching Points
             </button>
           </div>
         </>
@@ -408,7 +408,7 @@ export function UploadStepForm({
               }}
             >
               {isDone
-                ? `${progress?.importedCount ?? progress?.extractedCount ?? 0} assertions imported`
+                ? `${progress?.importedCount ?? progress?.extractedCount ?? 0} teaching points imported`
                 : progress
                   ? (STATUS_LABELS[progress.status] || progress.status)
                   : "Starting extraction..."}
@@ -463,7 +463,7 @@ export function UploadStepForm({
                 <span>
                   {progress.currentChunk} / {progress.totalChunks} chunks
                 </span>
-                <span>{progress.extractedCount} assertions found</span>
+                <span>{progress.extractedCount} teaching points found</span>
               </div>
             </div>
           )}
@@ -501,17 +501,50 @@ export function UploadStepForm({
             {file?.name}
           </p>
 
-          {/* Duplicates / warnings */}
-          {isDone && (progress?.duplicatesSkipped ?? 0) > 0 && (
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
-              {progress?.duplicatesSkipped} duplicates skipped
-            </p>
-          )}
-          {(progress?.warnings?.length ?? 0) > 0 && (
-            <p style={{ fontSize: 12, color: "var(--warning-text)", margin: "4px 0 0" }}>
-              {progress?.warnings.join("; ")}
-            </p>
-          )}
+          {/* Extraction details */}
+          {isDone && (() => {
+            const w = progress?.warnings || [];
+            const dupes = progress?.duplicatesSkipped ?? 0;
+            const skipped = w.filter((s) => s.startsWith("Skipped "));
+            const linked = w.filter((s) => s.startsWith("Linked "));
+            const reference = w.filter((s) => s.includes("reference content"));
+            const orphaned = w.filter((s) => s.includes("could not be linked"));
+            const other = w.filter(
+              (s) => !skipped.includes(s) && !linked.includes(s) &&
+                     !reference.includes(s) && !orphaned.includes(s)
+            );
+            const hasDetails = dupes > 0 || w.length > 0;
+
+            if (!hasDetails) return null;
+
+            return (
+              <div style={{
+                marginTop: 12, padding: "10px 14px", borderRadius: 8,
+                background: "var(--surface-secondary)", fontSize: 12, lineHeight: 1.7,
+              }}>
+                {dupes > 0 && (
+                  <div style={{ color: "var(--text-muted)" }}>
+                    {dupes} duplicate{dupes !== 1 ? "s" : ""} skipped
+                  </div>
+                )}
+                {skipped.map((s, i) => (
+                  <div key={`s-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                ))}
+                {reference.map((s, i) => (
+                  <div key={`r-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                ))}
+                {linked.map((s, i) => (
+                  <div key={`l-${i}`} style={{ color: "var(--status-success-text)" }}>{s}</div>
+                ))}
+                {orphaned.map((s, i) => (
+                  <div key={`o-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                ))}
+                {other.map((s, i) => (
+                  <div key={`w-${i}`} style={{ color: "var(--text-muted)" }}>{s}</div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Actions — ALWAYS visible so user can continue */}
           <div

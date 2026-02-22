@@ -12,7 +12,7 @@ import { useResponsive } from "@/hooks/useResponsive";
 // TYPES
 // ============================================================================
 
-export type AssistantTab = "chat" | "tasks" | "data" | "spec";
+export type AssistantTab = "chat" | "jobs" | "data" | "spec";
 export type AssistantLayout = "popout" | "embedded" | "sidebar";
 
 export interface UnifiedAssistantPanelProps {
@@ -66,10 +66,10 @@ const TAB_CONFIG = {
     icon: "💬",
     description: "Conversational AI assistant",
   },
-  tasks: {
-    label: "Tasks",
+  jobs: {
+    label: "Jobs",
     icon: "✓",
-    description: "Active tasks and guidance",
+    description: "Active jobs and guidance",
   },
   data: {
     label: "Data",
@@ -94,14 +94,14 @@ export function UnifiedAssistantPanel({
   location,
   defaultTab = "chat",
   layout = "popout",
-  enabledTabs = ["chat", "tasks", "data", "spec"],
+  enabledTabs = ["chat", "jobs", "data", "spec"],
   endpoint = "/api/ai/assistant",
 }: UnifiedAssistantPanelProps) {
   const [isVisible, setIsVisible] = useState(visible);
   const [activeTab, setActiveTab] = useState<AssistantTab>(defaultTab);
   const [messages, setMessages] = useState<Record<AssistantTab, ChatMessage[]>>({
     chat: [],
-    tasks: [],
+    jobs: [],
     data: [],
     spec: [],
   });
@@ -201,7 +201,7 @@ export function UnifiedAssistantPanel({
 
   // Load tasks from flash sidebar if available
   useEffect(() => {
-    if (isVisible && activeTab === "tasks") {
+    if (isVisible && activeTab === "jobs") {
       loadTasks();
     }
   }, [isVisible, activeTab]);
@@ -857,7 +857,7 @@ export function UnifiedAssistantPanel({
           </div>
 
           {/* Search Bar - Compact */}
-          {activeTab !== "tasks" && (
+          {activeTab !== "jobs" && (
             <div style={{ marginTop: 8 }}>
               <div
                 style={{
@@ -1125,12 +1125,12 @@ export function UnifiedAssistantPanel({
             </div>
           )}
 
-          {/* Tasks Tab - Task List View */}
-          {activeTab === "tasks" && (
+          {/* Jobs Tab - Job List View */}
+          {activeTab === "jobs" && (
             <div style={{ flex: 1, padding: "16px 20px" }}>
               <div style={{ marginBottom: 16 }}>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>
-                  Active Tasks
+                  Active Jobs
                 </h4>
                 <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
                   Track your progress and follow AI guidance
@@ -1272,8 +1272,8 @@ export function UnifiedAssistantPanel({
           }}
         >
 
-          {/* Input (only for chat tabs, not tasks) */}
-          {activeTab !== "tasks" && (
+          {/* Input (only for chat tabs, not jobs) */}
+          {activeTab !== "jobs" && (
             <>
               <div
                 style={{

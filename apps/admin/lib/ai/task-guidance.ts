@@ -69,18 +69,22 @@ export interface FlashSidebarContent {
 
 /**
  * Start tracking a task for guidance.
+ *
+ * @param initialCurrentStep — defaults to 1 (execution phase). Pass 0 for
+ *   wizard-phase tasks that haven't started background execution yet.
  */
 export async function startTaskTracking(
   userId: string,
   taskType: string,
-  context?: Record<string, any>
+  context?: Record<string, any>,
+  initialCurrentStep?: number
 ): Promise<string> {
   const task = await prisma.userTask.create({
     data: {
       userId,
       taskType,
       status: "in_progress",
-      currentStep: 1,
+      currentStep: initialCurrentStep ?? 1,
       totalSteps: getTaskStepCount(taskType),
       context: context as any,
       startedAt: new Date(),
@@ -654,6 +658,60 @@ const TASK_STEP_MAPS: Record<string, Record<number, TaskStep>> = {
       title: "Inviting students",
       description: "Sending student invitations",
       estimated: "30 sec",
+    },
+  },
+  classroom_setup: {
+    1: {
+      title: "Name & Focus",
+      description: "Set classroom name, description, and institution",
+      estimated: "1 min",
+    },
+    2: {
+      title: "Courses",
+      description: "Select courses to include in the classroom",
+      estimated: "1 min",
+    },
+    3: {
+      title: "Review",
+      description: "Review and create the classroom",
+      estimated: "30 sec",
+    },
+    4: {
+      title: "Invite",
+      description: "Invite students with a join link",
+      estimated: "1 min",
+    },
+  },
+  snapshot_take: {
+    1: {
+      title: "Exporting",
+      description: "Reading database tables and exporting data",
+      estimated: "30 sec - 2 min",
+    },
+    2: {
+      title: "Writing",
+      description: "Saving snapshot file to disk",
+      estimated: "5 sec",
+    },
+  },
+  snapshot_restore: {
+    1: {
+      title: "Validating",
+      description: "Checking snapshot file integrity",
+    },
+    2: {
+      title: "Clearing",
+      description: "Removing existing data from affected tables",
+      estimated: "30 sec",
+    },
+    3: {
+      title: "Restoring",
+      description: "Inserting snapshot data into database",
+      estimated: "1-3 min",
+    },
+    4: {
+      title: "Complete",
+      description: "Database restored successfully",
     },
   },
 };

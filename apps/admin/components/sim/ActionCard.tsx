@@ -23,9 +23,9 @@ const TYPE_CONFIG: Record<string, { icon: string; label: string }> = {
 };
 
 const ASSIGNEE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  CALLER: { label: 'Learner', color: '#2E7D32', bg: '#E8F5E9' },
-  OPERATOR: { label: 'Operator', color: '#E65100', bg: '#FFF3E0' },
-  AGENT: { label: 'Agent', color: '#283593', bg: '#E8EAF6' },
+  CALLER: { label: 'Learner', color: 'var(--status-success-text)', bg: 'var(--status-success-bg)' },
+  OPERATOR: { label: 'Operator', color: 'var(--status-warning-text)', bg: 'color-mix(in srgb, var(--status-warning) 12%, transparent)' },
+  AGENT: { label: 'Agent', color: 'var(--accent-primary)', bg: 'var(--status-info-bg)' },
 };
 
 export function ActionCard({ action }: { action: Action }) {

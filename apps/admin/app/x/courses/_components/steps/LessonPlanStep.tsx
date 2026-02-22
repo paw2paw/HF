@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRight, CheckCircle, FileText, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle, FileText } from "lucide-react";
+import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
 import { SortableList } from "@/components/shared/SortableList";
 import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
@@ -182,6 +183,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
     const courseName = getData<string>("courseName");
     const learningOutcomes = getData<string[]>("learningOutcomes") || [];
     const teachingStyle = getData<string>("teachingStyle") || "tutor";
+    const sourceId = getData<string>("sourceId");
 
     try {
       const res = await fetch("/api/courses/generate-plan", {
@@ -195,6 +197,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
           durationMins,
           emphasis,
           assessments,
+          sourceId: sourceId || undefined,
         }),
       });
 
@@ -304,11 +307,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
         </div>
 
         {/* Error banner */}
-        {error && (
-          <div className="hf-banner hf-banner-error" style={{ marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
+        <ErrorBanner error={error} style={{ marginBottom: 16 }} />
 
         {/* ── Phase A: Intent Pills ────────────────────── */}
         {(phase === "intents" || phase === "generating") && (
@@ -319,7 +318,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                 <CheckCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
                 <span>
                   <FileText style={{ width: 14, height: 14, display: "inline", marginRight: 4 }} />
-                  {contentFileName} ready for analysis
+                  {contentFileName} uploaded{getData<string>("sourceId") ? " — will inform your lesson plan" : ""}
                 </span>
               </div>
             )}
@@ -394,7 +393,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
             {/* Generating spinner (overlays the pills when generating) */}
             {phase === "generating" && (
               <div className="flex flex-col items-center gap-3 py-8">
-                <Loader2 className="hf-spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
+                <div className="hf-spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
                 <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0 }}>
                   Generating your lesson plan...
                 </p>
@@ -446,15 +445,8 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                       <select
                         value={editType}
                         onChange={(e) => setEditType(e.target.value)}
-                        style={{
-                          padding: "4px 8px",
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          border: "1px solid var(--border-default)",
-                          background: "var(--surface-secondary)",
-                          color: "var(--text-primary)",
-                        }}
+                        className="hf-input"
+                        style={{ width: "auto", padding: "4px 8px", fontSize: 11, fontWeight: 600 }}
                       >
                         {SESSION_TYPES.map((t) => (
                           <option key={t.value} value={t.value}>
@@ -471,15 +463,8 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                           if (e.key === "Escape") setEditingIndex(null);
                         }}
                         autoFocus
-                        style={{
-                          flex: 1,
-                          padding: "4px 8px",
-                          borderRadius: 4,
-                          fontSize: 13,
-                          border: "1px solid var(--border-default)",
-                          background: "var(--surface-secondary)",
-                          color: "var(--text-primary)",
-                        }}
+                        className="hf-input"
+                        style={{ flex: 1, padding: "4px 8px", fontSize: 13 }}
                       />
                       <button
                         onClick={() => handleInlineEditSave(index)}
@@ -572,15 +557,8 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                 <select
                   value={newType}
                   onChange={(e) => setNewType(e.target.value)}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="hf-input"
+                  style={{ width: "auto", padding: "4px 8px", fontSize: 11, fontWeight: 600 }}
                 >
                   {SESSION_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
@@ -598,15 +576,8 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                   }}
                   placeholder="Session label..."
                   autoFocus
-                  style={{
-                    flex: 1,
-                    padding: "4px 8px",
-                    borderRadius: 4,
-                    fontSize: 13,
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="hf-input"
+                  style={{ flex: 1, padding: "4px 8px", fontSize: 13 }}
                 />
                 <button
                   onClick={handleAddSession}

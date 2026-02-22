@@ -562,7 +562,7 @@ export default function TaxonomyGraphPage() {
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Taxonomy</h1>
+              <h1 className="hf-section-title">Taxonomy</h1>
               {/* Tabs */}
               <div style={{ display: "flex", gap: 4 }}>
                 <button

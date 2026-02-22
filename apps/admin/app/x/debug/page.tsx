@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FancySelect, FancySelectOption } from "@/components/shared/FancySelect";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 // Categorized API endpoints for testing
 const API_ENDPOINTS: FancySelectOption[] = [
@@ -51,7 +52,7 @@ export default function DebugPage() {
   const [input, setInput] = useState("");
   const [selectedEndpoint, setSelectedEndpoint] = useState("");
   const [testResult, setTestResult] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
 
   // Load logs from localStorage
   useEffect(() => {
@@ -132,15 +133,9 @@ export default function DebugPage() {
     }
   };
 
-  const copyResult = async () => {
+  const copyResult = () => {
     if (!testResult) return;
-    try {
-      await navigator.clipboard.writeText(safeStringify(testResult));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (e) {
-      addLog(`Copy failed: ${e instanceof Error ? e.message : "unknown"}`);
-    }
+    copyText(safeStringify(testResult));
   };
 
   return (

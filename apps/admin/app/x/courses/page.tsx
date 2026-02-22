@@ -8,6 +8,8 @@ import { useTerminology } from '@/contexts/TerminologyContext';
 import { CourseCard } from './_components/CourseCard';
 import { CourseSetupWizard } from './_components/CourseSetupWizard';
 import { useStepFlow } from '@/contexts';
+import { useWizardResume } from '@/hooks/useWizardResume';
+import { WizardResumeBanner } from '@/components/shared/WizardResumeBanner';
 
 type Course = {
   id: string;
@@ -24,6 +26,7 @@ export default function CoursesPage() {
   const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
   const { terms } = useTerminology();
   const { state, isActive: isSetupFlowActive, startFlow } = useStepFlow();
+  const { pendingTask, isLoading: resumeLoading } = useWizardResume("course_setup");
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -78,24 +81,21 @@ export default function CoursesPage() {
     loadCourses();
   }, []);
 
-  const handleNewCourse = async () => {
-    // Load wizard steps from spec
-    let stepsToUse = [
-      { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
-      { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
-      { id: 'lesson-plan', label: 'Lesson Plan', activeLabel: 'Planning Lessons' },
-      { id: 'course-config', label: 'Configure AI', activeLabel: 'Configuring AI' },
-      { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
-      { id: 'done', label: 'Launch', activeLabel: 'Creating Course' },
-    ];
+  const COURSE_STEPS_FALLBACK = [
+    { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
+    { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
+    { id: 'lesson-plan', label: 'Lesson Plan', activeLabel: 'Planning Lessons' },
+    { id: 'course-config', label: 'Configure AI', activeLabel: 'Configuring AI' },
+    { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
+    { id: 'done', label: 'Launch', activeLabel: 'Creating Course' },
+  ];
 
+  const loadWizardSteps = async () => {
     try {
       const response = await fetch('/api/wizard-steps?wizard=course');
       const data = await response.json();
-
       if (data.ok && data.steps && data.steps.length > 0) {
-        // Convert WizardStep to StepDefinition
-        stepsToUse = data.steps.map((step: any) => ({
+        return data.steps.map((step: any) => ({
           id: step.id,
           label: step.label,
           activeLabel: step.activeLabel,
@@ -104,14 +104,75 @@ export default function CoursesPage() {
     } catch (err) {
       console.warn('[CoursesPage] Failed to load spec steps, using defaults', err);
     }
+    return COURSE_STEPS_FALLBACK;
+  };
 
-    // Start the wizard flow using StepFlowContext
+  const handleNewCourse = async () => {
+    const stepsToUse = await loadWizardSteps();
+
+    // Create a UserTask for DB-backed wizard persistence
+    let taskId: string | undefined;
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskType: 'course_setup', currentStep: 0, context: { _wizardStep: 0 } }),
+      });
+      const data = await res.json();
+      if (data.ok) taskId = data.taskId;
+    } catch {
+      // Continue without DB persistence — sessionStorage still works
+    }
+
     startFlow({
       flowId: 'create-course',
       steps: stepsToUse,
       returnPath: '/x/courses',
+      taskType: 'course_setup',
+      taskId,
     });
   };
+
+  const handleResumeCourse = async () => {
+    if (!pendingTask) return;
+    const stepsToUse = await loadWizardSteps();
+    const ctx = pendingTask.context || {};
+
+    startFlow({
+      flowId: 'create-course',
+      steps: stepsToUse,
+      returnPath: '/x/courses',
+      taskType: 'course_setup',
+      taskId: pendingTask.id,
+      initialData: ctx,
+      initialStep: ctx._wizardStep ?? 0,
+    });
+  };
+
+  const handleDiscardResume = async () => {
+    if (pendingTask) {
+      try {
+        await fetch(`/api/tasks?taskId=${pendingTask.id}`, { method: 'DELETE' });
+      } catch { /* ignore */ }
+    }
+    await handleNewCourse();
+  };
+
+  // Show resume banner if there's an unfinished wizard task and wizard isn't already active
+  if (!showWizard && !resumeLoading && pendingTask) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div style={{ paddingTop: 64 }}>
+          <WizardResumeBanner
+            task={pendingTask}
+            onResume={handleResumeCourse}
+            onDiscard={handleDiscardResume}
+            label="Course Setup"
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (showWizard) {
     return (
@@ -129,15 +190,15 @@ export default function CoursesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">My {terms.playbook}s</h1>
-          <p className="text-[var(--text-secondary)] mt-1">
+          <h1 className="hf-page-title">My {terms.playbook}s</h1>
+          <p className="hf-page-subtitle">
             Create and manage {terms.playbook.toLowerCase()}s for your {terms.caller.toLowerCase()}s
           </p>
         </div>
         {isOperator && (
           <button
             onClick={handleNewCourse}
-            className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+            className="hf-btn hf-btn-primary"
           >
             <Plus className="w-5 h-5" />
             New {terms.playbook}
@@ -147,8 +208,8 @@ export default function CoursesPage() {
 
       {/* Courses Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="text-[var(--text-secondary)]">Loading courses...</div>
+        <div style={{ display: "flex", justifyContent: "center", padding: "64px 0" }}>
+          <div className="hf-spinner" />
         </div>
       ) : courses.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -162,7 +223,7 @@ export default function CoursesPage() {
           {isOperator && (
             <button
               onClick={handleNewCourse}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+              className="hf-btn hf-btn-primary"
             >
               <Plus className="w-5 h-5" />
               Create First {terms.playbook}

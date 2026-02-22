@@ -6,6 +6,10 @@ import { useTerminology } from "@/contexts/TerminologyContext";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import { ProgressStepper } from "@/components/shared/ProgressStepper";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
+import { useWizardResume } from "@/hooks/useWizardResume";
+import { WizardResumeBanner } from "@/components/shared/WizardResumeBanner";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { Building2, Users, BookOpen, ExternalLink } from "lucide-react";
 
@@ -57,6 +61,7 @@ export default function NewClassroomPage() {
   const { terms, plural, lower, lowerPlural } = useTerminology();
   const { state, isActive, startFlow, setStep: flowSetStep, setData: flowSetData, getData: flowGetData, endFlow } = useStepFlow();
   const flowInitialized = useRef(false);
+  const { pendingTask, isLoading: resumeLoading } = useWizardResume("classroom_setup");
 
   // Derive 1-indexed step from context (0-indexed) for UI compatibility
   const step = (state?.currentStep ?? 0) + 1;
@@ -82,43 +87,99 @@ export default function NewClassroomPage() {
   const [selectedPlaybooks, setSelectedPlaybooks] = useState<Set<string>>(new Set());
   const [loadingPlaybooks, setLoadingPlaybooks] = useState(false);
 
+  const loadClassroomSteps = async () => {
+    try {
+      const res = await fetch("/api/wizard-steps?wizard=classroom");
+      const data = await res.json();
+      if (data.ok && data.steps?.length > 0) return data.steps;
+    } catch {
+      // Silent — fallback already set
+    }
+    return FALLBACK_STEPS;
+  };
+
+  const startFreshFlow = async () => {
+    const stepsToUse = await loadClassroomSteps();
+
+    // Create a UserTask for DB-backed wizard persistence
+    let taskId: string | undefined;
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskType: "classroom_setup", currentStep: 0, context: { _wizardStep: 0 } }),
+      });
+      const data = await res.json();
+      if (data.ok) taskId = data.taskId;
+    } catch {
+      // Continue without DB persistence — sessionStorage still works
+    }
+
+    startFlow({
+      flowId: "create-classroom",
+      steps: stepsToUse.map((s: WizardStep) => ({ id: s.id, label: s.label, activeLabel: s.activeLabel })),
+      returnPath: "/x/educator/classrooms/new",
+      taskType: "classroom_setup",
+      taskId,
+    });
+  };
+
+  const handleResume = async () => {
+    if (!pendingTask) return;
+    const stepsToUse = await loadClassroomSteps();
+    const ctx = pendingTask.context || {};
+
+    startFlow({
+      flowId: "create-classroom",
+      steps: stepsToUse.map((s: WizardStep) => ({ id: s.id, label: s.label, activeLabel: s.activeLabel })),
+      returnPath: "/x/educator/classrooms/new",
+      taskType: "classroom_setup",
+      taskId: pendingTask.id,
+      initialData: ctx,
+      initialStep: ctx._wizardStep ?? 0,
+    });
+
+    // Hydrate local state from resumed context
+    if (ctx.name) setName(ctx.name);
+    if (ctx.description) setDescription(ctx.description);
+    if (ctx.domainId) setDomainId(ctx.domainId);
+    if (ctx.created) setCreated(ctx.created);
+    if (ctx.selectedPlaybooks) setSelectedPlaybooks(new Set(ctx.selectedPlaybooks));
+  };
+
+  const handleDiscardResume = async () => {
+    if (pendingTask) {
+      try {
+        await fetch(`/api/tasks?taskId=${pendingTask.id}`, { method: "DELETE" });
+      } catch { /* ignore */ }
+    }
+    await startFreshFlow();
+  };
+
   // Initialize StepFlowContext (load steps from ORCHESTRATE spec with hardcoded fallback)
   useEffect(() => {
     if (flowInitialized.current) return;
+    // Don't auto-start if resume detection is still loading or a pending task exists
+    if (resumeLoading || pendingTask) return;
     flowInitialized.current = true;
 
-    const init = async () => {
-      let stepsToUse = FALLBACK_STEPS;
-      try {
-        const res = await fetch("/api/wizard-steps?wizard=classroom");
-        const data = await res.json();
-        if (data.ok && data.steps?.length > 0) stepsToUse = data.steps;
-      } catch {
-        // Silent — fallback already set
-      }
-
-      if (!isActive || state?.flowId !== "create-classroom") {
-        startFlow({
-          flowId: "create-classroom",
-          steps: stepsToUse.map((s) => ({ id: s.id, label: s.label, activeLabel: s.activeLabel })),
-          returnPath: "/x/educator/classrooms/new",
-        });
-      } else {
-        // Restore from context on re-entry (page refresh)
-        const savedName = flowGetData<string>("name");
-        const savedDesc = flowGetData<string>("description");
-        const savedDomainId = flowGetData<string>("domainId");
-        const savedCreated = flowGetData<{ id: string; joinToken: string }>("created");
-        const savedPlaybooks = flowGetData<string[]>("selectedPlaybooks");
-        if (savedName) setName(savedName);
-        if (savedDesc) setDescription(savedDesc);
-        if (savedDomainId) setDomainId(savedDomainId);
-        if (savedCreated) setCreated(savedCreated);
-        if (savedPlaybooks) setSelectedPlaybooks(new Set(savedPlaybooks));
-      }
-    };
-    init();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isActive && state?.flowId === "create-classroom") {
+      // Restore local state from context on re-entry (page refresh with sessionStorage intact)
+      const savedName = flowGetData<string>("name");
+      const savedDesc = flowGetData<string>("description");
+      const savedDomainId = flowGetData<string>("domainId");
+      const savedCreated = flowGetData<{ id: string; joinToken: string }>("created");
+      const savedPlaybooks = flowGetData<string[]>("selectedPlaybooks");
+      if (savedName) setName(savedName);
+      if (savedDesc) setDescription(savedDesc);
+      if (savedDomainId) setDomainId(savedDomainId);
+      if (savedCreated) setCreated(savedCreated);
+      if (savedPlaybooks) setSelectedPlaybooks(new Set(savedPlaybooks));
+    } else {
+      // No active flow, no pending resume — start fresh
+      startFreshFlow();
+    }
+  }, [resumeLoading, pendingTask]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchApi("/api/domains")
@@ -192,25 +253,30 @@ export default function NewClassroomPage() {
 
   const inviteMessage = `You're invited to join ${name}${selectedDomain ? ` (${selectedDomain.name})` : ""}!\n\nJoin here: ${joinUrl}`;
 
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedMessage, setCopiedMessage] = useState(false);
+  const { copiedKey, copy: copyText } = useCopyToClipboard();
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(joinUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
+  const copyLink = () => copyText(joinUrl, "link");
+  const copyMessage = () => copyText(inviteMessage, "message");
 
-  const copyMessage = () => {
-    navigator.clipboard.writeText(inviteMessage);
-    setCopiedMessage(true);
-    setTimeout(() => setCopiedMessage(false), 2000);
-  };
-
-  if (loading) {
+  // Show resume banner if there's an unfinished wizard task and flow isn't active
+  const showWizard = isActive && state?.flowId === "create-classroom";
+  if (!showWizard && !resumeLoading && pendingTask) {
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ fontSize: 15, color: "var(--text-muted)" }}>Loading...</div>
+      <div style={{ maxWidth: 560, margin: "0 auto", paddingTop: 64 }}>
+        <WizardResumeBanner
+          task={pendingTask}
+          onResume={handleResume}
+          onDiscard={handleDiscardResume}
+          label="Classroom Setup"
+        />
+      </div>
+    );
+  }
+
+  if (loading || resumeLoading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
+        <div className="hf-spinner" />
       </div>
     );
   }
@@ -328,8 +394,8 @@ export default function NewClassroomPage() {
           </p>
 
           {loadingPlaybooks ? (
-            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
-              Loading courses...
+            <div style={{ display: "flex", justifyContent: "center", padding: 16 }}>
+              <div className="hf-spinner" />
             </div>
           ) : playbooks.length === 0 ? (
             <div className="hf-banner hf-banner-info" style={{ marginBottom: 20, textAlign: "center" }}>
@@ -460,11 +526,7 @@ export default function NewClassroomPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="hf-banner hf-banner-error" style={{ marginBottom: 16 }}>
-              {error}
-            </div>
-          )}
+          <ErrorBanner error={error} style={{ marginBottom: 16 }} />
 
           <div className="flex gap-3">
             <button
@@ -558,10 +620,10 @@ export default function NewClassroomPage() {
                 className="wiz-action-primary"
                 style={{
                   padding: "6px 14px", fontSize: 12, whiteSpace: "nowrap",
-                  background: copiedLink ? "var(--status-success-text)" : undefined,
+                  background: copiedKey === "link" ? "var(--status-success-text)" : undefined,
                 }}
               >
-                {copiedLink ? "Copied!" : "Copy Link"}
+                {copiedKey === "link" ? "Copied!" : "Copy Link"}
               </button>
             </div>
           </div>
@@ -583,12 +645,12 @@ export default function NewClassroomPage() {
               onClick={copyMessage}
               className="wiz-action-secondary"
               style={{
-                background: copiedMessage ? "var(--status-success-text)" : undefined,
-                color: copiedMessage ? "white" : undefined,
-                border: copiedMessage ? "none" : undefined,
+                background: copiedKey === "message" ? "var(--status-success-text)" : undefined,
+                color: copiedKey === "message" ? "white" : undefined,
+                border: copiedKey === "message" ? "none" : undefined,
               }}
             >
-              {copiedMessage ? "Copied!" : "Copy Message"}
+              {copiedKey === "message" ? "Copied!" : "Copy Message"}
             </button>
           </div>
         </WizardSummary>

@@ -291,76 +291,50 @@ export function OnboardingTabContent({
                 <div>
                   {/* Scaffolding Progress */}
                   {scaffoldingTasks.length > 0 && (
-                    <div style={{
-                      padding: 16,
-                      background: "var(--status-info-bg)",
-                      border: "1px solid color-mix(in srgb, var(--status-info-text) 25%, transparent)",
-                      borderRadius: 8,
-                      marginBottom: 20,
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                        <div style={{ fontSize: 16 }}>⚙️</div>
-                        <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+                    <div className="hf-banner hf-banner-info hf-mb-lg" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                      <div className="hf-flex hf-gap-sm hf-mb-md">
+                        <div style={{ fontSize: 16 }}>&#x2699;&#xFE0F;</div>
+                        <h4 className="hf-section-title" style={{ margin: 0 }}>
                           Setting up curriculum
                         </h4>
                       </div>
 
                       {scaffoldingTasks.map(task => (
-                        <div key={task.id} style={{
-                          padding: 12,
-                          background: "white",
-                          borderRadius: 6,
-                          marginBottom: 8,
+                        <div key={task.id} className="hf-card-compact" style={{
                           border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
                         }}>
                           {/* Task progress */}
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                          <div className="hf-flex hf-gap-sm hf-mb-sm" style={{ gap: 10 }}>
                             {task.status === "in_progress" && (
-                              <div style={{
-                                animation: "spin 1s linear infinite",
-                                transformOrigin: "center",
-                                display: "inline-block",
-                              }}>
-                                ⟳
-                              </div>
+                              <div className="hf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
                             )}
-                            {task.status === "completed" && <div>✅</div>}
-                            {task.status === "abandoned" && <div>⚠️</div>}
-                            {!["in_progress", "completed", "abandoned"].includes(task.status) && <div>❓</div>}
+                            {task.status === "completed" && <div>&#x2705;</div>}
+                            {task.status === "abandoned" && <div>&#x26A0;&#xFE0F;</div>}
+                            {!["in_progress", "completed", "abandoned"].includes(task.status) && <div>&#x2753;</div>}
 
-                            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                            <span className="hf-text-sm hf-text-secondary">
                               {task.context?.message || "Processing..."}
                             </span>
                           </div>
 
                           {/* Task steps */}
                           {task.status === "in_progress" && (
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 30 }}>
+                            <div className="hf-text-xs hf-text-muted" style={{ marginLeft: 30 }}>
                               Step: <strong>{task.context?.step || "..."}</strong>
                             </div>
                           )}
 
                           {/* Completion summary */}
                           {task.status === "completed" && task.context?.summary && (
-                            <div style={{
-                              fontSize: 12,
-                              color: "var(--text-secondary)",
-                              marginLeft: 30,
-                              padding: "8px 0",
-                            }}>
-                              <div>✓ Playbook: <strong>{task.context.summary.playbook}</strong></div>
-                              <div>✓ {task.context.summary.modules} modules from {task.context.summary.assertions} points</div>
+                            <div className="hf-text-sm hf-text-secondary" style={{ marginLeft: 30, padding: "8px 0", fontSize: 12 }}>
+                              <div>&#x2713; Playbook: <strong>{task.context.summary.playbook}</strong></div>
+                              <div>&#x2713; {task.context.summary.modules} modules from {task.context.summary.assertions} points</div>
                             </div>
                           )}
 
                           {/* Error state */}
                           {task.status === "abandoned" && task.context?.error && (
-                            <div style={{
-                              fontSize: 12,
-                              color: "var(--status-error-text)",
-                              marginLeft: 30,
-                              padding: "8px 0",
-                            }}>
+                            <div className="hf-text-error" style={{ fontSize: 12, marginLeft: 30, padding: "8px 0" }}>
                               Error: {task.context.error}
                             </div>
                           )}
@@ -369,54 +343,31 @@ export function OnboardingTabContent({
                     </div>
                   )}
 
-                  {/* Spinner keyframe animation */}
-                  <style>{`
-                    @keyframes spin {
-                      from { transform: rotate(0deg); }
-                      to { transform: rotate(360deg); }
-                    }
-                  `}</style>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div className="hf-flex-between hf-mb-md">
                     <div>
                       <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
                         First-Call Onboarding Configuration
                       </h3>
-                      <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>
+                      <p className="hf-text-md hf-text-muted" style={{ marginTop: 4, marginBottom: 0 }}>
                         Customize the onboarding experience for new callers in this domain
                       </p>
                     </div>
                     {!editingOnboarding && (
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div className="hf-flex hf-gap-sm">
                         <button
+                          className="hf-btn hf-btn-secondary"
                           onClick={onPreviewPrompt}
                           disabled={promptPreviewLoading}
                           style={{
-                            padding: "8px 16px",
-                            fontSize: 14,
-                            fontWeight: 500,
-                            background: "transparent",
                             color: "var(--accent-primary)",
-                            border: "1px solid var(--accent-primary)",
-                            borderRadius: 6,
-                            cursor: promptPreviewLoading ? "wait" : "pointer",
-                            opacity: promptPreviewLoading ? 0.6 : 1,
+                            borderColor: "var(--accent-primary)",
                           }}
                         >
                           {promptPreviewLoading ? "Composing..." : "Preview First Prompt"}
                         </button>
                         <button
+                          className="hf-btn hf-btn-primary"
                           onClick={() => setEditingOnboarding(true)}
-                          style={{
-                            padding: "8px 16px",
-                            fontSize: 14,
-                            fontWeight: 500,
-                            background: "var(--accent-primary)",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                          }}
                         >
                           Edit Configuration
                         </button>
@@ -426,81 +377,47 @@ export function OnboardingTabContent({
 
                   {/* Success Message */}
                   {onboardingSaveSuccess && (
-                    <div style={{
-                      padding: 12,
-                      marginBottom: 16,
-                      background: "var(--status-success-bg)",
-                      color: "var(--status-success-text)",
-                      borderRadius: 8,
-                      fontSize: 14,
-                    }}>
-                      ✅ Onboarding configuration saved successfully
+                    <div className="hf-banner hf-banner-success">
+                      &#x2705; Onboarding configuration saved successfully
                     </div>
                   )}
 
                   {/* Error Message */}
                   {onboardingSaveError && (
-                    <div style={{
-                      padding: 12,
-                      marginBottom: 16,
-                      background: "var(--status-error-bg)",
-                      color: "var(--status-error-text)",
-                      borderRadius: 8,
-                      fontSize: 14,
-                    }}>
+                    <div className="hf-banner hf-banner-error">
                       {onboardingSaveError}
                     </div>
                   )}
 
                   {editingOnboarding ? (
                     /* Edit Mode */
-                    <div style={{
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                      padding: 20,
-                    }}>
+                    <div className="hf-card" style={{ borderRadius: 8, padding: 20 }}>
                       {/* Welcome Message */}
-                      <div style={{ marginBottom: 20 }}>
-                        <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                      <div className="hf-mb-lg" style={{ marginBottom: 20 }}>
+                        <label className="hf-text-md hf-text-bold" style={{ display: "block", marginBottom: 8 }}>
                           Welcome Message
                         </label>
                         <textarea
+                          className="hf-textarea"
                           value={onboardingForm.welcomeMessage}
                           onChange={(e) => setOnboardingForm({ ...onboardingForm, welcomeMessage: e.target.value })}
                           placeholder="Enter the welcome message for first-time callers..."
-                          style={{
-                            width: "100%",
-                            minHeight: 120,
-                            padding: 12,
-                            fontSize: 14,
-                            border: "2px solid var(--border-default)",
-                            borderRadius: 6,
-                            fontFamily: "inherit",
-                            resize: "vertical",
-                          }}
+                          style={{ minHeight: 120 }}
                         />
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                        <div className="hf-hint">
                           This message is shown to new callers on their first call
                         </div>
                       </div>
 
                       {/* Identity Spec */}
                       <div style={{ marginBottom: 20 }}>
-                        <label style={{ display: "block", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                        <label className="hf-text-md hf-text-bold" style={{ display: "block", marginBottom: 8 }}>
                           Identity Spec
                         </label>
                         <select
+                          className="hf-select"
                           value={onboardingForm.identitySpecId}
                           onChange={(e) => setOnboardingForm({ ...onboardingForm, identitySpecId: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: 12,
-                            fontSize: 14,
-                            border: "2px solid var(--border-default)",
-                            borderRadius: 6,
-                            background: "var(--surface-primary)",
-                          }}
                         >
                           <option value="">Use default identity spec</option>
                           {availableSpecs.map((spec) => (
@@ -509,45 +426,27 @@ export function OnboardingTabContent({
                             </option>
                           ))}
                         </select>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                        <div className="hf-hint">
                           Which identity/persona spec to use for onboarding
                         </div>
                       </div>
 
                       {/* Flow Phases */}
                       <div style={{ marginBottom: 20 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <label style={{ fontSize: 14, fontWeight: 600 }}>
+                        <div className="hf-flex-between hf-mb-sm">
+                          <label className="hf-text-md hf-text-bold">
                             Flow Phases
                           </label>
-                          <div style={{ display: "flex", gap: 4 }}>
+                          <div className="hf-toggle-group">
                             <button
+                              className={`hf-toggle-btn ${flowPhasesMode === "visual" ? "hf-toggle-btn-active" : ""}`}
                               onClick={() => setFlowPhasesMode("visual")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: flowPhasesMode === "visual" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: flowPhasesMode === "visual" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
                             >
                               Visual
                             </button>
                             <button
+                              className={`hf-toggle-btn ${flowPhasesMode === "json" ? "hf-toggle-btn-active" : ""}`}
                               onClick={() => setFlowPhasesMode("json")}
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                background: flowPhasesMode === "json" ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                color: flowPhasesMode === "json" ? "white" : "var(--text-secondary)",
-                                border: "1px solid var(--border-default)",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                              }}
                             >
                               JSON
                             </button>
@@ -568,33 +467,23 @@ export function OnboardingTabContent({
                               renderCard={(phase, index) => (
                                 <div style={{ flex: 1 }}>
                                   {/* Phase header */}
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                    <div style={{
-                                      width: 24,
-                                      height: 24,
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      background: "var(--accent-primary)",
-                                      color: "white",
-                                      borderRadius: "50%",
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                    }}>
+                                  <div className="hf-flex hf-gap-sm hf-mb-sm">
+                                    <div className="hf-number-badge">
                                       {index + 1}
                                     </div>
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+                                    <span className="hf-label" style={{ marginBottom: 0 }}>
                                       Phase {index + 1}
                                     </span>
                                   </div>
                                   {/* Phase Name + Duration */}
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 150px", gap: 10, marginBottom: 10 }}>
                                     <div>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                      <label className="hf-label">
                                         Phase Name
                                       </label>
                                       <input
                                         type="text"
+                                        className="hf-input"
                                         value={phase.phase}
                                         onChange={(e) => {
                                           const updated = [...structuredPhases];
@@ -602,22 +491,15 @@ export function OnboardingTabContent({
                                           setStructuredPhases(updated);
                                         }}
                                         placeholder="e.g., welcome, orient, discover"
-                                        style={{
-                                          width: "100%",
-                                          padding: 10,
-                                          fontSize: 14,
-                                          border: "2px solid var(--border-default)",
-                                          borderRadius: 6,
-                                          background: "var(--surface-secondary)",
-                                        }}
                                       />
                                     </div>
                                     <div>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                      <label className="hf-label">
                                         Duration
                                       </label>
                                       <input
                                         type="text"
+                                        className="hf-input"
                                         value={phase.duration}
                                         onChange={(e) => {
                                           const updated = [...structuredPhases];
@@ -625,23 +507,16 @@ export function OnboardingTabContent({
                                           setStructuredPhases(updated);
                                         }}
                                         placeholder="e.g., 2min"
-                                        style={{
-                                          width: "100%",
-                                          padding: 10,
-                                          fontSize: 14,
-                                          border: "2px solid var(--border-default)",
-                                          borderRadius: 6,
-                                          background: "var(--surface-secondary)",
-                                        }}
                                       />
                                     </div>
                                   </div>
                                   {/* Goals */}
                                   <div>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                    <label className="hf-label">
                                       Goals (one per line)
                                     </label>
                                     <textarea
+                                      className="hf-textarea"
                                       value={phase.goals.join("\n")}
                                       onChange={(e) => {
                                         const updated = [...structuredPhases];
@@ -649,40 +524,27 @@ export function OnboardingTabContent({
                                         setStructuredPhases(updated);
                                       }}
                                       placeholder="Enter goals for this phase..."
-                                      style={{
-                                        width: "100%",
-                                        minHeight: 80,
-                                        padding: 10,
-                                        fontSize: 13,
-                                        lineHeight: 1.6,
-                                        border: "2px solid var(--border-default)",
-                                        borderRadius: 6,
-                                        background: "var(--surface-secondary)",
-                                        resize: "vertical",
-                                      }}
+                                      style={{ minHeight: 80, fontSize: 13, lineHeight: 1.6 }}
                                     />
                                   </div>
                                   {/* Content to Share */}
-                                  <div style={{ marginTop: 10 }}>
-                                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                                  <div className="hf-mt-sm" style={{ marginTop: 10 }}>
+                                    <label className="hf-label">
                                       Content to Share
                                     </label>
                                     {(phase.content || []).map((ref, ci) => {
                                       const media = domainMedia.find(m => m.id === ref.mediaId);
                                       return (
-                                        <div key={ci} style={{
-                                          display: "flex", gap: 8, alignItems: "center", marginBottom: 6,
-                                          padding: "6px 8px", background: "var(--surface-tertiary)", borderRadius: 6,
-                                          border: "1px solid var(--border-default)",
-                                        }}>
-                                          <span style={{ fontSize: 14 }}>
-                                            {media?.mimeType?.startsWith("image/") ? "🖼️" : media?.mimeType === "application/pdf" ? "📄" : media?.mimeType?.startsWith("audio/") ? "🔊" : "📎"}
+                                        <div key={ci} className="hf-attach-row">
+                                          <span className="hf-text-md">
+                                            {media?.mimeType?.startsWith("image/") ? "\uD83D\uDDBC\uFE0F" : media?.mimeType === "application/pdf" ? "\uD83D\uDCC4" : media?.mimeType?.startsWith("audio/") ? "\uD83D\uDD0A" : "\uD83D\uDCCE"}
                                           </span>
-                                          <span style={{ fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          <span className="hf-text-sm hf-truncate" style={{ flex: 1 }}>
                                             {media?.title || media?.fileName || ref.mediaId}
                                           </span>
                                           <input
                                             type="text"
+                                            className="hf-input"
                                             value={ref.instruction || ""}
                                             onChange={(e) => {
                                               const updated = [...structuredPhases];
@@ -692,30 +554,25 @@ export function OnboardingTabContent({
                                               setStructuredPhases(updated);
                                             }}
                                             placeholder="Instruction (e.g. Share at start of phase)"
-                                            style={{
-                                              flex: 2, padding: "4px 8px", fontSize: 12,
-                                              border: "1px solid var(--border-default)", borderRadius: 4,
-                                              background: "var(--surface-secondary)",
-                                            }}
+                                            style={{ flex: 2, padding: "4px 8px", fontSize: 12 }}
                                           />
                                           <button
+                                            className="hf-badge hf-badge-error"
                                             onClick={() => {
                                               const updated = [...structuredPhases];
                                               updated[index] = { ...updated[index], content: (updated[index].content || []).filter((_, i) => i !== ci) };
                                               setStructuredPhases(updated);
                                             }}
-                                            style={{
-                                              padding: "2px 8px", fontSize: 11, color: "var(--status-error-text)",
-                                              background: "var(--status-error-bg)", border: "none", borderRadius: 4, cursor: "pointer",
-                                            }}
+                                            style={{ cursor: "pointer", border: "none" }}
                                           >
-                                            ×
+                                            &#xD7;
                                           </button>
                                         </div>
                                       );
                                     })}
                                     {domainMedia.length > 0 ? (
                                       <select
+                                        className="hf-select"
                                         value=""
                                         onChange={(e) => {
                                           if (!e.target.value) return;
@@ -726,9 +583,9 @@ export function OnboardingTabContent({
                                           setStructuredPhases(updated);
                                         }}
                                         style={{
-                                          width: "100%", padding: "6px 8px", fontSize: 12,
-                                          border: "1px dashed var(--border-default)", borderRadius: 4,
-                                          background: "var(--surface-secondary)", color: "var(--text-secondary)",
+                                          fontSize: 12,
+                                          padding: "6px 8px",
+                                          borderStyle: "dashed",
                                           cursor: "pointer",
                                         }}
                                       >
@@ -743,7 +600,7 @@ export function OnboardingTabContent({
                                         }
                                       </select>
                                     ) : (
-                                      <div style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+                                      <div className="hf-text-xs hf-text-muted" style={{ fontStyle: "italic" }}>
                                         No media uploaded to this domain&apos;s subjects yet
                                       </div>
                                     )}
@@ -751,7 +608,7 @@ export function OnboardingTabContent({
                                 </div>
                               )}
                             />
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+                            <div className="hf-hint hf-mt-sm">
                               Define the onboarding flow phases (leave empty to use defaults)
                             </div>
                           </div>
@@ -759,21 +616,13 @@ export function OnboardingTabContent({
                           /* JSON Editor */
                           <div>
                             <textarea
+                              className="hf-textarea hf-mono"
                               value={onboardingForm.flowPhases}
                               onChange={(e) => setOnboardingForm({ ...onboardingForm, flowPhases: e.target.value })}
                               placeholder='{"phases": [{"phase": "welcome", "duration": "2min", "goals": ["..."]}]}'
-                              style={{
-                                width: "100%",
-                                minHeight: 200,
-                                padding: 12,
-                                fontSize: 13,
-                                fontFamily: "monospace",
-                                border: "2px solid var(--border-default)",
-                                borderRadius: 6,
-                                resize: "vertical",
-                              }}
+                              style={{ minHeight: 200, fontSize: 13 }}
                             />
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                            <div className="hf-hint">
                               Define the onboarding flow phases in JSON format
                             </div>
                           </div>
@@ -782,25 +631,16 @@ export function OnboardingTabContent({
 
                       {/* Default Targets */}
                       <div style={{ marginBottom: 20 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <label style={{ fontSize: 14, fontWeight: 600 }}>
+                        <div className="hf-flex-between hf-mb-sm">
+                          <label className="hf-text-md hf-text-bold">
                             Default Behavior Targets
                           </label>
-                          <div style={{ display: "flex", gap: 4 }}>
+                          <div className="hf-toggle-group">
                             {(["matrix", "visual", "json"] as const).map((mode) => (
                               <button
                                 key={mode}
+                                className={`hf-toggle-btn ${defaultTargetsMode === mode ? "hf-toggle-btn-active" : ""}`}
                                 onClick={() => setDefaultTargetsMode(mode)}
-                                style={{
-                                  padding: "4px 12px",
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  background: defaultTargetsMode === mode ? "var(--accent-primary)" : "var(--surface-secondary)",
-                                  color: defaultTargetsMode === mode ? "white" : "var(--text-secondary)",
-                                  border: "1px solid var(--border-default)",
-                                  borderRadius: 4,
-                                  cursor: "pointer",
-                                }}
                               >
                                 {mode === "matrix" ? "Matrix" : mode === "visual" ? "Visual" : "JSON"}
                               </button>
@@ -811,7 +651,7 @@ export function OnboardingTabContent({
                         {defaultTargetsMode === "matrix" ? (
                           /* Boston Matrix Editor */
                           <div>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                            <div className="hf-hint hf-mb-md">
                               Drag the dots to set your agent&apos;s style. Click a preset to start from a known personality.
                             </div>
                             <AgentTuningPanel
@@ -831,54 +671,44 @@ export function OnboardingTabContent({
                               {Object.entries(structuredTargets).map(([paramId, target]) => (
                               <div
                                 key={paramId}
+                                className="hf-card"
                                 style={{
                                   padding: 16,
-                                  background: "var(--surface-primary)",
-                                  border: "2px solid var(--border-default)",
+                                  borderWidth: 2,
                                   borderRadius: 8,
+                                  marginBottom: 0,
                                   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                  display: "flex",
-                                  flexDirection: "column",
                                 }}
                               >
                                 {/* Header */}
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.2 }}>
+                                <div className="hf-flex-between hf-mb-md">
+                                  <span className="hf-text-sm hf-text-bold" style={{ lineHeight: 1.2 }}>
                                     {paramId}
                                   </span>
                                   <button
+                                    className="hf-badge hf-badge-error"
                                     onClick={() => {
                                       const newTargets = { ...structuredTargets };
                                       delete newTargets[paramId];
                                       setStructuredTargets(newTargets);
                                     }}
-                                    style={{
-                                      padding: "2px 8px",
-                                      fontSize: 10,
-                                      fontWeight: 500,
-                                      background: "var(--status-error-bg)",
-                                      color: "var(--status-error-text)",
-                                      border: "none",
-                                      borderRadius: 4,
-                                      cursor: "pointer",
-                                    }}
+                                    style={{ cursor: "pointer", border: "none", fontSize: 10 }}
                                   >
-                                    ×
+                                    &#xD7;
                                   </button>
                                 </div>
 
                                 {/* Vertical Sliders Container */}
-                                <div style={{ display: "flex", justifyContent: "space-around", alignItems: "flex-end", gap: 20, flex: 1 }}>
+                                <div className="hf-flex" style={{ justifyContent: "space-around", alignItems: "flex-end", gap: 20, flex: 1 }}>
                                   {/* Value Slider */}
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                                    <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
+                                  <div className="hf-flex-col" style={{ alignItems: "center", flex: 1 }}>
+                                    <label className="hf-label" style={{ fontSize: 10, marginBottom: 6 }}>
                                       Value
                                     </label>
-                                    <span style={{
+                                    <span className="hf-mono" style={{
                                       fontSize: 15,
                                       fontWeight: 700,
                                       color: "var(--accent-primary)",
-                                      fontFamily: "monospace",
                                       marginBottom: 8,
                                       minHeight: 20,
                                     }}>
@@ -886,11 +716,11 @@ export function OnboardingTabContent({
                                     </span>
 
                                     {/* Vertical Slider Wrapper */}
-                                    <div style={{ position: "relative", height: 180, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                    <div style={{ position: "relative", height: 180 }} className="hf-flex-col" >
                                       {/* Scale markers */}
-                                      <div style={{ position: "absolute", right: -24, top: -6, fontSize: 9, color: "var(--text-muted)" }}>1.0</div>
-                                      <div style={{ position: "absolute", right: -24, top: 84, fontSize: 9, color: "var(--text-muted)" }}>0.5</div>
-                                      <div style={{ position: "absolute", right: -24, bottom: -6, fontSize: 9, color: "var(--text-muted)" }}>0.0</div>
+                                      <div className="hf-text-muted" style={{ position: "absolute", right: -24, top: -6, fontSize: 9 }}>1.0</div>
+                                      <div className="hf-text-muted" style={{ position: "absolute", right: -24, top: 84, fontSize: 9 }}>0.5</div>
+                                      <div className="hf-text-muted" style={{ position: "absolute", right: -24, bottom: -6, fontSize: 9 }}>0.0</div>
 
                                       {/* Vertical range input */}
                                       <input
@@ -919,15 +749,14 @@ export function OnboardingTabContent({
                                   </div>
 
                                   {/* Confidence Slider */}
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                                    <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
+                                  <div className="hf-flex-col" style={{ alignItems: "center", flex: 1 }}>
+                                    <label className="hf-label" style={{ fontSize: 10, marginBottom: 6 }}>
                                       Confidence
                                     </label>
-                                    <span style={{
+                                    <span className="hf-mono" style={{
                                       fontSize: 15,
                                       fontWeight: 700,
                                       color: "var(--accent-primary)",
-                                      fontFamily: "monospace",
                                       marginBottom: 8,
                                       minHeight: 20,
                                     }}>
@@ -935,11 +764,11 @@ export function OnboardingTabContent({
                                     </span>
 
                                     {/* Vertical Slider Wrapper */}
-                                    <div style={{ position: "relative", height: 180, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                    <div style={{ position: "relative", height: 180 }} className="hf-flex-col">
                                       {/* Scale markers */}
-                                      <div style={{ position: "absolute", left: -24, top: -6, fontSize: 9, color: "var(--text-muted)" }}>1.0</div>
-                                      <div style={{ position: "absolute", left: -24, top: 84, fontSize: 9, color: "var(--text-muted)" }}>0.5</div>
-                                      <div style={{ position: "absolute", left: -24, bottom: -6, fontSize: 9, color: "var(--text-muted)" }}>0.0</div>
+                                      <div className="hf-text-muted" style={{ position: "absolute", left: -24, top: -6, fontSize: 9 }}>1.0</div>
+                                      <div className="hf-text-muted" style={{ position: "absolute", left: -24, top: 84, fontSize: 9 }}>0.5</div>
+                                      <div className="hf-text-muted" style={{ position: "absolute", left: -24, bottom: -6, fontSize: 9 }}>0.0</div>
 
                                       {/* Vertical range input */}
                                       <input
@@ -972,21 +801,17 @@ export function OnboardingTabContent({
                           </div>
 
                           {/* Add Parameter Section */}
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ display: "flex", gap: 8 }}>
+                          <div className="hf-mt-md">
+                            <div className="hf-flex hf-gap-sm">
                               <input
                                 type="text"
                                 id="newParamId"
+                                className="hf-input"
                                 placeholder="Parameter ID (e.g., warmth)"
-                                style={{
-                                  flex: 1,
-                                  padding: 10,
-                                  fontSize: 14,
-                                  border: "1px solid var(--border-default)",
-                                  borderRadius: 6,
-                                }}
+                                style={{ flex: 1 }}
                               />
                               <button
+                                className="hf-btn hf-btn-primary"
                                 onClick={() => {
                                   const input = document.getElementById("newParamId") as HTMLInputElement;
                                   const paramId = input.value.trim();
@@ -998,21 +823,12 @@ export function OnboardingTabContent({
                                     input.value = "";
                                   }
                                 }}
-                                style={{
-                                  padding: "10px 20px",
-                                  fontSize: 14,
-                                  fontWeight: 500,
-                                  background: "var(--accent-primary)",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: 6,
-                                  cursor: "pointer",
-                                }}
+                                style={{ padding: "10px 20px" }}
                               >
                                 Add Parameter
                               </button>
                             </div>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+                            <div className="hf-hint hf-mt-sm">
                               Default behavior parameter values for first-time callers (leave empty to use defaults)
                             </div>
                           </div>
@@ -1021,21 +837,13 @@ export function OnboardingTabContent({
                           /* JSON Editor */
                           <div>
                             <textarea
+                              className="hf-textarea hf-mono"
                               value={onboardingForm.defaultTargets}
                               onChange={(e) => setOnboardingForm({ ...onboardingForm, defaultTargets: e.target.value })}
                               placeholder='{"warmth": {"value": 0.7, "confidence": 0.3}, ...}'
-                              style={{
-                                width: "100%",
-                                minHeight: 200,
-                                padding: 12,
-                                fontSize: 13,
-                                fontFamily: "monospace",
-                                border: "2px solid var(--border-default)",
-                                borderRadius: 6,
-                                resize: "vertical",
-                              }}
+                              style={{ minHeight: 200, fontSize: 13 }}
                             />
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                            <div className="hf-hint">
                               Default behavior parameter values in JSON format
                             </div>
                           </div>
@@ -1043,39 +851,24 @@ export function OnboardingTabContent({
                       </div>
 
                       {/* Actions */}
-                      <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                      <div className="hf-flex hf-gap-md" style={{ justifyContent: "flex-end" }}>
                         <button
+                          className="hf-btn hf-btn-secondary"
                           onClick={() => {
                             setEditingOnboarding(false);
                             setOnboardingSaveError(null);
                           }}
                           disabled={savingOnboarding}
-                          style={{
-                            padding: "10px 20px",
-                            fontSize: 14,
-                            fontWeight: 500,
-                            background: "var(--surface-secondary)",
-                            color: "var(--text-secondary)",
-                            border: "1px solid var(--border-default)",
-                            borderRadius: 6,
-                            cursor: savingOnboarding ? "not-allowed" : "pointer",
-                            opacity: savingOnboarding ? 0.5 : 1,
-                          }}
                         >
                           Cancel
                         </button>
                         <button
+                          className="hf-btn hf-btn-primary"
                           onClick={handleSaveOnboarding}
                           disabled={savingOnboarding}
                           style={{
-                            padding: "10px 24px",
-                            fontSize: 14,
                             fontWeight: 600,
-                            background: savingOnboarding ? "var(--border-default)" : "var(--accent-primary)",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 6,
-                            cursor: savingOnboarding ? "not-allowed" : "pointer",
+                            padding: "10px 24px",
                           }}
                         >
                           {savingOnboarding ? "Saving..." : "Save Changes"}
@@ -1087,60 +880,33 @@ export function OnboardingTabContent({
                     <div>
 
                   {/* Quick Stats - Dashboard Style */}
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
-                    gap: 16,
-                    marginBottom: 24,
-                  }}>
+                  <div className="hf-grid-4 hf-mb-lg">
                     {/* Identity Spec Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingIdentitySpec ? "👤" : "⚠️"}
+                    <div
+                      className="hf-onboard-stat"
+                      style={{
+                        border: `2px solid ${domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)"}`,
+                      }}
+                    >
+                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
+                        {domain.onboardingIdentitySpec ? "\uD83D\uDC64" : "\u26A0\uFE0F"}
                       </div>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)",
-                        textAlign: "center",
-                        marginBottom: 4,
-                      }}>
+                      <div
+                        className="hf-text-sm hf-text-bold hf-text-center"
+                        style={{
+                          color: domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)",
+                          marginBottom: 4,
+                        }}
+                      >
                         {domain.onboardingIdentitySpec?.name || "Not Set"}
                       </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
+                      <div className="hf-text-xs hf-text-muted hf-text-bold">
                         Identity Spec
                       </div>
                       {domain.onboardingIdentitySpec && (
                         <Link
                           href={`/x/layers?overlayId=${domain.onboardingIdentitySpec.id}`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            marginTop: 8,
-                            padding: "3px 10px",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: "var(--accent-primary)",
-                            background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-                            borderRadius: 4,
-                            textDecoration: "none",
-                            transition: "opacity 0.15s",
-                          }}
+                          className="hf-link-pill hf-mt-sm"
                         >
                           <Layers style={{ width: 12, height: 12 }} />
                           View Layers
@@ -1149,52 +915,38 @@ export function OnboardingTabContent({
                     </div>
 
                     {/* Welcome Message Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingWelcome ? "var(--status-success-text)" : "var(--border-default)"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingWelcome ? "✅" : "💬"}
+                    <div
+                      className="hf-onboard-stat"
+                      style={{
+                        border: `2px solid ${domain.onboardingWelcome ? "var(--status-success-text)" : "var(--border-default)"}`,
+                      }}
+                    >
+                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
+                        {domain.onboardingWelcome ? "\u2705" : "\uD83D\uDCAC"}
                       </div>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: domain.onboardingWelcome ? "var(--status-success-text)" : "var(--text-muted)",
-                        textAlign: "center",
-                        marginBottom: 4,
-                      }}>
+                      <div
+                        className="hf-text-sm hf-text-bold hf-text-center"
+                        style={{
+                          color: domain.onboardingWelcome ? "var(--status-success-text)" : "var(--text-muted)",
+                          marginBottom: 4,
+                        }}
+                      >
                         {domain.onboardingWelcome ? "Configured" : "Default"}
                       </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
+                      <div className="hf-text-xs hf-text-muted hf-text-bold">
                         Welcome Message
                       </div>
                     </div>
 
                     {/* Flow Phases Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingFlowPhases ? "var(--status-success-text)" : "var(--border-default)"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingFlowPhases ? "🔄" : "⏭️"}
+                    <div
+                      className="hf-onboard-stat"
+                      style={{
+                        border: `2px solid ${domain.onboardingFlowPhases ? "var(--status-success-text)" : "var(--border-default)"}`,
+                      }}
+                    >
+                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
+                        {domain.onboardingFlowPhases ? "\uD83D\uDD04" : "\u23ED\uFE0F"}
                       </div>
                       <div style={{
                         fontSize: 20,
@@ -1207,29 +959,20 @@ export function OnboardingTabContent({
                           (domain.onboardingFlowPhases as any).phases?.length || 0 :
                           "0"}
                       </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
+                      <div className="hf-text-xs hf-text-muted hf-text-bold">
                         Flow Phases
                       </div>
                     </div>
 
                     {/* Default Targets Card */}
-                    <div style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "20px 16px",
-                      background: "var(--surface-primary)",
-                      border: `2px solid ${domain.onboardingDefaultTargets ? "var(--status-success-text)" : "var(--border-default)"}`,
-                      borderRadius: 12,
-                      transition: "all 0.2s",
-                    }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>
-                        {domain.onboardingDefaultTargets ? "🎯" : "⚙️"}
+                    <div
+                      className="hf-onboard-stat"
+                      style={{
+                        border: `2px solid ${domain.onboardingDefaultTargets ? "var(--status-success-text)" : "var(--border-default)"}`,
+                      }}
+                    >
+                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
+                        {domain.onboardingDefaultTargets ? "\uD83C\uDFAF" : "\u2699\uFE0F"}
                       </div>
                       <div style={{
                         fontSize: 20,
@@ -1242,11 +985,7 @@ export function OnboardingTabContent({
                           Object.keys(domain.onboardingDefaultTargets as object).length :
                           "0"}
                       </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: "var(--text-muted)",
-                        fontWeight: 500,
-                      }}>
+                      <div className="hf-text-xs hf-text-muted hf-text-bold">
                         Default Targets
                       </div>
                     </div>
@@ -1254,14 +993,8 @@ export function OnboardingTabContent({
 
                   {/* Welcome Message Preview */}
                   {domain.onboardingWelcome && (
-                    <div style={{
-                      padding: 16,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                      marginBottom: 20,
-                    }}>
-                      <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600 }}>
+                    <div className="hf-card" style={{ borderRadius: 8, padding: 16 }}>
+                      <h4 className="hf-heading-sm">
                         Welcome Message Preview
                       </h4>
                       <div style={{
@@ -1279,51 +1012,21 @@ export function OnboardingTabContent({
 
                   {/* Flow Phases Visual */}
                   {domain.onboardingFlowPhases && (domain.onboardingFlowPhases as any).phases && (
-                    <div style={{
-                      padding: 20,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 12,
-                      marginBottom: 20,
-                    }}>
-                      <h4 style={{
-                        margin: "0 0 16px 0",
-                        fontSize: 16,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}>
-                        <span style={{ fontSize: 20 }}>🔄</span>
+                    <div className="hf-card" style={{ padding: 20, borderRadius: 12 }}>
+                      <h4 className="hf-flex hf-gap-sm hf-mb-md" style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+                        <span style={{ fontSize: 20 }}>{"\uD83D\uDD04"}</span>
                         Onboarding Flow Phases
                       </h4>
-                      <div style={{
-                        display: "flex",
-                        gap: 16,
-                        overflowX: "auto",
-                        paddingBottom: 8,
-                      }}>
+                      <div className="hf-flex hf-gap-lg" style={{ overflowX: "auto", paddingBottom: 8 }}>
                         {((domain.onboardingFlowPhases as any).phases || []).map((phase: any, idx: number) => (
-                          <div key={idx} style={{
-                            minWidth: 220,
-                            padding: 20,
-                            background: "var(--surface-primary)",
-                            border: "1px solid var(--border-default)",
-                            borderRadius: 12,
-                            position: "relative",
-                            transition: "all 0.2s",
-                          }}
-                          className="phase-card">
-                            <div style={{
+                          <div key={idx} className="hf-phase-card">
+                            <div className="hf-badge" style={{
                               position: "absolute",
                               top: 12,
                               right: 12,
                               background: "var(--button-primary-bg)",
                               color: "white",
                               padding: "4px 10px",
-                              borderRadius: 6,
-                              fontSize: 12,
                               fontWeight: 700,
                               boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                             }}>
@@ -1339,31 +1042,19 @@ export function OnboardingTabContent({
                             }}>
                               {phase.phase}
                             </div>
-                            <div style={{
-                              fontSize: 13,
-                              color: "var(--text-muted)",
+                            <div className="hf-flex hf-gap-xs hf-text-sm hf-text-muted" style={{
                               marginBottom: 16,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
                               padding: "6px 10px",
                               background: "var(--surface-secondary)",
                               borderRadius: 6,
                               fontWeight: 500,
                             }}>
-                              <span>⏱️</span>
+                              <span>{"\u23F1\uFE0F"}</span>
                               <span>{phase.duration}</span>
                             </div>
                             {phase.goals && phase.goals.length > 0 && (
                               <div>
-                                <div style={{
-                                  fontSize: 10,
-                                  color: "var(--text-muted)",
-                                  marginBottom: 8,
-                                  fontWeight: 700,
-                                  letterSpacing: "0.5px",
-                                  textTransform: "uppercase",
-                                }}>
+                                <div className="hf-category-label hf-mb-sm">
                                   Goals
                                 </div>
                                 <ul style={{
@@ -1380,20 +1071,20 @@ export function OnboardingTabContent({
                               </div>
                             )}
                             {phase.content && phase.content.length > 0 && (
-                              <div style={{ marginTop: 12 }}>
-                                <div style={{
-                                  fontSize: 10, color: "var(--text-muted)", marginBottom: 6,
-                                  fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase",
-                                }}>
+                              <div className="hf-mt-md" style={{ marginTop: 12 }}>
+                                <div className="hf-category-label hf-mb-sm" style={{ marginBottom: 6 }}>
                                   Content
                                 </div>
                                 {phase.content.map((ref: any, cIdx: number) => (
-                                  <div key={cIdx} style={{
-                                    fontSize: 12, padding: "4px 8px", background: "var(--surface-tertiary)",
-                                    borderRadius: 4, marginBottom: 4, display: "flex", alignItems: "center", gap: 6,
+                                  <div key={cIdx} className="hf-flex hf-gap-xs" style={{
+                                    fontSize: 12,
+                                    padding: "4px 8px",
+                                    background: "var(--surface-tertiary)",
+                                    borderRadius: 4,
+                                    marginBottom: 4,
                                   }}>
-                                    <span>📎</span>
-                                    <span style={{ fontWeight: 500 }}>{ref.instruction || "Media attached"}</span>
+                                    <span>{"\uD83D\uDCCE"}</span>
+                                    <span className="hf-text-bold">{ref.instruction || "Media attached"}</span>
                                   </div>
                                 ))}
                               </div>
@@ -1406,13 +1097,8 @@ export function OnboardingTabContent({
 
                   {/* Default Targets Visual */}
                   {domain.onboardingDefaultTargets && Object.keys(domain.onboardingDefaultTargets as object).length > 0 && (
-                    <div style={{
-                      padding: 16,
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                    }}>
-                      <h4 style={{ margin: "0 0 16px 0", fontSize: 14, fontWeight: 600 }}>
+                    <div className="hf-card" style={{ borderRadius: 8, padding: 16, marginBottom: 0 }}>
+                      <h4 className="hf-heading-sm" style={{ marginBottom: 16 }}>
                         Default Parameter Targets
                       </h4>
                       <div style={{
@@ -1427,27 +1113,11 @@ export function OnboardingTabContent({
                           const percentage = Math.round(normalizedValue * 100);
 
                           return (
-                            <div key={param} style={{
-                              padding: 12,
-                              background: "var(--surface-secondary)",
-                              border: "1px solid var(--border-default)",
-                              borderRadius: 6,
-                            }}>
-                              <div style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                marginBottom: 8,
-                                color: "var(--text-primary)",
-                                textTransform: "capitalize",
-                              }}>
+                            <div key={param} className="hf-stat-card" style={{ gap: 0 }}>
+                              <div className="hf-text-sm hf-text-bold hf-mb-sm" style={{ textTransform: "capitalize" }}>
                                 {param.replace(/_/g, " ")}
                               </div>
-                              <div style={{
-                                display: "flex",
-                                alignItems: "baseline",
-                                gap: 6,
-                                marginBottom: 8,
-                              }}>
+                              <div className="hf-flex hf-mb-sm" style={{ alignItems: "baseline", gap: 6 }}>
                                 <div style={{
                                   fontSize: 24,
                                   fontWeight: 700,
@@ -1455,39 +1125,21 @@ export function OnboardingTabContent({
                                 }}>
                                   {percentage}%
                                 </div>
-                                <div style={{
-                                  fontSize: 11,
-                                  color: "var(--text-muted)",
-                                }}>
+                                <div className="hf-text-xs hf-text-muted">
                                   ({normalizedValue.toFixed(2)})
                                 </div>
                               </div>
                               {/* Progress bar */}
-                              <div style={{
-                                width: "100%",
-                                height: 4,
-                                background: "var(--surface-tertiary)",
-                                borderRadius: 2,
-                                overflow: "hidden",
-                                marginBottom: confidence !== null ? 8 : 0,
-                              }}>
-                                <div style={{
+                              <div className="hf-progress-track-sm" style={{ marginBottom: confidence !== null ? 8 : 0 }}>
+                                <div className="hf-progress-fill" style={{
                                   width: `${percentage}%`,
-                                  height: "100%",
                                   background: "var(--accent-primary)",
-                                  transition: "width 0.3s ease",
                                 }} />
                               </div>
                               {confidence !== null && (
-                                <div style={{
-                                  fontSize: 11,
-                                  color: "var(--text-muted)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                }}>
+                                <div className="hf-flex hf-gap-xs hf-text-xs hf-text-muted">
                                   <span>Confidence:</span>
-                                  <span style={{ fontWeight: 600 }}>
+                                  <span className="hf-text-bold">
                                     {Math.round(confidence * 100)}%
                                   </span>
                                 </div>
@@ -1498,15 +1150,6 @@ export function OnboardingTabContent({
                       </div>
                     </div>
                   )}
-
-                  {/* Hover Styles for Onboarding Cards */}
-                  <style>{`
-                    .phase-card:hover {
-                      border-color: var(--button-primary-bg) !important;
-                      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-                      transform: translateY(-2px);
-                    }
-                  `}</style>
                 </div>
                   )}
                 </div>

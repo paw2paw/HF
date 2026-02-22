@@ -443,7 +443,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
   ];
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+    <div className="hf-page-container">
       <SourcePageHeader
         title="Callers"
         description="All callers with their calls, memories, and personality profiles"
@@ -452,38 +452,21 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
       {/* Success Message */}
       {successMessage && (
-        <div style={{
-          padding: "12px 16px",
-          background: "var(--status-success-bg)",
-          color: "var(--status-success-text)",
-          borderRadius: 8,
-          marginBottom: 20,
-          border: "1px solid var(--status-success-border)",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}>
+        <div className="hf-banner hf-banner-success hf-mb-md">
           <span>✓</span> {successMessage}
         </div>
       )}
 
       {/* Search, Filters, and Actions */}
-      <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="hf-flex hf-flex-wrap hf-gap-md hf-mb-md">
         <input
           ref={searchRef}
           type="text"
           placeholder="Search by name, email, phone, or ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid var(--border-default)",
-            fontSize: 13,
-            width: 260,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-          }}
+          className="hf-input"
+          style={{ width: 260 }}
         />
 
         {/* Domain Filter */}
@@ -516,12 +499,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         {/* Archive Toggle */}
         <button
           onClick={toggleShowArchived}
+          className="hf-badge"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
-            fontSize: 12,
             fontWeight: showArchived ? 600 : 400,
             background: showArchived ? "var(--status-warning-bg)" : "transparent",
             color: showArchived ? "var(--status-warning-text)" : "var(--text-muted)",
@@ -529,6 +508,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             borderRadius: 16,
             cursor: "pointer",
             opacity: showArchived ? 1 : 0.6,
+            padding: "5px 10px",
+            fontSize: 12,
           }}
         >
           {showArchived ? "Showing Archived" : "Show Archived"}
@@ -539,19 +520,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
         {/* Add Caller Button */}
         <button
           onClick={() => setShowCreateModal(true)}
-          style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 600,
-            background: "var(--button-primary-bg)",
-            color: "var(--text-on-dark)",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
+          className="hf-btn hf-btn-primary hf-text-sm"
+          style={{ padding: "8px 14px" }}
         >
           + New Caller
         </button>
@@ -564,19 +534,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               setSelectionMode(true);
             }
           }}
-          style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-            background: selectionMode ? "var(--button-primary-bg)" : "var(--button-secondary-bg)",
-            color: selectionMode ? "var(--button-primary-text)" : "var(--button-secondary-text)",
-            border: selectionMode ? "none" : "1px solid var(--border-default)",
-            borderRadius: 6,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
+          className={`hf-btn hf-text-sm ${selectionMode ? "hf-btn-primary" : "hf-btn-secondary"}`}
+          style={{ padding: "8px 14px" }}
         >
           {selectionMode ? "Cancel Selection" : "Select"}
         </button>
@@ -585,19 +544,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           onClick={() => {
             assistant.open(undefined, { page: `${routePrefix}/callers` });
           }}
-          style={{
-            padding: "8px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-            background: "rgba(139, 92, 246, 0.1)",
-            color: "var(--accent-secondary, #8b5cf6)",
-            border: "1px solid rgba(139, 92, 246, 0.2)",
-            borderRadius: 6,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
+          className="hf-btn-ai"
           title="Ask AI Assistant (Cmd+Shift+K)"
         >
           ✨ Ask AI
@@ -606,11 +553,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
       {/* Error */}
       {error && (
-        <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
+        <div className="hf-banner hf-banner-error hf-mb-md">
           {error}
           <button
             onClick={() => setError(null)}
-            style={{ marginLeft: 16, textDecoration: "underline", cursor: "pointer", background: "none", border: "none", color: "inherit" }}
+            className="hf-btn-unstyled"
+            style={{ marginLeft: 16, textDecoration: "underline", color: "inherit" }}
           >
             Dismiss
           </button>
@@ -619,27 +567,19 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
       {/* Loading */}
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+        <div className="hf-empty">Loading...</div>
       ) : filteredAndSortedCallers.length === 0 ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--background)",
-            borderRadius: 12,
-            border: "1px solid var(--border-default)",
-          }}
-        >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
+        <div className="hf-empty-state" style={{ border: "1px solid var(--border-default)" }}>
+          <div className="hf-empty-state-icon">👥</div>
+          <div className="hf-empty-state-title">
             {search || selectedDomain ? "No callers match your filters" : "No callers yet"}
           </div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+          <div className="hf-empty-state-desc">
             {search || selectedDomain ? "Try different filters" : "Callers are created when processing transcripts"}
           </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+        <div className="hf-card-grid">
           {filteredAndSortedCallers.map((caller) => (
             <div
               key={caller.id}
@@ -660,6 +600,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               {/* Selection checkbox */}
               {selectionMode && (
                 <div
+                  className="hf-flex-center"
                   style={{
                     position: "absolute",
                     top: 8,
@@ -671,9 +612,6 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       ? "none"
                       : "2px solid var(--border-strong)",
                     background: selectedCallers.has(caller.id) ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
                     color: "var(--text-on-dark)",
                     fontSize: 12,
                     fontWeight: 600,
@@ -684,23 +622,15 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               )}
 
               {/* Caller Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div className="hf-flex-between hf-mb-sm">
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div className="hf-text-md hf-text-bold hf-truncate">
                     {getCallerLabel(caller)}
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <div className="hf-flex hf-gap-xs">
                   {caller.archivedAt && (
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      padding: "2px 6px",
-                      background: "var(--status-warning-bg)",
-                      color: "var(--status-warning-text)",
-                      border: "1px solid var(--status-warning-border)",
-                      borderRadius: 4,
-                    }}>
+                    <span className="hf-badge hf-badge-warning" style={{ fontSize: 10 }}>
                       Archived
                     </span>
                   )}
@@ -711,46 +641,28 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               </div>
 
               {/* Stats Row */}
-              <div style={{ display: "flex", gap: 8, fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+              <div className="hf-flex hf-gap-sm hf-text-xs hf-text-muted hf-mb-sm">
                 <span>📞 {caller._count?.calls || 0}</span>
                 <span>💭 {caller._count?.memories || 0}</span>
-                {caller.nextPrompt && <span style={{ color: "var(--status-success-text)" }}>✨</span>}
+                {caller.nextPrompt && <span className="hf-text-success">✨</span>}
               </div>
 
               {/* Action Buttons */}
-              <div style={{
-                display: "flex",
-                gap: 4,
-                paddingTop: 8,
-                borderTop: "1px solid var(--border-subtle)"
-              }}>
+              <div
+                className="hf-flex hf-gap-xs"
+                style={{ paddingTop: 8, borderTop: "1px solid var(--border-subtle)" }}
+              >
                 <button
                   onClick={(e) => { e.stopPropagation(); router.push(`${routePrefix}/callers/${caller.id}?tab=ai-call`); }}
                   title="Start a call"
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    background: "var(--status-success-bg)",
-                    color: "var(--status-success-text)",
-                    border: "1px solid var(--status-success-border)",
-                    borderRadius: 5,
-                    cursor: "pointer",
-                  }}
+                  className="hf-btn-mini hf-btn-mini-success"
                 >
                   📞
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); router.push(`/x/caller-graph/${caller.id}`); }}
                   title="View caller graph"
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 5,
-                    cursor: "pointer",
-                  }}
+                  className="hf-btn-mini"
                 >
                   🌌
                 </button>
@@ -758,15 +670,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   onClick={(e) => { e.stopPropagation(); setSnapshotModal(caller); }}
                   disabled={actionLoading === caller.id}
                   title="Download snapshot"
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-secondary)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 5,
-                    cursor: "pointer",
-                  }}
+                  className="hf-btn-mini"
                 >
                   📥
                 </button>
@@ -779,7 +683,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     };
 
                     return (
-                      <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+                      <div className="hf-flex" style={{ gap: 2, alignItems: "flex-end" }}>
                         {[
                           { label: "O", value: getParam("B5-O", caller.personality.openness), color: "var(--accent-primary, #3b82f6)" },
                           { label: "C", value: getParam("B5-C", caller.personality.conscientiousness), color: "var(--status-success-text, #22c55e)" },
@@ -787,7 +691,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                           { label: "A", value: getParam("B5-A", caller.personality.agreeableness), color: "var(--badge-pink-text, #ec4899)" },
                           { label: "N", value: getParam("B5-N", caller.personality.neuroticism), color: "var(--accent-secondary, #8b5cf6)" },
                         ].map((t, i) => (
-                          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 10 }}>
+                          <div key={i} className="hf-flex-col" style={{ alignItems: "center", width: 10 }}>
                             <div style={{ width: 6, height: 14, background: "var(--border-default)", borderRadius: 2, overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
                               <div style={{ width: "100%", height: `${(t.value || 0) * 100}%`, background: t.color, borderRadius: 2 }} />
                             </div>
@@ -804,30 +708,14 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                       onClick={(e) => { e.stopPropagation(); handleReset(caller.id); }}
                       disabled={actionLoading === caller.id}
                       title="Confirm reset"
-                      style={{
-                        padding: "5px 10px",
-                        fontSize: 10,
-                        fontWeight: 600,
-                        background: "var(--button-destructive-bg)",
-                        color: "var(--text-on-dark)",
-                        border: "none",
-                        borderRadius: 5,
-                        cursor: actionLoading === caller.id ? "wait" : "pointer",
-                      }}
+                      className="hf-btn-mini-confirm"
+                      style={{ cursor: actionLoading === caller.id ? "wait" : "pointer" }}
                     >
                       {actionLoading === caller.id ? "..." : "Yes"}
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); setResetConfirm(null); }}
-                      style={{
-                        padding: "5px 8px",
-                        fontSize: 10,
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-muted)",
-                        border: "none",
-                        borderRadius: 5,
-                        cursor: "pointer",
-                      }}
+                      className="hf-btn-mini-cancel"
                     >
                       No
                     </button>
@@ -837,15 +725,11 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     onClick={(e) => { e.stopPropagation(); setResetConfirm(caller.id); }}
                     disabled={!hasAnalysisData(caller) || actionLoading === caller.id}
                     title={hasAnalysisData(caller) ? "Reset analysis" : "No data"}
+                    className={`hf-btn-mini ${hasAnalysisData(caller) ? "hf-btn-mini-error" : ""}`}
                     style={{
-                      padding: "5px 10px",
-                      fontSize: 12,
-                      background: hasAnalysisData(caller) ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                      color: hasAnalysisData(caller) ? "var(--status-error-text)" : "var(--text-placeholder)",
-                      border: `1px solid ${hasAnalysisData(caller) ? "var(--status-error-border)" : "var(--border-default)"}`,
-                      borderRadius: 5,
                       cursor: hasAnalysisData(caller) ? "pointer" : "not-allowed",
                       opacity: hasAnalysisData(caller) ? 1 : 0.5,
+                      color: !hasAnalysisData(caller) ? "var(--text-placeholder)" : undefined,
                     }}
                   >
                     🔄
@@ -855,30 +739,15 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   onClick={(e) => { e.stopPropagation(); handleArchive(caller, !caller.archivedAt); }}
                   disabled={actionLoading === caller.id}
                   title={caller.archivedAt ? "Unarchive caller" : "Archive caller"}
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    background: caller.archivedAt ? "var(--status-info-bg)" : "var(--status-warning-bg)",
-                    color: caller.archivedAt ? "var(--status-info-text)" : "var(--status-warning-text)",
-                    border: `1px solid ${caller.archivedAt ? "var(--status-info-border)" : "var(--status-warning-border)"}`,
-                    borderRadius: 5,
-                    cursor: actionLoading === caller.id ? "wait" : "pointer",
-                  }}
+                  className={`hf-btn-mini ${caller.archivedAt ? "hf-btn-mini-info" : "hf-btn-mini-warning"}`}
+                  style={{ cursor: actionLoading === caller.id ? "wait" : "pointer" }}
                 >
                   {caller.archivedAt ? "📤" : "📦"}
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowDeleteModal(caller); setDeleteExclude(false); }}
                   title="Delete caller"
-                  style={{
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    background: "var(--status-error-bg)",
-                    color: "var(--status-error-text)",
-                    border: "1px solid var(--status-error-border)",
-                    borderRadius: 5,
-                    cursor: "pointer",
-                  }}
+                  className="hf-btn-mini hf-btn-mini-error"
                 >
                   🗑️
                 </button>
@@ -891,39 +760,24 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {/* Snapshot Modal */}
       {snapshotModal && (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+          className="hf-modal-overlay"
+          style={{ zIndex: 1000 }}
           onClick={() => setSnapshotModal(null)}
         >
           <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 12,
-              padding: 24,
-              width: 400,
-              maxWidth: "90vw",
-            }}
+            className="hf-modal"
+            style={{ width: 400 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+            <h3 className="hf-modal-title">
               Download Snapshot
             </h3>
-            <p style={{ margin: "0 0 16px 0", fontSize: 14, color: "var(--text-muted)" }}>
+            <p className="hf-modal-desc" style={{ marginBottom: 16 }}>
               Download analysis data for <strong>{getCallerLabel(snapshotModal)}</strong>
             </p>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
+            <div className="hf-field">
+              <label className="hf-field-label">
                 Label (optional)
               </label>
               <input
@@ -931,27 +785,14 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 placeholder="e.g., playbook-v1, baseline, test-run-3"
                 value={snapshotLabel}
                 onChange={(e) => setSnapshotLabel(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "1px solid var(--border-default)",
-                  fontSize: 14,
-                }}
+                className="hf-input"
               />
-              <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "var(--text-placeholder)" }}>
+              <p className="hf-hint">
                 Label helps identify this snapshot when comparing multiple runs
               </p>
             </div>
 
-            <div style={{
-              background: "var(--surface-secondary)",
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 16,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-            }}>
+            <div className="hf-info-box hf-mb-md">
               <strong>Comparison Workflow:</strong>
               <ol style={{ margin: "8px 0 0 0", paddingLeft: 20, lineHeight: 1.6 }}>
                 <li>Download snapshot (label: &quot;baseline&quot;)</li>
@@ -963,36 +804,19 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               </ol>
             </div>
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="hf-modal-actions">
               <button
                 onClick={() => {
                   setSnapshotModal(null);
                   setSnapshotLabel("");
                 }}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  background: "var(--button-secondary-bg)",
-                  color: "var(--text-secondary)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDownload(snapshotModal)}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: "var(--button-primary-bg)",
-                  color: "var(--text-on-dark)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-primary"
               >
                 Download JSON
               </button>
@@ -1003,24 +827,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
 
       {/* Floating Action Bar - when 1+ callers selected */}
       {selectionMode && selectedCallers.size >= 1 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--surface-tertiary)",
-            color: "var(--text-primary)",
-            padding: "12px 24px",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-            zIndex: 1000,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 500 }}>
+        <div className="hf-floating-bar">
+          <span className="hf-text-md hf-text-bold">
             {selectedCallers.size} callers selected
           </span>
           <button
@@ -1029,16 +837,10 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               setShowMergeModal(true);
             }}
             disabled={selectedCallers.size < 2}
+            className="hf-btn hf-btn-primary"
             style={{
-              padding: "8px 16px",
-              fontSize: 14,
-              fontWeight: 600,
-              background: selectedCallers.size < 2 ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "var(--text-on-dark)",
-              border: "none",
-              borderRadius: 6,
-              cursor: selectedCallers.size < 2 ? "not-allowed" : "pointer",
               opacity: selectedCallers.size < 2 ? 0.6 : 1,
+              cursor: selectedCallers.size < 2 ? "not-allowed" : "pointer",
             }}
           >
             Merge Selected {selectedCallers.size >= 2 ? `(${selectedCallers.size})` : ""}
@@ -1046,14 +848,11 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           <button
             onClick={handleBulkArchive}
             disabled={actionLoading === "bulk"}
+            className="hf-btn"
             style={{
-              padding: "8px 16px",
-              fontSize: 14,
-              fontWeight: 600,
               background: "var(--status-warning-bg)",
               color: "var(--status-warning-text)",
               border: "1px solid var(--status-warning-border)",
-              borderRadius: 6,
               cursor: actionLoading === "bulk" ? "wait" : "pointer",
             }}
           >
@@ -1061,15 +860,8 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
           </button>
           <button
             onClick={exitSelectionMode}
-            style={{
-              padding: "8px 16px",
-              fontSize: 14,
-              background: "transparent",
-              color: "var(--text-placeholder)",
-              border: "1px solid var(--border-strong)",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary"
+            style={{ color: "var(--text-placeholder)" }}
           >
             Cancel
           </button>
@@ -1079,64 +871,38 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {/* Merge Modal */}
       {showMergeModal && (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1001,
-          }}
+          className="hf-modal-overlay"
           onClick={() => !merging && setShowMergeModal(false)}
         >
           <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 12,
-              padding: 24,
-              width: 500,
-              maxWidth: "90vw",
-              maxHeight: "80vh",
-              overflow: "auto",
-            }}
+            className="hf-modal"
+            style={{ width: 500, maxHeight: "80vh", overflow: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+            <h3 className="hf-modal-title">
               Merge {selectedCallers.size} Callers
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
+            <p className="hf-modal-desc">
               Select which caller will receive all merged data. The other{" "}
               {selectedCallers.size - 1} caller{selectedCallers.size > 2 ? "s" : ""} will be deleted.
             </p>
 
             {!mergeTarget && (
-              <div style={{
-                padding: "12px 16px",
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                borderRadius: 8,
-                marginBottom: 16,
-                fontSize: 14,
-                color: "var(--status-warning-text)",
-              }}>
+              <div className="hf-banner hf-banner-warning">
                 ⚠️ Please select a target caller below
               </div>
             )}
 
             {/* Target selection */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 10, color: "var(--text-secondary)" }}>
+            <div className="hf-mb-md">
+              <label className="hf-field-label" style={{ marginBottom: 10 }}>
                 Merge into:
               </label>
               {getSelectedCallersList().map((caller) => (
                 <label
                   key={caller.id}
+                  className="hf-flex"
                   style={{
-                    display: "flex",
                     alignItems: "flex-start",
                     gap: 12,
                     padding: 12,
@@ -1156,15 +922,15 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                     style={{ marginTop: 2 }}
                   />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <div className="hf-text-md hf-text-bold">
                       {getCallerLabel(caller)}
                     </div>
                     {caller.email && caller.name && (
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                      <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
                         {caller.email}
                       </div>
                     )}
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12 }}>
+                    <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted" style={{ marginTop: 4 }}>
                       <span>{caller._count?.calls || 0} calls</span>
                       <span>{caller._count?.memories || 0} memories</span>
                     </div>
@@ -1174,74 +940,49 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             </div>
 
             {/* Warning */}
-            <div
-              style={{
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 20,
-                fontSize: 13,
-                color: "var(--status-warning-text)",
-              }}
-            >
-              <strong>Warning:</strong> This action cannot be undone. The{" "}
-              {selectedCallers.size - 1} non-target caller(s) will be permanently
-              deleted after their data is moved.
+            <div className="hf-banner hf-banner-warning hf-mb-md">
+              <div>
+                <strong>Warning:</strong> This action cannot be undone. The{" "}
+                {selectedCallers.size - 1} non-target caller(s) will be permanently
+                deleted after their data is moved.
+              </div>
             </div>
 
             {/* Summary */}
             {mergeTarget && (
-              <div
-                style={{
-                  background: "var(--status-success-bg)",
-                  border: "1px solid var(--status-success-border)",
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 20,
-                  fontSize: 13,
-                  color: "var(--status-success-text)",
-                }}
-              >
-                <strong>Data to be merged:</strong>
-                <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
-                  <li>
-                    {getSelectedCallersList()
-                      .filter((c) => c.id !== mergeTarget)
-                      .reduce((sum, c) => sum + (c._count?.calls || 0), 0)}{" "}
-                    calls
-                  </li>
-                  <li>
-                    {getSelectedCallersList()
-                      .filter((c) => c.id !== mergeTarget)
-                      .reduce((sum, c) => sum + (c._count?.memories || 0), 0)}{" "}
-                    memories
-                  </li>
-                  <li>
-                    {getSelectedCallersList()
-                      .filter((c) => c.id !== mergeTarget)
-                      .reduce((sum, c) => sum + (c._count?.personalityObservations || 0), 0)}{" "}
-                    personality observations
-                  </li>
-                </ul>
+              <div className="hf-banner hf-banner-success hf-mb-md">
+                <div>
+                  <strong>Data to be merged:</strong>
+                  <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
+                    <li>
+                      {getSelectedCallersList()
+                        .filter((c) => c.id !== mergeTarget)
+                        .reduce((sum, c) => sum + (c._count?.calls || 0), 0)}{" "}
+                      calls
+                    </li>
+                    <li>
+                      {getSelectedCallersList()
+                        .filter((c) => c.id !== mergeTarget)
+                        .reduce((sum, c) => sum + (c._count?.memories || 0), 0)}{" "}
+                      memories
+                    </li>
+                    <li>
+                      {getSelectedCallersList()
+                        .filter((c) => c.id !== mergeTarget)
+                        .reduce((sum, c) => sum + (c._count?.personalityObservations || 0), 0)}{" "}
+                      personality observations
+                    </li>
+                  </ul>
+                </div>
               </div>
             )}
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="hf-modal-actions">
               <button
                 onClick={() => setShowMergeModal(false)}
                 disabled={merging}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  background: "var(--button-secondary-bg)",
-                  color: "var(--text-secondary)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: merging ? "not-allowed" : "pointer",
-                  opacity: merging ? 0.5 : 1,
-                }}
+                className="hf-btn hf-btn-secondary"
               >
                 Cancel
               </button>
@@ -1249,16 +990,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                 onClick={handleMerge}
                 disabled={!mergeTarget || merging}
                 title={!mergeTarget ? "Please select a target caller first" : ""}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: !mergeTarget || merging ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-                  color: "var(--text-on-dark)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: !mergeTarget || merging ? "not-allowed" : "pointer",
-                }}
+                className="hf-btn hf-btn-primary"
               >
                 {merging ? "Merging..." : "Merge Callers"}
               </button>
@@ -1270,64 +1002,40 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {/* Delete Modal */}
       {showDeleteModal && (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1001,
-          }}
+          className="hf-modal-overlay"
           onClick={() => !deleting && setShowDeleteModal(null)}
         >
           <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 12,
-              padding: 24,
-              width: 440,
-              maxWidth: "90vw",
-            }}
+            className="hf-modal"
+            style={{ width: 440 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>🗑️</div>
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600, textAlign: "center" }}>
+            <div className="hf-text-center" style={{ fontSize: 32, marginBottom: 12 }}>🗑️</div>
+            <h3 className="hf-modal-title hf-text-center">
               Delete Caller
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)", textAlign: "center" }}>
+            <p className="hf-modal-desc hf-text-center">
               Delete <strong>{getCallerLabel(showDeleteModal)}</strong> and all their data?
             </p>
 
             {/* Stats */}
-            <div
-              style={{
-                background: "var(--status-error-bg)",
-                border: "1px solid var(--status-error-border)",
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 16,
-                fontSize: 13,
-                color: "var(--status-error-text)",
-              }}
-            >
-              <strong>This will permanently delete:</strong>
-              <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
-                <li>{showDeleteModal._count?.calls || 0} calls and transcripts</li>
-                <li>{showDeleteModal._count?.memories || 0} memories</li>
-                <li>{showDeleteModal._count?.personalityObservations || 0} personality observations</li>
-                <li>All analysis scores and behavior measurements</li>
-              </ul>
+            <div className="hf-banner hf-banner-error hf-mb-md">
+              <div>
+                <strong>This will permanently delete:</strong>
+                <ul style={{ margin: "8px 0 0 0", paddingLeft: 20 }}>
+                  <li>{showDeleteModal._count?.calls || 0} calls and transcripts</li>
+                  <li>{showDeleteModal._count?.memories || 0} memories</li>
+                  <li>{showDeleteModal._count?.personalityObservations || 0} personality observations</li>
+                  <li>All analysis scores and behavior measurements</li>
+                </ul>
+              </div>
             </div>
 
             {/* Exclude Option */}
             {(showDeleteModal.phone || showDeleteModal.externalId) && (
               <label
+                className="hf-flex"
                 style={{
-                  display: "flex",
                   alignItems: "flex-start",
                   gap: 12,
                   padding: 12,
@@ -1345,10 +1053,10 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   style={{ marginTop: 3, width: 18, height: 18 }}
                 />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-secondary)" }}>
+                  <div className="hf-text-md hf-text-bold hf-text-secondary">
                     Exclude from future imports
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                  <div className="hf-text-xs hf-text-muted" style={{ marginTop: 4 }}>
                     When running &quot;Import Transcripts&quot;, calls from{" "}
                     <strong>{showDeleteModal.phone || showDeleteModal.externalId}</strong>{" "}
                     will be skipped. Use this for spam callers or test data you don&apos;t want re-imported.
@@ -1358,35 +1066,21 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
             )}
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="hf-modal-actions">
               <button
                 onClick={() => setShowDeleteModal(null)}
                 disabled={deleting}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  background: "var(--button-secondary-bg)",
-                  color: "var(--text-secondary)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: deleting ? "not-allowed" : "pointer",
-                  opacity: deleting ? 0.5 : 1,
-                }}
+                className="hf-btn hf-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(showDeleteModal)}
                 disabled={deleting}
+                className="hf-btn hf-btn-destructive"
                 style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  fontWeight: 500,
                   background: deleting ? "var(--button-disabled-bg)" : "var(--button-destructive-bg)",
                   color: "var(--text-on-dark)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: deleting ? "not-allowed" : "pointer",
                 }}
               >
                 {deleting ? "Deleting..." : "Delete Caller"}
@@ -1399,40 +1093,24 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
       {/* Create Caller Modal */}
       {showCreateModal && (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1001,
-          }}
+          className="hf-modal-overlay"
           onClick={() => !creating && setShowCreateModal(false)}
         >
           <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 12,
-              padding: 24,
-              width: 440,
-              maxWidth: "90vw",
-            }}
+            className="hf-modal"
+            style={{ width: 440 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 600 }}>
+            <h3 className="hf-modal-title">
               New Caller
             </h3>
-            <p style={{ margin: "0 0 20px 0", fontSize: 14, color: "var(--text-muted)" }}>
+            <p className="hf-modal-desc">
               Create a new caller profile
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="hf-flex-col hf-gap-lg">
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                <label className="hf-field-label">
                   Name
                 </label>
                 <input
@@ -1440,20 +1118,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   value={newCallerName}
                   onChange={(e) => setNewCallerName(e.target.value)}
                   placeholder="John Smith"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border-default)",
-                    fontSize: 14,
-                    background: "var(--surface-primary)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="hf-input"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                <label className="hf-field-label">
                   Email
                 </label>
                 <input
@@ -1461,20 +1131,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   value={newCallerEmail}
                   onChange={(e) => setNewCallerEmail(e.target.value)}
                   placeholder="john@example.com"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border-default)",
-                    fontSize: 14,
-                    background: "var(--surface-primary)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="hf-input"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                <label className="hf-field-label">
                   Phone
                 </label>
                 <input
@@ -1482,20 +1144,12 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   value={newCallerPhone}
                   onChange={(e) => setNewCallerPhone(e.target.value)}
                   placeholder="+1 555 123 4567"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border-default)",
-                    fontSize: 14,
-                    background: "var(--surface-primary)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="hf-input"
                 />
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6, color: "var(--text-secondary)" }}>
+                <label className="hf-field-label">
                   Domain (optional)
                 </label>
                 <FancySelect
@@ -1508,7 +1162,7 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 24 }}>
+            <div className="hf-modal-actions" style={{ marginTop: 24 }}>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -1518,32 +1172,14 @@ export function CallersPage({ routePrefix = "" }: CallersPageProps) {
                   setNewCallerDomainId("");
                 }}
                 disabled={creating}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  background: "var(--button-secondary-bg)",
-                  color: "var(--text-secondary)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: creating ? "not-allowed" : "pointer",
-                  opacity: creating ? 0.5 : 1,
-                }}
+                className="hf-btn hf-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateCaller}
                 disabled={creating || (!newCallerName.trim() && !newCallerEmail.trim() && !newCallerPhone.trim())}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  background: creating ? "var(--button-disabled-bg)" : "var(--button-primary-bg)",
-                  color: "var(--text-on-dark)",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: creating ? "not-allowed" : "pointer",
-                }}
+                className="hf-btn hf-btn-primary"
               >
                 {creating ? "Creating..." : "Create Caller"}
               </button>

@@ -89,19 +89,13 @@ function OpPill({
       }}
       disabled={disabled || status === "running"}
       title={disabled ? `Requires: ${op.prereqs.join(", ")}` : hasLogs ? `${op.label} (click to view logs)` : op.label}
+      className="hf-micro-pill"
       style={{
-        padding: "3px 8px",
-        fontSize: 10,
-        fontWeight: 600,
         background: style.bg,
         color: style.text,
         border: `1px solid ${style.border}`,
-        borderRadius: 4,
         cursor: disabled || status === "running" ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
       }}
     >
       {status === "running" && <span style={{ animation: "spin 1s linear infinite" }}>⏳</span>}
@@ -126,8 +120,8 @@ function LogsPanel({
 
   if (!result) {
     return (
-      <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
-        <div style={{ color: "var(--text-placeholder)", fontSize: 13 }}>No logs available for this operation</div>
+      <div className="hf-p-md" style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
+        <div className="hf-text-sm hf-text-placeholder">No logs available for this operation</div>
       </div>
     );
   }
@@ -137,68 +131,44 @@ function LogsPanel({
   const hiddenCount = result.logs.length - filteredLogs.length;
 
   return (
-    <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--surface-dark)" }}>
+    <div className="hf-terminal">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "8px 16px",
-          borderBottom: "1px solid var(--border-dark)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-on-dark)" }}>{opName}</span>
+      <div className="hf-terminal-header">
+        <div className="hf-flex hf-gap-md">
+          <span className="hf-text-xs hf-text-bold" style={{ color: "var(--text-on-dark)" }}>{opName}</span>
           <span
+            className="hf-micro-pill"
             style={{
-              fontSize: 10,
-              padding: "2px 6px",
-              borderRadius: 4,
               background: result.ok ? "var(--terminal-success-bg)" : "var(--terminal-error-bg)",
               color: result.ok ? "var(--terminal-success-text)" : "var(--terminal-error-text)",
             }}
           >
             {result.ok ? "SUCCESS" : "ERROR"}
           </span>
-          <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>{result.duration}ms</span>
+          <span className="hf-text-xs hf-text-placeholder">{result.duration}ms</span>
           {hiddenCount > 0 && (
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            <span className="hf-text-muted" style={{ fontSize: 10 }}>
               ({hiddenCount} hidden, level: {logLevel})
             </span>
           )}
         </div>
         <button
           onClick={onClose}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-placeholder)",
-            cursor: "pointer",
-            padding: 4,
-            fontSize: 14,
-          }}
+          className="hf-btn-unstyled hf-text-placeholder"
+          style={{ padding: 4, fontSize: 14 }}
         >
           ✕
         </button>
       </div>
 
       {/* Logs */}
-      <div
-        style={{
-          maxHeight: 300,
-          overflow: "auto",
-          padding: "8px 0",
-          fontFamily: "ui-monospace, monospace",
-          fontSize: 11,
-        }}
-      >
+      <div className="hf-terminal-body">
         {logLevel === "off" ? (
-          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>
+          <div className="hf-text-muted" style={{ padding: "8px 16px" }}>
             Logging is off. Change in Cockpit settings to see logs.
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>No log entries</div>
+          <div className="hf-text-muted" style={{ padding: "8px 16px" }}>No log entries</div>
         ) : (
           filteredLogs.map((log, i) => (
             <div
@@ -212,14 +182,13 @@ function LogsPanel({
                 background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
               }}
             >
-              <span style={{ color: "var(--text-muted)", width: 80, flexShrink: 0 }}>
+              <span className="hf-text-muted hf-flex-shrink-0" style={{ width: 80 }}>
                 {new Date(log.timestamp).toLocaleTimeString()}
               </span>
               <span
+                className="hf-text-bold hf-flex-shrink-0"
                 style={{
                   width: 50,
-                  flexShrink: 0,
-                  fontWeight: 600,
                   color:
                     log.level === "error"
                       ? "var(--terminal-error-text)"
@@ -232,10 +201,10 @@ function LogsPanel({
               >
                 {log.level.toUpperCase()}
               </span>
-              <span style={{ color: "var(--text-on-dark)", flex: 1 }}>
+              <span className="hf-flex-1" style={{ color: "var(--text-on-dark)" }}>
                 {log.message}
                 {log.data && (
-                  <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
+                  <span className="hf-text-placeholder" style={{ marginLeft: 8 }}>
                     {typeof log.data === "object" ? JSON.stringify(log.data) : String(log.data)}
                   </span>
                 )}
@@ -247,7 +216,7 @@ function LogsPanel({
 
       {/* Error message if present */}
       {result.error && (
-        <div style={{ padding: "8px 16px", background: "var(--terminal-error-bg)", color: "var(--terminal-error-text)", fontSize: 12 }}>
+        <div className="hf-text-xs" style={{ padding: "8px 16px", background: "var(--terminal-error-bg)", color: "var(--terminal-error-text)" }}>
           Error: {result.error}
         </div>
       )}
@@ -269,8 +238,8 @@ function PipelineLogsPanel({
 
   if (!result) {
     return (
-      <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
-        <div style={{ color: "var(--text-placeholder)", fontSize: 13 }}>No logs available for this operation</div>
+      <div className="hf-p-md" style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
+        <div className="hf-text-sm hf-text-placeholder">No logs available for this operation</div>
       </div>
     );
   }
@@ -284,47 +253,31 @@ function PipelineLogsPanel({
     (result.data.scoresCreated || 0) + (result.data.agentMeasurements || 0) === 0;
 
   return (
-    <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--surface-dark)" }}>
+    <div className="hf-terminal">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "8px 16px",
-          borderBottom: "1px solid var(--border-dark)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-on-dark)" }}>{modeName}</span>
+      <div className="hf-terminal-header">
+        <div className="hf-flex hf-gap-md">
+          <span className="hf-text-xs hf-text-bold" style={{ color: "var(--text-on-dark)" }}>{modeName}</span>
           <span
+            className="hf-micro-pill"
             style={{
-              fontSize: 10,
-              padding: "2px 6px",
-              borderRadius: 4,
               background: isZeroResults ? "var(--terminal-warning-bg)" : result.ok ? "var(--terminal-success-bg)" : "var(--terminal-error-bg)",
               color: isZeroResults ? "var(--terminal-warning-text)" : result.ok ? "var(--terminal-success-text)" : "var(--terminal-error-text)",
             }}
           >
             {isZeroResults ? "⚠️ 0 RESULTS" : result.ok ? "SUCCESS" : "ERROR"}
           </span>
-          <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>{result.duration}ms</span>
+          <span className="hf-text-xs hf-text-placeholder">{result.duration}ms</span>
           {hiddenCount > 0 && (
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            <span className="hf-text-muted" style={{ fontSize: 10 }}>
               ({hiddenCount} hidden, level: {logLevel})
             </span>
           )}
         </div>
         <button
           onClick={onClose}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-placeholder)",
-            cursor: "pointer",
-            padding: 4,
-            fontSize: 14,
-          }}
+          className="hf-btn-unstyled hf-text-placeholder"
+          style={{ padding: 4, fontSize: 14 }}
         >
           ✕
         </button>
@@ -333,26 +286,24 @@ function PipelineLogsPanel({
       {/* Summary - show key counts for quick visibility */}
       {result.data && (
         <div
+          className="hf-flex hf-gap-lg hf-text-xs"
           style={{
-            display: "flex",
-            gap: 16,
             padding: "6px 16px",
             borderBottom: "1px solid var(--border-dark)",
             background: "var(--surface-dark)",
-            fontSize: 11,
           }}
         >
-          <span style={{ color: "var(--text-placeholder)" }}>
+          <span className="hf-text-placeholder">
             📊 Scores: <strong style={{ color: (result.data.scoresCreated || 0) > 0 ? "var(--terminal-success-text)" : "var(--terminal-error-text)" }}>{result.data.scoresCreated || 0}</strong>
           </span>
-          <span style={{ color: "var(--text-placeholder)" }}>
+          <span className="hf-text-placeholder">
             🤖 Behaviour: <strong style={{ color: (result.data.agentMeasurements || 0) > 0 ? "var(--terminal-success-text)" : "var(--terminal-error-text)" }}>{result.data.agentMeasurements || 0}</strong>
           </span>
-          <span style={{ color: "var(--text-placeholder)" }}>
+          <span className="hf-text-placeholder">
             💾 Memories: <strong style={{ color: "var(--terminal-info-text)" }}>{result.data.memoriesCreated || 0}</strong>
           </span>
           {result.data.playbookUsed && (
-            <span style={{ color: "var(--text-placeholder)" }}>
+            <span className="hf-text-placeholder">
               📋 Playbook: <strong style={{ color: "var(--terminal-purple-text)" }}>{result.data.playbookUsed}</strong>
             </span>
           )}
@@ -360,21 +311,13 @@ function PipelineLogsPanel({
       )}
 
       {/* Logs */}
-      <div
-        style={{
-          maxHeight: 300,
-          overflow: "auto",
-          padding: "8px 0",
-          fontFamily: "ui-monospace, monospace",
-          fontSize: 11,
-        }}
-      >
+      <div className="hf-terminal-body">
         {logLevel === "off" ? (
-          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>
+          <div className="hf-text-muted" style={{ padding: "8px 16px" }}>
             Logging is off. Change in Cockpit settings to see logs.
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div style={{ padding: "8px 16px", color: "var(--text-muted)" }}>No log entries</div>
+          <div className="hf-text-muted" style={{ padding: "8px 16px" }}>No log entries</div>
         ) : (
           filteredLogs.map((log, i) => (
             <div
@@ -388,14 +331,13 @@ function PipelineLogsPanel({
                 background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)",
               }}
             >
-              <span style={{ color: "var(--text-muted)", width: 80, flexShrink: 0 }}>
+              <span className="hf-text-muted hf-flex-shrink-0" style={{ width: 80 }}>
                 {new Date(log.timestamp).toLocaleTimeString()}
               </span>
               <span
+                className="hf-text-bold hf-flex-shrink-0"
                 style={{
                   width: 50,
-                  flexShrink: 0,
-                  fontWeight: 600,
                   color:
                     log.level === "error"
                       ? "var(--terminal-error-text)"
@@ -408,10 +350,10 @@ function PipelineLogsPanel({
               >
                 {log.level.toUpperCase()}
               </span>
-              <span style={{ color: "var(--text-on-dark)", flex: 1 }}>
+              <span className="hf-flex-1" style={{ color: "var(--text-on-dark)" }}>
                 {log.message}
                 {log.data && (
-                  <span style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>
+                  <span className="hf-text-placeholder" style={{ marginLeft: 8 }}>
                     {typeof log.data === "object" ? JSON.stringify(log.data) : String(log.data)}
                   </span>
                 )}
@@ -423,7 +365,7 @@ function PipelineLogsPanel({
 
       {/* Error message if present */}
       {result.error && (
-        <div style={{ padding: "8px 16px", background: "var(--terminal-error-bg)", color: "var(--terminal-error-text)", fontSize: 12 }}>
+        <div className="hf-text-xs" style={{ padding: "8px 16px", background: "var(--terminal-error-bg)", color: "var(--terminal-error-text)" }}>
           Error: {result.error}
         </div>
       )}
@@ -465,20 +407,7 @@ function getAIEngine(): "mock" | "claude" | "openai" {
 // Processing Notice — shown in tabs when pipeline is running and data is empty
 export function ProcessingNotice({ message }: { message: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "12px 16px",
-        marginBottom: 16,
-        background: "var(--status-info-bg)",
-        border: "1px solid var(--status-info-border)",
-        borderRadius: 8,
-        fontSize: 13,
-        color: "var(--status-info-text)",
-      }}
-    >
+    <div className="hf-banner hf-banner-info hf-flex hf-gap-sm hf-mb-md">
       <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
       {message}
     </div>
@@ -728,15 +657,15 @@ export function CallsSection({
 
   if (calls.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📞</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No calls yet</div>
+      <div className="hf-empty">
+        <div className="hf-empty-state-icon hf-mb-md">📞</div>
+        <div className="hf-empty-state-title">No calls yet</div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="hf-flex-col hf-gap-sm">
       {calls.map((call) => {
         const isExpanded = expandedCall === call.id;
         const callPipelineStatus = pipelineStatus[call.id] || { prep: "ready", prompt: "ready" };
@@ -767,49 +696,32 @@ export function CallsSection({
         };
 
         return (
-          <div key={call.id} style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
+          <div key={call.id} className="hf-expandable-card">
             <div
+              className="hf-flex-between"
               style={{
                 padding: "12px 16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
                 background: isExpanded ? "var(--background)" : "var(--surface-primary)",
               }}
             >
               {/* Left: Call info */}
               <button
                 onClick={() => setExpandedCall(isExpanded ? null : call.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  padding: 0,
-                }}
+                className="hf-btn-unstyled hf-flex hf-gap-md"
               >
-                <span style={{ fontSize: 14 }}>📞</span>
-                <span style={{ fontSize: 14, fontWeight: 500 }}>{call.source}</span>
+                <span className="hf-text-md">📞</span>
+                <span className="hf-text-md hf-text-500">{call.source}</span>
                 {call.externalId && (
-                  <span style={{ fontSize: 11, color: "var(--text-placeholder)", fontFamily: "monospace" }}>{call.externalId}</span>
+                  <span className="hf-text-xs hf-mono hf-text-placeholder">{call.externalId}</span>
                 )}
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(call.createdAt).toLocaleString()}</span>
+                <span className="hf-text-xs hf-text-muted">{new Date(call.createdAt).toLocaleString()}</span>
                 {/* Persistent status badges from database */}
-                <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                <div className="hf-flex hf-gap-xs" style={{ marginLeft: 8 }}>
                   {call.hasScores && (
                     <span
                       title="Analyzed - scores extracted"
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 600,
-                        padding: "2px 5px",
-                        borderRadius: 3,
-                        background: "var(--status-success-bg)",
-                        color: "var(--status-success-text)",
-                      }}
+                      className="hf-micro-badge"
+                      style={{ background: "var(--status-success-bg)", color: "var(--status-success-text)" }}
                     >
                       ANALYZED
                     </span>
@@ -817,14 +729,8 @@ export function CallsSection({
                   {call.hasPrompt && (
                     <span
                       title="Prompt generated for this call"
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 600,
-                        padding: "2px 5px",
-                        borderRadius: 3,
-                        background: "var(--badge-purple-bg)",
-                        color: "var(--badge-purple-text)",
-                      }}
+                      className="hf-micro-badge"
+                      style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" }}
                     >
                       PROMPTED
                     </span>
@@ -832,17 +738,8 @@ export function CallsSection({
                   {!call.hasScores && !call.hasPrompt && processingCallIds?.has(call.id) && (
                     <span
                       title="Pipeline running — extracting scores, memories, generating prompt"
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 600,
-                        padding: "2px 5px",
-                        borderRadius: 3,
-                        background: "var(--status-warning-bg)",
-                        color: "var(--status-warning-text)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 3,
-                      }}
+                      className="hf-micro-badge hf-flex hf-gap-xs"
+                      style={{ background: "var(--status-warning-bg)", color: "var(--status-warning-text)" }}
                     >
                       <span style={{ animation: "spin 1s linear infinite", display: "inline-block", fontSize: 8 }}>⏳</span>
                       PROCESSING
@@ -851,14 +748,8 @@ export function CallsSection({
                   {!call.hasScores && !call.hasPrompt && !processingCallIds?.has(call.id) && (
                     <span
                       title="Not yet processed"
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 600,
-                        padding: "2px 5px",
-                        borderRadius: 3,
-                        background: "var(--surface-secondary)",
-                        color: "var(--text-placeholder)",
-                      }}
+                      className="hf-micro-badge"
+                      style={{ background: "var(--surface-secondary)", color: "var(--text-placeholder)" }}
                     >
                       NEW
                     </span>
@@ -867,7 +758,7 @@ export function CallsSection({
               </button>
 
               {/* Right: Action buttons */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div className="hf-flex hf-gap-sm">
                 {/* Analyze button - runs prep pipeline */}
                 <button
                   onClick={(e) => {
@@ -876,14 +767,12 @@ export function CallsSection({
                   }}
                   disabled={isRunningOnThisCall || bulkRunning !== null}
                   title="Run analysis pipeline (measure, learn, agent, reward, adapt)"
+                  className="hf-micro-pill"
                   style={{
                     padding: "3px 10px",
-                    fontSize: 10,
-                    fontWeight: 600,
                     background: "var(--surface-secondary)",
                     color: "var(--text-secondary)",
                     border: "1px solid var(--border-default)",
-                    borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
                     opacity: isRunningOnThisCall || bulkRunning ? 0.6 : 1,
                   }}
@@ -899,14 +788,12 @@ export function CallsSection({
                   }}
                   disabled={isRunningOnThisCall || bulkRunning !== null}
                   title="Run full pipeline + generate prompt"
+                  className="hf-micro-pill"
                   style={{
                     padding: "3px 10px",
-                    fontSize: 10,
-                    fontWeight: 600,
                     background: "var(--button-primary-bg)",
                     color: "var(--text-on-dark)",
                     border: "none",
-                    borderRadius: 4,
                     cursor: isRunningOnThisCall || bulkRunning ? "not-allowed" : "pointer",
                     opacity: isRunningOnThisCall || bulkRunning ? 0.6 : 1,
                   }}
@@ -915,7 +802,7 @@ export function CallsSection({
                 </button>
 
                 {/* AI Config button */}
-                <div onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+                <div onClick={(e) => e.stopPropagation()} className="hf-flex">
                   <AIConfigButton callPoint="pipeline.measure" label="Pipeline AI Config" />
                 </div>
 
@@ -933,18 +820,11 @@ export function CallsSection({
                       }
                     }}
                     title="View logs"
+                    className="hf-micro-pill"
                     style={{
-                      padding: "3px 8px",
-                      fontSize: 10,
-                      fontWeight: 600,
                       background: showingLogs ? "var(--surface-dark)" : "var(--surface-secondary)",
                       color: showingLogs ? "var(--text-on-dark)" : "var(--text-muted)",
                       border: "1px solid var(--border-default)",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
                     }}
                   >
                     📋
@@ -954,13 +834,8 @@ export function CallsSection({
                 {/* Expand toggle */}
                 <button
                   onClick={() => setExpandedCall(isExpanded ? null : call.id)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "4px 8px",
-                    color: "var(--text-placeholder)",
-                  }}
+                  className="hf-btn-unstyled hf-text-placeholder"
+                  style={{ padding: "4px 8px" }}
                 >
                   {isExpanded ? "▼" : "▶"}
                 </button>
@@ -1017,8 +892,8 @@ function CallDetailPanel({
 
   if (loading) {
     return (
-      <div style={{ padding: 24, borderTop: "1px solid var(--border-default)", background: "var(--background)", textAlign: "center" }}>
-        <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading analysis data...</div>
+      <div className="hf-text-center hf-p-lg" style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
+        <div className="hf-text-sm hf-text-muted">Loading analysis data...</div>
       </div>
     );
   }
@@ -1034,7 +909,7 @@ function CallDetailPanel({
   return (
     <div style={{ borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
       {/* Tabs - matching header tab styling */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--border-default)", background: "var(--surface-primary)", paddingBottom: 0, alignItems: "center" }}>
+      <div className="hf-flex" style={{ gap: 2, borderBottom: "1px solid var(--border-default)", background: "var(--surface-primary)" }}>
         <DraggableTabs
           storageKey={`call-detail-tabs-${call.id}`}
           tabs={[
@@ -1050,12 +925,12 @@ function CallDetailPanel({
 
         {/* Reward score badge */}
         {rewardScore && (
-          <div style={{ marginLeft: "auto", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Reward:</span>
+          <div className="hf-flex hf-gap-sm hf-ml-auto" style={{ padding: "10px 16px" }}>
+            <span className="hf-text-xs hf-text-muted">Reward:</span>
             <span
+              className="hf-text-bold"
               style={{
                 fontSize: 12,
-                fontWeight: 600,
                 color: rewardScore.overallScore >= 0.7 ? "var(--status-success-text)" : rewardScore.overallScore >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
               }}
             >
@@ -1066,7 +941,7 @@ function CallDetailPanel({
       </div>
 
       {/* Tab content */}
-      <div style={{ padding: 16 }}>
+      <div className="hf-p-md">
         {activeTab === "transcript" && (
           <TranscriptTab transcript={call.transcript} />
         )}
@@ -1089,15 +964,15 @@ function CallDetailPanel({
             {extractionVis.scores !== false && <ScoresTab scores={scores} />}
             {extractionVis.actions !== false && callActions.length > 0 && (
               <div style={{ padding: "12px 16px" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-default)", marginBottom: 8 }}>Actions from this call</div>
+                <div className="hf-text-bold hf-text-xs hf-mb-sm">Actions from this call</div>
                 {callActions.map((action) => {
                   const colors = ASSIGNEE_COLORS[action.assignee] || ASSIGNEE_COLORS.CALLER;
                   return (
-                    <div key={action.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                      <div style={{ color: "var(--text-muted)" }}>{ACTION_TYPE_ICONS[action.type] || <CheckSquare size={14} />}</div>
-                      <span style={{ fontSize: 12, flex: 1 }}>{action.title}</span>
-                      <span style={{ padding: "1px 6px", fontSize: 10, borderRadius: 8, fontWeight: 500, background: colors.bg, color: colors.text }}>{action.assignee}</span>
-                      <span style={{ fontSize: 10, color: "var(--text-muted)", padding: "1px 6px", borderRadius: 8, background: "var(--surface-secondary)" }}>{action.status}</span>
+                    <div key={action.id} className="hf-flex hf-gap-sm" style={{ padding: "6px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                      <div className="hf-text-muted">{ACTION_TYPE_ICONS[action.type] || <CheckSquare size={14} />}</div>
+                      <span className="hf-text-xs hf-flex-1">{action.title}</span>
+                      <span className="hf-micro-pill hf-text-500" style={{ padding: "1px 6px", borderRadius: 8, background: colors.bg, color: colors.text }}>{action.assignee}</span>
+                      <span className="hf-text-muted" style={{ fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "var(--surface-secondary)" }}>{action.status}</span>
                     </div>
                   );
                 })}
@@ -1135,101 +1010,75 @@ function PromptTab({ prompts }: { prompts: any[] }) {
 
   if (prompts.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center hf-text-placeholder" style={{ padding: 20 }}>
         No prompt generated after this call. Run the Prompt pipeline step to generate one.
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="hf-flex-col hf-gap-md">
       {prompts.map((prompt: any) => {
         const isExpanded = expandedPrompt === prompt.id;
         return (
-          <div
-            key={prompt.id}
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 8,
-              border: "1px solid var(--border-default)",
-              overflow: "hidden",
-            }}
-          >
+          <div key={prompt.id} className="hf-expandable-card">
             {/* Header */}
             <div
               onClick={() => setExpandedPrompt(isExpanded ? null : prompt.id)}
+              className="hf-flex-between"
               style={{
                 padding: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
                 cursor: "pointer",
                 borderBottom: isExpanded ? "1px solid var(--border-default)" : "none",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="hf-flex hf-gap-md">
                 <span
+                  className="hf-micro-pill"
                   style={{
-                    fontSize: 10,
-                    padding: "2px 8px",
                     background: prompt.status === "SUCCESS" ? "var(--status-success-bg)" : "var(--status-warning-bg)",
                     color: prompt.status === "SUCCESS" ? "var(--status-success-text)" : "var(--status-warning-text)",
-                    borderRadius: 4,
                     fontWeight: 500,
                   }}
                 >
                   {prompt.status || "COMPOSED"}
                 </span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                <span style={{ fontSize: 12 }} className="hf-text-muted">
                   {new Date(prompt.composedAt).toLocaleString()}
                 </span>
                 {prompt.model && (
-                  <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
+                  <span className="hf-text-xs" style={{ color: "var(--text-placeholder)" }}>
                     via {prompt.model}
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>
+              <div className="hf-flex hf-gap-sm">
+                <span className="hf-text-xs" style={{ color: "var(--text-placeholder)" }}>
                   {prompt.prompt?.length || 0} chars
                 </span>
-                <span style={{ color: "var(--text-muted)" }}>{isExpanded ? "▼" : "▶"}</span>
+                <span className="hf-text-muted">{isExpanded ? "▼" : "▶"}</span>
               </div>
             </div>
 
             {/* Expanded content */}
             {isExpanded && (
-              <div style={{ padding: 12 }}>
+              <div className="hf-p-sm">
                 {/* Prompt text */}
-                <div
-                  style={{
-                    background: "var(--surface-dark)",
-                    color: "var(--text-on-dark)",
-                    padding: 12,
-                    borderRadius: 6,
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                    fontFamily: "monospace",
-                    maxHeight: 400,
-                    overflowY: "auto",
-                    border: "1px solid var(--border-dark)",
-                  }}
-                >
+                <div className="hf-code-block-sm">
                   {prompt.prompt || "No prompt content"}
                 </div>
 
                 {/* Inputs used */}
                 {prompt.inputs && Object.keys(prompt.inputs).length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>
+                  <div className="hf-mt-sm">
+                    <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-xs">
                       Inputs Used:
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    <div className="hf-text-xs hf-text-secondary">
                       {Object.entries(prompt.inputs).map(([key, value]) => (
                         <div key={key} style={{ marginBottom: 2 }}>
-                          <span style={{ fontWeight: 500 }}>{key}:</span>{" "}
-                          <span style={{ color: "var(--text-muted)" }}>
+                          <span className="hf-text-500">{key}:</span>{" "}
+                          <span className="hf-text-muted">
                             {typeof value === "object" ? JSON.stringify(value).slice(0, 100) : String(value).slice(0, 100)}
                             {String(value).length > 100 ? "..." : ""}
                           </span>
@@ -1240,18 +1089,13 @@ function PromptTab({ prompts }: { prompts: any[] }) {
                 )}
 
                 {/* Copy button */}
-                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <div className="hf-flex hf-gap-sm hf-mt-sm">
                   <button
                     onClick={() => copyToClipboard(prompt.prompt || "", `prompt-${prompt.id}`)}
+                    className="hf-btn hf-btn-sm"
                     style={{
-                      padding: "6px 12px",
-                      fontSize: 12,
                       background: copiedButton === `prompt-${prompt.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
                       color: "white",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
                       boxShadow: copiedButton === `prompt-${prompt.id}` ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
                   >
@@ -1282,7 +1126,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
   if (prompts.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center hf-text-placeholder" style={{ padding: 20 }}>
         No prompt generated after this call. Run the Prompt pipeline step to generate one.
       </div>
     );
@@ -1293,19 +1137,19 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
   const inputs = selectedPrompt?.inputs || {};
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="hf-flex-col hf-gap-md">
       {/* Prompt selector when multiple prompts exist */}
       {prompts.length > 1 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--surface-secondary)", borderRadius: 8 }}>
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Prompts ({prompts.length}):</span>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        <div className="hf-flex hf-gap-sm hf-p-sm" style={{ background: "var(--surface-secondary)", borderRadius: 8 }}>
+          <span className="hf-text-xs hf-text-muted">Prompts ({prompts.length}):</span>
+          <div className="hf-flex-wrap hf-gap-xs">
             {prompts.map((p, i) => (
               <button
                 key={p.id}
                 onClick={() => setSelectedIndex(i)}
+                className="hf-text-xs"
                 style={{
                   padding: "4px 10px",
-                  fontSize: 11,
                   background: i === selectedIndex ? "var(--button-primary-bg)" : "var(--surface-primary)",
                   color: i === selectedIndex ? "var(--text-on-dark)" : "var(--text-secondary)",
                   border: "1px solid var(--border-default)",
@@ -1321,34 +1165,32 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
       )}
 
       {/* Header with toggle - matches UnifiedPromptSection */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="hf-flex-between">
+        <div className="hf-flex hf-gap-md">
           <span
+            className="hf-micro-pill"
             style={{
-              fontSize: 10,
-              padding: "2px 8px",
               background: selectedPrompt.status === "SUCCESS" ? "var(--status-success-bg)" : "var(--status-warning-bg)",
               color: selectedPrompt.status === "SUCCESS" ? "var(--status-success-text)" : "var(--status-warning-text)",
-              borderRadius: 4,
               fontWeight: 500,
             }}
           >
             {selectedPrompt.status || "COMPOSED"}
           </span>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <span style={{ fontSize: 12 }} className="hf-text-muted">
             {new Date(selectedPrompt.composedAt).toLocaleString()}
           </span>
           {selectedPrompt.model && (
-            <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>via {selectedPrompt.model}</span>
+            <span className="hf-text-xs" style={{ color: "var(--text-placeholder)" }}>via {selectedPrompt.model}</span>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="hf-flex hf-gap-sm">
           <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
             <button
               onClick={() => setViewMode("human")}
+              className="hf-text-xs"
               style={{
                 padding: "6px 12px",
-                fontSize: 11,
                 fontWeight: 500,
                 background: viewMode === "human" ? "var(--button-primary-bg)" : "var(--surface-primary)",
                 color: viewMode === "human" ? "var(--text-on-dark)" : "var(--text-secondary)",
@@ -1360,9 +1202,9 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
             </button>
             <button
               onClick={() => setViewMode("llm")}
+              className="hf-text-xs"
               style={{
                 padding: "6px 12px",
-                fontSize: 11,
                 fontWeight: 500,
                 background: viewMode === "llm" ? "var(--button-primary-bg)" : "var(--surface-primary)",
                 color: viewMode === "llm" ? "var(--text-on-dark)" : "var(--text-secondary)",
@@ -1378,32 +1220,18 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
       {/* Human-Readable View */}
       {viewMode === "human" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div
-            style={{
-              background: "var(--surface-dark)",
-              color: "var(--text-on-dark)",
-              padding: 16,
-              borderRadius: 8,
-              fontSize: 13,
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-              fontFamily: "ui-monospace, monospace",
-              maxHeight: 400,
-              overflowY: "auto",
-              border: "1px solid var(--border-dark)",
-            }}
-          >
+        <div className="hf-flex-col hf-gap-md">
+          <div className="hf-code-block-sm">
             {selectedPrompt.prompt || "No prompt content"}
           </div>
 
           {/* Inputs used */}
           {inputs && Object.keys(inputs).length > 0 && (
-            <div style={{ padding: 12, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8 }}>
+            <div className="hf-banner hf-banner-warning" style={{ padding: 12 }}>
+              <div className="hf-text-xs hf-text-bold hf-mb-sm" style={{ color: "var(--status-warning-text)" }}>
                 Composition Inputs
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12, color: "var(--status-warning-text)" }}>
+              <div className="hf-flex-wrap hf-gap-md" style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
                 {inputs.memoriesCount !== undefined && <span>Memories: {inputs.memoriesCount}</span>}
                 {inputs.personalityAvailable !== undefined && <span>Personality: {inputs.personalityAvailable ? "Yes" : "No"}</span>}
                 {inputs.recentCallsCount !== undefined && <span>Recent Calls: {inputs.recentCallsCount}</span>}
@@ -1435,23 +1263,23 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
       {/* LLM-Friendly View - matches UnifiedPromptSection with Pretty/Raw toggle */}
       {viewMode === "llm" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="hf-flex-col hf-gap-md">
           {!llm ? (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", background: "var(--background)", borderRadius: 8 }}>
+            <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)", background: "var(--background)", borderRadius: 8 }}>
               No LLM-friendly JSON available for this prompt.
             </div>
           ) : (
             <>
               {/* Pretty/Raw Toggle */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Structured JSON for AI agent consumption</span>
-                <div style={{ display: "flex", gap: 8 }}>
+              <div className="hf-flex-between">
+                <span className="hf-text-xs hf-text-muted">Structured JSON for AI agent consumption</span>
+                <div className="hf-flex hf-gap-sm">
                   <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
                     <button
                       onClick={() => setLlmViewMode("pretty")}
+                      className="hf-text-xs"
                       style={{
                         padding: "4px 10px",
-                        fontSize: 11,
                         background: llmViewMode === "pretty" ? "var(--button-primary-bg)" : "var(--surface-primary)",
                         color: llmViewMode === "pretty" ? "var(--text-on-dark)" : "var(--text-secondary)",
                         border: "none",
@@ -1462,9 +1290,9 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                     </button>
                     <button
                       onClick={() => setLlmViewMode("raw")}
+                      className="hf-text-xs"
                       style={{
                         padding: "4px 10px",
-                        fontSize: 11,
                         background: llmViewMode === "raw" ? "var(--button-primary-bg)" : "var(--surface-primary)",
                         color: llmViewMode === "raw" ? "var(--text-on-dark)" : "var(--text-secondary)",
                         border: "none",
@@ -1476,13 +1304,13 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
                   </div>
                   <button
                     onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-1")}
+                    className="hf-text-xs"
                     style={{
                       padding: "4px 10px",
                       background: copiedButton === "llm-json-1" ? "var(--button-success-bg)" : "var(--surface-secondary)",
                       color: copiedButton === "llm-json-1" ? "white" : "var(--text-secondary)",
                       border: "1px solid var(--border-default)",
                       borderRadius: 6,
-                      fontSize: 11,
                       cursor: "pointer",
                       transition: "all 0.2s ease",
                       boxShadow: copiedButton === "llm-json-1" ? "0 0 12px var(--button-success-bg)" : "none",
@@ -1494,45 +1322,32 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {llmViewMode === "raw" ? (
-                <div
-                  style={{
-                    background: "var(--surface-dark)",
-                    color: "var(--text-on-dark-muted)",
-                    padding: 16,
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontFamily: "ui-monospace, monospace",
-                    whiteSpace: "pre-wrap",
-                    maxHeight: 500,
-                    overflowY: "auto",
-                    border: "1px solid var(--border-dark)",
-                  }}
-                >
+                <div className="hf-code-block" style={{ color: "var(--text-on-dark-muted)", fontSize: 12 }}>
                   {JSON.stringify(llm, null, 2)}
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div className="hf-flex-col" style={{ gap: 10 }}>
                   {/* Memories */}
                   {llm.memories && llm.memories.totalCount > 0 && (
-                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--badge-cyan-text)" }}>
+                    <div className="hf-expandable-card" style={{ padding: 12 }}>
+                      <h4 className="hf-text-sm hf-text-bold hf-mb-sm" style={{ color: "var(--badge-cyan-text)" }}>
                         💭 Memories ({llm.memories.totalCount})
                       </h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="hf-flex-col hf-gap-sm">
                         {llm.memories.byCategory && Object.entries(llm.memories.byCategory).slice(0, 3).map(([category, items]: [string, any]) => (
                           <div key={category}>
                             <div style={{ fontSize: 10, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "var(--text-muted)", marginBottom: 4 }}>
                               {category}
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <div className="hf-flex-col" style={{ gap: 2 }}>
                               {items.slice(0, 2).map((m: any, i: number) => (
                                 <div
                                   key={i}
+                                  className="hf-text-xs"
                                   style={{
                                     padding: 6,
                                     background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
                                     borderRadius: 4,
-                                    fontSize: 11,
                                   }}
                                 >
                                   <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
@@ -1547,8 +1362,8 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
                   {/* Behavior Targets */}
                   {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--status-success-text)" }}>
+                    <div className="hf-expandable-card" style={{ padding: 12 }}>
+                      <h4 className="hf-text-sm hf-text-bold hf-text-success hf-mb-sm">
                         🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
                       </h4>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
@@ -1579,11 +1394,11 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 
                   {/* AI Instructions */}
                   {llm.instructions && (
-                    <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 8, padding: 12 }}>
-                      <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--status-warning-text)" }}>
+                    <div className="hf-banner hf-banner-warning" style={{ padding: 12 }}>
+                      <h4 className="hf-text-sm hf-text-bold hf-mb-sm" style={{ color: "var(--status-warning-text)" }}>
                         📋 AI Instructions
                       </h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "var(--status-warning-text)" }}>
+                      <div className="hf-flex-col hf-text-xs" style={{ gap: 6, color: "var(--status-warning-text)" }}>
                         {llm.instructions.use_memories && (
                           <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
                         )}
@@ -1616,7 +1431,7 @@ function UnifiedDetailPromptTab({ prompts }: { prompts: any[] }) {
 function PersonalityObservationTab({ observation }: { observation: any }) {
   if (!observation) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)" }}>
         No personality observation for this call. Run the Personality analysis to generate one.
       </div>
     );
@@ -1632,17 +1447,17 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="hf-flex-col hf-gap-lg">
       {/* Header with confidence and metadata */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+      <div className="hf-flex-between hf-expandable-card" style={{ padding: 12 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Personality Observation</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <div className="hf-text-md hf-text-bold">Personality Observation</div>
+          <div style={{ fontSize: 12 }} className="hf-text-muted">
             Observed {new Date(observation.observedAt).toLocaleString()}
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Confidence</div>
+        <div className="hf-text-center">
+          <div className="hf-text-xs hf-text-muted">Confidence</div>
           <div
             style={{
               fontSize: 18,
@@ -1656,24 +1471,24 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
       </div>
 
       {/* Trait scores */}
-      <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", padding: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>Big Five Traits</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="hf-expandable-card hf-p-md">
+        <div className="hf-text-bold hf-text-secondary hf-mb-md" style={{ fontSize: 12 }}>Big Five Traits</div>
+        <div className="hf-flex-col hf-gap-md">
           {traits.map((trait) => {
             const value = observation[trait.key];
             if (value === null || value === undefined) return null;
 
             return (
               <div key={trait.key}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <div className="hf-flex-between" style={{ marginBottom: 4 }}>
                   <div>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{trait.label}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-placeholder)", marginLeft: 8 }}>{trait.desc}</span>
+                    <span className="hf-text-sm" style={{ fontWeight: 500, color: "var(--text-primary)" }}>{trait.label}</span>
+                    <span className="hf-text-xs" style={{ color: "var(--text-placeholder)", marginLeft: 8 }}>{trait.desc}</span>
                   </div>
                   <span
+                    className="hf-text-bold"
                     style={{
                       fontSize: 14,
-                      fontWeight: 600,
                       color: value >= 0.7 ? "var(--status-success-text)" : value >= 0.3 ? "var(--status-warning-text)" : "var(--text-muted)",
                     }}
                   >
@@ -1681,15 +1496,10 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
                   </span>
                 </div>
                 {/* Progress bar */}
-                <div style={{ height: 8, background: "var(--surface-secondary)", borderRadius: 4, overflow: "hidden" }}>
+                <div className="hf-progress-track">
                   <div
-                    style={{
-                      height: "100%",
-                      width: `${value * 100}%`,
-                      background: trait.color,
-                      borderRadius: 4,
-                      transition: "width 0.3s ease",
-                    }}
+                    className="hf-progress-fill"
+                    style={{ width: `${value * 100}%`, background: trait.color }}
                   />
                 </div>
               </div>
@@ -1700,7 +1510,7 @@ function PersonalityObservationTab({ observation }: { observation: any }) {
 
       {/* Decay factor info */}
       {observation.decayFactor !== undefined && observation.decayFactor < 1 && (
-        <div style={{ fontSize: 11, color: "var(--text-placeholder)", display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="hf-flex hf-text-xs" style={{ color: "var(--text-placeholder)", gap: 6 }}>
           <span>Decay factor:</span>
           <span style={{ fontWeight: 500 }}>{observation.decayFactor.toFixed(2)}</span>
           <span>(older observations have less weight)</span>
@@ -1723,7 +1533,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
   if (prompts.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)" }}>
         No prompt composition data available. Run the Prompt pipeline step to generate one.
       </div>
     );
@@ -1769,10 +1579,10 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="hf-flex-col hf-gap-md">
       {/* Format Toggle */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
-        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Prompt Format:</div>
+      <div className="hf-flex-between hf-expandable-card" style={{ padding: "8px 12px" }}>
+        <div style={{ fontSize: 12 }} className="hf-text-muted">Prompt Format:</div>
         <div style={{ display: "flex", gap: 4, background: "var(--surface-secondary)", borderRadius: 6, padding: 2 }}>
           <button
             onClick={() => setViewMode("human")}
@@ -1811,16 +1621,16 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
       {viewMode === "llm" ? (
         // LLM-Friendly JSON View
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="hf-flex-col hf-gap-md">
           {llmPrompt ? (
             <>
               {/* Instructions Summary */}
               {llmPrompt.instructions && (
-                <div style={{ background: "var(--status-success-bg)", borderRadius: 8, border: "1px solid var(--status-success-border)", padding: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-success-text)", textTransform: "uppercase", marginBottom: 8 }}>
+                <div className="hf-banner hf-banner-success" style={{ padding: 12 }}>
+                  <div className="hf-text-xs hf-text-bold hf-text-success hf-category-label hf-mb-sm">
                     AI Instructions
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--status-success-text)" }}>
+                  <div style={{ fontSize: 12 }} className="hf-text-success">
                     <div style={{ marginBottom: 6 }}><strong>Memories:</strong> {llmPrompt.instructions.use_memories}</div>
                     <div style={{ marginBottom: 6 }}><strong>Preferences:</strong> {llmPrompt.instructions.use_preferences}</div>
                     <div style={{ marginBottom: 6 }}><strong>Topics:</strong> {llmPrompt.instructions.use_topics}</div>
@@ -1839,17 +1649,17 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               )}
 
               {/* Caller Data */}
-              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+              <div className="hf-expandable-card">
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-caller" ? null : "llm-caller")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Caller Data</span>
-                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-caller" ? "−" : "+"}</span>
+                  <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>Caller Data</span>
+                  <span className="hf-text-muted">{expandedSection === "llm-caller" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-caller" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                    <pre className="hf-text-xs hf-text-secondary" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.caller, null, 2)}
                     </pre>
                   </div>
@@ -1858,17 +1668,17 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
               {/* Personality */}
               {llmPrompt.personality && (
-                <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+                <div className="hf-expandable-card">
                   <div
                     onClick={() => setExpandedSection(expandedSection === "llm-personality" ? null : "llm-personality")}
                     style={sectionStyles.header as any}
                   >
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Personality Profile</span>
-                    <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-personality" ? "−" : "+"}</span>
+                    <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>Personality Profile</span>
+                    <span className="hf-text-muted">{expandedSection === "llm-personality" ? "−" : "+"}</span>
                   </div>
                   {expandedSection === "llm-personality" && (
                     <div style={sectionStyles.content}>
-                      <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                      <pre className="hf-text-xs hf-text-secondary" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                         {JSON.stringify(llmPrompt.personality, null, 2)}
                       </pre>
                     </div>
@@ -1877,19 +1687,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               )}
 
               {/* Memories */}
-              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+              <div className="hf-expandable-card">
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-memories" ? null : "llm-memories")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                  <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                     Memories ({llmPrompt.memories?.totalCount || 0})
                   </span>
-                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-memories" ? "−" : "+"}</span>
+                  <span className="hf-text-muted">{expandedSection === "llm-memories" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-memories" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                    <pre className="hf-text-xs hf-text-secondary" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.memories, null, 2)}
                     </pre>
                   </div>
@@ -1897,19 +1707,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {/* Behavior Targets */}
-              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+              <div className="hf-expandable-card">
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-targets" ? null : "llm-targets")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                  <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                     Behavior Targets ({llmPrompt.behaviorTargets?.totalCount || 0})
                   </span>
-                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-targets" ? "−" : "+"}</span>
+                  <span className="hf-text-muted">{expandedSection === "llm-targets" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-targets" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                    <pre className="hf-text-xs hf-text-secondary" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.behaviorTargets, null, 2)}
                     </pre>
                   </div>
@@ -1917,19 +1727,19 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {/* Call History */}
-              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+              <div className="hf-expandable-card">
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-history" ? null : "llm-history")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                  <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                     Call History ({llmPrompt.callHistory?.totalCalls || 0})
                   </span>
-                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-history" ? "−" : "+"}</span>
+                  <span className="hf-text-muted">{expandedSection === "llm-history" ? "−" : "+"}</span>
                 </div>
                 {expandedSection === "llm-history" && (
                   <div style={sectionStyles.content}>
-                    <pre style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                    <pre className="hf-text-xs hf-text-secondary" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                       {JSON.stringify(llmPrompt.callHistory, null, 2)}
                     </pre>
                   </div>
@@ -1937,12 +1747,12 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
 
               {/* Full JSON */}
-              <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+              <div className="hf-expandable-card">
                 <div
                   onClick={() => setExpandedSection(expandedSection === "llm-full" ? null : "llm-full")}
                   style={sectionStyles.header as any}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Full LLM Prompt JSON</span>
+                  <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>Full LLM Prompt JSON</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <button
                       onClick={(e) => {
@@ -1963,7 +1773,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                     >
                       {copiedButton === "llm-prompt-json" ? "✓ Copied" : "Copy JSON"}
                     </button>
-                    <span style={{ color: "var(--text-muted)" }}>{expandedSection === "llm-full" ? "−" : "+"}</span>
+                    <span className="hf-text-muted">{expandedSection === "llm-full" ? "−" : "+"}</span>
                   </div>
                 </div>
                 {expandedSection === "llm-full" && (
@@ -1986,8 +1796,8 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
               </div>
             </>
           ) : (
-            <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)", background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
-              <div style={{ fontSize: 14, marginBottom: 8 }}>No LLM-friendly prompt available</div>
+            <div className="hf-empty hf-expandable-card">
+              <div className="hf-text-md hf-mb-sm">No LLM-friendly prompt available</div>
               <div style={{ fontSize: 12 }}>Re-compose the prompt to generate the JSON version</div>
             </div>
           )}
@@ -1996,48 +1806,48 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
         // Human-Readable View (original)
         <>
           {/* Summary stats */}
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", padding: 12, background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+          <div className="hf-flex-wrap hf-gap-lg hf-expandable-card" style={{ padding: 12 }}>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Memories</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{inputs.memoriesCount || 0}</div>
+              <div className="hf-category-label" style={{ fontSize: 10 }}>Memories</div>
+              <div className="hf-stat-value">{inputs.memoriesCount || 0}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Recent Calls</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{inputs.recentCallsCount || 0}</div>
+              <div className="hf-category-label" style={{ fontSize: 10 }}>Recent Calls</div>
+              <div className="hf-stat-value">{inputs.recentCallsCount || 0}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Behavior Targets</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{inputs.behaviorTargetsCount || 0}</div>
+              <div className="hf-category-label" style={{ fontSize: 10 }}>Behavior Targets</div>
+              <div className="hf-stat-value">{inputs.behaviorTargetsCount || 0}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Personality</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: inputs.personalityAvailable ? "var(--status-success-text)" : "var(--status-error-text)" }}>
+              <div className="hf-category-label" style={{ fontSize: 10 }}>Personality</div>
+              <div className="hf-stat-value" style={{ color: inputs.personalityAvailable ? "var(--status-success-text)" : "var(--status-error-text)" }}>
                 {inputs.personalityAvailable ? "Yes" : "No"}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>Spec Used</div>
+              <div className="hf-category-label" style={{ fontSize: 10 }}>Spec Used</div>
               <div style={{ fontSize: 12, fontWeight: 500, color: "var(--button-primary-bg)" }}>{inputs.specUsed || "defaults"}</div>
             </div>
           </div>
 
           {/* Spec Config */}
           {inputs.specConfig && (
-            <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+            <div className="hf-expandable-card">
               <div
                 onClick={() => setExpandedSection(expandedSection === "config" ? null : "config")}
                 style={sectionStyles.header as any}
               >
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Spec Configuration</span>
-                <span style={{ color: "var(--text-muted)" }}>{expandedSection === "config" ? "−" : "+"}</span>
+                <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>Spec Configuration</span>
+                <span className="hf-text-muted">{expandedSection === "config" ? "−" : "+"}</span>
               </div>
               {expandedSection === "config" && (
                 <div style={sectionStyles.content}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
                     {Object.entries(inputs.specConfig).map(([key, value]) => (
                       <div key={key}>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" }}>{key}</div>
-                        <div style={{ fontSize: 13, color: "var(--text-primary)" }}>
+                        <div className="hf-category-label" style={{ fontSize: 10 }}>{key}</div>
+                        <div className="hf-text-sm" style={{ color: "var(--text-primary)" }}>
                           {typeof value === "object" ? JSON.stringify(value) : String(value)}
                         </div>
                       </div>
@@ -2050,15 +1860,15 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
 
           {/* Caller Context Sections */}
           {Object.entries(sections).map(([sectionName, lines]) => (
-            <div key={sectionName} style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+            <div key={sectionName} className="hf-expandable-card">
               <div
                 onClick={() => setExpandedSection(expandedSection === sectionName ? null : sectionName)}
                 style={sectionStyles.header as any}
               >
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{sectionName}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-placeholder)" }}>{lines.length} items</span>
-                  <span style={{ color: "var(--text-muted)" }}>{expandedSection === sectionName ? "−" : "+"}</span>
+                <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>{sectionName}</span>
+                <div className="hf-flex hf-gap-sm">
+                  <span className="hf-text-xs" style={{ color: "var(--text-placeholder)" }}>{lines.length} items</span>
+                  <span className="hf-text-muted">{expandedSection === sectionName ? "−" : "+"}</span>
                 </div>
               </div>
               {expandedSection === sectionName && (
@@ -2066,7 +1876,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
                   {lines.length > 0 ? (
                     <ul style={{ margin: 0, paddingLeft: 20 }}>
                       {lines.map((line, i) => (
-                        <li key={i} style={{ marginBottom: 4, color: "var(--text-secondary)" }}>
+                        <li key={i} className="hf-text-secondary" style={{ marginBottom: 4 }}>
                           {line.replace(/^- /, "")}
                         </li>
                       ))}
@@ -2080,13 +1890,13 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
           ))}
 
           {/* Raw Context (collapsed by default) */}
-          <div style={{ background: "var(--surface-primary)", borderRadius: 8, border: "1px solid var(--border-default)", overflow: "hidden" }}>
+          <div className="hf-expandable-card">
             <div
               onClick={() => setExpandedSection(expandedSection === "raw" ? null : "raw")}
               style={sectionStyles.header as any}
             >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Raw Context</span>
-              <span style={{ color: "var(--text-muted)" }}>{expandedSection === "raw" ? "−" : "+"}</span>
+              <span className="hf-text-bold" style={{ fontSize: 12, color: "var(--text-secondary)" }}>Raw Context</span>
+              <span className="hf-text-muted">{expandedSection === "raw" ? "−" : "+"}</span>
             </div>
             {expandedSection === "raw" && (
               <div style={sectionStyles.content}>
@@ -2111,7 +1921,7 @@ function PromptPrepTab({ prompts }: { prompts: any[] }) {
       )}
 
       {/* Timestamp */}
-      <div style={{ fontSize: 11, color: "var(--text-placeholder)", textAlign: "right" }}>
+      <div className="hf-text-xs" style={{ color: "var(--text-placeholder)", textAlign: "right" }}>
         Composed: {latestPrompt.composedAt ? new Date(latestPrompt.composedAt).toLocaleString() : "Unknown"}
       </div>
     </div>
@@ -2224,12 +2034,8 @@ export function TwoColumnTargetsDisplay({
     return (
       <div
         key={`${prefix}-${target.parameterId}`}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          position: "relative",
-        }}
+        className="hf-flex-col"
+        style={{ alignItems: "center", position: "relative" }}
       >
         {/* Use shared VerticalSlider component */}
         <VerticalSlider
@@ -2309,17 +2115,15 @@ export function TwoColumnTargetsDisplay({
               boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+            <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-sm">
               Layer Cascade
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="hf-flex-col" style={{ gap: 6 }}>
               {target.layers?.map((layer: any, idx: number) => (
                 <div
                   key={idx}
+                  className="hf-flex hf-gap-sm"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
                     padding: 6,
                     background: "var(--background)",
                     borderRadius: 4,
@@ -2357,18 +2161,18 @@ export function TwoColumnTargetsDisplay({
 
             {/* Interpretation hints */}
             {(target.parameter?.interpretationHigh || target.parameter?.interpretationLow) && (
-              <div style={{ marginTop: 12, fontSize: 10, borderTop: "1px solid var(--border-default)", paddingTop: 8 }}>
-                <div style={{ color: "var(--text-muted)", marginBottom: 4, fontWeight: 500 }}>Interpretation:</div>
+              <div className="hf-mt-sm" style={{ fontSize: 10, borderTop: "1px solid var(--border-default)", paddingTop: 8 }}>
+                <div className="hf-text-muted" style={{ marginBottom: 4, fontWeight: 500 }}>Interpretation:</div>
                 {target.parameter?.interpretationHigh && (
                   <div style={{ marginBottom: 4 }}>
-                    <span style={{ fontWeight: 500, color: "var(--status-success-text)" }}>High:</span>{" "}
-                    <span style={{ color: "var(--text-muted)" }}>{target.parameter.interpretationHigh}</span>
+                    <span className="hf-text-success" style={{ fontWeight: 500 }}>High:</span>{" "}
+                    <span className="hf-text-muted">{target.parameter.interpretationHigh}</span>
                   </div>
                 )}
                 {target.parameter?.interpretationLow && (
                   <div>
-                    <span style={{ fontWeight: 500, color: "var(--status-error-text)" }}>Low:</span>{" "}
-                    <span style={{ color: "var(--text-muted)" }}>{target.parameter.interpretationLow}</span>
+                    <span className="hf-text-error" style={{ fontWeight: 500 }}>Low:</span>{" "}
+                    <span className="hf-text-muted">{target.parameter.interpretationLow}</span>
                   </div>
                 )}
               </div>
@@ -2382,14 +2186,14 @@ export function TwoColumnTargetsDisplay({
   const renderColumn = (targets: Record<string, any[]>, prefix: string, emptyMessage: string) => {
     if (Object.keys(targets).length === 0) {
       return (
-        <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
+        <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)", fontSize: 12 }}>
           {emptyMessage}
         </div>
       );
     }
 
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-start", width: "100%" }}>
+      <div className="hf-flex-wrap" style={{ gap: 20, alignItems: "flex-start", width: "100%" }}>
         {Object.entries(targets).map(([group, groupTargets]) => (
           <div
             key={`${prefix}-${group}`}
@@ -2405,27 +2209,13 @@ export function TwoColumnTargetsDisplay({
           >
             <div
               title={`${group} parameters - ${groupTargets.length} target${groupTargets.length !== 1 ? "s" : ""}\n\nThese sliders show target values (left bar) and actual measured values (right bar) for behavior parameters in the ${group} category.\n\nClick any slider to see the layer cascade showing how SYSTEM → PLAYBOOK → CALLER targets combine.`}
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--text-muted)",
-                textTransform: "uppercase",
-                marginBottom: 12,
-                cursor: "help",
-                display: "inline-block",
-              }}
+              className="hf-category-label hf-mb-md"
+              style={{ cursor: "help", display: "inline-block" }}
             >
               {group} ({groupTargets.length})
             </div>
             {/* Flex layout for vertical sliders - allows wrapping within group */}
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-                justifyContent: "flex-start",
-              }}
-            >
+            <div className="hf-flex-wrap hf-gap-md" style={{ justifyContent: "flex-start" }}>
               {groupTargets.map((target: any) => renderTargetCard(target, prefix))}
             </div>
           </div>
@@ -2436,10 +2226,10 @@ export function TwoColumnTargetsDisplay({
 
   if (callerTargets.length === 0 && behaviorTargets.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No behaviour configuration</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+      <div className="hf-empty">
+        <div style={{ fontSize: 48 }} className="hf-mb-md">🤖</div>
+        <div className="hf-text-bold hf-text-secondary" style={{ fontSize: 16 }}>No behaviour configuration</div>
+        <div className="hf-text-md hf-text-muted hf-mt-sm">
           Behaviour is configured via playbook. Personalized adjustments are computed by ADAPT specs after calls.
         </div>
       </div>
@@ -2449,8 +2239,8 @@ export function TwoColumnTargetsDisplay({
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: 16, padding: "12px 16px", background: "var(--status-info-bg)", border: "1px solid var(--status-info-border)", borderRadius: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-info-text)", marginBottom: 4 }}>
+      <div className="hf-banner hf-banner-info hf-mb-md">
+        <div className="hf-text-md hf-text-bold" style={{ color: "var(--status-info-text)", marginBottom: 4 }}>
           🤖 Behaviour Configuration
         </div>
         <div style={{ fontSize: 12, color: "var(--status-info-text)" }}>
@@ -2462,17 +2252,10 @@ export function TwoColumnTargetsDisplay({
       {isAdvanced && (
         <div
           title="Layer Cascade Explanation\n\nTarget values follow a cascade system where later layers override earlier ones:\n\n1. SYSTEM (gray) - Default values from system configuration\n2. PLAYBOOK (blue) - Domain-specific values from the playbook\n3. CALLER (green) - Personalized adjustments for this individual\n\nExample: If SYSTEM sets warmth to 60%, PLAYBOOK raises it to 75%, and CALLER adjusts to 85%, the effective value is 85%.\n\nClick any slider to see the complete cascade for that parameter."
-          style={{
-            display: "flex",
-            gap: 12,
-            fontSize: 11,
-            color: "var(--text-muted)",
-            flexWrap: "wrap",
-            marginBottom: 16,
-            cursor: "help",
-          }}
+          className="hf-flex-wrap hf-text-xs hf-text-muted hf-gap-md hf-mb-md"
+          style={{ cursor: "help" }}
         >
-          <span style={{ fontWeight: 600 }}>Layer cascade:</span>
+          <span className="hf-text-bold">Layer cascade:</span>
           {["SYSTEM", "PLAYBOOK", "CALLER"].map((scope) => (
             <span
               key={scope}
@@ -2593,10 +2376,10 @@ export function TwoColumnTargetsDisplay({
 
           {/* Filtered content or empty state */}
           {filteredBehaviorTargets.length === 0 && rhsFilter === "adjusted" ? (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>✨</div>
+            <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)", fontSize: 12 }}>
+              <div className="hf-mb-sm" style={{ fontSize: 32 }}>✨</div>
               <div style={{ fontWeight: 500, marginBottom: 4 }}>No personalized adjustments yet</div>
-              <div style={{ fontSize: 11 }}>Targets will appear here as ADAPT specs run after calls</div>
+              <div className="hf-text-xs">Targets will appear here as ADAPT specs run after calls</div>
             </div>
           ) : (
             renderColumn(groupedBehaviorTargets, "behavior", "No targets in this category")
@@ -2614,10 +2397,10 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
   if (scores.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
-        <div style={{ fontSize: 14, fontWeight: 500 }}>No scores</div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>
+      <div className="hf-empty">
+        <div style={{ fontSize: 48 }} className="hf-mb-md">📊</div>
+        <div className="hf-text-md" style={{ fontWeight: 500 }}>No scores</div>
+        <div className="hf-mt-sm" style={{ fontSize: 12 }}>
           Scores haven't been measured for this call yet.
         </div>
       </div>
@@ -2634,14 +2417,8 @@ function ScoresTab({ scores }: { scores: any[] }) {
     return (
       <div
         key={score.id}
+        className="hf-stat-card"
         style={{
-          background: "var(--surface-secondary)",
-          borderRadius: 8,
-          border: "1px solid var(--border-default)",
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
           cursor: (score.reasoning || (score.evidence && score.evidence.length > 0)) ? "pointer" : "default",
         }}
         onClick={() => {
@@ -2651,8 +2428,8 @@ function ScoresTab({ scores }: { scores: any[] }) {
         }}
       >
         {/* Header with Score */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
+        <div className="hf-flex-between">
+          <span className="hf-text-sm hf-text-bold">
             {score.parameter?.name || score.parameterId}
           </span>
           <span style={{ fontSize: 18, fontWeight: 700, color }}>
@@ -2661,35 +2438,24 @@ function ScoresTab({ scores }: { scores: any[] }) {
         </div>
 
         {/* Progress Bar */}
-        <div style={{
-          width: "100%",
-          height: 8,
-          background: "var(--surface-tertiary)",
-          borderRadius: 4,
-          overflow: "hidden"
-        }}>
-          <div style={{
-            width: `${percentage}%`,
-            height: "100%",
-            background: color,
-            transition: "width 0.3s ease"
-          }} />
+        <div className="hf-progress-track">
+          <div className="hf-progress-fill" style={{ width: `${percentage}%`, background: color }} />
         </div>
 
         {/* Definition */}
         {score.parameter?.definition && (
-          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.4 }}>
+          <p className="hf-text-xs hf-text-muted" style={{ margin: 0, lineHeight: 1.4 }}>
             {score.parameter.definition}
           </p>
         )}
 
         {/* Metadata */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, color: "var(--text-placeholder)", flexWrap: "wrap" }}>
+        <div className="hf-flex-wrap hf-gap-sm" style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
           <span>Confidence: {(score.confidence * 100).toFixed(0)}%</span>
           {score.analysisSpec && (
             <>
               <span>•</span>
-              <span style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>
+              <span className="hf-micro-badge" style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", fontWeight: 500 }}>
                 {score.analysisSpec.slug || score.analysisSpec.name}
               </span>
             </>
@@ -2706,14 +2472,14 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
         {/* Expanded: show reasoning and evidence */}
         {isExpanded && (
-          <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px solid var(--border-default)" }}>
+          <div className="hf-mt-sm" style={{ paddingTop: 12, borderTop: "1px solid var(--border-default)" }}>
             {/* Reasoning */}
             {score.reasoning && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
+              <div className="hf-mb-md">
+                <div className="hf-text-xs hf-text-bold hf-text-muted" style={{ marginBottom: 4 }}>
                   Reasoning
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                <div className="hf-text-secondary" style={{ fontSize: 12, lineHeight: 1.5 }}>
                   {score.reasoning}
                 </div>
               </div>
@@ -2722,16 +2488,15 @@ function ScoresTab({ scores }: { scores: any[] }) {
             {/* Evidence */}
             {score.evidence && score.evidence.length > 0 && (
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
+                <div className="hf-text-xs hf-text-bold hf-text-muted" style={{ marginBottom: 4 }}>
                   Evidence ({score.evidence.length} excerpt{score.evidence.length > 1 ? "s" : ""})
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="hf-flex-col" style={{ gap: 6 }}>
                   {score.evidence.map((e: string, idx: number) => (
                     <div
                       key={idx}
+                      className="hf-text-xs hf-text-secondary"
                       style={{
-                        fontSize: 11,
-                        color: "var(--text-secondary)",
                         fontStyle: "italic",
                         padding: 8,
                         background: "var(--background)",
@@ -2753,7 +2518,7 @@ function ScoresTab({ scores }: { scores: any[] }) {
 
   if (scores.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)" }}>
         No scores yet. Run MEASURE to analyze this call.
       </div>
     );
@@ -2772,7 +2537,7 @@ function MemoriesTab({ memories }: { memories: any[] }) {
 
   if (memories.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)" }}>
         No memories extracted. Run LEARN to extract memories from this call.
       </div>
     );
@@ -2787,51 +2552,35 @@ function MemoriesTab({ memories }: { memories: any[] }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="hf-flex-col hf-gap-sm">
       {memories.map((memory: any) => {
         const style = categoryColors[memory.category] || categoryColors.CONTEXT;
         const isExpanded = expandedMemory === memory.id;
 
         return (
-          <div
-            key={memory.id}
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 8,
-              border: "1px solid var(--border-default)",
-              overflow: "hidden",
-            }}
-          >
+          <div key={memory.id} className="hf-expandable-card">
             {/* Header row - clickable */}
             <button
               onClick={() => setExpandedMemory(isExpanded ? null : memory.id)}
+              className="hf-btn-unstyled hf-flex hf-gap-md"
               style={{
                 width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
                 padding: 10,
                 background: isExpanded ? "var(--background)" : "var(--surface-primary)",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
               }}
             >
               <span
+                className="hf-micro-pill"
                 style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  padding: "2px 8px",
                   background: style.bg,
                   color: style.text,
-                  borderRadius: 4,
                   flexShrink: 0,
                 }}
               >
                 {memory.category}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{memory.key}</span>
-              <span style={{ fontSize: 13, color: "var(--text-muted)", flex: 1 }}>= "{memory.value}"</span>
+              <span className="hf-text-sm" style={{ fontWeight: 500 }}>{memory.key}</span>
+              <span className="hf-text-sm hf-text-muted" style={{ flex: 1 }}>= "{memory.value}"</span>
               <span style={{ fontSize: 10, color: "var(--text-placeholder)", flexShrink: 0 }}>
                 {(memory.confidence * 100).toFixed(0)}% conf
               </span>
@@ -2843,19 +2592,17 @@ function MemoriesTab({ memories }: { memories: any[] }) {
             {/* Expanded details */}
             {isExpanded && (
               <div
+                className="hf-flex-col hf-gap-md"
                 style={{
                   padding: "12px 16px",
                   background: "var(--background)",
                   borderTop: "1px solid var(--border-default)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
                 }}
               >
                 {/* Source spec/extractor */}
                 {memory.extractedBy && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
+                    <div className="hf-category-label" style={{ fontSize: 10, marginBottom: 4 }}>
                       EXTRACTED BY
                     </div>
                     <div
@@ -2876,13 +2623,13 @@ function MemoriesTab({ memories }: { memories: any[] }) {
                 {/* Evidence */}
                 {memory.evidence && (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>
+                    <div className="hf-category-label" style={{ fontSize: 10, marginBottom: 4 }}>
                       EVIDENCE
                     </div>
                     <div
+                      className="hf-text-secondary"
                       style={{
                         fontSize: 12,
-                        color: "var(--text-secondary)",
                         background: "var(--surface-primary)",
                         padding: 10,
                         borderRadius: 4,
@@ -2918,10 +2665,10 @@ function MemoriesTab({ memories }: { memories: any[] }) {
 function CallTraitsTab({ observation }: { observation: any }) {
   if (!observation) {
     return (
-      <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-        <div style={{ fontSize: 14, fontWeight: 500 }}>No personality observation</div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>
+      <div className="hf-empty">
+        <div style={{ fontSize: 48 }} className="hf-mb-md">🧠</div>
+        <div className="hf-text-md" style={{ fontWeight: 500 }}>No personality observation</div>
+        <div className="hf-mt-sm" style={{ fontSize: 12 }}>
           Personality traits haven't been measured for this call yet.
         </div>
       </div>
@@ -2939,10 +2686,10 @@ function CallTraitsTab({ observation }: { observation: any }) {
 
   if (traits.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 40, color: "var(--text-placeholder)" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🧠</div>
-        <div style={{ fontSize: 14, fontWeight: 500 }}>No trait values</div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>
+      <div className="hf-empty">
+        <div style={{ fontSize: 48 }} className="hf-mb-md">🧠</div>
+        <div className="hf-text-md" style={{ fontWeight: 500 }}>No trait values</div>
+        <div className="hf-mt-sm" style={{ fontSize: 12 }}>
           Personality observation exists but no trait scores are available.
         </div>
       </div>
@@ -2950,19 +2697,19 @@ function CallTraitsTab({ observation }: { observation: any }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="hf-flex-col hf-gap-lg">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="hf-flex-between">
         <div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Personality Observation</h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>
+          <h3 className="hf-text-md hf-text-bold" style={{ margin: 0 }}>Personality Observation</h3>
+          <p className="hf-text-muted" style={{ fontSize: 12, margin: "4px 0 0" }}>
             Measured from this call on {new Date(observation.observedAt).toLocaleString()}
           </p>
         </div>
         {observation.confidence && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Confidence:</span>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>
+          <div className="hf-flex" style={{ gap: 6 }}>
+            <span className="hf-text-xs hf-text-muted">Confidence:</span>
+            <span className="hf-text-bold" style={{ fontSize: 12 }}>
               {(observation.confidence * 100).toFixed(0)}%
             </span>
           </div>
@@ -2978,42 +2725,20 @@ function CallTraitsTab({ observation }: { observation: any }) {
                        "var(--status-warning-text)";
 
           return (
-            <div
-              key={trait.id}
-              style={{
-                background: "var(--surface-secondary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                padding: 16,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
+            <div key={trait.id} className="hf-stat-card">
               {/* Trait Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{trait.label}</span>
+              <div className="hf-flex-between">
+                <span className="hf-text-sm hf-text-bold">{trait.label}</span>
                 <span style={{ fontSize: 18, fontWeight: 700, color }}>{percentage}%</span>
               </div>
 
               {/* Progress Bar */}
-              <div style={{
-                width: "100%",
-                height: 8,
-                background: "var(--surface-tertiary)",
-                borderRadius: 4,
-                overflow: "hidden"
-              }}>
-                <div style={{
-                  width: `${percentage}%`,
-                  height: "100%",
-                  background: color,
-                  transition: "width 0.3s ease"
-                }} />
+              <div className="hf-progress-track">
+                <div className="hf-progress-fill" style={{ width: `${percentage}%`, background: color }} />
               </div>
 
               {/* Description */}
-              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0, lineHeight: 1.4 }}>
+              <p className="hf-text-xs hf-text-muted" style={{ margin: 0, lineHeight: 1.4 }}>
                 {trait.desc}
               </p>
             </div>
@@ -3023,8 +2748,7 @@ function CallTraitsTab({ observation }: { observation: any }) {
 
       {/* Decay Factor Info */}
       {observation.decayFactor !== undefined && observation.decayFactor !== 1.0 && (
-        <div style={{
-          fontSize: 11,
+        <div className="hf-text-xs" style={{
           color: "var(--text-placeholder)",
           padding: 12,
           background: "var(--background)",
@@ -3042,7 +2766,7 @@ function CallTraitsTab({ observation }: { observation: any }) {
 function MeasurementsTab({ callerTargets = [], behaviorTargets = [], measurements, rewardScore }: { callerTargets?: any[]; behaviorTargets?: any[]; measurements: any[]; rewardScore: any }) {
   if (measurements.length === 0 && behaviorTargets.length === 0 && callerTargets.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)" }}>
         No behaviour data. Run BEHAVIOUR to measure behaviour.
       </div>
     );
@@ -3074,7 +2798,7 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
 
   if (measurements.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: 20, color: "var(--text-placeholder)" }}>
+      <div className="hf-text-center" style={{ padding: 20, color: "var(--text-placeholder)" }}>
         No behaviour measurements. Run BEHAVIOUR to measure behaviour.
       </div>
     );
@@ -3085,39 +2809,26 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
   const diffMap = new Map(diffs.map((d: any) => [d.parameterId, d]));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="hf-flex-col hf-gap-md">
       {measurements.map((m: any) => {
         const diff = diffMap.get(m.parameterId);
         const isExpanded = expandedMeasurement === m.id;
 
         return (
-          <div
-            key={m.id}
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 8,
-              border: "1px solid var(--border-default)",
-              overflow: "hidden",
-            }}
-          >
+          <div key={m.id} className="hf-expandable-card">
             {/* Row header - clickable */}
             <button
               onClick={() => setExpandedMeasurement(isExpanded ? null : m.id)}
+              className="hf-btn-unstyled hf-flex hf-gap-lg"
               style={{
                 width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
                 padding: 12,
                 background: isExpanded ? "var(--background)" : "var(--surface-primary)",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
               }}
             >
               {/* Actual value */}
-              <div style={{ width: 60, textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-secondary)" }}>
+              <div className="hf-text-center" style={{ width: 60 }}>
+                <div className="hf-text-secondary" style={{ fontSize: 20, fontWeight: 700 }}>
                   {(m.actualValue * 100).toFixed(0)}
                 </div>
                 <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>actual</div>
@@ -3125,8 +2836,8 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
 
               {/* Target comparison if available */}
               {diff && (
-                <div style={{ width: 60, textAlign: "center" }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>
+                <div className="hf-text-center" style={{ width: 60 }}>
+                  <div className="hf-text-muted" style={{ fontSize: 14, fontWeight: 500 }}>
                     {(diff.target * 100).toFixed(0)}
                   </div>
                   <div style={{ fontSize: 10, color: "var(--text-placeholder)" }}>target</div>
@@ -3136,11 +2847,10 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
               {/* Delta indicator */}
               {diff && (
                 <div
+                  className="hf-text-xs hf-text-bold"
                   style={{
                     padding: "4px 8px",
                     borderRadius: 4,
-                    fontSize: 11,
-                    fontWeight: 600,
                     background: diff.diff < 0.1 ? "var(--status-success-bg)" : diff.diff < 0.3 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
                     color: diff.diff < 0.1 ? "var(--status-success-text)" : diff.diff < 0.3 ? "var(--status-warning-text)" : "var(--status-error-text)",
                   }}
@@ -3151,11 +2861,11 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
 
               {/* Parameter name */}
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>
+                <div className="hf-text-sm hf-text-bold">
                   {m.parameter?.name || m.parameterId}
                 </div>
                 {m.evidence && m.evidence.length > 0 && (
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                  <div className="hf-text-xs hf-text-muted hf-mt-sm">
                     {m.evidence[0]}
                   </div>
                 )}
@@ -3170,18 +2880,18 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
               <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--border-default)", background: "var(--background)" }}>
                 {/* Parameter definition */}
                 {m.parameter?.definition && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Definition</div>
-                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.parameter.definition}</div>
+                  <div className="hf-mb-md">
+                    <div className="hf-text-xs hf-text-bold hf-text-muted" style={{ marginBottom: 4 }}>Definition</div>
+                    <div className="hf-text-secondary" style={{ fontSize: 12 }}>{m.parameter.definition}</div>
                   </div>
                 )}
 
                 {/* All evidence items */}
                 {m.evidence && m.evidence.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
+                  <div className="hf-mb-md">
+                    <div className="hf-text-xs hf-text-bold hf-text-muted" style={{ marginBottom: 4 }}>Evidence</div>
                     {m.evidence.map((e: string, i: number) => (
-                      <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "4px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 4 }}>
+                      <div key={i} className="hf-text-secondary" style={{ fontSize: 12, padding: "4px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 4 }}>
                         {e}
                       </div>
                     ))}
@@ -3190,21 +2900,20 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
 
                 {/* Target comparison details */}
                 {diff && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Target Comparison</div>
-                    <div style={{ display: "flex", gap: 24, fontSize: 12 }}>
+                  <div className="hf-mb-md">
+                    <div className="hf-text-xs hf-text-bold hf-text-muted" style={{ marginBottom: 4 }}>Target Comparison</div>
+                    <div className="hf-flex hf-gap-xl" style={{ fontSize: 12 }}>
                       <div>
-                        <span style={{ color: "var(--text-muted)" }}>Actual: </span>
-                        <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{(diff.actual * 100).toFixed(1)}%</span>
+                        <span className="hf-text-muted">Actual: </span>
+                        <span className="hf-text-bold hf-text-secondary">{(diff.actual * 100).toFixed(1)}%</span>
                       </div>
                       <div>
-                        <span style={{ color: "var(--text-muted)" }}>Target: </span>
-                        <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{(diff.target * 100).toFixed(1)}%</span>
+                        <span className="hf-text-muted">Target: </span>
+                        <span className="hf-text-bold hf-text-secondary">{(diff.target * 100).toFixed(1)}%</span>
                       </div>
                       <div>
-                        <span style={{ color: "var(--text-muted)" }}>Difference: </span>
-                        <span style={{
-                          fontWeight: 600,
+                        <span className="hf-text-muted">Difference: </span>
+                        <span className="hf-text-bold" style={{
                           color: diff.diff < 0.1 ? "var(--status-success-text)" : diff.diff < 0.3 ? "var(--status-warning-text)" : "var(--status-error-text)"
                         }}>
                           {(diff.diff * 100).toFixed(1)}%
@@ -3215,26 +2924,26 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
                 )}
 
                 {/* Confidence */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Confidence</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="hf-mb-md">
+                  <div className="hf-text-xs hf-text-bold hf-text-muted" style={{ marginBottom: 4 }}>Confidence</div>
+                  <div className="hf-flex hf-gap-sm">
                     <div style={{ flex: 1, maxWidth: 200, height: 6, background: "var(--border-default)", borderRadius: 3, overflow: "hidden" }}>
                       <div
+                        className="hf-progress-fill"
                         style={{
                           width: `${(m.confidence || 0.75) * 100}%`,
-                          height: "100%",
                           background: m.confidence >= 0.8 ? "var(--status-success-text)" : m.confidence >= 0.6 ? "var(--status-warning-text)" : "var(--status-error-text)",
                         }}
                       />
                     </div>
-                    <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 500 }}>
+                    <span className="hf-text-bold hf-text-secondary" style={{ fontSize: 12 }}>
                       {((m.confidence || 0.75) * 100).toFixed(0)}%
                     </span>
                   </div>
                 </div>
 
                 {/* Metadata */}
-                <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-placeholder)" }}>
+                <div className="hf-flex hf-gap-lg" style={{ fontSize: 10, color: "var(--text-placeholder)" }}>
                   <span>Parameter ID: {m.parameterId}</span>
                   <span>Measurement ID: {m.id?.slice(0, 8)}...</span>
                   {m.createdAt && <span>Measured: {new Date(m.createdAt).toLocaleString()}</span>}
@@ -3252,6 +2961,7 @@ function MeasurementsTabLegacy({ measurements, rewardScore }: { measurements: an
 function TranscriptTab({ transcript }: { transcript: string }) {
   return (
     <pre
+      className="hf-text-secondary"
       style={{
         fontSize: 12,
         lineHeight: 1.6,
@@ -3259,7 +2969,6 @@ function TranscriptTab({ transcript }: { transcript: string }) {
         wordBreak: "break-word",
         margin: 0,
         fontFamily: "ui-monospace, monospace",
-        color: "var(--text-secondary)",
         maxHeight: 400,
         overflow: "auto",
         background: "var(--surface-primary)",

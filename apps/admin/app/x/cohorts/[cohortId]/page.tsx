@@ -26,6 +26,7 @@ import {
   Trash2,
   RefreshCcw,
 } from "lucide-react";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 // ==============================
 // Types
@@ -136,9 +137,7 @@ export default function CohortDashboardPage() {
 
   if (loading) {
     return (
-      <div
-        style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}
-      >
+      <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>
         Loading cohort dashboard...
       </div>
     );
@@ -146,29 +145,11 @@ export default function CohortDashboardPage() {
 
   if (error || !dashboard) {
     return (
-      <div style={{ padding: 24 }}>
-        <Link
-          href="/x/cohorts"
-          style={{
-            color: "var(--text-muted)",
-            fontSize: 13,
-            textDecoration: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 16,
-          }}
-        >
+      <div className="hf-p-lg">
+        <Link href="/x/cohorts" className="hf-back-link hf-mb-md">
           <ArrowLeft size={14} /> Back to Cohorts
         </Link>
-        <div
-          style={{
-            padding: 16,
-            background: "var(--status-error-bg)",
-            color: "var(--status-error-text)",
-            borderRadius: 8,
-          }}
-        >
+        <div className="hf-banner hf-banner-error">
           {error || "Cohort not found"}
         </div>
       </div>
@@ -178,76 +159,26 @@ export default function CohortDashboardPage() {
   const { cohort, summary, pupils } = dashboard;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <div className="hf-flex-col" style={{ height: "100vh" }}>
       {/* Header */}
       <div style={{ padding: "16px 24px 0 24px", flexShrink: 0 }}>
-        <Link
-          href="/x/cohorts"
-          style={{
-            color: "var(--text-muted)",
-            fontSize: 13,
-            textDecoration: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 12,
-          }}
-        >
+        <Link href="/x/cohorts" className="hf-back-link">
           <ArrowLeft size={14} /> Back to Cohorts
         </Link>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "start",
-            marginBottom: 16,
-          }}
-        >
+        <div className="hf-flex-between hf-items-start hf-mb-md">
           <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: 4,
-              }}
-            >
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: "var(--text-primary)",
-                }}
-              >
+            <div className="hf-flex hf-gap-sm hf-items-center hf-mb-xs">
+              <h1 className="hf-page-title" style={{ fontSize: 22 }}>
                 {cohort.name}
               </h1>
-              <span
-                style={{
-                  fontSize: 10,
-                  padding: "2px 8px",
-                  background: cohort.isActive
-                    ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
-                    : "var(--surface-tertiary)",
-                  color: cohort.isActive ? "var(--status-success-text)" : "var(--text-muted)",
-                  borderRadius: 4,
-                  fontWeight: 600,
-                }}
-              >
+              <span className={`hf-badge ${cohort.isActive ? "hf-badge-success" : "hf-badge-muted"}`}>
                 {cohort.isActive ? "Active" : "Inactive"}
               </span>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                fontSize: 13,
-              }}
-            >
+            <div className="hf-flex hf-gap-sm hf-items-center hf-text-sm">
               <DomainPill label={cohort.domain.name} size="compact" />
-              <span style={{ color: "var(--text-muted)" }}>
+              <span className="hf-text-muted">
                 Owner: {cohort.owner.name}
               </span>
             </div>
@@ -255,14 +186,7 @@ export default function CohortDashboardPage() {
         </div>
 
         {/* Summary Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
+        <div className="hf-gap-md hf-mb-md" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
           <SummaryCard
             icon={<Users size={16} />}
             label="Members"
@@ -298,13 +222,7 @@ export default function CohortDashboardPage() {
       </div>
 
       {/* Scrollable Content */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: 24,
-        }}
-      >
+      <div className="hf-p-lg hf-flex-1" style={{ overflowY: "auto" }}>
         {activeTab === "roster" && (
           <RosterTab pupils={pupils} cohortId={cohortId} />
         )}
@@ -335,41 +253,14 @@ function SummaryCard({
   sub?: string;
 }) {
   return (
-    <div
-      style={{
-        padding: "12px 16px",
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 8,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          color: "var(--text-muted)",
-          fontSize: 12,
-          marginBottom: 4,
-        }}
-      >
+    <div className="hf-summary-card">
+      <div className="hf-summary-card-label">
         {icon}
         {label}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)" }}>
+      <div className="hf-summary-card-value">
         {value}
-        {sub && (
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 400,
-              color: "var(--text-muted)",
-              marginLeft: 4,
-            }}
-          >
-            {sub}
-          </span>
-        )}
+        {sub && <span className="hf-summary-card-sub">{sub}</span>}
       </div>
     </div>
   );
@@ -415,56 +306,26 @@ function RosterTab({
       }
     });
 
+  const gridCols = "2fr 1fr 1fr 1fr 1.5fr";
+
   return (
     <div>
       {/* Filters */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginBottom: 16,
-          alignItems: "center",
-        }}
-      >
+      <div className="hf-flex hf-gap-md hf-items-center hf-mb-md">
         <input
           type="text"
           placeholder="Search pupils..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            border: "1px solid var(--input-border)",
-            borderRadius: 6,
-            fontSize: 13,
-            width: 200,
-            background: "var(--surface-primary)",
-            color: "var(--text-primary)",
-          }}
+          className="hf-form-input"
+          style={{ width: 200 }}
         />
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-          }}
-        >
+        <div className="hf-flex hf-gap-xs">
           {(["name", "calls", "lastCall"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setSortBy(s)}
-              style={{
-                padding: "4px 10px",
-                fontSize: 12,
-                border: "1px solid var(--border-default)",
-                borderRadius: 4,
-                background:
-                  sortBy === s
-                    ? "color-mix(in srgb, var(--accent-primary) 15%, transparent)"
-                    : "transparent",
-                color:
-                  sortBy === s ? "var(--accent-primary)" : "var(--text-muted)",
-                cursor: "pointer",
-                fontWeight: sortBy === s ? 600 : 400,
-              }}
+              className={`hf-sort-btn ${sortBy === s ? "hf-sort-btn-active" : ""}`}
             >
               {s === "name"
                 ? "Name"
@@ -474,66 +335,28 @@ function RosterTab({
             </button>
           ))}
         </div>
-        <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: "auto" }}>
+        <span className="hf-text-xs hf-text-muted hf-ml-auto">
           {sorted.length} pupil{sorted.length !== 1 ? "s" : ""}
         </span>
       </div>
 
       {/* Pupil Table */}
       {sorted.length === 0 ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--surface-secondary)",
-            borderRadius: 10,
-            border: "1px solid var(--border-default)",
-          }}
-        >
-          <User
-            size={36}
-            style={{ color: "var(--text-placeholder)", marginBottom: 12 }}
-          />
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-            }}
-          >
+        <div className="hf-empty-dashed">
+          <User size={36} className="hf-icon-placeholder hf-mb-md" />
+          <div className="hf-text-md hf-text-bold hf-text-secondary">
             No pupils in this cohort
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--text-muted)",
-              marginTop: 4,
-            }}
-          >
+          <div className="hf-text-sm hf-text-muted hf-mt-xs">
             Add members from the Callers page
           </div>
         </div>
       ) : (
-        <div
-          style={{
-            border: "1px solid var(--border-default)",
-            borderRadius: 10,
-            overflow: "hidden",
-          }}
-        >
+        <div className="hf-table-container">
           {/* Header Row */}
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr 1.5fr",
-              padding: "10px 16px",
-              background: "var(--surface-secondary)",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
+            className="hf-table-header"
+            style={{ gridTemplateColumns: gridCols }}
           >
             <div>Pupil</div>
             <div>Calls</div>
@@ -547,85 +370,46 @@ function RosterTab({
             <Link
               key={pupil.id}
               href={`/x/callers/${pupil.id}`}
-              style={{ textDecoration: "none", color: "inherit" }}
+              className="hf-link-unstyled"
             >
               <div
+                className="hf-table-row"
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr 1.5fr",
-                  padding: "12px 16px",
-                  borderTop:
-                    idx > 0 ? "1px solid var(--border-default)" : "none",
-                  cursor: "pointer",
-                  transition: "background 0.1s",
+                  gridTemplateColumns: gridCols,
+                  borderTop: idx > 0 ? "1px solid var(--border-default)" : "none",
                 }}
-                onMouseOver={(e) =>
-                  (e.currentTarget.style.background =
-                    "var(--surface-secondary)")
-                }
-                onMouseOut={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
               >
                 <div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: "var(--text-primary)",
-                    }}
-                  >
+                  <div className="hf-text-md hf-text-500 hf-text-primary">
                     {pupil.name || "Unnamed"}
                   </div>
                   {pupil.email && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
                       {pupil.email}
                     </div>
                   )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Phone size={12} style={{ color: "var(--text-placeholder)" }} />
-                  <span style={{ fontSize: 14, color: "var(--text-primary)" }}>
-                    {pupil.callCount}
-                  </span>
+                <div className="hf-flex hf-gap-xs hf-items-center">
+                  <Phone size={12} className="hf-icon-placeholder" />
+                  <span className="hf-text-md hf-text-primary">{pupil.callCount}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Target
-                    size={12}
-                    style={{ color: "var(--text-placeholder)" }}
-                  />
-                  <span style={{ fontSize: 14, color: "var(--text-primary)" }}>
+                <div className="hf-flex hf-gap-xs hf-items-center">
+                  <Target size={12} className="hf-icon-placeholder" />
+                  <span className="hf-text-md hf-text-primary">
                     {pupil.goals.completed}/{pupil.goals.total}
                   </span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Brain
-                    size={12}
-                    style={{ color: "var(--text-placeholder)" }}
-                  />
-                  <span style={{ fontSize: 14, color: "var(--text-primary)" }}>
-                    {pupil.memoryCount}
-                  </span>
+                <div className="hf-flex hf-gap-xs hf-items-center">
+                  <Brain size={12} className="hf-icon-placeholder" />
+                  <span className="hf-text-md hf-text-primary">{pupil.memoryCount}</span>
                 </div>
                 <div>
                   {pupil.lastCallAt ? (
-                    <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                    <span className="hf-text-sm hf-text-secondary">
                       {formatRelativeTime(new Date(pupil.lastCallAt))}
                     </span>
                   ) : (
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text-placeholder)",
-                        fontStyle: "italic",
-                      }}
-                    >
+                    <span className="hf-text-sm hf-icon-placeholder hf-text-italic">
                       No calls yet
                     </span>
                   )}
@@ -747,7 +531,7 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+      <div className="hf-p-lg hf-text-center hf-text-muted">
         Loading courses...
       </div>
     );
@@ -756,22 +540,10 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
   return (
     <div>
       {/* Actions Bar */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+      <div className="hf-flex hf-gap-sm hf-items-center hf-mb-md">
         <button
           onClick={() => setShowPicker(!showPicker)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "6px 14px",
-            background: "var(--button-primary-bg)",
-            color: "var(--button-primary-text)",
-            border: "none",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="hf-btn hf-btn-primary hf-btn-sm"
         >
           <Plus size={14} />
           Assign Course
@@ -780,18 +552,7 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
           <button
             onClick={handleSync}
             disabled={syncing}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "6px 14px",
-              border: "1px solid var(--border-default)",
-              borderRadius: 6,
-              background: "transparent",
-              fontSize: 13,
-              color: "var(--text-muted)",
-              cursor: syncing ? "not-allowed" : "pointer",
-            }}
+            className="hf-btn hf-btn-secondary hf-btn-sm"
           >
             <RefreshCcw size={14} />
             {syncing ? "Syncing..." : "Sync Members"}
@@ -799,13 +560,11 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
         )}
         {message && (
           <span
-            style={{
-              fontSize: 13,
-              marginLeft: "auto",
-              color: message.includes("Failed") || message.includes("error")
-                ? "var(--status-error-text)"
-                : "var(--status-success-text)",
-            }}
+            className={`hf-text-sm hf-ml-auto ${
+              message.includes("Failed") || message.includes("error")
+                ? "hf-text-error"
+                : "hf-text-success"
+            }`}
           >
             {message}
           </span>
@@ -814,62 +573,24 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
 
       {/* Picker */}
       {showPicker && available.length > 0 && (
-        <div
-          style={{
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 16,
-            background: "var(--surface-secondary)",
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+        <div className="hf-card-compact hf-mb-md" style={{ background: "var(--surface-secondary)", borderRadius: 8, padding: 12 }}>
+          <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-sm">
             Available Courses
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="hf-flex-col hf-gap-sm" style={{ gap: 6 }}>
             {available.map((pb) => (
-              <div
-                key={pb.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "8px 12px",
-                  background: "var(--surface-primary)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 6,
-                }}
-              >
+              <div key={pb.id} className="hf-picker-item">
                 <div>
-                  <span style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 500 }}>
+                  <span className="hf-text-md hf-text-500 hf-text-primary">
                     {pb.name}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      padding: "1px 6px",
-                      marginLeft: 8,
-                      background: "color-mix(in srgb, var(--status-success-text) 15%, transparent)",
-                      color: "var(--status-success-text)",
-                      borderRadius: 4,
-                      fontWeight: 600,
-                    }}
-                  >
+                  <span className="hf-badge hf-badge-success" style={{ marginLeft: 8 }}>
                     {pb.status}
                   </span>
                 </div>
                 <button
                   onClick={() => handleAssign(pb.id)}
-                  style={{
-                    padding: "4px 10px",
-                    fontSize: 12,
-                    border: "1px solid var(--accent-primary)",
-                    borderRadius: 4,
-                    background: "transparent",
-                    color: "var(--accent-primary)",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
+                  className="hf-sort-btn hf-sort-btn-active"
                 >
                   Assign
                 </button>
@@ -879,104 +600,53 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
         </div>
       )}
       {showPicker && available.length === 0 && (
-        <div
-          style={{
-            padding: 16,
-            marginBottom: 16,
-            background: "var(--surface-secondary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            fontSize: 13,
-            color: "var(--text-muted)",
-            textAlign: "center",
-          }}
-        >
+        <div className="hf-p-md hf-mb-md hf-text-sm hf-text-muted hf-text-center" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
           All domain courses are already assigned to this cohort
         </div>
       )}
 
       {/* Assigned Playbooks */}
       {playbooks.length === 0 ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--surface-secondary)",
-            borderRadius: 10,
-            border: "1px solid var(--border-default)",
-          }}
-        >
-          <BookOpen
-            size={36}
-            style={{ color: "var(--text-placeholder)", marginBottom: 12 }}
-          />
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" }}>
+        <div className="hf-empty-dashed">
+          <BookOpen size={36} className="hf-icon-placeholder hf-mb-md" />
+          <div className="hf-text-md hf-text-bold hf-text-secondary">
             No courses assigned
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+          <div className="hf-text-sm hf-text-muted hf-mt-xs">
             Students joining this cohort will receive all domain courses as a fallback.
             Assign specific courses to control what students are enrolled in.
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="hf-flex-col hf-gap-sm">
           {playbooks.map((pb) => (
             <div
               key={pb.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "14px 16px",
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-              }}
+              className="hf-picker-item"
+              style={{ padding: "14px 16px", borderRadius: 8 }}
             >
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="hf-flex hf-gap-sm hf-items-center">
                   <BookOpen size={14} style={{ color: "var(--accent-primary)" }} />
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                  <span className="hf-text-md hf-text-500 hf-text-primary">
                     {pb.name}
                   </span>
                   <span
-                    style={{
-                      fontSize: 10,
-                      padding: "1px 6px",
-                      background:
-                        pb.status === "PUBLISHED"
-                          ? "color-mix(in srgb, var(--status-success-text) 15%, transparent)"
-                          : "var(--surface-tertiary)",
-                      color:
-                        pb.status === "PUBLISHED"
-                          ? "var(--status-success-text)"
-                          : "var(--text-muted)",
-                      borderRadius: 4,
-                      fontWeight: 600,
-                    }}
+                    className={`hf-badge ${
+                      pb.status === "PUBLISHED" ? "hf-badge-success" : "hf-badge-muted"
+                    }`}
                   >
                     {pb.status}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12 }}>
+                <div className="hf-text-xs hf-text-muted hf-flex hf-gap-md hf-mt-xs">
                   <span>{pb.enrolledCount} enrolled</span>
                   <span>Assigned {new Date(pb.assignedAt).toLocaleDateString()}</span>
                 </div>
               </div>
               <button
                 onClick={() => handleRemove(pb.id, pb.name)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "4px 10px",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 4,
-                  background: "transparent",
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-secondary hf-btn-xs"
               >
                 <Trash2 size={12} />
                 Remove
@@ -1013,7 +683,7 @@ function ActivityTab({ cohortId }: { cohortId: string }) {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+      <div className="hf-p-lg hf-text-center hf-text-muted">
         Loading activity...
       </div>
     );
@@ -1021,31 +691,12 @@ function ActivityTab({ cohortId }: { cohortId: string }) {
 
   if (activity.length === 0) {
     return (
-      <div
-        style={{
-          padding: 40,
-          textAlign: "center",
-          background: "var(--surface-secondary)",
-          borderRadius: 10,
-          border: "1px solid var(--border-default)",
-        }}
-      >
-        <Activity
-          size={36}
-          style={{ color: "var(--text-placeholder)", marginBottom: 12 }}
-        />
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--text-secondary)",
-          }}
-        >
+      <div className="hf-empty-dashed">
+        <Activity size={36} className="hf-icon-placeholder hf-mb-md" />
+        <div className="hf-text-md hf-text-bold hf-text-secondary">
           No activity yet
         </div>
-        <div
-          style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}
-        >
+        <div className="hf-text-sm hf-text-muted hf-mt-xs">
           Activity appears as cohort members make calls
         </div>
       </div>
@@ -1054,58 +705,23 @@ function ActivityTab({ cohortId }: { cohortId: string }) {
 
   return (
     <div>
-      <div
-        style={{
-          fontSize: 12,
-          color: "var(--text-muted)",
-          marginBottom: 12,
-        }}
-      >
+      <div className="hf-text-xs hf-text-muted hf-mb-md">
         Showing {activity.length} of {total} calls
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="hf-flex-col hf-gap-sm">
         {activity.map((item) => (
           <Link
             key={item.id}
             href={`/x/callers/${item.callerId}?tab=calls`}
-            style={{ textDecoration: "none", color: "inherit" }}
+            className="hf-link-unstyled"
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 16px",
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 8,
-                cursor: "pointer",
-                transition: "border-color 0.15s",
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.borderColor = "var(--accent-primary)")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.borderColor = "var(--border-default)")
-              }
-            >
-              <Phone
-                size={16}
-                style={{ color: "var(--text-placeholder)", flexShrink: 0 }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: "var(--text-primary)" }}>
+            <div className="hf-activity-row">
+              <Phone size={16} className="hf-icon-placeholder hf-flex-shrink-0" />
+              <div className="hf-flex-1">
+                <div className="hf-text-md hf-text-primary">
                   <strong>{item.callerName}</strong> had a call
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-muted)",
-                    marginTop: 2,
-                    display: "flex",
-                    gap: 8,
-                  }}
-                >
+                <div className="hf-text-xs hf-text-muted hf-flex hf-gap-sm" style={{ marginTop: 2 }}>
                   <span>Source: {item.source}</span>
                   {item.scoreCount > 0 && (
                     <span>{item.scoreCount} scores</span>
@@ -1115,13 +731,7 @@ function ActivityTab({ cohortId }: { cohortId: string }) {
                   )}
                 </div>
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div className="hf-text-xs hf-text-muted hf-nowrap">
                 {formatRelativeTime(new Date(item.timestamp))}
               </div>
             </div>
@@ -1187,114 +797,40 @@ function SettingsTab({
 
   return (
     <div style={{ maxWidth: 500 }}>
-      <h3
-        style={{
-          margin: "0 0 16px 0",
-          fontSize: 16,
-          fontWeight: 600,
-          color: "var(--text-primary)",
-        }}
-      >
+      <h3 className="hf-heading-md hf-mb-md" style={{ fontSize: 16 }}>
         Cohort Settings
       </h3>
 
-      <label
-        style={{
-          display: "block",
-          fontSize: 13,
-          fontWeight: 500,
-          color: "var(--text-secondary)",
-          marginBottom: 4,
-        }}
-      >
-        Name
-      </label>
+      <label className="hf-form-label">Name</label>
       <input
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          border: "1px solid var(--input-border)",
-          borderRadius: 6,
-          fontSize: 14,
-          marginBottom: 16,
-          background: "var(--surface-primary)",
-          color: "var(--text-primary)",
-          boxSizing: "border-box",
-        }}
+        className="hf-form-input hf-mb-md"
       />
 
-      <label
-        style={{
-          display: "block",
-          fontSize: 13,
-          fontWeight: 500,
-          color: "var(--text-secondary)",
-          marginBottom: 4,
-        }}
-      >
-        Description
-      </label>
+      <label className="hf-form-label">Description</label>
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         rows={3}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          border: "1px solid var(--input-border)",
-          borderRadius: 6,
-          fontSize: 14,
-          marginBottom: 16,
-          background: "var(--surface-primary)",
-          color: "var(--text-primary)",
-          resize: "vertical",
-          boxSizing: "border-box",
-        }}
+        className="hf-form-input hf-mb-md"
+        style={{ resize: "vertical" }}
       />
 
-      <label
-        style={{
-          display: "block",
-          fontSize: 13,
-          fontWeight: 500,
-          color: "var(--text-secondary)",
-          marginBottom: 4,
-        }}
-      >
-        Max Members
-      </label>
+      <label className="hf-form-label">Max Members</label>
       <input
         type="number"
         value={maxMembers}
         onChange={(e) => setMaxMembers(parseInt(e.target.value) || 1)}
         min={1}
         max={500}
-        style={{
-          width: 120,
-          padding: "8px 12px",
-          border: "1px solid var(--input-border)",
-          borderRadius: 6,
-          fontSize: 14,
-          marginBottom: 16,
-          background: "var(--surface-primary)",
-          color: "var(--text-primary)",
-        }}
+        className="hf-form-input hf-mb-md"
+        style={{ width: 120 }}
       />
 
-      <div style={{ marginBottom: 16 }}>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 14,
-            color: "var(--text-primary)",
-            cursor: "pointer",
-          }}
-        >
+      <div className="hf-mb-md">
+        <label className="hf-flex hf-gap-sm hf-items-center hf-text-md hf-text-primary" style={{ cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={isActive}
@@ -1304,35 +840,28 @@ function SettingsTab({
         </label>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="hf-flex hf-gap-md hf-items-center">
         <button
           onClick={handleSave}
           disabled={!hasChanges || saving}
+          className={`hf-btn hf-btn-sm ${hasChanges ? "hf-btn-primary" : ""}`}
           style={{
             padding: "8px 20px",
-            background: hasChanges
-              ? "var(--button-primary-bg)"
-              : "var(--surface-tertiary)",
-            color: hasChanges
-              ? "var(--button-primary-text)"
-              : "var(--text-muted)",
-            border: "none",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: hasChanges && !saving ? "pointer" : "not-allowed",
+            ...(!hasChanges
+              ? {
+                  background: "var(--surface-tertiary)",
+                  color: "var(--text-muted)",
+                }
+              : {}),
           }}
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
         {message && (
           <span
-            style={{
-              fontSize: 13,
-              color: message === "Saved"
-                ? "var(--status-success-text)"
-                : "var(--status-error-text)",
-            }}
+            className={`hf-text-sm ${
+              message === "Saved" ? "hf-text-success" : "hf-text-error"
+            }`}
           >
             {message}
           </span>
@@ -1364,7 +893,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
   const [emailInput, setEmailInput] = useState("");
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
 
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "";
@@ -1398,10 +927,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
 
   const handleCopyLink = () => {
     if (!joinToken) return;
-    const url = `${baseUrl}/join/${joinToken}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyText(`${baseUrl}/join/${joinToken}`);
   };
 
   const handleRegenerateLink = async () => {
@@ -1462,107 +988,40 @@ function InviteTab({ cohortId }: { cohortId: string }) {
   return (
     <div style={{ maxWidth: 600 }}>
       {/* Join Link Section */}
-      <h3
-        style={{
-          margin: "0 0 12px 0",
-          fontSize: 16,
-          fontWeight: 600,
-          color: "var(--text-primary)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
+      <h3 className="hf-heading-md hf-flex hf-gap-sm hf-items-center hf-mb-md" style={{ fontSize: 16 }}>
         <Link2 size={16} />
         Join Link
       </h3>
-      <p
-        style={{
-          fontSize: 13,
-          color: "var(--text-muted)",
-          margin: "0 0 12px 0",
-        }}
-      >
+      <p className="hf-section-desc">
         Share this link with pupils so they can self-enrol in this cohort.
       </p>
 
       {loadingLink ? (
-        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          Loading...
-        </div>
+        <div className="hf-text-sm hf-text-muted">Loading...</div>
       ) : joinToken ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 14px",
-            background: "var(--surface-secondary)",
-            borderRadius: 8,
-            border: "1px solid var(--border-default)",
-            marginBottom: 8,
-          }}
-        >
-          <code
-            style={{
-              flex: 1,
-              fontSize: 13,
-              color: "var(--text-primary)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <div className="hf-flex hf-gap-sm hf-items-center hf-mb-sm" style={{ padding: "10px 14px", background: "var(--surface-secondary)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+          <code className="hf-text-sm hf-truncate hf-flex-1 hf-text-primary">
             {baseUrl}/join/{joinToken}
           </code>
           <button
             onClick={handleCopyLink}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 10px",
-              border: "1px solid var(--border-default)",
-              borderRadius: 4,
-              background: "transparent",
-              fontSize: 12,
-              color: copied ? "var(--status-success-text)" : "var(--text-muted)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
+            className="hf-btn hf-btn-secondary hf-btn-xs hf-nowrap"
+            style={copied ? { color: "var(--status-success-text)" } : undefined}
           >
             <Copy size={12} />
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
       ) : (
-        <div
-          style={{
-            fontSize: 13,
-            color: "var(--text-muted)",
-            fontStyle: "italic",
-            marginBottom: 8,
-          }}
-        >
+        <div className="hf-text-sm hf-text-muted hf-text-italic hf-mb-sm">
           No join link active
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
+      <div className="hf-flex hf-gap-sm" style={{ marginBottom: 32 }}>
         <button
           onClick={handleRegenerateLink}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "4px 10px",
-            border: "1px solid var(--border-default)",
-            borderRadius: 4,
-            background: "transparent",
-            fontSize: 12,
-            color: "var(--text-muted)",
-            cursor: "pointer",
-          }}
+          className="hf-btn hf-btn-secondary hf-btn-xs"
         >
           <RefreshCw size={12} />
           {joinToken ? "Regenerate" : "Generate"}
@@ -1570,18 +1029,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
         {joinToken && (
           <button
             onClick={handleRevokeLink}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "4px 10px",
-              border: "1px solid var(--border-default)",
-              borderRadius: 4,
-              background: "transparent",
-              fontSize: 12,
-              color: "var(--status-error-text)",
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary hf-btn-xs hf-text-error"
           >
             <X size={12} />
             Revoke
@@ -1590,27 +1038,11 @@ function InviteTab({ cohortId }: { cohortId: string }) {
       </div>
 
       {/* Email Invite Section */}
-      <h3
-        style={{
-          margin: "0 0 12px 0",
-          fontSize: 16,
-          fontWeight: 600,
-          color: "var(--text-primary)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
+      <h3 className="hf-heading-md hf-flex hf-gap-sm hf-items-center hf-mb-md" style={{ fontSize: 16 }}>
         <Mail size={16} />
         Email Invites
       </h3>
-      <p
-        style={{
-          fontSize: 13,
-          color: "var(--text-muted)",
-          margin: "0 0 12px 0",
-        }}
-      >
+      <p className="hf-section-desc">
         Enter email addresses (one per line, or comma-separated) to send invite
         links.
       </p>
@@ -1620,59 +1052,28 @@ function InviteTab({ cohortId }: { cohortId: string }) {
         onChange={(e) => setEmailInput(e.target.value)}
         placeholder="student1@example.com&#10;student2@example.com"
         rows={4}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          border: "1px solid var(--input-border)",
-          borderRadius: 6,
-          fontSize: 13,
-          background: "var(--surface-primary)",
-          color: "var(--text-primary)",
-          resize: "vertical",
-          boxSizing: "border-box",
-          fontFamily: "inherit",
-        }}
+        className="hf-form-input"
+        style={{ resize: "vertical", fontFamily: "inherit" }}
       />
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginTop: 8,
-          marginBottom: 24,
-        }}
-      >
+      <div className="hf-flex hf-gap-md hf-items-center hf-mt-sm hf-mb-lg">
         <button
           onClick={handleSendInvites}
           disabled={sending || !emailInput.trim()}
-          style={{
-            padding: "8px 16px",
-            background:
-              emailInput.trim()
-                ? "var(--button-primary-bg)"
-                : "var(--surface-tertiary)",
-            color:
-              emailInput.trim()
-                ? "var(--button-primary-text)"
-                : "var(--text-muted)",
-            border: "none",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: sending || !emailInput.trim() ? "not-allowed" : "pointer",
-          }}
+          className={`hf-btn hf-btn-sm ${emailInput.trim() ? "hf-btn-primary" : ""}`}
+          style={
+            !emailInput.trim()
+              ? { background: "var(--surface-tertiary)", color: "var(--text-muted)" }
+              : undefined
+          }
         >
           {sending ? "Sending..." : "Send Invites"}
         </button>
         {message && (
           <span
-            style={{
-              fontSize: 13,
-              color: message.startsWith("Created")
-                ? "var(--status-success-text)"
-                : "var(--status-error-text)",
-            }}
+            className={`hf-text-sm ${
+              message.startsWith("Created") ? "hf-text-success" : "hf-text-error"
+            }`}
           >
             {message}
           </span>
@@ -1681,52 +1082,25 @@ function InviteTab({ cohortId }: { cohortId: string }) {
 
       {/* Pending Invites List */}
       {loadingInvites ? (
-        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          Loading invites...
-        </div>
+        <div className="hf-text-sm hf-text-muted">Loading invites...</div>
       ) : invites.length > 0 ? (
         <div>
-          <h4
-            style={{
-              margin: "0 0 8px 0",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-            }}
-          >
+          <h4 className="hf-heading-sm hf-text-secondary" style={{ fontSize: 13 }}>
             Pending Invites ({invites.length})
           </h4>
-          <div
-            style={{
-              border: "1px solid var(--border-default)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
+          <div className="hf-table-container">
             {invites.map((invite, idx) => (
               <div
                 key={invite.id}
+                className="hf-flex-between hf-items-center hf-text-sm"
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
                   padding: "10px 14px",
-                  borderTop:
-                    idx > 0 ? "1px solid var(--border-default)" : "none",
-                  fontSize: 13,
+                  borderTop: idx > 0 ? "1px solid var(--border-default)" : "none",
                 }}
               >
                 <div>
-                  <div style={{ color: "var(--text-primary)" }}>
-                    {invite.email}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--text-muted)",
-                      marginTop: 2,
-                    }}
-                  >
+                  <div className="hf-text-primary">{invite.email}</div>
+                  <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
                     Sent {invite.sentAt
                       ? formatRelativeTime(new Date(invite.sentAt))
                       : "not yet"}{" "}
@@ -1734,19 +1108,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
                     {new Date(invite.expiresAt).toLocaleDateString()}
                   </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    padding: "2px 8px",
-                    background:
-                      "color-mix(in srgb, var(--status-warning-text) 15%, transparent)",
-                    color: "var(--status-warning-text)",
-                    borderRadius: 4,
-                    fontWeight: 600,
-                  }}
-                >
-                  Pending
-                </span>
+                <span className="hf-badge hf-badge-warning">Pending</span>
               </div>
             ))}
           </div>

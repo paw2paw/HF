@@ -5,6 +5,7 @@ import {
   isEntityAuthError,
   buildScopeFilter,
 } from "@/lib/access-control";
+import { parsePagination } from "@/lib/api-utils";
 
 /**
  * @api GET /api/cohorts
@@ -31,8 +32,7 @@ export async function GET(req: Request) {
     const domainId = url.searchParams.get("domainId");
     const ownerId = url.searchParams.get("ownerId");
     const isActive = url.searchParams.get("isActive") !== "false";
-    const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const { limit, offset } = parsePagination(url.searchParams);
 
     // For OWN scope, find the caller linked to this user
     let ownerFilter: Record<string, string> = {};

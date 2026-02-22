@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/access-control";
 import { enrollCallerInCohortPlaybooks, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
+import { parsePagination } from "@/lib/api-utils";
 
 /**
  * @api GET /api/callers
@@ -29,8 +30,7 @@ export async function GET(req: Request) {
     const withCounts = url.searchParams.get("withCounts") === "true";
     const includeArchived = url.searchParams.get("includeArchived") === "true";
     const roleFilter = url.searchParams.get("role");
-    const limit = Math.min(500, parseInt(url.searchParams.get("limit") || "100"));
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const { limit, offset } = parsePagination(url.searchParams);
 
     // Apply scope filter (ALL=no filter, DOMAIN=user's domain, OWN=user's callers)
     const scopeFilter = buildScopeFilter(scope, session, "userId", "domainId");

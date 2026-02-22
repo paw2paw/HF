@@ -578,6 +578,80 @@ export async function getAgentTuningSettings(): Promise<AgentTuningSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 12. EXTRACTION FILTERING
+// ═══════════════════════════════════════════════════════
+
+export interface ExtractionFilterSettings {
+  /** Whether section filtering is enabled (master toggle) */
+  filteringEnabled: boolean;
+  /** Section title patterns to skip entirely (no extraction) */
+  skipPatterns: string[];
+  /** Section title patterns to extract but tag as reference */
+  referencePatterns: string[];
+  /** Minimum character count for a section to be worth extracting */
+  minSectionChars: number;
+}
+
+export const EXTRACTION_FILTER_DEFAULTS: ExtractionFilterSettings = {
+  filteringEnabled: true,
+  skipPatterns: ["index", "table of contents", "contents", "title page", "copyright", "acknowledgements", "publisher", "about the author", "blank"],
+  referencePatterns: ["answer key", "answers", "teacher notes", "glossary", "solutions"],
+  minSectionChars: 50,
+};
+
+const EXTRACTION_FILTER_KEYS: Record<keyof ExtractionFilterSettings, string> = {
+  filteringEnabled: "extraction.filter.enabled",
+  skipPatterns: "extraction.filter.skip_patterns",
+  referencePatterns: "extraction.filter.reference_patterns",
+  minSectionChars: "extraction.filter.min_section_chars",
+};
+
+export async function getExtractionFilterSettings(): Promise<ExtractionFilterSettings> {
+  return loadGroup(EXTRACTION_FILTER_KEYS, EXTRACTION_FILTER_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 13. CONTENT LINKING (Question/Vocab → Assertion)
+// ═══════════════════════════════════════════════════════
+
+export interface ContentLinkingSettings {
+  /** Minimum keyword overlap score (0-1) to consider a link */
+  minKeywordScore: number;
+  /** Weight for learningOutcomeRef exact match (added to score) */
+  loRefMatchBoost: number;
+  /** Weight for chapter+section match (added to score) */
+  chapterMatchBoost: number;
+  /** Minimum final score to create a link */
+  minLinkScore: number;
+  /** Whether to use vector similarity (requires embeddings) */
+  useVectorSimilarity: boolean;
+  /** Minimum vector similarity score (0-1) */
+  minVectorSimilarity: number;
+}
+
+export const CONTENT_LINKING_DEFAULTS: ContentLinkingSettings = {
+  minKeywordScore: 0.15,
+  loRefMatchBoost: 0.5,
+  chapterMatchBoost: 0.2,
+  minLinkScore: 0.35,
+  useVectorSimilarity: true,
+  minVectorSimilarity: 0.6,
+};
+
+const CONTENT_LINKING_KEYS: Record<keyof ContentLinkingSettings, string> = {
+  minKeywordScore: "content_linking.min_keyword_score",
+  loRefMatchBoost: "content_linking.lo_ref_match_boost",
+  chapterMatchBoost: "content_linking.chapter_match_boost",
+  minLinkScore: "content_linking.min_link_score",
+  useVectorSimilarity: "content_linking.use_vector_similarity",
+  minVectorSimilarity: "content_linking.min_vector_similarity",
+};
+
+export async function getContentLinkingSettings(): Promise<ContentLinkingSettings> {
+  return loadGroup(CONTENT_LINKING_KEYS, CONTENT_LINKING_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -784,6 +858,32 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
     settings: [
       { key: "agent_tuning.derived_confidence", label: "Derived confidence", description: "Confidence level assigned to parameters derived from matrix positions (0–1)", type: "float" as const, default: 0.5, min: 0, max: 1, step: 0.05 },
       { key: "agent_tuning.matrices", label: "Matrix definitions (JSON)", description: "Array of matrix structures: axes, presets, derivation weights. Edit with care — invalid JSON breaks the tuning UI.", type: "textarea" as const, default: JSON.stringify(AGENT_TUNING_DEFAULTS.matrices, null, 2) },
+    ],
+  },
+  {
+    id: "extraction_filter",
+    label: "Extraction Filtering",
+    icon: "Filter",
+    description: "Control which document sections are extracted vs skipped during content import",
+    settings: [
+      { key: "extraction.filter.enabled", label: "Enable section filtering", description: "Master toggle for smart section filtering during extraction", type: "bool" as const, default: true },
+      { key: "extraction.filter.skip_patterns", label: "Skip patterns (JSON array)", description: "Section title patterns to skip entirely — no assertions extracted", type: "textarea" as const, default: JSON.stringify(EXTRACTION_FILTER_DEFAULTS.skipPatterns) },
+      { key: "extraction.filter.reference_patterns", label: "Reference patterns (JSON array)", description: "Section title patterns to extract but tag as reference content", type: "textarea" as const, default: JSON.stringify(EXTRACTION_FILTER_DEFAULTS.referencePatterns) },
+      { key: "extraction.filter.min_section_chars", label: "Min section characters", description: "Sections shorter than this are skipped (likely blank or trivial)", type: "int" as const, default: 50, min: 0, max: 1000, step: 10 },
+    ],
+  },
+  {
+    id: "content_linking",
+    label: "Content Linking",
+    icon: "Link",
+    description: "Auto-linking questions and vocabulary to their parent teaching assertions after extraction",
+    settings: [
+      { key: "content_linking.min_keyword_score", label: "Min keyword overlap", description: "Minimum keyword overlap score to consider a link (0–1)", type: "float" as const, default: 0.15, min: 0, max: 1, step: 0.05 },
+      { key: "content_linking.lo_ref_match_boost", label: "LO ref match boost", description: "Score boost when question and assertion share a learning outcome ref", type: "float" as const, default: 0.5, min: 0, max: 1, step: 0.05 },
+      { key: "content_linking.chapter_match_boost", label: "Chapter match boost", description: "Score boost when question and assertion are in the same chapter/section", type: "float" as const, default: 0.2, min: 0, max: 1, step: 0.05 },
+      { key: "content_linking.min_link_score", label: "Min link score", description: "Minimum combined score to create a link (0–1)", type: "float" as const, default: 0.35, min: 0, max: 1, step: 0.05 },
+      { key: "content_linking.use_vector_similarity", label: "Use vector similarity", description: "Use pgvector cosine similarity for semantic matching (requires assertion embeddings)", type: "bool" as const, default: true },
+      { key: "content_linking.min_vector_similarity", label: "Min vector similarity", description: "Minimum cosine similarity when using vector mode (0–1)", type: "float" as const, default: 0.6, min: 0, max: 1, step: 0.05 },
     ],
   },
 ];

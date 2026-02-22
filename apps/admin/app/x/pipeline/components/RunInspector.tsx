@@ -313,7 +313,7 @@ export default function RunInspector() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+    <div className="ri-layout">
       {/* Add spin keyframes + highlight animation */}
       <style dangerouslySetInnerHTML={{ __html: `
         ${SPIN_KEYFRAMES}
@@ -327,36 +327,16 @@ export default function RunInspector() {
       ` }} />
 
       {/* ======== LEFT PANEL: Recent Callers ======== */}
-      <div
-        style={{
-          width: 280,
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          borderRight: "1px solid var(--border-default)",
-          background: "var(--surface-secondary)",
-          height: "100%",
-        }}
-      >
+      <div className="ri-sidebar">
         {/* Header + search */}
-        <div style={{ padding: "12px 10px 8px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>
+        <div className="ri-sidebar-header">
+          <div className="hf-flex-between hf-mb-sm">
+            <span className="ri-sidebar-title">
               Recent Callers
             </span>
             <button
               onClick={refreshAll}
-              style={{
-                padding: "3px 6px",
-                borderRadius: 4,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-primary)",
-                color: "var(--text-tertiary)",
-                cursor: "pointer",
-                fontSize: 12,
-                display: "flex",
-                alignItems: "center",
-              }}
+              className="ri-refresh-btn"
               title="Refresh"
             >
               <Refresh style={{ fontSize: 14 }} />
@@ -364,18 +344,7 @@ export default function RunInspector() {
           </div>
 
           {/* Search */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 8px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              marginBottom: 6,
-            }}
-          >
+          <div className="ri-search-box">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -385,19 +354,12 @@ export default function RunInspector() {
               value={callerSearch}
               onChange={(e) => setCallerSearch(e.target.value)}
               placeholder="Search callers..."
-              style={{
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontSize: 11,
-                color: "var(--text-primary)",
-                width: "100%",
-              }}
+              className="ri-search-input"
             />
             {callerSearch && (
               <button
                 onClick={() => setCallerSearch("")}
-                style={{ border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text-tertiary)", padding: 0 }}
+                className="ri-search-clear"
               >
                 &times;
               </button>
@@ -405,7 +367,7 @@ export default function RunInspector() {
           </div>
 
           {/* Sort */}
-          <div style={{ display: "flex", gap: 4 }}>
+          <div className="hf-flex hf-gap-xs">
             {([
               { id: "recent" as const, label: "Recent" },
               { id: "most-runs" as const, label: "Most Runs" },
@@ -414,23 +376,7 @@ export default function RunInspector() {
               <button
                 key={s.id}
                 onClick={() => setSortMode(s.id)}
-                style={{
-                  padding: "3px 8px",
-                  borderRadius: 4,
-                  border: sortMode === s.id
-                    ? "1px solid var(--accent-primary)"
-                    : "1px solid var(--border-default)",
-                  background: sortMode === s.id
-                    ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)"
-                    : "var(--surface-primary)",
-                  color: sortMode === s.id
-                    ? "var(--accent-primary)"
-                    : "var(--text-tertiary)",
-                  fontSize: 10,
-                  fontWeight: sortMode === s.id ? 600 : 400,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
+                className={`ri-sort-btn ${sortMode === s.id ? "ri-sort-btn-active" : "ri-sort-btn-inactive"}`}
               >
                 {s.label}
               </button>
@@ -439,82 +385,43 @@ export default function RunInspector() {
         </div>
 
         {/* Caller list */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 6px 8px" }}>
+        <div className="ri-caller-list">
           {loadingRecent ? (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-tertiary)", fontSize: 11 }}>
+            <div className="ri-caller-empty">
               Loading recent activity...
             </div>
           ) : recentCallers.length === 0 ? (
-            <div style={{ padding: 20, textAlign: "center", color: "var(--text-tertiary)", fontSize: 11 }}>
+            <div className="ri-caller-empty">
               {callerSearch ? "No callers match" : "No pipeline runs found"}
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <div className="hf-flex-col" style={{ gap: 3 }}>
               {recentCallers.map((caller) => {
                 const isSelected = caller.id === selectedCallerId;
                 return (
                   <button
                     key={caller.id}
                     onClick={() => setSelectedCallerId(caller.id)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 10px",
-                      borderRadius: 6,
-                      border: isSelected
-                        ? "1px solid var(--accent-primary)"
-                        : "1px solid transparent",
-                      background: isSelected
-                        ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)"
-                        : "var(--surface-primary)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "all 0.15s",
-                      boxShadow: isSelected ? "0 1px 4px color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "0 1px 2px color-mix(in srgb, var(--text-primary) 3%, transparent)",
-                      width: "100%",
-                    }}
+                    className={`ri-caller-item ${isSelected ? "ri-caller-item-selected" : "ri-caller-item-default"}`}
                   >
                     {/* Status dot */}
                     <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: caller.lastStatus === "SUCCESS" ? "var(--status-success-text)" : "var(--status-error-text)",
-                        flexShrink: 0,
-                      }}
+                      className={`ri-status-dot ${caller.lastStatus === "SUCCESS" ? "ri-status-dot-success" : "ri-status-dot-error"}`}
                     />
 
                     {/* Name + metadata */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: "var(--text-primary)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                      <div className="ri-caller-name">
                         {caller.name || caller.id.slice(0, 8)}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 1 }}>
+                      <div className="ri-caller-meta">
                         {caller.totalRuns} run{caller.totalRuns !== 1 ? "s" : ""}
                         {caller.lastDurationMs != null && ` \u00B7 ${caller.lastDurationMs}ms`}
                       </div>
                     </div>
 
                     {/* Relative time */}
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "var(--text-tertiary)",
-                        flexShrink: 0,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span className="ri-caller-time">
                       {formatRelativeTime(caller.lastRunAt)}
                     </span>
                   </button>
@@ -525,34 +432,17 @@ export default function RunInspector() {
         </div>
 
         {/* Footer count */}
-        <div
-          style={{
-            padding: "6px 10px",
-            borderTop: "1px solid var(--border-default)",
-            fontSize: 10,
-            color: "var(--text-tertiary)",
-          }}
-        >
+        <div className="ri-sidebar-footer">
           {recentCallers.length} caller{recentCallers.length !== 1 ? "s" : ""} with activity
         </div>
       </div>
 
       {/* ======== RIGHT PANEL: Run Detail ======== */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div className="ri-main">
         {/* Run picker bar */}
         {selectedCallerId && (
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              padding: "10px 16px",
-              borderBottom: "1px solid var(--border-default)",
-              background: "var(--surface-primary)",
-              flexShrink: 0,
-              alignItems: "center",
-            }}
-          >
-            <div style={{ flex: 1, maxWidth: 400 }}>
+          <div className="ri-run-picker">
+            <div className="ri-run-picker-select">
               <FancySelect
                 value={selectedRunId || ""}
                 onChange={(v) => setSelectedRunId(v || null)}
@@ -568,45 +458,30 @@ export default function RunInspector() {
             </div>
             <button
               onClick={refreshRuns}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 6,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-primary)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-              }}
+              className="ri-run-refresh-btn"
               title="Refresh runs"
             >
               <Refresh style={{ fontSize: 16 }} />
             </button>
-            <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
+            <span className="ri-run-count">
               {runs.length} run{runs.length !== 1 ? "s" : ""}
             </span>
           </div>
         )}
 
         {/* Content area */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        <div className="ri-content">
           {/* Empty State: no caller selected */}
           {!selectedCallerId && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: 60,
-                color: "var(--text-muted)",
-              }}
-            >
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block", opacity: 0.4 }}>
+            <div className="ri-empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="ri-empty-icon">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+              <div className="ri-empty-title">
                 Select a caller to inspect traces
               </div>
-              <div style={{ fontSize: 12 }}>
+              <div className="ri-empty-desc">
                 Callers are sorted by most recent pipeline activity
               </div>
             </div>
@@ -614,14 +489,8 @@ export default function RunInspector() {
 
           {/* Empty State: caller selected but no run */}
           {selectedCallerId && !selectedRun && !loading && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: 60,
-                color: "var(--text-muted)",
-              }}
-            >
-              <div style={{ fontSize: 14 }}>
+            <div className="ri-empty-state">
+              <div className="hf-text-md">
                 {runs.length === 0 ? "No pipeline runs for this caller" : "Select a run above"}
               </div>
             </div>
@@ -629,7 +498,7 @@ export default function RunInspector() {
 
           {/* Loading state */}
           {loading && (
-            <div style={{ textAlign: "center", padding: 40, color: "var(--text-tertiary)", fontSize: 13 }}>
+            <div className="ri-loading">
               Loading runs...
             </div>
           )}
@@ -638,57 +507,27 @@ export default function RunInspector() {
           {selectedRun && (
             <div>
               {/* Run Header */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginBottom: 20,
-                  padding: 14,
-                  background: "var(--surface-secondary)",
-                  borderRadius: 8,
-                  border: "1px solid var(--border-default)",
-                }}
-              >
+              <div className="ri-run-header">
                 <StatusBadge status={selectedRun.status} size={24} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary)" }}>
+                  <div className="ri-run-title">
                     Prompt Composition
                     {selectedRun._model && (
                       <span
-                        style={{
-                          marginLeft: 8,
-                          padding: "2px 8px",
-                          background: selectedRun._model === "deterministic" ? "var(--badge-blue-bg)" : "var(--badge-yellow-bg)",
-                          color: selectedRun._model === "deterministic" ? "var(--badge-blue-text)" : "var(--badge-yellow-text)",
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 500,
-                        }}
+                        className={`ri-model-badge ${selectedRun._model === "deterministic" ? "ri-model-badge-deterministic" : "ri-model-badge-ai"}`}
                       >
                         {selectedRun._model}
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  <div className="ri-run-subtitle">
                     {new Date(selectedRun.startedAt).toLocaleString()} •{" "}
                     {selectedRun.durationMs}ms • {selectedRun.stepsSucceeded}/
                     {selectedRun.stepsTotal} steps • triggered by {selectedRun.triggeredBy || "manual"}
                   </div>
                 </div>
                 {selectedRun.errorSummary && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "6px 12px",
-                      background: "var(--status-error-bg)",
-                      borderRadius: 6,
-                      color: "var(--status-error-text)",
-                      fontSize: 12,
-                    }}
-                  >
+                  <div className="ri-error-banner">
                     <Warning style={{ fontSize: 16 }} />
                     {selectedRun.errorSummary}
                   </div>
@@ -696,15 +535,7 @@ export default function RunInspector() {
               </div>
 
               {/* Steps Timeline */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                  paddingLeft: 4,
-                  paddingRight: 8,
-                }}
-              >
+              <div className="ri-steps-timeline">
                 {selectedRun.steps.map((step, idx) => (
                   <StepCard
                     key={step.id}
@@ -766,17 +597,7 @@ function AICallBadge({
     // Show placeholder badge
     return (
       <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "2px 6px",
-          background: "var(--badge-blue-bg)",
-          color: "var(--badge-blue-text)",
-          borderRadius: 4,
-          fontSize: 10,
-          fontWeight: 500,
-        }}
+        className="ri-ai-badge ri-ai-badge-default"
         title="AI-powered step"
       >
         <Psychology style={{ fontSize: 12 }} />
@@ -795,87 +616,44 @@ function AICallBadge({
       onMouseLeave={() => setShowTooltip(false)}
     >
       <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "2px 8px",
-          background: isCustomized ? "var(--badge-yellow-bg)" : "var(--badge-blue-bg)",
-          color: isCustomized ? "var(--badge-yellow-text)" : "var(--badge-blue-text)",
-          borderRadius: 4,
-          fontSize: 10,
-          fontWeight: 500,
-          cursor: "pointer",
-          border: `1px solid ${isCustomized ? "var(--badge-yellow-text)" : "color-mix(in srgb, var(--badge-blue-text) 40%, transparent)"}`,
-        }}
+        className={`ri-ai-badge ri-ai-badge-custom ${isCustomized ? "ri-ai-badge-custom-modified" : "ri-ai-badge-custom-default"}`}
       >
         <Psychology style={{ fontSize: 12 }} />
         {config.provider === "mock" ? "Mock" : "AI"}
         {transcriptLimit && (
-          <span style={{ opacity: 0.7 }}>• {(transcriptLimit / 1000).toFixed(1)}k</span>
+          <span style={{ opacity: 0.7 }}>{"\u2022"} {(transcriptLimit / 1000).toFixed(1)}k</span>
         )}
       </span>
 
       {/* Hover Tooltip */}
       {showTooltip && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            marginTop: 6,
-            padding: 12,
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px color-mix(in srgb, var(--text-primary) 15%, transparent)",
-            zIndex: 100,
-            minWidth: 220,
-            fontSize: 12,
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
+        <div className="ri-tooltip">
+          <div className="ri-tooltip-title">
             AI Configuration
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-muted)" }}>Provider</span>
-              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>
+          <div className="hf-flex-col" style={{ gap: 6 }}>
+            <div className="ri-tooltip-row">
+              <span className="ri-tooltip-label">Provider</span>
+              <span className="ri-tooltip-value">
                 {config.provider}
               </span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-muted)" }}>Model</span>
+            <div className="ri-tooltip-row">
+              <span className="ri-tooltip-label">Model</span>
               <span
-                style={{
-                  fontWeight: 500,
-                  color: "var(--text-primary)",
-                  fontSize: 11,
-                  maxWidth: 120,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
+                className="ri-tooltip-value ri-tooltip-model"
                 title={config.model}
               >
                 {config.model.split("-").slice(-2).join("-")}
               </span>
             </div>
             {transcriptLimit && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-muted)" }}>Transcript Limit</span>
-                <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>
+              <div className="ri-tooltip-row">
+                <span className="ri-tooltip-label">Transcript Limit</span>
+                <span className="ri-tooltip-value">
                   {transcriptLimit.toLocaleString()} chars
                   {isCustomized && (
-                    <span
-                      style={{
-                        marginLeft: 4,
-                        padding: "1px 4px",
-                        background: "var(--badge-yellow-bg)",
-                        color: "var(--badge-yellow-text)",
-                        borderRadius: 3,
-                        fontSize: 9,
-                      }}
-                    >
+                    <span className="ri-tooltip-custom-badge">
                       custom
                     </span>
                   )}
@@ -883,16 +661,8 @@ function AICallBadge({
               </div>
             )}
           </div>
-          <div
-            style={{
-              marginTop: 8,
-              paddingTop: 8,
-              borderTop: "1px solid var(--border-default)",
-              fontSize: 10,
-              color: "var(--text-muted)",
-            }}
-          >
-            Configure in <a href="/x/ai-config" style={{ color: "var(--accent-primary)" }}>AI Config</a>
+          <div className="ri-tooltip-footer">
+            Configure in <a href="/x/ai-config" className="ri-tooltip-link">AI Config</a>
           </div>
         </div>
       )}
@@ -917,7 +687,7 @@ function DataViewer({
   if (Array.isArray(data)) {
     if (data.length === 0) {
       return (
-        <div style={{ padding: 12, color: "var(--text-muted)", fontSize: 12, fontStyle: "italic" }}>
+        <div className="ri-data-empty">
           Empty array
         </div>
       );
@@ -926,22 +696,18 @@ function DataViewer({
     // Special handling for memories array
     if (dataType === "memories") {
       return (
-        <div style={{ padding: 0 }}>
+        <div>
           {data.map((item: any, i: number) => (
             <div
               key={i}
-              className={highlight ? "highlight-row" : ""}
-              style={{
-                padding: "10px 12px",
-                borderBottom: i < data.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
-              }}
+              className={`ri-data-row ${highlight ? "highlight-row" : ""} ${i < data.length - 1 ? "ri-data-row-bordered" : ""}`}
             >
-              <div style={{ fontSize: 12, color: "var(--text-on-dark)", marginBottom: 4 }}>
+              <div className="ri-data-text">
                 {item.content || item.text || item.memory || JSON.stringify(item)}
               </div>
-              <div style={{ fontSize: 10, color: "var(--text-muted)", display: "flex", gap: 8 }}>
-                {item.category && <span style={{ background: "rgba(255,255,255,0.1)", padding: "1px 6px", borderRadius: 4 }}>{item.category}</span>}
-                {item.importance && <span>★ {item.importance}</span>}
+              <div className="ri-data-meta">
+                {item.category && <span className="ri-data-meta-tag">{item.category}</span>}
+                {item.importance && <span>{"\u2605"} {item.importance}</span>}
                 {item.createdAt && <span>{new Date(item.createdAt).toLocaleDateString()}</span>}
               </div>
             </div>
@@ -952,20 +718,14 @@ function DataViewer({
 
     // Generic array rendering
     return (
-      <div style={{ padding: 0 }}>
+      <div>
         {data.map((item: any, i: number) => (
           <div
             key={i}
-            className={highlight ? "highlight-row" : ""}
-            style={{
-              padding: "10px 12px",
-              borderBottom: i < data.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
-              fontSize: 11,
-              color: "var(--text-on-dark)",
-            }}
+            className={`ri-data-row ri-data-generic ${highlight ? "highlight-row" : ""} ${i < data.length - 1 ? "ri-data-row-bordered" : ""}`}
           >
             {typeof item === "object" ? (
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              <pre className="ri-data-pre">
                 {JSON.stringify(item, null, 2)}
               </pre>
             ) : (
@@ -981,36 +741,24 @@ function DataViewer({
   if (data && typeof data === "object" && "all" in data && Array.isArray((data as any).all)) {
     const allItems = (data as any).all;
     return (
-      <div style={{ padding: 0 }}>
+      <div>
         {allItems.map((item: any, i: number) => (
           <div
             key={i}
-            className={highlight ? "highlight-row" : ""}
-            style={{
-              padding: "10px 12px",
-              borderBottom: i < allItems.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
+            className={`ri-data-all-item ${highlight ? "highlight-row" : ""} ${i < allItems.length - 1 ? "ri-data-all-item-bordered" : ""}`}
           >
-            <div style={{ fontSize: 12, color: "var(--text-on-dark)" }}>
+            <div className="ri-data-all-name">
               {item.name || item.parameterId || item.key || `Item ${i + 1}`}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="hf-flex-center hf-gap-sm">
               {item.value !== undefined && (
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--badge-purple-text)",
-                  fontFamily: "monospace",
-                }}>
+                <span className="ri-data-all-value">
                   {typeof item.value === "number" ? item.value.toFixed(2) : item.value}
                 </span>
               )}
               {item.confidence !== undefined && (
-                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
-                  ±{(item.confidence * 100).toFixed(0)}%
+                <span className="ri-data-confidence">
+                  {"\u00B1"}{(item.confidence * 100).toFixed(0)}%
                 </span>
               )}
             </div>
@@ -1024,27 +772,19 @@ function DataViewer({
   if (data && typeof data === "object") {
     const entries = Object.entries(data as Record<string, unknown>).filter(([k]) => !k.startsWith("_"));
     return (
-      <div style={{ padding: 0 }}>
+      <div>
         {entries.map(([key, value], i) => (
           <div
             key={key}
-            className={highlight ? "highlight-row" : ""}
-            style={{
-              padding: "8px 12px",
-              borderBottom: i < entries.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-            }}
+            className={`ri-data-kv-row ${highlight ? "highlight-row" : ""} ${i < entries.length - 1 ? "ri-data-kv-row-bordered" : ""}`}
           >
-            <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>{key}</span>
-            <span style={{
-              fontSize: 11,
-              color: "var(--text-on-dark)",
-              textAlign: "right",
-              wordBreak: "break-word",
-              fontFamily: typeof value === "number" || typeof value === "boolean" ? "monospace" : "inherit",
-            }}>
+            <span className="ri-data-key">{key}</span>
+            <span
+              className="ri-data-value"
+              style={{
+                fontFamily: typeof value === "number" || typeof value === "boolean" ? "monospace" : "inherit",
+              }}
+            >
               {typeof value === "object" ? JSON.stringify(value) : String(value)}
             </span>
           </div>
@@ -1055,16 +795,7 @@ function DataViewer({
 
   // Fallback for primitives
   return (
-    <pre
-      style={{
-        color: "var(--text-on-dark)",
-        padding: 12,
-        margin: 0,
-        fontSize: 11,
-        whiteSpace: "pre-wrap",
-        wordBreak: "break-word",
-      }}
-    >
+    <pre className="ri-json-pre">
       {JSON.stringify(data, null, 2)}
     </pre>
   );
@@ -1119,67 +850,27 @@ function StepCard({
   }, [activeSection]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-      }}
-    >
+    <div className="ri-step-row">
       {/* Timeline connector */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          width: 44,
-        }}
-      >
+      <div className="ri-timeline-connector">
         <StatusBadge status={step.status} size={18} />
         {!isLast && (
-          <div
-            style={{
-              width: 2,
-              flex: 1,
-              background: "var(--border-default)",
-              minHeight: 20,
-            }}
-          />
+          <div className="ri-timeline-line" />
         )}
       </div>
 
       {/* Card */}
-      <div
-        style={{
-          flex: 1,
-          marginBottom: 8,
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-          overflow: "hidden",
-        }}
-      >
+      <div className="ri-step-card">
         {/* Header */}
         <div
           onClick={hasDetails ? onToggle : undefined}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: 12,
-            cursor: hasDetails ? "pointer" : "default",
-          }}
+          className={`ri-step-header ${hasDetails ? "ri-step-header-clickable" : ""}`}
         >
           <StepIcon operation={step.operation} size={18} />
 
           <div style={{ flex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span style={{ fontWeight: 500, fontSize: 14 }}>
+            <div className="hf-flex-center hf-gap-sm">
+              <span className="ri-step-label">
                 {step.label || step.operation}
               </span>
               {step.specSlug && <ConfigBadge source="spec" />}
@@ -1188,7 +879,7 @@ function StepCard({
               )}
             </div>
             {step.outputCounts && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+              <div className="hf-flex hf-flex-wrap" style={{ gap: 6, marginTop: 4 }}>
                 {Object.entries(step.outputCounts).map(([key, value]) => {
                   const colors = getTypeColor(key);
                   return (
@@ -1199,19 +890,11 @@ function StepCard({
                         if (!expanded) onToggle();
                         setActiveSection(activeSection === key ? null : key);
                       }}
+                      className="ri-output-pill"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "2px 8px",
                         background: activeSection === key ? colors.text : colors.bg,
                         color: activeSection === key ? "white" : colors.text,
                         border: `1px solid ${colors.border}`,
-                        borderRadius: 12,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
                       }}
                     >
                       {value} {key}
@@ -1221,20 +904,18 @@ function StepCard({
               </div>
             )}
             {step.error && step.status === "FAILED" && (
-              <div
-                style={{ fontSize: 12, color: "var(--status-error-text)", marginTop: 2 }}
-              >
+              <div className="ri-step-error">
                 {step.error}
               </div>
             )}
           </div>
 
-          <div style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>
-            {step.durationMs !== null ? `${step.durationMs}ms` : "—"}
+          <div className="ri-step-duration">
+            {step.durationMs !== null ? `${step.durationMs}ms` : "\u2014"}
           </div>
 
           {hasDetails && (
-            <div style={{ color: "var(--text-muted)" }}>
+            <div className="hf-text-muted">
               {expanded ? (
                 <ExpandLess style={{ fontSize: 20 }} />
               ) : (
@@ -1246,41 +927,15 @@ function StepCard({
 
         {/* Expanded Details */}
         {expanded && hasDetails && (
-          <div
-            style={{
-              borderTop: "1px solid var(--border-default)",
-              padding: 12,
-              background: "var(--surface-secondary)",
-              maxHeight: 500,
-              overflowY: "auto",
-            }}
-          >
+          <div className="ri-details">
             {/* Sections for compose step */}
             {(step.sectionsActivated.length > 0 ||
               step.sectionsSkipped.length > 0) && (
-              <div style={{ marginBottom: 12 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--text-muted)",
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
+              <div className="hf-mb-md" style={{ marginBottom: 12 }}>
+                <div className="ri-section-label">
                   Sections ({step.sectionsActivated.length} active, {step.sectionsSkipped.length} skipped)
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    maxHeight: 150,
-                    overflowY: "auto",
-                    padding: 4,
-                  }}
-                >
+                <div className="ri-section-chips">
                   {step.sectionsActivated.map((s) => {
                     // Map section names to llmPrompt fields
                     const sectionToField: Record<string, string> = {
@@ -1312,25 +967,19 @@ function StepCard({
                             setActiveSection(isActive ? null : fieldName);
                           }
                         }}
+                        className={`ri-section-chip ${hasData ? "ri-section-chip-clickable" : ""}`}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "4px 8px",
                           background: isActive ? colors.text : hasData ? colors.bg : "var(--badge-green-bg)",
                           color: isActive ? "var(--button-primary-text)" : hasData ? colors.text : "var(--badge-green-text)",
                           border: hasData ? `1px solid ${colors.border}` : "1px solid color-mix(in srgb, var(--badge-green-text) 40%, transparent)",
-                          borderRadius: 4,
-                          fontSize: 12,
                           cursor: hasData ? "pointer" : "default",
                           opacity: hasData ? 1 : 0.7,
-                          transition: "all 0.15s ease",
                         }}
                       >
                         <SectionIcon section={s} size={14} />
                         {s}
                         {step.sectionTimings?.[s] && (
-                          <span style={{ opacity: 0.7 }}>
+                          <span className="ri-section-chip-timing">
                             ({step.sectionTimings[s]}ms)
                           </span>
                         )}
@@ -1340,17 +989,7 @@ function StepCard({
                   {step.sectionsSkipped.map((s) => (
                     <div
                       key={s}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "4px 8px",
-                        background: "var(--surface-tertiary)",
-                        borderRadius: 4,
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        border: "1px solid var(--border-default)",
-                      }}
+                      className="ri-section-skipped"
                     >
                       <SectionIcon section={s.split(":")[0]} size={14} />
                       {s}
@@ -1363,36 +1002,11 @@ function StepCard({
             {/* Input/Output JSON */}
             {step.inputs && (
               <div style={{ marginBottom: 12 }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--text-muted)",
-                    marginBottom: 4,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
+                <div className="ri-section-label ri-section-label-compact">
                   Inputs
                 </div>
-                <div
-                  style={{
-                    background: "var(--surface-dark)",
-                    borderRadius: 6,
-                    maxHeight: 300,
-                    overflow: "auto",
-                  }}
-                >
-                  <pre
-                    style={{
-                      color: "var(--text-on-dark)",
-                      padding: 12,
-                      margin: 0,
-                      fontSize: 11,
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
+                <div className="ri-json-container">
+                  <pre className="ri-json-pre">
                     {JSON.stringify(step.inputs, null, 2)}
                   </pre>
                 </div>
@@ -1404,27 +1018,11 @@ function StepCard({
                 {/* If we have llmPrompt, show structured tabs */}
                 {hasLlmPrompt && (
                   <>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--text-muted)",
-                        marginBottom: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
+                    <div className="ri-section-label">
                       Prompt Data (click a section to view)
                     </div>
                     {/* Section tabs */}
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 6,
-                        marginBottom: 12,
-                      }}
-                    >
+                    <div className="hf-flex hf-flex-wrap" style={{ gap: 6, marginBottom: 12 }}>
                       {llmSections.map((section) => {
                         const colors = getTypeColor(section);
                         const isActive = activeSection === section;
@@ -1438,29 +1036,19 @@ function StepCard({
                           <button
                             key={section}
                             onClick={() => setActiveSection(isActive ? null : section)}
+                            className="ri-prompt-tab"
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                              padding: "4px 10px",
                               background: isActive ? colors.text : colors.bg,
                               color: isActive ? "white" : colors.text,
                               border: `1px solid ${colors.border}`,
-                              borderRadius: 6,
-                              fontSize: 12,
-                              fontWeight: 500,
-                              cursor: "pointer",
-                              transition: "all 0.15s ease",
                             }}
                           >
                             {section}
                             {count !== null && (
                               <span
+                                className="ri-prompt-tab-count"
                                 style={{
                                   background: isActive ? "rgba(255,255,255,0.3)" : colors.border,
-                                  padding: "0 6px",
-                                  borderRadius: 10,
-                                  fontSize: 10,
                                 }}
                               >
                                 {count}
@@ -1474,25 +1062,16 @@ function StepCard({
                     {activeSection && llmPrompt[activeSection] && (
                       <div
                         ref={dataViewerRef}
+                        className="ri-section-viewer"
                         style={{
-                          background: "var(--surface-dark)",
-                          borderRadius: 6,
-                          maxHeight: 400,
-                          overflow: "auto",
                           borderLeft: `4px solid ${getTypeColor(activeSection).border}`,
                         }}
                       >
                         <div
+                          className="ri-section-viewer-header"
                           style={{
-                            padding: "8px 12px",
                             background: getTypeColor(activeSection).bg,
                             color: getTypeColor(activeSection).text,
-                            fontWeight: 600,
-                            fontSize: 12,
-                            borderBottom: "1px solid var(--border-dark)",
-                            position: "sticky",
-                            top: 0,
-                            zIndex: 1,
                           }}
                         >
                           {activeSection}
@@ -1505,17 +1084,7 @@ function StepCard({
                       </div>
                     )}
                     {!activeSection && (
-                      <div
-                        style={{
-                          padding: 16,
-                          textAlign: "center",
-                          color: "var(--text-muted)",
-                          fontSize: 13,
-                          background: "var(--surface-tertiary)",
-                          borderRadius: 6,
-                          border: "1px dashed var(--border-strong)",
-                        }}
-                      >
+                      <div className="ri-section-viewer-empty">
                         Click a section above to view its data
                       </div>
                     )}
@@ -1524,36 +1093,11 @@ function StepCard({
                 {/* Fallback: show raw outputs if no llmPrompt */}
                 {!hasLlmPrompt && (
                   <>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "var(--text-muted)",
-                        marginBottom: 4,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
+                    <div className="ri-section-label ri-section-label-compact">
                       Outputs
                     </div>
-                    <div
-                      style={{
-                        background: "var(--surface-dark)",
-                        borderRadius: 6,
-                        maxHeight: 400,
-                        overflow: "auto",
-                      }}
-                    >
-                      <pre
-                        style={{
-                          color: "var(--text-on-dark)",
-                          padding: 12,
-                          margin: 0,
-                          fontSize: 11,
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
+                    <div className="ri-json-container ri-json-container-lg">
+                      <pre className="ri-json-pre">
                         {JSON.stringify(step.outputs, null, 2)}
                       </pre>
                     </div>

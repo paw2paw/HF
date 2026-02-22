@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { parsePagination } from "@/lib/api-utils";
 
 /**
  * @api GET /api/messages
@@ -24,8 +25,7 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const type = url.searchParams.get("type") || "inbox"; // inbox | sent
-    const limit = Math.min(100, parseInt(url.searchParams.get("limit") || "50"));
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const { limit, offset } = parsePagination(url.searchParams, { defaultLimit: 50, maxLimit: 100 });
     const unreadOnly = url.searchParams.get("unreadOnly") === "true";
 
     const userId = session.user.id;

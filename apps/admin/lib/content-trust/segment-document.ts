@@ -29,7 +29,8 @@ export type PedagogicalRole =
   | "CHECK"      // Comprehension questions, T/F, matching exercises
   | "PRODUCE"    // Discussion, writing, role-play, production tasks
   | "REFLECT"    // Self-assessment, review, learning journal
-  | "REFERENCE"; // Answer key, teacher notes, glossary
+  | "REFERENCE"  // Answer key, teacher notes, glossary
+  | "META";      // Non-content: TOC, index, title page, copyright, blank
 
 /** A detected section within a document */
 export interface DocumentSection {
@@ -47,6 +48,12 @@ export interface DocumentSection {
   hasQuestions: boolean;
   /** Whether this section contains an answer key */
   hasAnswerKey: boolean;
+  /** Filter action assigned post-segmentation (by filter-sections.ts) */
+  filterAction?: "extract" | "skip" | "reference";
+  /** Figure/diagram/image references detected in this section */
+  figureRefs?: string[];
+  /** Whether this section contains figure captions or visual content */
+  hasFigures?: boolean;
 }
 
 /** Result of document segmentation */
@@ -68,7 +75,7 @@ const MIN_TEXT_LENGTH = 500;
 const MAX_SEGMENTATION_SAMPLE = 6000;
 
 const VALID_ROLES: PedagogicalRole[] = [
-  "ACTIVATE", "INPUT", "CHECK", "PRODUCE", "REFLECT", "REFERENCE",
+  "ACTIVATE", "INPUT", "CHECK", "PRODUCE", "REFLECT", "REFERENCE", "META",
 ];
 
 const VALID_SECTION_TYPES: DocumentType[] = [
@@ -104,8 +111,11 @@ For each section, identify:
    - PRODUCE: Discussion prompt, writing task, role-play, production
    - REFLECT: Self-assessment, review, learning journal
    - REFERENCE: Answer key, teacher notes, solutions
+   - META: Non-content metadata — table of contents, index, title page, copyright notice, acknowledgements, blank pages, publisher info. No teachable content.
 5. hasQuestions: true if the section contains questions for the learner
 6. hasAnswerKey: true if the section contains answers/solutions
+7. figureRefs: Array of figure/diagram/image references found (e.g. ["Figure 1", "Diagram 2.3", "Table 1"]). Empty array if none.
+8. hasFigures: true if the section contains figure captions, image descriptions, diagrams, or visual content references
 
 Return a JSON object:
 {
@@ -117,7 +127,9 @@ Return a JSON object:
       "sectionType": "TEXTBOOK|COMPREHENSION|WORKSHEET|ASSESSMENT|REFERENCE|CURRICULUM|EXAMPLE|LESSON_PLAN|POLICY_DOCUMENT",
       "pedagogicalRole": "ACTIVATE|INPUT|CHECK|PRODUCE|REFLECT|REFERENCE",
       "hasQuestions": true/false,
-      "hasAnswerKey": true/false
+      "hasAnswerKey": true/false,
+      "figureRefs": ["Figure 1", "Diagram 2.3"],
+      "hasFigures": true/false
     }
   ]
 }
@@ -128,6 +140,8 @@ Rules:
 - Adjacent text of the same type can be merged into one section
 - Be generous with section detection — even short sections (a few lines) count if they serve a different pedagogical purpose
 - A document with reading + exercises + answers is ALWAYS composite
+- Title pages, copyright pages, TOC, indexes, and blank pages should be labelled META with descriptive titles (e.g. "Table of Contents", "Copyright Notice")
+- List any figure/diagram/table references found in each section's figureRefs array
 - Return ONLY valid JSON (no markdown code fences)`;
 
 // ------------------------------------------------------------------
@@ -268,6 +282,8 @@ function resolveOffsets(
     pedagogicalRole?: string;
     hasQuestions?: boolean;
     hasAnswerKey?: boolean;
+    figureRefs?: string[];
+    hasFigures?: boolean;
   }>,
 ): DocumentSection[] {
   const sections: DocumentSection[] = [];
@@ -314,6 +330,8 @@ function resolveOffsets(
       pedagogicalRole,
       hasQuestions: raw.hasQuestions === true,
       hasAnswerKey: raw.hasAnswerKey === true,
+      figureRefs: Array.isArray(raw.figureRefs) ? raw.figureRefs : [],
+      hasFigures: raw.hasFigures === true,
     });
 
     searchFrom = startOffset + 1;

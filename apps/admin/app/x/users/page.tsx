@@ -300,13 +300,8 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 0" }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: "50%",
-          border: "3px solid var(--border-default)",
-          borderTopColor: "var(--button-primary-bg)",
-          animation: "spin 0.8s linear infinite",
-        }} />
+      <div className="hf-flex-center hf-p-lg">
+        <div className="hf-spinner" />
       </div>
     );
   }
@@ -317,33 +312,29 @@ export default function UsersPage() {
   const pendingInvites = invites.filter((i) => !i.usedAt);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className="hf-flex-col hf-gap-2xl">
       <AdvancedBanner />
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="hf-flex-between">
         <div>
           <h1 className="hf-page-title">
             Team Members
           </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+          <p className="hf-page-subtitle">
             {activeUsers.length} active user{activeUsers.length !== 1 ? "s" : ""}
             {pendingInvites.length > 0 && ` · ${pendingInvites.length} pending invite${pendingInvites.length !== 1 ? "s" : ""}`}
           </p>
         </div>
 
         {session?.user && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{session.user.email}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{session.user.role}</div>
+          <div className="hf-flex hf-gap-md">
+            <div className="hf-text-right">
+              <div className="hf-text-sm hf-text-500 hf-text-primary">{session.user.email}</div>
+              <div className="hf-text-xs hf-text-muted">{session.user.role}</div>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              style={{
-                padding: "6px 12px", fontSize: 13, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "transparent",
-                color: "var(--text-primary)", cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-secondary hf-btn-sm"
             >
               Sign out
             </button>
@@ -352,17 +343,13 @@ export default function UsersPage() {
       </div>
 
       {/* Invite New User */}
-      <div style={{
-        padding: 24, borderRadius: 12,
-        background: "var(--surface-primary)", border: "1px solid var(--border-default)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+      <div className="hf-card-compact">
+        <div className="hf-flex-between hf-mb-md">
+          <h2 className="hf-heading-lg">
             Invite Field Tester
           </h2>
           {appConfig && (
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
+            <span className="hf-flex hf-gap-xs" style={{
               padding: "3px 10px", borderRadius: 6, fontSize: 12,
               background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "var(--status-success-bg)"
                 : appConfig.source === "NEXTAUTH_URL" ? "var(--status-warning-bg)"
@@ -371,7 +358,7 @@ export default function UsersPage() {
                 : appConfig.source === "NEXTAUTH_URL" ? "var(--status-warning-text)"
                 : "var(--status-error-text)",
             }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%",
+              <span className="hf-status-dot-sm" style={{
                 background: appConfig.source === "NEXT_PUBLIC_APP_URL" ? "var(--status-success-text)"
                   : appConfig.source === "NEXTAUTH_URL" ? "var(--status-warning-text)"
                   : "var(--status-error-text)",
@@ -381,33 +368,26 @@ export default function UsersPage() {
           )}
         </div>
 
-        {inviteError && <p style={{ marginBottom: 12, fontSize: 13, color: "var(--status-error-text)", margin: "0 0 12px" }}>{inviteError}</p>}
+        {inviteError && <p className="hf-text-sm hf-text-error hf-mb-md">{inviteError}</p>}
 
         {/* Step 1: Form */}
         {inviteStep === "form" && (
-          <form onSubmit={handlePreviewInvite} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <form onSubmit={handlePreviewInvite} className="hf-flex-col hf-gap-md">
             {/* Row 1: Email + Role */}
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="hf-flex hf-gap-10">
               <input
                 type="email"
                 value={newInviteEmail}
                 onChange={(e) => setNewInviteEmail(e.target.value)}
                 placeholder="tester@example.com"
                 required
-                style={{
-                  flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                  color: "var(--text-primary)", outline: "none",
-                }}
+                className="hf-input hf-flex-1"
               />
               <select
                 value={newInviteRole}
                 onChange={(e) => setNewInviteRole(e.target.value as UserRole)}
-                style={{
-                  padding: "8px 12px", fontSize: 13, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                  color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="hf-input hf-text-sm"
+                style={{ width: "auto", cursor: "pointer" }}
               >
                 {contractRoles.map((role) => (
                   <option key={role} value={role}>{formatRoleLabel(role)}</option>
@@ -416,37 +396,26 @@ export default function UsersPage() {
             </div>
 
             {/* Row 2: First/Last Name + Domain */}
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="hf-flex hf-gap-10">
               <input
                 type="text"
                 value={newInviteFirstName}
                 onChange={(e) => setNewInviteFirstName(e.target.value)}
                 placeholder="First name (optional)"
-                style={{
-                  flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                  color: "var(--text-primary)", outline: "none",
-                }}
+                className="hf-input hf-flex-1"
               />
               <input
                 type="text"
                 value={newInviteLastName}
                 onChange={(e) => setNewInviteLastName(e.target.value)}
                 placeholder="Last name (optional)"
-                style={{
-                  flex: 1, padding: "8px 14px", fontSize: 14, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                  color: "var(--text-primary)", outline: "none",
-                }}
+                className="hf-input hf-flex-1"
               />
               <select
                 value={newInviteDomainId}
                 onChange={(e) => setNewInviteDomainId(e.target.value)}
-                style={{
-                  minWidth: 160, padding: "8px 12px", fontSize: 13, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "var(--surface-secondary, var(--surface-primary))",
-                  color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="hf-input hf-text-sm"
+                style={{ width: "auto", minWidth: 160, cursor: "pointer" }}
               >
                 <option value="">Any domain (chooser)</option>
                 {domains.map((d) => (
@@ -456,13 +425,10 @@ export default function UsersPage() {
             </div>
 
             {/* Submit */}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="hf-flex hf-justify-end">
               <button
                 type="submit"
-                style={{
-                  padding: "8px 24px", fontSize: 14, fontWeight: 500, borderRadius: 8,
-                  background: "var(--button-primary-bg)", color: "white", border: "none", cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-primary"
               >
                 Preview Invite
               </button>
@@ -472,67 +438,48 @@ export default function UsersPage() {
 
         {/* Step 2: Confirmation */}
         {inviteStep === "confirm" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{
-              padding: 16, borderRadius: 8,
-              background: "var(--surface-secondary, var(--surface-primary))",
-              border: "1px solid var(--border-default)",
-            }}>
-              <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>Invite preview</div>
-              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
-                <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Email</span>
-                <span style={{ color: "var(--text-primary)" }}>{newInviteEmail}</span>
-                <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Role</span>
-                <span style={{ color: "var(--text-primary)" }}>{formatRoleLabel(newInviteRole)}</span>
+          <div className="hf-flex-col hf-gap-14">
+            <div className="hf-surface-box">
+              <div className="hf-text-sm hf-text-muted hf-mb-sm">Invite preview</div>
+              <div className="hf-preview-grid">
+                <span className="hf-text-muted hf-text-bold">Email</span>
+                <span className="hf-text-primary">{newInviteEmail}</span>
+                <span className="hf-text-muted hf-text-bold">Role</span>
+                <span className="hf-text-primary">{formatRoleLabel(newInviteRole)}</span>
                 {(newInviteFirstName || newInviteLastName) && <>
-                  <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Name</span>
-                  <span style={{ color: "var(--text-primary)" }}>{[newInviteFirstName, newInviteLastName].filter(Boolean).join(" ")}</span>
+                  <span className="hf-text-muted hf-text-bold">Name</span>
+                  <span className="hf-text-primary">{[newInviteFirstName, newInviteLastName].filter(Boolean).join(" ")}</span>
                 </>}
                 {newInviteDomainId && <>
-                  <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>Domain</span>
-                  <span style={{ color: "var(--text-primary)" }}>{domains.find(d => d.id === newInviteDomainId)?.name || newInviteDomainId}</span>
+                  <span className="hf-text-muted hf-text-bold">Domain</span>
+                  <span className="hf-text-primary">{domains.find(d => d.id === newInviteDomainId)?.name || newInviteDomainId}</span>
                 </>}
               </div>
             </div>
 
-            <div style={{
-              padding: 12, borderRadius: 8,
-              background: "var(--surface-secondary, var(--surface-primary))",
-              border: "1px dashed var(--border-default)",
-            }}>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Link will be</div>
-              <code style={{ fontSize: 13, color: "var(--text-primary)", wordBreak: "break-all" }}>
+            <div className="hf-surface-box-dashed">
+              <div className="hf-text-xs hf-text-muted hf-mb-xs">Link will be</div>
+              <code className="hf-text-sm hf-text-primary hf-word-break-all">
                 {appConfig?.baseUrl || "http://localhost:3000"}/invite/accept?token=&lt;generated&gt;
               </code>
             </div>
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="hf-flex hf-gap-sm hf-justify-end">
               <button
                 onClick={() => setInviteStep("form")}
-                style={{
-                  padding: "8px 16px", fontSize: 13, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "transparent",
-                  color: "var(--text-muted)", cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-secondary hf-btn-sm"
               >
                 Back
               </button>
               <button
                 onClick={() => handleSendInvite(false)}
-                style={{
-                  padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "transparent",
-                  color: "var(--text-primary)", cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-secondary hf-btn-sm hf-text-500"
               >
                 Create &amp; Copy Link
               </button>
               <button
                 onClick={() => handleSendInvite(true)}
-                style={{
-                  padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                  background: "var(--button-primary-bg)", color: "white", border: "none", cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-primary hf-btn-sm"
               >
                 Create &amp; Send Email
               </button>
@@ -542,54 +489,38 @@ export default function UsersPage() {
 
         {/* Step 3: Result */}
         {inviteStep === "result" && lastInviteUrl && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{
-              padding: 16, borderRadius: 8,
-              background: "var(--status-success-bg)", border: "1px solid var(--status-success-border)",
-            }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-success-text)", marginBottom: 8 }}>
+          <div className="hf-flex-col hf-gap-14">
+            <div className="hf-success-box">
+              <div className="hf-text-md hf-text-bold hf-text-success hf-mb-sm">
                 Invite created for {newInviteEmail}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-                <span style={{
-                  padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600,
+              <div className="hf-flex hf-gap-xs hf-mb-md">
+                <span className="hf-email-badge" style={{
                   background: lastEmailSent ? "var(--status-success-text)" : "var(--status-warning-text)",
-                  color: "white",
                 }}>
                   {lastEmailSent ? "Email sent" : "Email not sent"}
                 </span>
                 {!lastEmailSent && (
-                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>Share the link below manually</span>
+                  <span className="hf-text-xs hf-text-warning">Share the link below manually</span>
                 )}
               </div>
-              <div style={{
-                padding: "10px 14px", borderRadius: 8,
-                background: "var(--surface-primary)", border: "1px solid var(--status-success-border)",
-                display: "flex", alignItems: "center", gap: 8,
-              }}>
-                <code style={{ flex: 1, fontSize: 13, color: "var(--status-success-text)", wordBreak: "break-all" }}>
+              <div className="hf-flex hf-gap-sm hf-success-link-box">
+                <code className="hf-text-sm hf-text-success hf-flex-1 hf-word-break-all">
                   {lastInviteUrl}
                 </code>
                 <button
                   onClick={() => { navigator.clipboard.writeText(lastInviteUrl); }}
-                  style={{
-                    padding: "6px 14px", fontSize: 12, fontWeight: 600, borderRadius: 6,
-                    border: "1px solid var(--status-success-text)", background: "var(--status-success-bg)",
-                    color: "var(--status-success-text)", cursor: "pointer", whiteSpace: "nowrap",
-                  }}
+                  className="hf-btn hf-btn-xs hf-text-bold hf-nowrap hf-btn-success-outline"
                 >
                   Copy
                 </button>
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="hf-flex hf-justify-end">
               <button
                 onClick={handleResetInviteForm}
-                style={{
-                  padding: "8px 20px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                  background: "var(--button-primary-bg)", color: "white", border: "none", cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-primary hf-btn-sm"
               >
                 Create Another
               </button>
@@ -600,54 +531,40 @@ export default function UsersPage() {
 
       {/* Pending Invites */}
       {pendingInvites.length > 0 && (
-        <div style={{
-          padding: 24, borderRadius: 12,
-          background: "var(--surface-primary)", border: "1px solid var(--border-default)",
-        }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>
+        <div className="hf-card-compact">
+          <h2 className="hf-heading-lg hf-mb-md">
             Pending Invites
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="hf-flex-col hf-gap-sm">
             {pendingInvites.map((invite) => (
               <div
                 key={invite.id}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "10px 14px", borderRadius: 8,
-                  border: "1px dashed var(--border-default)",
-                }}
+                className="hf-flex-between hf-dashed-box"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "var(--border-default)", fontSize: 14, color: "var(--text-muted)",
-                  }}>
+                <div className="hf-flex hf-gap-10">
+                  <div className="hf-avatar-sm hf-avatar-placeholder">
                     {invite.firstName ? invite.firstName[0].toUpperCase() : "?"}
                   </div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <div className="hf-text-md hf-text-500 hf-text-primary">
                       {invite.firstName || invite.lastName
                         ? `${invite.firstName || ""} ${invite.lastName || ""}`.trim()
                         : invite.email}
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <div className="hf-text-xs hf-text-muted hf-flex hf-flex-wrap hf-gap-xs">
                       {invite.firstName && <span>{invite.email}</span>}
                       <span>Expires {new Date(invite.expiresAt).toLocaleDateString()}</span>
-                      <span style={{
-                        padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                      <span className="hf-micro-badge" style={{
                         background: ROLE_COLORS[invite.role].bg, color: ROLE_COLORS[invite.role].text,
                       }}>
                         {invite.role}
                       </span>
                       {invite.domain && (
-                        <span style={{
-                          padding: "1px 6px", borderRadius: 4, fontSize: 10,
-                          background: "var(--border-default)", color: "var(--text-primary)",
-                        }}>
+                        <span className="hf-badge hf-badge-muted">
                           {invite.domain.name}
                         </span>
                       )}
-                      <span style={{ fontSize: 10, color: invite.sentAt ? "var(--status-success-text)" : "var(--status-warning-text)" }}>
+                      <span className="hf-text-xs" style={{ color: invite.sentAt ? "var(--status-success-text)" : "var(--status-warning-text)" }}>
                         {invite.sentAt ? "Email sent" : "Not sent"}
                       </span>
                     </div>
@@ -655,11 +572,7 @@ export default function UsersPage() {
                 </div>
                 <button
                   onClick={() => handleDeleteInvite(invite.id)}
-                  style={{
-                    padding: "4px 10px", fontSize: 12, borderRadius: 6,
-                    background: "transparent", border: "1px solid var(--status-error-text)",
-                    color: "var(--status-error-text)", cursor: "pointer",
-                  }}
+                  className="hf-btn hf-btn-destructive hf-btn-xs"
                 >
                   Revoke
                 </button>
@@ -671,13 +584,13 @@ export default function UsersPage() {
 
       {/* User Cards Grid */}
       <div>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>
+        <h2 className="hf-heading-lg hf-mb-md">
           Active Users
         </h2>
         {activeUsers.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>No users yet. Send some invites!</p>
+          <p className="hf-text-md hf-text-muted">No users yet. Send some invites!</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          <div className="hf-grid-cards">
             {activeUsers.map((user) => (
               <UserCard
                 key={user.id}
@@ -694,10 +607,10 @@ export default function UsersPage() {
       {/* Inactive Users */}
       {inactiveUsers.length > 0 && (
         <div>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-muted)", margin: "0 0 16px" }}>
+          <h2 className="hf-heading-lg hf-text-muted hf-mb-md">
             Deactivated ({inactiveUsers.length})
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          <div className="hf-grid-cards">
             {inactiveUsers.map((user) => (
               <UserCard
                 key={user.id}
@@ -733,86 +646,63 @@ export default function UsersPage() {
 
       {/* Admin Settings */}
       {isAdmin && (
-        <div style={{
-          padding: 24, borderRadius: 12,
-          background: "var(--surface-primary)", border: "1px solid var(--border-default)",
-        }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 16px" }}>
+        <div className="hf-card-compact">
+          <h2 className="hf-heading-lg hf-mb-md">
             Admin Settings
           </h2>
 
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "12px 14px", borderRadius: 8, border: "1px solid var(--border-default)",
-          }}>
+          <div className="hf-flex-between hf-settings-row">
             <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>Audit Logging</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <div className="hf-text-md hf-text-500 hf-text-primary">Audit Logging</div>
+              <div className="hf-text-xs hf-text-muted">
                 Track who does what in the system
               </div>
             </div>
             <button
               onClick={handleToggleAudit}
               disabled={auditLoading}
-              style={{
-                position: "relative", width: 44, height: 24, borderRadius: 12,
-                background: auditEnabled ? "var(--status-success-text)" : "var(--border-default)",
-                border: "none", cursor: auditLoading ? "wait" : "pointer",
-                opacity: auditLoading ? 0.5 : 1, transition: "background 0.2s",
-              }}
+              className={`hf-toggle ${auditEnabled ? "hf-toggle-on" : "hf-toggle-off"}`}
+              style={{ opacity: auditLoading ? 0.5 : 1, cursor: auditLoading ? "wait" : "pointer" }}
             >
-              <span style={{
-                position: "absolute", top: 3, left: auditEnabled ? 23 : 3,
-                width: 18, height: 18, borderRadius: "50%", background: "var(--surface-primary)",
-                transition: "left 0.2s",
-              }} />
+              <span className="hf-toggle-knob" style={{ left: auditEnabled ? 20 : 2 }} />
             </button>
           </div>
 
           {auditEnabled && (
-            <div style={{ marginTop: 16 }}>
+            <div className="hf-mt-md">
               <button
                 onClick={() => setShowAuditLogs(!showAuditLogs)}
-                style={{
-                  fontSize: 13, color: "var(--button-primary-bg)",
-                  background: "none", border: "none", cursor: "pointer", padding: 0,
-                }}
+                className="hf-text-sm hf-toggle-link"
               >
                 {showAuditLogs ? "Hide" : "Show"} Recent Activity ({auditLogs.length} logs)
               </button>
 
               {showAuditLogs && auditLogs.length > 0 && (
-                <div style={{
-                  marginTop: 12, maxHeight: 256, overflowY: "auto", borderRadius: 8,
-                  border: "1px solid var(--border-default)",
-                }}>
-                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                <div className="hf-audit-table-wrap">
+                  <table className="hf-audit-table">
                     <thead>
-                      <tr style={{ textAlign: "left", background: "var(--surface-secondary, var(--surface-primary))" }}>
-                        <th style={{ padding: "8px 12px", fontWeight: 500 }}>Time</th>
-                        <th style={{ padding: "8px 12px", fontWeight: 500 }}>User</th>
-                        <th style={{ padding: "8px 12px", fontWeight: 500 }}>Action</th>
-                        <th style={{ padding: "8px 12px", fontWeight: 500 }}>Target</th>
+                      <tr>
+                        <th className="hf-audit-th">Time</th>
+                        <th className="hf-audit-th">User</th>
+                        <th className="hf-audit-th">Action</th>
+                        <th className="hf-audit-th">Target</th>
                       </tr>
                     </thead>
                     <tbody>
                       {auditLogs.slice(0, 50).map((log) => (
-                        <tr key={log.id} style={{ borderTop: "1px solid var(--border-default)" }}>
-                          <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>
+                        <tr key={log.id} className="hf-audit-tr">
+                          <td className="hf-audit-td hf-text-muted">
                             {new Date(log.createdAt).toLocaleString()}
                           </td>
-                          <td style={{ padding: "8px 12px", color: "var(--text-primary)" }}>
+                          <td className="hf-audit-td hf-text-primary">
                             {log.userEmail || "System"}
                           </td>
-                          <td style={{ padding: "8px 12px" }}>
-                            <span style={{
-                              padding: "2px 6px", borderRadius: 4, fontSize: 11,
-                              background: "var(--border-default)", color: "var(--text-primary)",
-                            }}>
+                          <td className="hf-audit-td">
+                            <span className="hf-badge hf-badge-muted">
                               {log.action}
                             </span>
                           </td>
-                          <td style={{ padding: "8px 12px", color: "var(--text-muted)" }}>
+                          <td className="hf-audit-td hf-text-muted">
                             {log.entityType && log.entityId
                               ? `${log.entityType}:${log.entityId.slice(0, 8)}...`
                               : "-"}
@@ -825,7 +715,7 @@ export default function UsersPage() {
               )}
 
               {showAuditLogs && auditLogs.length === 0 && (
-                <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-muted)" }}>
+                <p className="hf-text-sm hf-text-muted hf-mt-md">
                   No audit logs yet. Actions will appear here once logging is enabled.
                 </p>
               )}
@@ -854,64 +744,38 @@ function UserCard({
   return (
     <div
       onClick={onOpen}
-      style={{
-        padding: 20, borderRadius: 12, position: "relative",
-        background: "var(--surface-primary)",
-        border: `1px solid ${user.isActive ? "var(--border-default)" : "color-mix(in srgb, var(--status-error-text) 20%, transparent)"}`,
-        opacity: user.isActive ? 1 : 0.6,
-        cursor: "pointer",
-        transition: "box-shadow 0.2s, border-color 0.2s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)";
-        e.currentTarget.style.borderColor = "var(--button-primary-bg)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = user.isActive ? "var(--border-default)" : "color-mix(in srgb, var(--status-error-text) 20%, transparent)";
-      }}
+      className={`hf-user-card${user.isActive ? "" : " hf-user-card-inactive"}`}
     >
       {/* Top row: avatar + name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-          background: getAvatarGradient(user.id),
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, fontWeight: 700, color: "white",
-        }}>
+      <div className="hf-flex hf-gap-md hf-mb-md">
+        <div className="hf-avatar" style={{ background: getAvatarGradient(user.id) }}>
           {(user.displayName || user.name || user.email)[0].toUpperCase()}
         </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div className="hf-min-w-0 hf-flex-1">
+          <div className="hf-section-title hf-truncate">
             {user.displayName || user.name || user.email.split("@")[0]}
             {isCurrentUser && (
-              <span style={{ marginLeft: 6, fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>(you)</span>
+              <span className="hf-text-xs hf-text-muted hf-you-tag">(you)</span>
             )}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div className="hf-text-xs hf-text-muted hf-truncate">
             {user.email}
           </div>
         </div>
       </div>
 
       {/* Role + meta */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{
-          padding: "3px 10px", fontSize: 12, fontWeight: 600, borderRadius: 999,
-          background: colors.bg, color: colors.text,
-        }}>
+      <div className="hf-flex-between">
+        <span className="hf-role-pill" style={{ background: colors.bg, color: colors.text }}>
           {formatRoleLabel(user.role)}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="hf-flex hf-gap-sm">
           {user.assignedDomain && (
-            <span style={{
-              padding: "2px 8px", fontSize: 11, borderRadius: 4,
-              background: "var(--border-default)", color: "var(--text-secondary)",
-            }}>
+            <span className="hf-badge hf-badge-muted">
               {user.assignedDomain.name}
             </span>
           )}
-          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          <span className="hf-text-xs hf-text-muted">
             {new Date(user.createdAt).toLocaleDateString()}
           </span>
         </div>
@@ -919,11 +783,7 @@ function UserCard({
 
       {/* Inactive badge */}
       {!user.isActive && (
-        <div style={{
-          position: "absolute", top: 12, right: 12,
-          padding: "2px 8px", fontSize: 10, fontWeight: 600, borderRadius: 999,
-          background: "color-mix(in srgb, var(--status-error-text) 13%, transparent)", color: "var(--status-error-text)",
-        }}>
+        <div className="hf-inactive-badge">
           INACTIVE
         </div>
       )}
@@ -1006,42 +866,29 @@ function UserEditorModal({
 
   return (
     <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
-      }}
+      className="hf-modal-overlay-blur"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--surface-primary)", borderRadius: 16, padding: 32,
-          boxShadow: "0 24px 48px rgba(0,0,0,0.3)", border: "1px solid var(--border-default)",
-          width: 480, maxWidth: "90vw", maxHeight: "90vh", overflow: "auto",
-        }}
+        className="hf-user-editor"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
-            background: getAvatarGradient(user.id),
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20, fontWeight: 700, color: "white",
-          }}>
+        <div className="hf-flex hf-mb-lg hf-gap-14">
+          <div className="hf-avatar-lg" style={{ background: getAvatarGradient(user.id) }}>
             {(user.displayName || user.name || user.email)[0].toUpperCase()}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>
+          <div className="hf-flex-1 hf-min-w-0">
+            <div className="hf-heading-modal">
               {user.displayName || user.name || user.email.split("@")[0]}
               {isCurrentUser && (
-                <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>(you)</span>
+                <span className="hf-text-xs hf-text-muted hf-you-tag">(you)</span>
               )}
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{user.email}</div>
+            <div className="hf-text-sm hf-text-muted">{user.email}</div>
           </div>
-          <span style={{
-            padding: "4px 12px", fontSize: 12, fontWeight: 600, borderRadius: 999,
+          <span className="hf-role-pill" style={{
+            padding: "4px 12px",
             background: colors.bg, color: colors.text,
           }}>
             {formatRoleLabel(editRole)}
@@ -1049,57 +896,45 @@ function UserEditorModal({
         </div>
 
         {/* Form */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="hf-flex-col hf-gap-lg">
           {/* Full Name */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+            <label className="hf-label">
               Full Name
             </label>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               placeholder="First Last"
-              style={{
-                width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", outline: "none",
-              }}
+              className="hf-input"
             />
           </div>
 
           {/* Display Name */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+            <label className="hf-label">
               Display Name
             </label>
             <input
               value={editDisplayName}
               onChange={(e) => setEditDisplayName(e.target.value)}
               placeholder="What the system calls this user"
-              style={{
-                width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", outline: "none",
-              }}
+              className="hf-input"
             />
           </div>
 
           {/* Role */}
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+            <label className="hf-label">
               Role
             </label>
             <select
               value={editRole}
               onChange={(e) => setEditRole(e.target.value as UserRole)}
               disabled={isCurrentUser}
+              className="hf-input"
               style={{
-                width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                background: "var(--surface-secondary, var(--surface-primary))",
-                color: "var(--text-primary)", cursor: isCurrentUser ? "not-allowed" : "pointer",
+                cursor: isCurrentUser ? "not-allowed" : "pointer",
                 opacity: isCurrentUser ? 0.5 : 1,
               }}
             >
@@ -1108,7 +943,7 @@ function UserEditorModal({
               ))}
             </select>
             {isCurrentUser && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+              <div className="hf-text-xs hf-text-muted hf-mt-sm">
                 You cannot change your own role
               </div>
             )}
@@ -1117,18 +952,16 @@ function UserEditorModal({
           {/* Domain */}
           {(domainScopableRoles.has(editRole) || editDomainId) && (
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+              <label className="hf-label">
                 Domain
               </label>
               <select
                 value={editDomainId}
                 onChange={(e) => setEditDomainId(e.target.value)}
                 disabled={isCurrentUser}
+                className="hf-input"
                 style={{
-                  width: "100%", padding: "8px 12px", fontSize: 14, borderRadius: 8,
-                  border: "1px solid var(--border-default)",
-                  background: "var(--surface-secondary, var(--surface-primary))",
-                  color: "var(--text-primary)", cursor: isCurrentUser ? "not-allowed" : "pointer",
+                  cursor: isCurrentUser ? "not-allowed" : "pointer",
                   opacity: isCurrentUser ? 0.5 : 1,
                 }}
               >
@@ -1142,20 +975,17 @@ function UserEditorModal({
 
           {/* Status */}
           {!isCurrentUser && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
+            <div className="hf-flex-between hf-p-sm">
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Status</div>
-                <div style={{ fontSize: 13, color: user.isActive ? "var(--status-success-text)" : "var(--status-error-text)", fontWeight: 500 }}>
+                <div className="hf-label hf-mb-0">Status</div>
+                <div className={`hf-text-sm hf-text-500 ${user.isActive ? "hf-text-success" : "hf-text-error"}`}>
                   {user.isActive ? "Active" : "Inactive"}
                 </div>
               </div>
               <button
                 onClick={onToggleActive}
-                style={{
-                  padding: "6px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                  border: "1px solid var(--border-default)", background: "transparent",
-                  color: user.isActive ? "var(--status-warning-text)" : "var(--status-success-text)", cursor: "pointer",
-                }}
+                className="hf-btn hf-btn-secondary hf-btn-sm"
+                style={{ color: user.isActive ? "var(--status-warning-text)" : "var(--status-success-text)" }}
               >
                 {user.isActive ? "Deactivate" : "Reactivate"}
               </button>
@@ -1163,51 +993,37 @@ function UserEditorModal({
           )}
 
           {/* Meta info */}
-          <div style={{
-            display: "flex", gap: 16, padding: "8px 0",
-            borderTop: "1px solid var(--border-default)", fontSize: 12, color: "var(--text-muted)",
-          }}>
+          <div className="hf-flex hf-gap-lg hf-text-xs hf-text-muted hf-p-sm hf-border-top">
             <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>
+            <span className="hf-mono">
               {user.id.slice(0, 8)}...
             </span>
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 24 }}>
+        <div className="hf-flex-between hf-mt-md">
           {/* Delete */}
           <div>
             {!isCurrentUser && (
               !confirmDelete ? (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  style={{
-                    padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8,
-                    border: "1px solid color-mix(in srgb, var(--status-error-text) 27%, transparent)", background: "transparent",
-                    color: "var(--status-error-text)", cursor: "pointer",
-                  }}
+                  className="hf-btn hf-btn-destructive hf-btn-sm"
                 >
                   Delete User
                 </button>
               ) : (
-                <div style={{ display: "flex", gap: 6 }}>
+                <div className="hf-flex hf-gap-xs">
                   <button
                     onClick={onDelete}
-                    style={{
-                      padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
-                      border: "none", background: "var(--status-error-text)", color: "white", cursor: "pointer",
-                    }}
+                    className="hf-btn hf-btn-sm hf-text-bold hf-btn-confirm-delete"
                   >
                     Confirm Delete
                   </button>
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    style={{
-                      padding: "8px 14px", fontSize: 13, borderRadius: 8,
-                      border: "1px solid var(--border-default)", background: "transparent",
-                      color: "var(--text-muted)", cursor: "pointer",
-                    }}
+                    className="hf-btn hf-btn-secondary hf-btn-sm"
                   >
                     Cancel
                   </button>
@@ -1217,24 +1033,19 @@ function UserEditorModal({
           </div>
 
           {/* Save / Cancel */}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="hf-flex hf-gap-sm">
             <button
               onClick={onClose}
-              style={{
-                padding: "8px 20px", fontSize: 14, borderRadius: 8,
-                border: "1px solid var(--border-default)", background: "transparent",
-                color: "var(--text-muted)", cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-secondary"
             >
               Cancel
             </button>
             <button
               onClick={handleSaveAll}
               disabled={saving}
+              className="hf-btn hf-btn-primary hf-text-bold"
               style={{
-                padding: "8px 24px", fontSize: 14, fontWeight: 600, borderRadius: 8,
-                border: "none", background: "var(--button-primary-bg)",
-                color: "white", cursor: saving ? "wait" : "pointer",
+                cursor: saving ? "wait" : "pointer",
                 opacity: saving ? 0.6 : 1,
               }}
             >

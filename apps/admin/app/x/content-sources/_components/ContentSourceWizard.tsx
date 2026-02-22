@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { ProgressStepper } from "@/components/shared/ProgressStepper";
@@ -13,7 +13,7 @@ import OnboardStep from "./steps/OnboardStep";
 import PreviewStep from "./steps/PreviewStep";
 import DoneStep from "./steps/DoneStep";
 
-const CONTENT_STEPS: StepDefinition[] = [
+export const CONTENT_STEPS: StepDefinition[] = [
   { id: "source", label: "Add Source", activeLabel: "Adding Source" },
   { id: "extract", label: "Extract", activeLabel: "Extracting Content" },
   { id: "review", label: "Review", activeLabel: "Reviewing Assertions" },
@@ -23,50 +23,9 @@ const CONTENT_STEPS: StepDefinition[] = [
   { id: "done", label: "Done", activeLabel: "Complete" },
 ];
 
+/** Flow initialization is handled by the parent page (resume detection + task creation). */
 export default function ContentSourceWizard() {
-  const { state, isActive, startFlow, setStep, nextStep, prevStep, setData, getData, endFlow } = useStepFlow();
-  const flowInitialized = useRef(false);
-  const [wizardTaskId, setWizardTaskId] = useState<string | null>(null);
-
-  // Load wizard steps from spec and start the flow
-  useEffect(() => {
-    if (flowInitialized.current) return;
-    flowInitialized.current = true;
-
-    const initializeWizard = async () => {
-      // Load steps from spec
-      let stepsToUse = CONTENT_STEPS;
-      try {
-        const response = await fetch("/api/wizard-steps?wizard=content-source");
-        const data = await response.json();
-
-        if (data.ok && data.steps && data.steps.length > 0) {
-          // Convert WizardStep to StepDefinition
-          stepsToUse = data.steps.map((step: any) => ({
-            id: step.id,
-            label: step.label,
-            activeLabel: step.activeLabel,
-          }));
-        }
-      } catch (err) {
-        console.warn("[ContentSourceWizard] Failed to load spec steps, using defaults", err);
-      }
-
-      // Start the flow with loaded or default steps
-      if (!isActive || state?.flowId !== "content-sources") {
-        startFlow({
-          flowId: "content-sources",
-          steps: stepsToUse,
-          returnPath: "/x/content-sources",
-        });
-      }
-
-      // Create a wizard-level task (for global visibility in /x/tasks)
-      // This is optional - the individual steps already track their own tasks (extraction, curriculum_generation)
-    };
-
-    initializeWizard();
-  }, [isActive, state?.flowId, startFlow]);
+  const { state, setStep, nextStep, prevStep, setData, getData, endFlow } = useStepFlow();
 
   const currentStep = state?.currentStep ?? 0;
 

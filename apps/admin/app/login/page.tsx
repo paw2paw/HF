@@ -4,7 +4,8 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useBranding } from "@/contexts/BrandingContext";
-import { showEnvBanner, envSidebarColor, envLabel } from "@/components/shared/EnvironmentBanner";
+import { showEnvBanner, envSidebarColor, envLabel, envTextColor, isNonProd } from "@/components/shared/EnvironmentBanner";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import Link from "next/link";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
@@ -54,7 +55,7 @@ export default function LoginPage() {
           style={{
             background: `color-mix(in srgb, ${envSidebarColor} 20%, transparent)`,
             border: `2px solid ${envSidebarColor}`,
-            color: envSidebarColor,
+            color: envTextColor || envSidebarColor,
           }}
         >
           <div className="text-lg">{envLabel} ENVIRONMENT</div>
@@ -154,7 +155,7 @@ export default function LoginPage() {
       </div>
 
       {/* Demo Accounts Panel — non-prod only */}
-      {showEnvBanner && (
+      {isNonProd && (
         <DemoAccountsPanel
           onLogin={(demoEmail) => {
             setEmail(demoEmail);
@@ -175,14 +176,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 function DemoAccountsPanel({ onLogin }: { onLogin: (email: string) => void }) {
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(label);
-      setTimeout(() => setCopied(null), 1500);
-    });
-  };
+  const { copiedKey: copied, copy: copyToClipboard } = useCopyToClipboard(1500);
 
   return (
     <div

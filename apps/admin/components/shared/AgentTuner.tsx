@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { AdvancedSection } from "./AdvancedSection";
+import { ErrorBanner } from "./ErrorBanner";
 import { deriveParameterMap } from "@/lib/agent-tuner/derive";
 import type {
   AgentTunerPill,
@@ -138,11 +139,7 @@ export function AgentTuner({
         </div>
 
         {/* ── Error banner ── */}
-        {error && (
-          <div className="hf-banner hf-banner-error">
-            {error}
-          </div>
-        )}
+        <ErrorBanner error={error} />
 
         {/* ── Interpretation summary ── */}
         {interpretation && pills.length > 0 && (

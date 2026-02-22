@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { parsePagination } from "@/lib/api-utils";
 
 interface CompositionInputs {
   callerContext?: any;
@@ -48,8 +49,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 
   const callerId = searchParams.get("callerId");
-  const limit = parseInt(searchParams.get("limit") || "20", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const { limit, offset } = parsePagination(searchParams, { defaultLimit: 20 });
 
   try {
     const where = {

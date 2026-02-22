@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
 import {
@@ -11,14 +12,7 @@ import {
   DocumentTypeBadge,
 } from "../shared/badges";
 
-interface StepProps {
-  setData: (key: string, value: unknown) => void;
-  getData: <T = unknown>(key: string) => T | undefined;
-  onNext: () => void;
-  onPrev: () => void;
-  endFlow: () => void;
-  setStep?: (step: number) => void;
-}
+import type { StepProps } from "../types";
 
 // ── Source Card ──────────────────────────────────────
 
@@ -407,15 +401,7 @@ function UploadNewSourceSection({
 
   if (sourceCreated) {
     return (
-      <div
-        style={{
-          padding: 24,
-          borderRadius: 12,
-          border: "2px solid var(--status-success-text, #16a34a)",
-          background: "var(--status-success-bg, #dcfce7)",
-          textAlign: "center",
-        }}
-      >
+      <div className="hf-banner hf-banner-success" style={{ padding: 24, borderRadius: 12, textAlign: "center", display: "block" }}>
         <div style={{ fontSize: 32, marginBottom: 8 }}>{"\u2705"}</div>
         <div
           style={{
@@ -425,7 +411,9 @@ function UploadNewSourceSection({
             marginBottom: 4,
           }}
         >
-          Source created: {getData<string>("sourceName")}
+          {getData<boolean>("hasFile")
+            ? `File uploaded & source created: ${getData<string>("sourceName")}`
+            : `Source created: ${getData<string>("sourceName")}`}
         </div>
         {classificationResult && (
           <div
@@ -443,16 +431,8 @@ function UploadNewSourceSection({
         )}
         <button
           onClick={onNext}
-          style={{
-            padding: "12px 32px",
-            borderRadius: 8,
-            border: "none",
-            background: "var(--accent-primary)",
-            color: "var(--button-primary-text, #fff)",
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
+          className="hf-btn hf-btn-primary"
+          style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
         >
           {getData<boolean>("hasFile")
             ? "Continue to Extract"
@@ -566,39 +546,13 @@ function UploadNewSourceSection({
               }}
               placeholder='e.g. "CII R04 Insurance Syllabus 2025/26" or ISBN'
               disabled={suggesting}
-              style={{
-                flex: 1,
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-primary)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-              }}
+              className="hf-input"
+              style={{ flex: 1 }}
             />
             <button
               onClick={handleSuggest}
               disabled={!intentText.trim() || suggesting}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 8,
-                border: "none",
-                background:
-                  !intentText.trim() || suggesting
-                    ? "var(--surface-tertiary)"
-                    : "var(--accent-primary)",
-                color:
-                  !intentText.trim() || suggesting
-                    ? "var(--text-muted)"
-                    : "var(--button-primary-text, #fff)",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor:
-                  !intentText.trim() || suggesting ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+              className="hf-btn hf-btn-primary"
             >
               {suggesting ? "Thinking..." : "\u2728 Fill"}
             </button>
@@ -925,30 +879,13 @@ function UploadNewSourceSection({
               value={newSubjectName}
               onChange={(e) => setNewSubjectName(e.target.value)}
               placeholder="New subject name"
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-primary)",
-                color: "var(--text-primary)",
-                fontSize: 13,
-              }}
+              className="hf-input"
+              style={{ width: "auto" }}
             />
             <button
               onClick={handleCreateSubject}
               disabled={!newSubjectName.trim() || creatingSubject}
-              style={{
-                padding: "8px 16px",
-                borderRadius: 6,
-                border: "none",
-                background: newSubjectName.trim()
-                  ? "var(--accent-primary)"
-                  : "var(--surface-tertiary)",
-                color: newSubjectName.trim() ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: newSubjectName.trim() ? "pointer" : "not-allowed",
-              }}
+              className="hf-btn hf-btn-primary"
             >
               {creatingSubject ? "Creating..." : "Create"}
             </button>
@@ -956,45 +893,22 @@ function UploadNewSourceSection({
         </div>
       </div>
 
-      {error && (
-        <div
-          style={{
-            padding: "10px 16px",
-            borderRadius: 8,
-            background: "var(--status-error-bg)",
-            border: "1px solid var(--status-error-border, #FFCDD2)",
-            color: "var(--status-error-text)",
-            fontSize: 13,
-            marginBottom: 16,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       {/* Create button */}
       <button
         onClick={handleCreateSource}
         disabled={creating || classifying || !metadata?.name}
-        style={{
-          padding: "12px 32px",
-          borderRadius: 8,
-          border: "none",
-          background: metadata?.name
-            ? "var(--accent-primary)"
-            : "var(--surface-tertiary)",
-          color: metadata?.name ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: metadata?.name && !creating ? "pointer" : "not-allowed",
-          opacity: creating || classifying ? 0.6 : 1,
-        }}
+        className="hf-btn hf-btn-primary"
+        style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
       >
         {creating
-          ? "Creating..."
+          ? "Creating source..."
           : classifying
-            ? "Classifying..."
-            : "Create Source & Continue"}
+            ? "Classifying document..."
+            : file
+              ? "Upload File & Create Source"
+              : "Create Source & Continue"}
       </button>
     </>
   );
@@ -1183,16 +1097,8 @@ export default function SourceStep({
               placeholder="Search sources..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                minWidth: 200,
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                fontSize: 13,
-              }}
+              className="hf-input"
+              style={{ flex: 1, minWidth: 200 }}
             />
             {TRUST_LEVELS.map((t) => (
               <button
@@ -1238,9 +1144,7 @@ export default function SourceStep({
 
           {/* Card grid */}
           {loadingSources ? (
-            <p style={{ color: "var(--text-muted)" }}>
-              Loading content sources...
-            </p>
+            <div style={{ display: "flex", justifyContent: "center", padding: "24px 0" }}><div className="hf-spinner" /></div>
           ) : filteredSources.length === 0 ? (
             <div
               style={{
@@ -1339,71 +1243,26 @@ export default function SourceStep({
                     value={newSubjectName}
                     onChange={(e) => setNewSubjectName(e.target.value)}
                     placeholder="New subject name"
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: "1px solid var(--border-default)",
-                      backgroundColor: "var(--surface-primary)",
-                      color: "var(--text-primary)",
-                      fontSize: 13,
-                    }}
+                    className="hf-input"
+                    style={{ width: "auto" }}
                   />
                   <button
                     onClick={handleCreateSubject}
                     disabled={!newSubjectName.trim() || creatingSubject}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: newSubjectName.trim()
-                        ? "var(--accent-primary)"
-                        : "var(--surface-tertiary)",
-                      color: newSubjectName.trim()
-                        ? "var(--button-primary-text, #fff)"
-                        : "var(--text-muted)",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: newSubjectName.trim()
-                        ? "pointer"
-                        : "not-allowed",
-                    }}
+                    className="hf-btn hf-btn-primary"
                   >
                     {creatingSubject ? "Creating..." : "Create"}
                   </button>
                 </div>
               </div>
 
-              {error && (
-                <div
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: 8,
-                    background: "var(--status-error-bg)",
-                    border: "1px solid var(--status-error-border, #FFCDD2)",
-                    color: "var(--status-error-text)",
-                    fontSize: 13,
-                    marginBottom: 16,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
+              <ErrorBanner error={error} />
 
               <button
                 onClick={handleContinueWithExisting}
                 disabled={!selectedSubjectId}
-                style={{
-                  padding: "12px 32px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: selectedSubjectId
-                    ? "var(--accent-primary)"
-                    : "var(--surface-tertiary)",
-                  color: selectedSubjectId ? "var(--button-primary-text, #fff)" : "var(--text-muted)",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: selectedSubjectId ? "pointer" : "not-allowed",
-                }}
+                className="hf-btn hf-btn-primary"
+                style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
               >
                 Continue to Plan Lessons
               </button>

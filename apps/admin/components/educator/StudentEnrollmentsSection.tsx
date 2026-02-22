@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { ErrorBanner } from "@/components/shared/ErrorBanner";
 
 interface Enrollment {
   id: string;
@@ -145,11 +146,7 @@ export function StudentEnrollmentsSection({ studentId, domainId }: StudentEnroll
         )}
       </div>
 
-      {error && (
-        <div className="hf-banner hf-banner-error" style={{ marginBottom: 12 }}>
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} style={{ marginBottom: 12 }} />
 
       {enrollments.length === 0 ? (
         <p className="hf-section-desc">

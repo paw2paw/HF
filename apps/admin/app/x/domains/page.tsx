@@ -239,14 +239,14 @@ export default function DomainsPage() {
   const statusBadge = (d: DomainListItem | DomainDetail) => {
     if (!d.isActive) {
       return (
-        <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 4 }}>
+        <span className="hf-badge hf-badge-error">
           Inactive
         </span>
       );
     }
     if (d.isDefault) {
       return (
-        <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--status-info-bg)", color: "var(--status-info-text)", borderRadius: 4 }}>
+        <span className="hf-badge hf-badge-info">
           Default
         </span>
       );
@@ -311,20 +311,12 @@ export default function DomainsPage() {
     <button
       onClick={onClick}
       title={tooltip}
-      style={{
-        padding: "4px 10px",
-        fontSize: 11,
-        fontWeight: 600,
-        border: isActive ? `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)` : "1px solid var(--border-default)",
-        borderRadius: 5,
-        cursor: "pointer",
-        background: isActive ? colors.bg : "var(--surface-secondary)",
-        color: isActive ? colors.text : "var(--text-muted)",
-        transition: "all 0.15s",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-      }}
+      className="hf-filter-pill"
+      style={isActive ? {
+        border: `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)`,
+        background: colors.bg,
+        color: colors.text,
+      } : undefined}
     >
       {icon && <span>{icon}</span>}
       {label}
@@ -335,17 +327,7 @@ export default function DomainsPage() {
     show ? (
       <button
         onClick={onClick}
-        style={{
-          padding: "0 4px",
-          fontSize: 12,
-          fontWeight: 400,
-          border: "none",
-          borderRadius: 3,
-          cursor: "pointer",
-          background: "transparent",
-          color: "var(--text-placeholder)",
-          lineHeight: 1,
-        }}
+        className="hf-clear-btn"
         title="Clear filter"
       >
         ×
@@ -357,30 +339,13 @@ export default function DomainsPage() {
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <AdvancedBanner />
       {/* Header */}
-      <div
-        style={{
-          background: "var(--surface-primary)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-          padding: "12px 16px",
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{plural("domain")}</h1>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div className="hf-card-compact" style={{ borderRadius: 8, marginBottom: 16 }}>
+        <div className="hf-flex hf-flex-between" style={{ marginBottom: 10 }}>
+          <h1 className="hf-section-title">{plural("domain")}</h1>
+          <div className="hf-flex hf-gap-md hf-items-center">
             <button
               onClick={() => setShowCreate(true)}
-              style={{
-                padding: "6px 12px",
-                background: "var(--button-primary-bg)",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                fontWeight: 500,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="hf-btn-sm hf-btn-primary"
             >
               + New
             </button>
@@ -392,16 +357,7 @@ export default function DomainsPage() {
                   assistant.open(undefined, { page: "/x/domains" });
                 }
               }}
-              style={{
-                padding: "6px 12px",
-                background: "color-mix(in srgb, var(--badge-purple-text) 10%, transparent)",
-                color: "var(--badge-purple-text)",
-                border: "1px solid color-mix(in srgb, var(--badge-purple-text) 20%, transparent)",
-                borderRadius: 6,
-                fontWeight: 500,
-                fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="hf-btn-sm hf-btn-ai"
               title="Ask AI Assistant (Cmd+Shift+K)"
             >
               ✨ Ask AI
@@ -410,28 +366,23 @@ export default function DomainsPage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center" }}>
+        <div className="hf-flex hf-flex-wrap hf-gap-lg hf-items-center">
           <input
             type="text"
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              padding: "6px 10px",
-              border: "1px solid var(--border-strong)",
-              borderRadius: 6,
-              width: 160,
-              fontSize: 12,
-            }}
+            className="hf-input"
+            style={{ padding: "6px 10px", borderRadius: 6, width: 160, fontSize: 12, borderColor: "var(--border-strong)" }}
           />
 
-          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+          <div className="hf-divider-v" />
 
           {/* Status */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title={`Filter by ${terms.domain.toLowerCase()} status`}>Status</span>
+          <div className="hf-flex hf-gap-sm hf-items-center">
+            <span className="hf-text-xs hf-text-muted hf-text-bold" title={`Filter by ${terms.domain.toLowerCase()} status`}>Status</span>
             <ClearBtn onClick={() => setSelectedStatuses(new Set())} show={selectedStatuses.size > 0} />
-            <div style={{ display: "flex", gap: 4 }}>
+            <div className="hf-flex hf-gap-xs">
               <FilterPill
                 label="ACTIVE"
                 icon={statusColors.active.icon}
@@ -443,29 +394,21 @@ export default function DomainsPage() {
               <button
                 onClick={() => setShowInactive(!showInactive)}
                 title={showInactive ? "Hide inactive institutions" : "Show inactive institutions"}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: showInactive ? "1px solid color-mix(in srgb, var(--status-warning-text) 25%, transparent)" : "1px solid var(--border-default)",
-                  borderRadius: 5,
-                  cursor: "pointer",
-                  background: showInactive ? "var(--status-warning-bg)" : "var(--surface-secondary)",
-                  color: showInactive ? "var(--status-warning-text)" : "var(--text-muted)",
-                  transition: "all 0.15s",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
+                className="hf-filter-pill"
+                style={showInactive ? {
+                  border: "1px solid color-mix(in srgb, var(--status-warning-text) 25%, transparent)",
+                  background: "var(--status-warning-bg)",
+                  color: "var(--status-warning-text)",
+                } : undefined}
               >
                 {showInactive ? "Showing Inactive" : "Show Inactive"}
               </button>
             </div>
           </div>
 
-          <div style={{ width: 1, height: 24, background: "var(--border-default)" }} />
+          <div className="hf-divider-v" />
 
-          <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }} title="Sort domains">Sort</span>
+          <span className="hf-text-xs hf-text-muted hf-text-bold" title="Sort domains">Sort</span>
           <FancySelect
             value={sortBy}
             onChange={(v) => setSortBy(v as "name" | "callers" | "playbooks")}
@@ -481,77 +424,66 @@ export default function DomainsPage() {
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8, marginBottom: 20 }}>
+        <div className="hf-banner hf-banner-error hf-mb-lg" style={{ borderRadius: 8 }}>
           {error}
         </div>
       )}
 
       {/* Master-Detail Layout */}
-      <div style={{ display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
+      <div className="hf-flex hf-gap-lg hf-flex-1" style={{ minHeight: 0 }}>
         {/* List Panel */}
-        <div style={{ width: 320, flexShrink: 0, overflowY: "auto" }}>
+        <div className="hf-master-list">
           {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading...</div>
+            <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>Loading...</div>
           ) : filteredAndSortedDomains.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 12, border: "1px solid var(--border-default)" }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🌐</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div className="hf-empty-compact" style={{ border: "1px solid var(--border-default)", borderRadius: 12 }}>
+              <div style={{ fontSize: 48 }} className="hf-mb-md">🌐</div>
+              <div className="hf-heading-lg hf-text-secondary">
                 {search || selectedStatuses.size > 0 ? `No ${plural("domain").toLowerCase()} match filters` : `No ${plural("domain").toLowerCase()} yet`}
               </div>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="hf-flex-col hf-gap-sm">
               {filteredAndSortedDomains.map((d) => (
                 <div
                   key={d.id}
                   onClick={() => selectDomain(d.id)}
-                  style={{
-                    background: selectedId === d.id ? "var(--surface-selected)" : "var(--surface-primary)",
-                    border: selectedId === d.id ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                    borderRadius: 8,
-                    padding: 14,
-                    cursor: "pointer",
-                    transition: "border-color 0.15s, box-shadow 0.15s, opacity 0.15s",
-                    opacity: !d.isActive ? 0.6 : 1,
-                  }}
+                  className={`hf-master-item${selectedId === d.id ? " hf-master-item-selected" : ""}${!d.isActive ? " hf-master-item-inactive" : ""}`}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{d.name}</h3>
+                  <div className="hf-flex hf-gap-sm hf-mb-sm hf-items-center">
+                    <h3 className="hf-heading-sm" style={{ marginBottom: 0 }}>{d.name}</h3>
                     {statusBadge(d)}
                   </div>
-                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
+                  <p className="hf-text-xs hf-text-muted" style={{ margin: 0, marginBottom: 10, lineHeight: 1.4 }}>
                     {d.description || <em>No description</em>}
                   </p>
-                  <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", alignItems: "center" }}>
+                  <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted hf-items-center">
                     <span><strong>{d.callerCount || 0}</strong> callers</span>
                     <span><strong>{d.playbookCount || 0}</strong> playbooks</span>
                     <ReadinessBadge domainId={d.id} size="compact" />
                   </div>
                   {d.publishedPlaybook && (
                     <div
+                      className="hf-text-xs hf-mt-sm"
                       style={{
-                        marginTop: 10,
                         padding: "6px 10px",
                         background: "var(--status-success-bg)",
                         borderRadius: 5,
-                        fontSize: 11,
                       }}
                     >
-                      <span style={{ color: "var(--status-success-text)", fontWeight: 500 }}>Published:</span>{" "}
-                      <span style={{ color: "var(--status-success-text)" }}>
+                      <span className="hf-text-success hf-text-bold">Published:</span>{" "}
+                      <span className="hf-text-success">
                         {d.publishedPlaybook.name} v{d.publishedPlaybook.version}
                       </span>
                     </div>
                   )}
                   {!d.publishedPlaybook && (
                     <div
+                      className="hf-text-xs hf-text-warning hf-mt-sm"
                       style={{
-                        marginTop: 10,
                         padding: "6px 10px",
                         background: "var(--status-warning-bg)",
                         borderRadius: 5,
-                        fontSize: 11,
-                        color: "var(--status-warning-text)",
                       }}
                     >
                       No published playbook
@@ -564,26 +496,26 @@ export default function DomainsPage() {
         </div>
 
         {/* Detail Panel */}
-        <div style={{ flex: 1, background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 20, overflowY: "auto" }}>
+        <div className="hf-master-detail-right">
           {!selectedId ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-placeholder)" }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🌐</div>
-                <div style={{ fontSize: 14 }}>Select a domain to view details</div>
+            <div className="hf-flex-center" style={{ height: "100%", color: "var(--text-placeholder)" }}>
+              <div className="hf-text-center">
+                <div style={{ fontSize: 48 }} className="hf-mb-md">🌐</div>
+                <div className="hf-text-md">Select a domain to view details</div>
               </div>
             </div>
           ) : detailLoading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading domain...</div>
+            <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>Loading domain...</div>
           ) : detailError || !domain ? (
-            <div style={{ padding: 20, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 8 }}>
+            <div className="hf-banner hf-banner-error" style={{ borderRadius: 8 }}>
               {detailError || "Domain not found"}
             </div>
           ) : (
             <>
               {/* Detail Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+              <div className="hf-flex hf-flex-between hf-mb-lg hf-items-start">
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div className="hf-flex hf-gap-md hf-items-center">
                     <EditableTitle
                       value={domain.name}
                       as="h2"
@@ -600,19 +532,19 @@ export default function DomainsPage() {
                       }}
                     />
                     {domain.isDefault && (
-                      <span style={{ padding: "4px 8px", fontSize: 11, background: "var(--status-info-bg)", color: "var(--status-info-text)", borderRadius: 4 }}>
+                      <span className="hf-badge hf-badge-info">
                         Default
                       </span>
                     )}
                     {!domain.isActive && (
-                      <span style={{ padding: "4px 8px", fontSize: 11, background: "var(--status-error-bg)", color: "var(--status-error-text)", borderRadius: 4 }}>
+                      <span className="hf-badge hf-badge-error">
                         Inactive
                       </span>
                     )}
                     <ReadinessBadge domainId={domain.id} onScaffold={fetchDomains} />
                   </div>
                   {domain.description && (
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
+                    <p className="hf-text-sm hf-text-muted" style={{ marginTop: 4, marginBottom: 0 }}>{domain.description}</p>
                   )}
                 </div>
                 {!domain.isDefault && isOperator && (
@@ -620,17 +552,7 @@ export default function DomainsPage() {
                     {domain.isActive ? (
                       <button
                         onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
-                        style={{
-                          padding: "6px 12px",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          background: "transparent",
-                          color: "var(--status-error-text)",
-                          border: "1px solid var(--status-error-border)",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
+                        className="hf-btn-sm hf-btn-destructive hf-nowrap"
                       >
                         Deactivate Institution
                       </button>
@@ -638,17 +560,10 @@ export default function DomainsPage() {
                       <button
                         onClick={handleReactivateDomain}
                         disabled={deleting}
+                        className="hf-btn-sm hf-btn-primary hf-nowrap"
                         style={{
-                          padding: "6px 12px",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          background: "var(--accent-primary)",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          cursor: deleting ? "not-allowed" : "pointer",
-                          whiteSpace: "nowrap",
                           opacity: deleting ? 0.7 : 1,
+                          cursor: deleting ? "not-allowed" : "pointer",
                         }}
                       >
                         {deleting ? "Reactivating..." : "Reactivate Institution"}
@@ -660,61 +575,43 @@ export default function DomainsPage() {
 
               {/* Deactivate Confirmation */}
               {showDeleteConfirm && (
-                <div style={{
-                  padding: 16,
-                  background: "var(--status-error-bg)",
-                  border: "1px solid var(--status-error-border)",
-                  borderRadius: 8,
-                  marginBottom: 16,
-                }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--status-error-text)", marginBottom: 8 }}>
+                <div className="hf-banner hf-banner-error hf-mb-md" style={{ border: "1px solid var(--status-error-border)", borderRadius: 8 }}>
+                  <div className="hf-text-bold hf-text-md hf-text-error hf-mb-sm">
                     Deactivate &ldquo;{domain.name}&rdquo;?
                   </div>
                   {domain._count.callers > 0 ? (
                     <div>
-                      <p style={{ fontSize: 13, color: "var(--status-error-text)", margin: "0 0 8px 0" }}>
+                      <p className="hf-text-sm hf-text-error hf-mb-sm" style={{ margin: 0 }}>
                         Cannot deactivate this institution — it has {domain._count.callers} caller{domain._count.callers !== 1 ? "s" : ""} assigned.
                         Reassign callers to another institution first.
                       </p>
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
-                        style={{
-                          padding: "6px 14px",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          background: "var(--surface-primary)",
-                          color: "var(--text-primary)",
-                          border: "1px solid var(--border-strong)",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                        }}
+                        className="hf-btn-sm hf-btn-secondary"
                       >
                         OK
                       </button>
                     </div>
                   ) : (
                     <div>
-                      <p style={{ fontSize: 13, color: "var(--status-error-text)", margin: "0 0 12px 0" }}>
+                      <p className="hf-text-sm hf-text-error" style={{ margin: "0 0 12px 0" }}>
                         This will deactivate the institution{domain._count.playbooks > 0 ? ` and its ${domain._count.playbooks} course${domain._count.playbooks !== 1 ? "s" : ""} will become inactive` : ""}.
                         You can reactivate it at any time.
                       </p>
                       {deleteError && (
-                        <p style={{ fontSize: 12, color: "var(--status-error-text)", margin: "0 0 8px 0" }}>{deleteError}</p>
+                        <p className="hf-text-xs hf-text-error hf-mb-sm" style={{ margin: 0 }}>{deleteError}</p>
                       )}
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div className="hf-flex hf-gap-sm">
                         <button
                           onClick={handleDeleteDomain}
                           disabled={deleting}
+                          className="hf-btn-sm"
                           style={{
-                            padding: "6px 14px",
-                            fontSize: 12,
-                            fontWeight: 600,
                             background: "var(--status-error-text)",
                             color: "white",
-                            border: "none",
-                            borderRadius: 6,
-                            cursor: deleting ? "not-allowed" : "pointer",
+                            fontWeight: 600,
                             opacity: deleting ? 0.7 : 1,
+                            cursor: deleting ? "not-allowed" : "pointer",
                           }}
                         >
                           {deleting ? "Deactivating..." : "Yes, Deactivate"}
@@ -722,16 +619,7 @@ export default function DomainsPage() {
                         <button
                           onClick={() => setShowDeleteConfirm(false)}
                           disabled={deleting}
-                          style={{
-                            padding: "6px 14px",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            background: "var(--surface-primary)",
-                            color: "var(--text-primary)",
-                            border: "1px solid var(--border-strong)",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                          }}
+                          className="hf-btn-sm hf-btn-secondary"
                         >
                           Cancel
                         </button>
@@ -742,24 +630,24 @@ export default function DomainsPage() {
               )}
 
               {/* Stats */}
-              <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600 }}>{domain._count.callers}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Callers</div>
+              <div className="hf-flex hf-gap-lg hf-mb-lg">
+                <div className="hf-stat-card" style={{ minWidth: 100, gap: 0 }}>
+                  <div className="hf-stat-value-sm">{domain._count.callers}</div>
+                  <div className="hf-text-xs hf-text-muted">Callers</div>
                 </div>
-                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600 }}>{domain._count.playbooks}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Playbooks</div>
+                <div className="hf-stat-card" style={{ minWidth: 100, gap: 0 }}>
+                  <div className="hf-stat-value-sm">{domain._count.playbooks}</div>
+                  <div className="hf-text-xs hf-text-muted">Playbooks</div>
                 </div>
-                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600 }}>
+                <div className="hf-stat-card" style={{ minWidth: 100, gap: 0 }}>
+                  <div className="hf-stat-value-sm">
                     {domain.playbooks.filter((p) => p.status === "PUBLISHED").length}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Published</div>
+                  <div className="hf-text-xs hf-text-muted">Published</div>
                 </div>
-                <div style={{ padding: 16, background: "var(--surface-secondary)", borderRadius: 8, minWidth: 100 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600 }}>{domain._count.subjects ?? 0}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Subjects</div>
+                <div className="hf-stat-card" style={{ minWidth: 100, gap: 0 }}>
+                  <div className="hf-stat-value-sm">{domain._count.subjects ?? 0}</div>
+                  <div className="hf-text-xs hf-text-muted">Subjects</div>
                 </div>
               </div>
 
@@ -780,20 +668,11 @@ export default function DomainsPage() {
               {/* Playbooks Tab */}
               {activeTab === "playbooks" && (
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Playbooks</h3>
+                  <div className="hf-flex hf-flex-between hf-mb-md hf-items-center">
+                    <h3 className="hf-heading-lg">Playbooks</h3>
                     <button
                       onClick={() => setShowPlaybookModal(true)}
-                      style={{
-                        padding: "8px 16px",
-                        fontSize: 14,
-                        fontWeight: 500,
-                        background: "var(--button-primary-bg)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
+                      className="hf-btn hf-btn-primary"
                     >
                       + Add {terms.playbook}
                     </button>
@@ -801,35 +680,18 @@ export default function DomainsPage() {
 
                   {/* Stack Order Info */}
                   {publishedPlaybooks.length > 1 && (
-                    <div style={{
-                      padding: "10px 14px",
-                      background: "var(--status-info-bg)",
-                      border: "1px solid var(--status-info-border)",
-                      borderRadius: 6,
-                      marginBottom: 16,
-                      fontSize: 12,
-                      color: "var(--status-info-text)",
-                    }}>
+                    <div className="hf-banner hf-banner-info hf-mb-md hf-text-xs" style={{ borderRadius: 6 }}>
                       <strong>Stack Order:</strong> {publishedPlaybooks.length} published playbooks will be stacked.
                       First playbook wins on spec conflicts. Use arrows to reorder.
                     </div>
                   )}
 
                   {sortedPlaybooks.length === 0 ? (
-                    <div style={{ padding: 32, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
-                      <p style={{ color: "var(--text-muted)", marginBottom: 16 }}>{`No ${plural("playbook").toLowerCase()} yet`}</p>
+                    <div className="hf-empty-compact">
+                      <p className="hf-text-muted hf-mb-md">{`No ${plural("playbook").toLowerCase()} yet`}</p>
                       <button
                         onClick={() => setShowPlaybookModal(true)}
-                        style={{
-                          padding: "8px 16px",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          background: "var(--button-primary-bg)",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                        }}
+                        className="hf-btn hf-btn-primary"
                       >
                         Add First Playbook
                       </button>
@@ -848,35 +710,29 @@ export default function DomainsPage() {
                         const isPublished = playbook.status === "PUBLISHED";
                         const stackPosition = isPublished ? publishedPlaybooks.findIndex((p) => p.id === playbook.id) + 1 : null;
                         return (
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }} onClick={(e) => e.stopPropagation()}>
+                          <div className="hf-flex hf-gap-md hf-flex-1 hf-items-center" onClick={(e) => e.stopPropagation()}>
                             {/* Stack position badge */}
-                            <div style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              background: isPublished ? "var(--status-success-bg)" : "var(--surface-tertiary)",
-                              color: isPublished ? "var(--status-success-text)" : "var(--text-muted)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              flexShrink: 0,
-                            }}>
+                            <div
+                              className="hf-stack-badge"
+                              style={{
+                                background: isPublished ? "var(--status-success-bg)" : "var(--surface-tertiary)",
+                                color: isPublished ? "var(--status-success-text)" : "var(--text-muted)",
+                              }}
+                            >
                               {stackPosition ? `#${stackPosition}` : "—"}
                             </div>
 
                             {/* Playbook info */}
                             <Link
                               href={`/x/playbooks/${playbook.id}`}
-                              style={{ flex: 1, textDecoration: "none", color: "inherit" }}
+                              className="hf-link-plain hf-flex-1"
                             >
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
+                              <div className="hf-flex hf-gap-sm hf-flex-wrap hf-items-center" style={{ marginBottom: 2 }}>
                                 <PlaybookPill label={playbook.name} size="compact" />
                                 {playbookStatusBadge(playbook.status)}
-                                <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>v{playbook.version}</span>
+                                <span className="hf-text-xs" style={{ color: "var(--text-placeholder)" }}>v{playbook.version}</span>
                               </div>
-                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                              <div className="hf-text-xs hf-text-muted">
                                 {playbook._count?.items || 0} specs
                                 {(playbook._count?.enrollments ?? 0) > 0 && (
                                   <> &bull; {playbook._count!.enrollments} enrolled</>
@@ -889,24 +745,20 @@ export default function DomainsPage() {
 
                             {/* Remove confirm (inline) */}
                             {showRemovePlaybookConfirm === playbook.id && (
-                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <span style={{ fontSize: 11, color: "var(--status-error-text)", whiteSpace: "nowrap" }}>
+                              <div className="hf-flex hf-gap-xs hf-items-center">
+                                <span className="hf-text-xs hf-text-error hf-nowrap">
                                   {isPublished ? "Archive first" : "Remove?"}
                                 </span>
                                 {!isPublished && (
                                   <button
                                     onClick={(e) => { e.preventDefault(); handleRemovePlaybook(playbook.id); }}
                                     disabled={removingPlaybookId === playbook.id}
+                                    className="hf-btn-xs"
                                     style={{
-                                      padding: "3px 8px",
-                                      fontSize: 11,
-                                      fontWeight: 600,
                                       background: "var(--status-error-text)",
                                       color: "white",
-                                      border: "none",
-                                      borderRadius: 4,
-                                      cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
                                       opacity: removingPlaybookId === playbook.id ? 0.7 : 1,
+                                      cursor: removingPlaybookId === playbook.id ? "not-allowed" : "pointer",
                                     }}
                                   >
                                     {removingPlaybookId === playbook.id ? "..." : "Yes"}
@@ -914,23 +766,14 @@ export default function DomainsPage() {
                                 )}
                                 <button
                                   onClick={(e) => { e.preventDefault(); setShowRemovePlaybookConfirm(null); }}
-                                  style={{
-                                    padding: "3px 8px",
-                                    fontSize: 11,
-                                    fontWeight: 500,
-                                    background: "var(--surface-secondary)",
-                                    color: "var(--text-muted)",
-                                    border: "1px solid var(--border-default)",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
+                                  className="hf-btn-xs hf-btn-secondary"
                                 >
                                   No
                                 </button>
                               </div>
                             )}
 
-                            <Link href={`/x/playbooks/${playbook.id}`} style={{ color: "var(--text-placeholder)", textDecoration: "none", flexShrink: 0 }}>
+                            <Link href={`/x/playbooks/${playbook.id}`} className="hf-link-plain hf-flex-shrink-0" style={{ color: "var(--text-placeholder)" }}>
                               →
                             </Link>
                           </div>
@@ -944,31 +787,23 @@ export default function DomainsPage() {
               {/* Callers Tab */}
               {activeTab === "callers" && (
                 <div>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: 16, fontWeight: 600 }}>
+                  <h3 className="hf-heading-lg hf-mb-md">
                     Callers in this Domain
                   </h3>
 
                   {domain.callers.length === 0 ? (
-                    <div style={{ padding: 32, textAlign: "center", background: "var(--surface-secondary)", borderRadius: 8 }}>
-                      <p style={{ color: "var(--text-muted)" }}>No callers assigned to this domain yet</p>
+                    <div className="hf-empty-compact">
+                      <p className="hf-text-muted">No callers assigned to this domain yet</p>
                     </div>
                   ) : (
                     <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <table className="hf-table">
                         <thead>
                           <tr style={{ background: "var(--surface-secondary)", borderBottom: "1px solid var(--border-default)" }}>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                              Name
-                            </th>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                              Contact
-                            </th>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                              Calls
-                            </th>
-                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                              Created
-                            </th>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Name</th>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Contact</th>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Calls</th>
+                            <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Created</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -981,11 +816,11 @@ export default function DomainsPage() {
                                   size="compact"
                                 />
                               </td>
-                              <td style={{ padding: "12px 16px", fontSize: 14, color: "var(--text-muted)" }}>
+                              <td className="hf-text-md hf-text-muted" style={{ padding: "12px 16px" }}>
                                 {caller.email || caller.phone || caller.externalId || "—"}
                               </td>
-                              <td style={{ padding: "12px 16px", fontSize: 14 }}>{caller._count.calls}</td>
-                              <td style={{ padding: "12px 16px", fontSize: 12, color: "var(--text-muted)" }}>
+                              <td className="hf-text-md" style={{ padding: "12px 16px" }}>{caller._count.calls}</td>
+                              <td className="hf-text-xs hf-text-muted" style={{ padding: "12px 16px" }}>
                                 {new Date(caller.createdAt).toLocaleDateString()}
                               </td>
                             </tr>
@@ -1000,32 +835,22 @@ export default function DomainsPage() {
               {/* Content Tab */}
               {activeTab === "content" && (
                 <div>
-                  <h3 style={{ margin: "0 0 16px 0", fontSize: 16, fontWeight: 600 }}>Subjects & Content Sources</h3>
+                  <h3 className="hf-heading-lg hf-mb-md">Subjects & Content Sources</h3>
                   {(!domain.subjects || domain.subjects.length === 0) ? (
-                    <div style={{
-                      padding: 32,
-                      textAlign: "center",
-                      background: "var(--surface-secondary)",
-                      borderRadius: 8,
-                    }}>
-                      <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
-                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 12 }}>
+                    <div className="hf-empty-compact">
+                      <div style={{ fontSize: 32 }} className="hf-mb-md">📚</div>
+                      <div className="hf-text-md hf-text-muted hf-mb-md">
                         No subjects linked to this domain yet.
                       </div>
                       <Link
                         href="/x/subjects"
-                        style={{
-                          color: "var(--accent-primary)",
-                          fontSize: 14,
-                          fontWeight: 500,
-                          textDecoration: "none",
-                        }}
+                        className="hf-link-accent hf-text-md"
                       >
                         Go to Subjects to link one →
                       </Link>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div className="hf-flex-col hf-gap-lg">
                       {domain.subjects.map((sd) => {
                         const subj = sd.subject;
                         const totalAssertions = subj.sources.reduce(
@@ -1041,68 +866,39 @@ export default function DomainsPage() {
                             }}
                           >
                             {/* Subject header */}
-                            <div style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "12px 16px",
-                              background: "var(--surface-secondary)",
-                            }}>
+                            <div className="hf-flex hf-flex-between hf-items-center" style={{ padding: "12px 16px", background: "var(--surface-secondary)" }}>
                               <div>
                                 <Link
                                   href={`/x/subjects?id=${subj.id}`}
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 600,
-                                    color: "var(--text-primary)",
-                                    textDecoration: "none",
-                                  }}
+                                  className="hf-link-plain hf-heading-sm"
+                                  style={{ marginBottom: 0, color: "var(--text-primary)" }}
                                 >
                                   {subj.name}
                                 </Link>
                                 {subj.qualificationRef && (
-                                  <span style={{
-                                    marginLeft: 8,
-                                    fontSize: 11,
-                                    color: "var(--text-muted)",
-                                    fontFamily: "monospace",
-                                  }}>
+                                  <span className="hf-text-xs hf-text-muted hf-mono" style={{ marginLeft: 8 }}>
                                     {subj.qualificationRef}
                                   </span>
                                 )}
                               </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
+                              <div className="hf-flex hf-gap-sm hf-text-xs hf-text-muted hf-items-center">
                                 <span>{subj._count.sources} source{subj._count.sources !== 1 ? "s" : ""} / {totalAssertions} assertion{totalAssertions !== 1 ? "s" : ""}</span>
                                 <Link
                                   href={`/x/content-sources`}
+                                  className="hf-micro-action"
                                   style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    padding: "2px 8px",
-                                    fontSize: 10,
-                                    fontWeight: 600,
                                     color: "var(--accent-primary)",
                                     background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)",
-                                    borderRadius: 4,
-                                    textDecoration: "none",
                                   }}
                                 >
                                   Add Content
                                 </Link>
                                 <Link
                                   href={`/x/domains/${domain.id}/extraction`}
+                                  className="hf-micro-action"
                                   style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    padding: "2px 8px",
-                                    fontSize: 10,
-                                    fontWeight: 600,
                                     color: "var(--badge-purple-text)",
                                     background: "var(--badge-purple-bg)",
-                                    borderRadius: 4,
-                                    textDecoration: "none",
                                   }}
                                 >
                                   Extraction Config
@@ -1115,47 +911,36 @@ export default function DomainsPage() {
                                 {subj.sources.map((ss, idx) => (
                                   <div
                                     key={ss.id}
+                                    className="hf-flex hf-gap-md hf-items-center"
                                     style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 12,
                                       padding: "8px 0",
                                       borderTop: idx > 0 ? "1px solid var(--border-subtle)" : "none",
                                     }}
                                   >
-                                    <span style={{ color: "var(--text-muted)", fontSize: 14, width: 20 }}>
+                                    <span className="hf-text-md hf-text-muted" style={{ width: 20 }}>
                                       {idx === subj.sources.length - 1 ? "└" : "├"}
                                     </span>
                                     {ss.tags?.length > 0 && (
-                                      <span style={{
-                                        display: "inline-block",
-                                        padding: "1px 6px",
-                                        borderRadius: 4,
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                        color: "var(--text-muted)",
-                                        background: "var(--surface-tertiary)",
-                                        textTransform: "uppercase",
-                                      }}>
+                                      <span className="hf-micro-badge" style={{ textTransform: "uppercase" }}>
                                         {ss.tags[0]}
                                       </span>
                                     )}
                                     <DocTypeBadge type={ss.source.documentType} />
                                     <Link
                                       href={`/x/content-sources?highlight=${ss.source.id}`}
-                                      style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", flex: 1, textDecoration: "none" }}
+                                      className="hf-link-plain hf-text-sm hf-text-bold hf-flex-1 hf-text-primary"
                                     >
                                       {ss.source.name}
                                     </Link>
                                     <TrustBadge level={ss.source.trustLevel} />
-                                    <span style={{ fontSize: 12, color: "var(--text-muted)", minWidth: 80, textAlign: "right" }}>
+                                    <span className="hf-text-xs hf-text-muted" style={{ minWidth: 80, textAlign: "right" }}>
                                       {ss.source._count.assertions} assertion{ss.source._count.assertions !== 1 ? "s" : ""}
                                     </span>
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>
+                              <div className="hf-text-sm hf-text-muted hf-text-italic" style={{ padding: "12px 16px" }}>
                                 No sources linked to this subject
                               </div>
                             )}

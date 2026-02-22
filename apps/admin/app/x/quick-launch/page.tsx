@@ -14,6 +14,7 @@ import type { MatrixPosition } from "@/lib/domain/agent-tuning";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { Building2, BookOpen, User, FileText, PlayCircle } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
@@ -72,39 +73,11 @@ type ResumeTask = {
 
 function StepMarker({ number, label, completed }: { number: number; label: string; completed?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: "50%",
-          background: completed
-            ? "var(--status-success-text)"
-            : "var(--accent-primary)",
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: completed ? 18 : 15,
-          fontWeight: 700,
-          flexShrink: 0,
-          transition: "all 0.3s cubic-bezier(.4,0,.2,1)",
-          boxShadow: completed
-            ? "0 2px 8px color-mix(in srgb, var(--status-success-text) 35%, transparent)"
-            : "0 2px 8px color-mix(in srgb, var(--accent-primary) 25%, transparent)",
-        }}
-      >
+    <div className="ql-step-marker">
+      <div className={`ql-step-circle ${completed ? "ql-step-circle-done" : "ql-step-circle-pending"}`}>
         {completed ? "\u2713" : number}
       </div>
-      <div
-        style={{
-          fontSize: 17,
-          fontWeight: 700,
-          color: completed ? "var(--text-secondary)" : "var(--text-primary)",
-          letterSpacing: "-0.01em",
-          transition: "color 0.2s",
-        }}
-      >
+      <div className={`ql-step-label ${completed ? "ql-step-label-done" : "ql-step-label-pending"}`}>
         {label}
       </div>
     </div>
@@ -115,15 +88,7 @@ function StepMarker({ number, label, completed }: { number: number; label: strin
 
 function FormCard({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        padding: "24px 28px",
-        background: "var(--surface-primary)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 16,
-        marginBottom: 16,
-      }}
-    >
+    <div className="ql-form-card">
       {children}
     </div>
   );
@@ -133,64 +98,22 @@ function FormCard({ children }: { children: React.ReactNode }) {
 
 function ProgressBar({ progress, label }: { progress: number; label: string }) {
   return (
-    <div
-      style={{
-        padding: "12px 24px",
-        background: "var(--surface-secondary)",
-        borderBottom: "1px solid var(--border-subtle)",
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        marginBottom: 24,
-        borderRadius: 12,
-      }}
-    >
-      <div
-        style={{
-          width: 20,
-          height: 20,
-          border: "2px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-          borderTopColor: "var(--accent-primary)",
-          borderRadius: "50%",
-          animation: progress < 100 ? "spin 0.8s linear infinite" : "none",
-          background: progress >= 100 ? "var(--status-success-text)" : "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 12,
-          color: "white",
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
-      >
+    <div className="ql-progress-bar">
+      <div className={`ql-progress-spinner ${progress < 100 ? "ql-progress-spinner-active" : "ql-progress-spinner-done"}`}>
         {progress >= 100 && "\u2713"}
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+      <div className="hf-flex-col" style={{ flex: 1 }}>
+        <div className="ql-progress-label">
           {label}
         </div>
-        <div
-          style={{
-            height: 4,
-            borderRadius: 2,
-            background: "var(--surface-tertiary)",
-            overflow: "hidden",
-          }}
-        >
+        <div className="ql-thin-track">
           <div
-            style={{
-              height: "100%",
-              width: `${progress}%`,
-              borderRadius: 2,
-              background: progress >= 100
-                ? "var(--status-success-text)"
-                : "var(--accent-primary)",
-              transition: "width 0.5s ease",
-            }}
+            className={`ql-thin-fill ${progress >= 100 ? "ql-thin-fill-success" : "ql-thin-fill-accent"}`}
+            style={{ width: `${progress}%`, transition: "width 0.5s ease" }}
           />
         </div>
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>
+      <div className="ql-progress-pct">
         {Math.round(progress)}%
       </div>
     </div>
@@ -939,7 +862,7 @@ export default function QuickLaunchPage() {
   const [savingWelcome, setSavingWelcome] = useState(false);
   const [classroom, setClassroom] = useState<{ cohortId: string; joinToken: string; joinUrl: string } | null>(null);
   const [creatingClassroom, setCreatingClassroom] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
   const [courseChecks, setCourseChecks] = useState<CourseCheck[]>([]);
   const [courseReady, setCourseReady] = useState(false);
   const [checksLoading, setChecksLoading] = useState(false);
@@ -1042,9 +965,7 @@ export default function QuickLaunchPage() {
 
   const handleCopyJoinLink = () => {
     if (!classroom) return;
-    navigator.clipboard.writeText(classroom.joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyText(classroom.joinUrl);
   };
 
   // ── Reset all ─────────────────────────────────────
@@ -1068,7 +989,6 @@ export default function QuickLaunchPage() {
     setTaskId(null);
     setError(null);
     setClassroom(null);
-    setCopied(false);
     setEditDomainName("");
     setEditWelcome("");
     setNewInstitutionName("");
@@ -1086,54 +1006,16 @@ export default function QuickLaunchPage() {
   // ── Render ─────────────────────────────────────────
 
   return (
-    <div style={{ maxWidth: phase === "form" || phase === "result" ? 720 : 1280, margin: "0 auto", padding: "48px 32px 64px", transition: "max-width 0.3s ease" }}>
+    <div className="ql-page" style={{ maxWidth: phase === "form" || phase === "result" ? 720 : 1280 }}>
       {/* ── Header ── */}
-      <div
-        style={{
-          marginBottom: 32,
-          textAlign: "center",
-          padding: "32px 24px 28px",
-          borderRadius: 20,
-          background: "linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, var(--surface-primary)), color-mix(in srgb, var(--accent-primary) 3%, var(--surface-primary)))",
-          border: "1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent)",
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 48,
-            height: 48,
-            borderRadius: 14,
-            background: "linear-gradient(135deg, var(--accent-primary), var(--accent-primary-hover))",
-            marginBottom: 16,
-            boxShadow: "0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-          }}
-        >
-          <span style={{ fontSize: 24, color: "white" }}>&#9889;</span>
+      <div className="ql-hero">
+        <div className="ql-hero-icon">
+          <span>&#9889;</span>
         </div>
-        <h1
-          style={{
-            fontSize: 32,
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            marginBottom: 8,
-            color: "var(--text-primary)",
-            lineHeight: 1.1,
-          }}
-        >
+        <h1 className="ql-hero-title">
           {communityMode ? "Create Community" : "Quick Launch"}
         </h1>
-        <p
-          style={{
-            fontSize: 16,
-            color: "var(--text-secondary)",
-            maxWidth: 480,
-            margin: "0 auto",
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="ql-hero-subtitle">
           {phase === "form" && (communityMode
             ? "Create a community for individuals to have meaningful conversations with an AI guide."
             : "Describe what you want to build and launch a working AI agent in one click.")}
@@ -1146,43 +1028,22 @@ export default function QuickLaunchPage() {
 
       {/* ── Resume Banner ── */}
       {resumeTask && phase === "form" && (
-        <div
-          style={{
-            padding: 20,
-            borderRadius: 14,
-            background: "var(--status-info-bg)",
-            border: "2px solid var(--accent-primary)",
-            marginBottom: 28,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-          }}
-        >
+        <div className="ql-resume-banner">
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+            <div className="ql-resume-title">
               Resume previous launch?
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            <div className="ql-resume-detail">
               You have an in-progress Quick Launch
               {resumeTask.context?.input?.subjectName &&
                 ` for "${resumeTask.context.input.subjectName}"`}
               {" "}started {new Date(resumeTask.startedAt).toLocaleString()}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="hf-flex hf-gap-sm">
             <button
               onClick={handleResume}
-              style={{
-                padding: "10px 20px",
-                borderRadius: 10,
-                background: "var(--accent-primary)",
-                color: "white",
-                border: "none",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-primary"
             >
               Resume
             </button>
@@ -1194,15 +1055,7 @@ export default function QuickLaunchPage() {
                 }
                 setResumeTask(null);
               }}
-              style={{
-                padding: "10px 20px",
-                borderRadius: 10,
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-secondary"
             >
               Start Fresh
             </button>
@@ -1217,37 +1070,11 @@ export default function QuickLaunchPage() {
 
       {/* ── Error Banner ── */}
       {error && phase !== "building" && (
-        <div
-          style={{
-            padding: 16,
-            borderRadius: 12,
-            background: "var(--status-error-bg)",
-            border: "2px solid var(--status-error-border)",
-            color: "var(--status-error-text)",
-            fontSize: 15,
-            fontWeight: 500,
-            marginBottom: 24,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
+        <div className="ql-error-banner">
           <span>{error}</span>
           <button
             onClick={() => setError(null)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 18,
-              fontWeight: 700,
-              color: "var(--status-error-text)",
-              padding: "0 4px",
-              lineHeight: 1,
-              flexShrink: 0,
-              opacity: 0.7,
-            }}
+            className="ql-error-dismiss"
             title="Dismiss"
           >
             &times;
@@ -1281,115 +1108,36 @@ export default function QuickLaunchPage() {
 
       {/* ── Phase: Committing (progress timeline) ── */}
       {phase === "committing" && (
-        <div
-          style={{
-            maxWidth: 600,
-            margin: "0 auto",
-            padding: 28,
-            borderRadius: 16,
-            background: "var(--surface-secondary)",
-            border: "1px solid var(--border-default)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 700,
-              marginBottom: 16,
-              color: "var(--text-primary)",
-              letterSpacing: "-0.01em",
-            }}
-          >
+        <div className="ql-commit-panel">
+          <div className="ql-commit-title">
             Creating your agent...
           </div>
           {commitTimeline.map((step, i) => (
             <div
               key={step.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                padding: "10px 0",
-                borderBottom:
-                  i < commitTimeline.length - 1
-                    ? "1px solid var(--border-subtle)"
-                    : "none",
-              }}
+              className={`ql-timeline-row ${i < commitTimeline.length - 1 ? "ql-timeline-row-border" : ""}`}
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  background:
-                    step.status === "done"
-                      ? "var(--status-success-text)"
-                      : step.status === "error"
-                        ? "var(--status-error-text)"
-                        : step.status === "active"
-                          ? "var(--accent-primary)"
-                          : "var(--surface-tertiary)",
-                  color: step.status === "pending" ? "var(--text-muted)" : "white",
-                }}
-              >
+              <div className={`ql-timeline-circle ql-timeline-circle-${step.status}`}>
                 {step.status === "done" && "\u2713"}
                 {step.status === "active" && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 14,
-                      height: 14,
-                      border: "2px solid color-mix(in srgb, white 30%, transparent)",
-                      borderTopColor: "white",
-                      borderRadius: "50%",
-                      animation: "spin 0.8s linear infinite",
-                    }}
-                  />
+                  <span className="ql-timeline-spinner-inline" />
                 )}
                 {step.status === "error" && "\u2717"}
                 {step.status === "skipped" && "\u2014"}
                 {step.status === "pending" && (i + 1)}
               </div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: step.status === "active" ? 600 : 400,
-                  color:
-                    step.status === "active"
-                      ? "var(--text-primary)"
-                      : step.status === "done"
-                        ? "var(--text-secondary)"
-                        : "var(--text-muted)",
-                }}
-              >
+              <div className={`ql-timeline-label ${
+                step.status === "active" ? "ql-timeline-label-active" :
+                step.status === "done" ? "ql-timeline-label-done" :
+                "ql-timeline-label-muted"
+              }`}>
                 {step.message || step.label}
               </div>
             </div>
           ))}
 
           {/* Cancel escape hatch */}
-          <button
-            onClick={handleCancelCommit}
-            style={{
-              marginTop: 16,
-              padding: "8px 16px",
-              borderRadius: 8,
-              background: "transparent",
-              border: "1px solid var(--border-default)",
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              alignSelf: "center",
-              transition: "color 0.15s",
-            }}
-          >
+          <button onClick={handleCancelCommit} className="ql-cancel-btn">
             Cancel
           </button>
         </div>
@@ -1397,7 +1145,7 @@ export default function QuickLaunchPage() {
 
       {/* ── Phase: Result ── */}
       {phase === "result" && result && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="hf-flex-col" style={{ gap: 20 }}>
           {/* ── Summary ── */}
           <WizardSummary
             title={communityMode ? "Your Community is Ready!" : "Your Agent is Ready!"}
@@ -1454,7 +1202,7 @@ export default function QuickLaunchPage() {
             {/* ── Editable agent name ── */}
             <div className="wiz-section">
               <div className="wiz-section-label">
-                Agent Name {savingName && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
+                Agent Name {savingName && <span className="ql-saving-indicator">&mdash; saving...</span>}
               </div>
               <input
                 type="text"
@@ -1471,45 +1219,30 @@ export default function QuickLaunchPage() {
             {courseChecks.length > 0 && (
               <div className="wiz-section">
                 <div className="wiz-section-label">Review Steps</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="hf-flex-col" style={{ gap: 6 }}>
                   {courseChecks.map((check) => (
                     <div
                       key={check.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "10px 14px",
-                        borderRadius: 8,
-                        background: check.passed
-                          ? "color-mix(in srgb, var(--status-success-bg) 50%, transparent)"
-                          : "var(--surface-secondary)",
-                        border: `1px solid ${check.passed ? "var(--status-success-border)" : "var(--border-default)"}`,
-                        cursor: check.fixAction?.href ? "pointer" : "default",
-                        transition: "background 0.15s",
-                      }}
+                      className={`ql-readiness-row ${check.passed ? "ql-readiness-row-pass" : "ql-readiness-row-pending"}`}
+                      style={{ cursor: check.fixAction?.href ? "pointer" : "default" }}
                       onClick={() => {
                         if (check.fixAction?.href) router.push(check.fixAction.href);
                       }}
                     >
-                      <div style={{
-                        width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0,
-                        background: check.passed ? "var(--status-success-text)" : check.severity === "critical" ? "var(--status-error-text)" : "var(--border-default)",
-                        color: "white",
-                      }}>
+                      <div className={`ql-readiness-circle ${check.passed ? "ql-readiness-circle-pass" : check.severity === "critical" ? "ql-readiness-circle-critical" : "ql-readiness-circle-default"}`}>
                         {check.passed ? "\u2713" : check.severity === "critical" ? "!" : "\u2022"}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                        <div className="ql-readiness-name">
                           {check.name}
                           {check.severity === "critical" && !check.passed && (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--status-error-text)", marginLeft: 6 }}>REQUIRED</span>
+                            <span className="ql-readiness-required">REQUIRED</span>
                           )}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{check.detail}</div>
+                        <div className="ql-readiness-detail">{check.detail}</div>
                       </div>
                       {check.fixAction?.href && (
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-primary)", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        <div className="ql-readiness-fix">
                           {check.fixAction.label} &rarr;
                         </div>
                       )}
@@ -1529,18 +1262,11 @@ export default function QuickLaunchPage() {
           </WizardSummary>
 
           {/* ── Onboarding Welcome ── */}
-          <div
-            style={{
-              padding: 24,
-              borderRadius: 14,
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 6 }}>
-              Onboarding Welcome {savingWelcome && <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— saving...</span>}
+          <div className="ql-result-card">
+            <div className="ql-result-section-label">
+              Onboarding Welcome {savingWelcome && <span className="ql-saving-indicator">&mdash; saving...</span>}
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>
+            <div className="ql-result-desc">
               This message is shown to learners when they join.
             </div>
             <textarea
@@ -1549,64 +1275,30 @@ export default function QuickLaunchPage() {
               onBlur={() => handleSaveWelcome(editWelcome)}
               placeholder="e.g. Welcome! Let's get started with your learning journey."
               rows={2}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid var(--border-default)",
-                fontSize: 14,
-                fontWeight: 500,
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                outline: "none",
-                resize: "vertical",
-                fontFamily: "inherit",
-                boxSizing: "border-box",
-                transition: "border-color 0.15s",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--accent-primary)")}
+              className="ql-result-textarea"
             />
           </div>
 
           {/* ── Get Learners In ── */}
-          <div
-            style={{
-              padding: 24,
-              borderRadius: 14,
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-            }}
-          >
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 }}>
+          <div className="ql-result-card">
+            <div className="ql-result-title">
               Get Learners In
             </div>
 
             {/* 3-step visual explainer */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 20,
-                padding: "14px 16px",
-                background: "var(--surface-secondary)",
-                borderRadius: 10,
-                fontSize: 13,
-                color: "var(--text-secondary)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 16 }}>&#128279;</span>
+            <div className="ql-explainer">
+              <div className="ql-explainer-step">
+                <span>&#128279;</span>
                 <span>Share link</span>
               </div>
-              <span style={{ color: "var(--text-muted)" }}>&rarr;</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 16 }}>&#9997;</span>
+              <span className="ql-explainer-arrow">&rarr;</span>
+              <div className="ql-explainer-step">
+                <span>&#9997;</span>
                 <span>They enter name</span>
               </div>
-              <span style={{ color: "var(--text-muted)" }}>&rarr;</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 16 }}>&#9989;</span>
+              <span className="ql-explainer-arrow">&rarr;</span>
+              <div className="ql-explainer-step">
+                <span>&#9989;</span>
                 <span>They&apos;re in</span>
               </div>
             </div>
@@ -1615,81 +1307,27 @@ export default function QuickLaunchPage() {
               <button
                 onClick={handleCreateClassroom}
                 disabled={creatingClassroom}
-                style={{
-                  padding: "12px 24px",
-                  borderRadius: 10,
-                  background: creatingClassroom ? "var(--border-default)" : "var(--accent-primary)",
-                  color: creatingClassroom ? "var(--text-muted)" : "white",
-                  border: "none",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: creatingClassroom ? "not-allowed" : "pointer",
-                  letterSpacing: "-0.01em",
-                  transition: "all 0.2s",
-                }}
+                className={`ql-classroom-btn ${creatingClassroom ? "ql-classroom-btn-loading" : "ql-classroom-btn-active"}`}
               >
                 {creatingClassroom ? "Creating..." : "Create Classroom"}
               </button>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "10px 14px",
-                    background: "var(--surface-secondary)",
-                    borderRadius: 8,
-                    border: "1px solid var(--border-default)",
-                  }}
-                >
-                  <code
-                    style={{
-                      flex: 1,
-                      fontSize: 13,
-                      color: "var(--text-primary)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+              <div className="hf-flex-col" style={{ gap: 10 }}>
+                <div className="ql-join-row">
+                  <code className="ql-join-code">
                     {classroom.joinUrl}
                   </code>
                   <button
                     onClick={handleCopyJoinLink}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "6px 12px",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      background: "var(--surface-primary)",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: copied ? "var(--status-success-text)" : "var(--text-secondary)",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      transition: "color 0.2s",
-                    }}
+                    className="ql-join-copy-btn"
+                    style={{ color: copied ? "var(--status-success-text)" : "var(--text-secondary)" }}
                   >
                     {copied ? "\u2713 Copied" : "Copy"}
                   </button>
                 </div>
                 <button
                   onClick={() => window.open(classroom.joinUrl, "_blank")}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    background: "transparent",
-                    border: "1px solid var(--border-default)",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "var(--text-secondary)",
-                    alignSelf: "flex-start",
-                    transition: "border-color 0.15s",
-                  }}
+                  className="ql-open-preview-btn"
                 >
                   Open Preview
                 </button>
@@ -1710,7 +1348,7 @@ export default function QuickLaunchPage() {
 
             {/* Institution picker */}
             {!communityMode && (
-              <div style={{ marginBottom: 16 }}>
+              <div className="hf-mb-md">
                 <FancySelect
                   options={[
                     ...institutions.map((i) => ({ value: i.id, label: i.name })),
@@ -1729,17 +1367,7 @@ export default function QuickLaunchPage() {
                     value={newInstitutionName}
                     onChange={(e) => setNewInstitutionName(e.target.value)}
                     placeholder="Institution name (e.g. Oakwood Academy)"
-                    style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      borderRadius: 8,
-                      border: "1px solid var(--input-border)",
-                      fontSize: 14,
-                      background: "var(--input-bg)",
-                      color: "var(--text-primary)",
-                      marginTop: 8,
-                      boxSizing: "border-box",
-                    }}
+                    className="ql-input-inline"
                   />
                 )}
               </div>
@@ -1747,23 +1375,14 @@ export default function QuickLaunchPage() {
 
             {/* Domain picker — use existing domain or create new */}
             {domains.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+              <div className="hf-mb-md">
+                <label className="hf-label">
                   {terms.domain}
                 </label>
                 <select
                   value={selectedDomainId}
                   onChange={(e) => setSelectedDomainId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: "1px solid var(--input-border)",
-                    fontSize: 14,
-                    background: "var(--input-bg)",
-                    color: "var(--text-primary)",
-                    cursor: "pointer",
-                  }}
+                  className="ql-select"
                 >
                   <option value="">{`Create new ${lower("domain")}`}</option>
                   {domains.map((d) => (
@@ -1771,14 +1390,14 @@ export default function QuickLaunchPage() {
                   ))}
                 </select>
                 {selectedDomainId && (
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+                  <div className="hf-text-xs hf-text-muted hf-mt-xs">
                     {`A new ${lower("playbook")} (class) will be created within this ${lower("domain")}.`}
                   </div>
                 )}
               </div>
             )}
 
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+            <div className="ql-form-hint">
               Tell us what you&apos;re creating &mdash; a tutor, coach, support agent, or anything else.
             </div>
             <textarea
@@ -1787,81 +1406,26 @@ export default function QuickLaunchPage() {
               onChange={(e) => setBrief(e.target.value)}
               placeholder="e.g. An AI tutor for 11+ Creative Comprehension, a sales coaching agent, or a customer support assistant"
               rows={3}
-              style={{
-                width: "100%",
-                padding: "16px 20px",
-                borderRadius: 12,
-                border: "2px solid var(--input-border)",
-                fontSize: 16,
-                fontWeight: 500,
-                background: "var(--input-bg)",
-                color: "var(--text-primary)",
-                outline: "none",
-                transition: "border-color 0.2s, box-shadow 0.2s",
-                boxSizing: "border-box",
-                resize: "vertical",
-                fontFamily: "inherit",
-                lineHeight: 1.5,
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "var(--accent-primary)";
-                e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
-              }}
+              className="ql-input-hero ql-input-hero-brief"
               onBlur={(e) => {
-                e.target.style.borderColor = "var(--input-border)";
-                e.target.style.boxShadow = "none";
                 suggestFields(e.target.value);
               }}
             />
 
             {/* Agent name — AI-suggested or manually entered */}
-            <div style={{ marginTop: 16 }}>
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 8,
-              }}>
-                <label
-                  htmlFor="subject"
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                  }}
-                >
+            <div className="hf-mt-md">
+              <div className="hf-flex hf-gap-sm hf-mb-sm">
+                <label htmlFor="subject" className="ql-name-label">
                   Agent name
                 </label>
                 {nameLoading && (
-                  <span style={{
-                    fontSize: 12,
-                    color: "var(--accent-primary)",
-                    fontWeight: 500,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}>
-                    <span style={{
-                      display: "inline-block",
-                      width: 12,
-                      height: 12,
-                      border: "2px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
-                      borderTopColor: "var(--accent-primary)",
-                      borderRadius: "50%",
-                      animation: "spin 0.8s linear infinite",
-                    }} />
+                  <span className="ql-name-suggesting">
+                    <span className="ql-spinner-xs" />
                     Suggesting...
                   </span>
                 )}
                 {!nameLoading && subjectName && !nameManuallyEdited && !suggestedName && (
-                  <span style={{
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    fontWeight: 500,
-                    padding: "2px 8px",
-                    borderRadius: 6,
-                    background: "var(--surface-secondary)",
-                  }}>
+                  <span className="ql-ai-badge">
                     AI suggested
                   </span>
                 )}
@@ -1876,27 +1440,7 @@ export default function QuickLaunchPage() {
                   setSuggestedName(null);
                 }}
                 placeholder={brief.trim().length >= 20 ? "Generating name..." : "e.g. Creative Comprehension, Sales Coaching"}
-                style={{
-                  width: "100%",
-                  padding: "14px 18px",
-                  borderRadius: 12,
-                  border: "2px solid var(--input-border)",
-                  fontSize: 16,
-                  fontWeight: 600,
-                  background: "var(--input-bg)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                  boxSizing: "border-box",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "var(--accent-primary)";
-                  e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "var(--input-border)";
-                  e.target.style.boxShadow = "none";
-                }}
+                className="ql-input-hero ql-input-hero-name"
               />
               {suggestedName && suggestedName !== subjectName && (
                 <button
@@ -1906,55 +1450,22 @@ export default function QuickLaunchPage() {
                     setSuggestedName(null);
                     setNameManuallyEdited(false);
                   }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginTop: 8,
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    border: "1px solid var(--accent-primary)",
-                    background: "var(--status-info-bg)",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "var(--text-primary)",
-                    transition: "background 0.15s",
-                  }}
+                  className="ql-suggestion-btn"
                 >
-                  <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Suggestion:</span>
+                  <span className="ql-suggestion-label">Suggestion:</span>
                   {suggestedName}
-                  <span style={{
-                    fontSize: 11,
-                    color: "var(--accent-primary)",
-                    fontWeight: 600,
-                    marginLeft: 4,
-                  }}>
-                    Use
-                  </span>
+                  <span className="ql-suggestion-use">Use</span>
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); setSuggestedName(null); }}
-                    style={{
-                      fontSize: 15,
-                      color: "var(--text-muted)",
-                      fontWeight: 700,
-                      marginLeft: 2,
-                      lineHeight: 1,
-                      cursor: "pointer",
-                    }}
+                    className="ql-suggestion-dismiss"
                   >
                     &times;
                   </span>
                 </button>
               )}
               {!brief.trim() && !subjectName.trim() && !suggestedName && (
-                <div style={{
-                  fontSize: 13,
-                  color: "var(--text-muted)",
-                  marginTop: 6,
-                  fontStyle: "italic",
-                }}>
+                <div className="ql-no-brief-hint">
                   Describe what you&apos;re building above and we&apos;ll suggest a name
                 </div>
               )}
@@ -1964,7 +1475,7 @@ export default function QuickLaunchPage() {
           {/* Step 2: Persona */}
           <FormCard>
             <StepMarker number={2} label={`Choose a ${lower('persona')}`} completed={!!persona} />
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+            <div className="ql-form-hint">
               The personality and interaction style your AI will use with callers.
             </div>
             <FancySelect
@@ -1981,29 +1492,15 @@ export default function QuickLaunchPage() {
                 <button
                   type="button"
                   onClick={() => { setPersona(suggestedPersona); setSuggestedPersona(null); }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginTop: 8,
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    border: "1px solid var(--accent-primary)",
-                    background: "var(--status-info-bg)",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "var(--text-primary)",
-                    transition: "background 0.15s",
-                  }}
+                  className="ql-suggestion-btn"
                 >
-                  <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>Suggestion:</span>
+                  <span className="ql-suggestion-label">Suggestion:</span>
                   {sp.name}
-                  <span style={{ fontSize: 11, color: "var(--accent-primary)", fontWeight: 600, marginLeft: 4 }}>Use</span>
+                  <span className="ql-suggestion-use">Use</span>
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); setSuggestedPersona(null); }}
-                    style={{ fontSize: 15, color: "var(--text-muted)", fontWeight: 700, marginLeft: 2, lineHeight: 1, cursor: "pointer" }}
+                    className="ql-suggestion-dismiss"
                   >
                     &times;
                   </span>
@@ -2012,11 +1509,11 @@ export default function QuickLaunchPage() {
             })()}
 
             {/* ── Teaching style (Boston Matrix) ── */}
-            <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--border-subtle)" }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+            <div className="ql-section-divider">
+              <div className="hf-section-title" style={{ marginBottom: 8 }}>
                 Teaching style
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+              <div className="hf-text-xs hf-text-muted hf-mb-md">
                 Place the dots to set your agent&apos;s personality. Click a preset to start from a known style.
               </div>
               <AgentTuningPanel
@@ -2026,7 +1523,7 @@ export default function QuickLaunchPage() {
             </div>
 
             {/* ── Advanced: AI-driven behavior pills ── */}
-            <div style={{ marginTop: 12 }}>
+            <div className="hf-mt-md">
               <AgentTuner
                 initialPills={tunerPills}
                 context={{ personaSlug: persona || undefined, subjectName: subjectName || undefined }}
@@ -2039,17 +1536,10 @@ export default function QuickLaunchPage() {
           {/* Step 3: Learning Goals */}
           <FormCard>
             <StepMarker number={3} label="Goals" completed={goals.length > 0} />
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--text-muted)",
-                marginBottom: 12,
-                marginTop: -6,
-              }}
-            >
+            <div className="ql-form-hint">
               Optional &mdash; what should users achieve?
             </div>
-            <div style={{ display: "flex", gap: 10, marginBottom: goals.length > 0 ? 12 : 0 }}>
+            <div className="hf-flex" style={{ gap: 10, marginBottom: goals.length > 0 ? 12 : 0 }}>
               <input
                 type="text"
                 value={goalInput}
@@ -2061,77 +1551,24 @@ export default function QuickLaunchPage() {
                   }
                 }}
                 placeholder="e.g. Pass the certification, Close more deals, Resolve tickets faster"
-                style={{
-                  flex: 1,
-                  padding: "14px 18px",
-                  borderRadius: 12,
-                  border: "2px solid var(--input-border)",
-                  fontSize: 16,
-                  fontWeight: 500,
-                  background: "var(--input-bg)",
-                  color: "var(--text-primary)",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "var(--accent-primary)";
-                  e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "var(--input-border)";
-                  e.target.style.boxShadow = "none";
-                }}
+                className="ql-input-hero"
+                style={{ flex: 1 }}
               />
               <button
                 onClick={addGoal}
                 disabled={!goalInput.trim()}
-                style={{
-                  padding: "14px 20px",
-                  borderRadius: 12,
-                  border: "2px solid var(--border-default)",
-                  background: "var(--surface-primary)",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: goalInput.trim() ? "pointer" : "not-allowed",
-                  opacity: goalInput.trim() ? 1 : 0.4,
-                  transition: "opacity 0.15s",
-                }}
+                className="hf-btn hf-btn-secondary"
+                style={{ padding: "14px 20px", borderRadius: 12, fontSize: 15, fontWeight: 600, opacity: goalInput.trim() ? 1 : 0.4 }}
               >
                 Add
               </button>
             </div>
             {goals.length > 0 && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="hf-flex hf-flex-wrap hf-gap-sm">
                 {goals.map((g, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "8px 14px",
-                      borderRadius: 20,
-                      background: "var(--status-info-bg)",
-                      border: "1px solid var(--accent-primary)",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: "var(--text-primary)",
-                    }}
-                  >
+                  <span key={i} className="ql-goal-chip">
                     {g}
-                    <button
-                      onClick={() => removeGoal(i)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 0,
-                        fontSize: 16,
-                        lineHeight: 1,
-                        color: "var(--text-muted)",
-                        fontWeight: 700,
-                      }}
-                    >
+                    <button onClick={() => removeGoal(i)} className="ql-goal-chip-remove">
                       &times;
                     </button>
                   </span>
@@ -2140,17 +1577,17 @@ export default function QuickLaunchPage() {
             )}
             {suggestedGoals && suggestedGoals.length > 0 && (
               <div style={{ marginTop: goals.length > 0 ? 10 : 0 }}>
-                <div style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                <div className="ql-suggest-header">
                   Suggestions
                   <span
                     role="button"
                     onClick={() => setSuggestedGoals(null)}
-                    style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 700, cursor: "pointer", lineHeight: 1 }}
+                    className="ql-suggest-dismiss-sm"
                   >
                     &times;
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div className="hf-flex hf-flex-wrap" style={{ gap: 6 }}>
                   {suggestedGoals.map((g, i) => (
                     <button
                       key={i}
@@ -2159,20 +1596,7 @@ export default function QuickLaunchPage() {
                         setGoals((prev) => [...prev, g]);
                         setSuggestedGoals((prev) => prev ? prev.filter((_, j) => j !== i) : null);
                       }}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "7px 12px",
-                        borderRadius: 18,
-                        border: "1px dashed var(--accent-primary)",
-                        background: "var(--status-info-bg)",
-                        cursor: "pointer",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--text-primary)",
-                        transition: "background 0.15s",
-                      }}
+                      className="ql-goal-suggest"
                     >
                       + {g}
                     </button>
@@ -2189,107 +1613,67 @@ export default function QuickLaunchPage() {
               label="Content source"
               completed={launchMode === "generate" || !!file}
             />
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, marginTop: -6 }}>
+            <div className="ql-form-hint">
               Where the knowledge for your AI comes from &mdash; generate it or upload your own material.
             </div>
 
             {/* Mode toggle */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+            <div className="hf-flex" style={{ gap: 10, marginBottom: 20 }}>
               <button
                 onClick={() => setLaunchMode("generate")}
-                style={{
-                  flex: 1,
-                  padding: "16px 16px 14px",
-                  borderRadius: 12,
-                  border: `2px solid ${launchMode === "generate" ? "var(--accent-primary)" : "var(--border-default)"}`,
-                  background: launchMode === "generate" ? "var(--status-info-bg)" : "var(--surface-primary)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "all 0.2s",
-                }}
+                className={`ql-mode-btn ${launchMode === "generate" ? "ql-mode-btn-active" : ""}`}
               >
-                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                  Generate with AI
-                </div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
-                  AI generates content from your description
-                </div>
+                <div className="ql-mode-btn-title">Generate with AI</div>
+                <div className="ql-mode-btn-desc">AI generates content from your description</div>
               </button>
               <button
                 onClick={() => setLaunchMode("upload")}
-                style={{
-                  flex: 1,
-                  padding: "16px 16px 14px",
-                  borderRadius: 12,
-                  border: `2px solid ${launchMode === "upload" ? "var(--accent-primary)" : "var(--border-default)"}`,
-                  background: launchMode === "upload" ? "var(--status-info-bg)" : "var(--surface-primary)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "all 0.2s",
-                }}
+                className={`ql-mode-btn ${launchMode === "upload" ? "ql-mode-btn-active" : ""}`}
               >
-                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                  Upload Materials
-                </div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
-                  Extract from your documents
-                </div>
+                <div className="ql-mode-btn-title">Upload Materials</div>
+                <div className="ql-mode-btn-desc">Extract from your documents</div>
               </button>
             </div>
 
             {/* Generate mode: inline summary card */}
             {launchMode === "generate" && (
-              <div
-                style={{
-                  padding: "20px 24px",
-                  borderRadius: 14,
-                  background: "var(--surface-secondary)",
-                  border: "1px solid var(--border-subtle)",
-                }}
-              >
-                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 14 }}>
+              <div className="ql-summary-card">
+                <div className="ql-summary-title">
                   We&apos;ll build an agent for:
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="hf-flex-col hf-gap-sm">
                   {brief.trim() && (
-                    <div style={{ display: "flex", gap: 8, fontSize: 14, alignItems: "flex-start" }}>
-                      <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70, paddingTop: 1 }}>Brief</span>
-                      <span style={{ color: "var(--text-primary)", fontWeight: 500, lineHeight: 1.4 }}>
+                    <div className="ql-summary-row">
+                      <span className="ql-summary-label">Brief</span>
+                      <span className="ql-summary-value">
                         {brief.trim().length > 120 ? brief.trim().slice(0, 120) + "..." : brief.trim()}
                       </span>
                     </div>
                   )}
-                  <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
-                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>Name</span>
-                    <span style={{ color: subjectName.trim() ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
+                  <div className="ql-summary-row">
+                    <span className="ql-summary-label">Name</span>
+                    <span className={subjectName.trim() ? "ql-summary-value" : "ql-summary-value-empty"}>
                       {subjectName.trim() || "enter agent name above"}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: 8, fontSize: 14 }}>
-                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70 }}>{terms.persona}</span>
-                    <span style={{ color: selectedPersona ? "var(--text-primary)" : "var(--text-muted)", fontWeight: 500 }}>
+                  <div className="ql-summary-row">
+                    <span className="ql-summary-label">{terms.persona}</span>
+                    <span className={selectedPersona ? "ql-summary-value" : "ql-summary-value-empty"}>
                       {selectedPersona?.name || "select above"}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: 8, fontSize: 14, alignItems: "flex-start" }}>
-                    <span style={{ fontWeight: 600, color: "var(--text-secondary)", minWidth: 70, paddingTop: 1 }}>Goals</span>
+                  <div className="ql-summary-row">
+                    <span className="ql-summary-label">Goals</span>
                     {goals.length > 0 ? (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <div className="hf-flex hf-flex-wrap" style={{ gap: 6 }}>
                         {goals.map((g, i) => (
-                          <span key={i} style={{
-                            padding: "3px 10px",
-                            borderRadius: 8,
-                            background: "var(--surface-tertiary)",
-                            fontSize: 13,
-                            fontWeight: 500,
-                            color: "var(--text-primary)",
-                          }}>
+                          <span key={i} className="ql-summary-goal-chip">
                             {g}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <span style={{ color: "var(--text-muted)", fontWeight: 500, fontStyle: "italic" }}>
+                      <span className="ql-summary-value-empty" style={{ fontStyle: "italic" }}>
                         none (AI will infer)
                       </span>
                     )}
@@ -2297,16 +1681,7 @@ export default function QuickLaunchPage() {
                 </div>
 
                 {goals.length === 0 && (
-                  <div style={{
-                    marginTop: 14,
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    background: "color-mix(in srgb, var(--status-warning-text) 8%, transparent)",
-                    border: "1px solid color-mix(in srgb, var(--status-warning-text) 15%, transparent)",
-                    fontSize: 13,
-                    color: "var(--text-secondary)",
-                    fontWeight: 500,
-                  }}>
+                  <div className="ql-goals-hint">
                     Adding goals helps AI create a more tailored experience
                   </div>
                 )}
@@ -2321,38 +1696,19 @@ export default function QuickLaunchPage() {
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    padding: file ? "20px 24px" : "44px 24px",
-                    borderRadius: 16,
-                    border: `2px dashed ${file ? "var(--accent-primary)" : "var(--border-default)"}`,
-                    background: file ? "var(--status-info-bg)" : "var(--surface-primary)",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
+                  className={`ql-dropzone ${file ? "ql-dropzone-active" : ""}`}
                 >
                   {file ? (
                     <div>
-                      <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-primary)" }}>
-                        {file.name}
-                      </div>
-                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+                      <div className="ql-file-name">{file.name}</div>
+                      <div className="ql-file-size">
                         {(file.size / 1024).toFixed(0)} KB
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setFile(null);
                           }}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "var(--accent-primary)",
-                            cursor: "pointer",
-                            marginLeft: 12,
-                            textDecoration: "underline",
-                            fontSize: 14,
-                            fontWeight: 500,
-                          }}
+                          className="ql-file-remove"
                         >
                           Remove
                         </button>
@@ -2360,11 +1716,11 @@ export default function QuickLaunchPage() {
                     </div>
                   ) : (
                     <div>
-                      <div style={{ fontSize: 40, marginBottom: 8, opacity: 0.25 }}>&#8613;</div>
-                      <div style={{ fontSize: 17, fontWeight: 600, color: "var(--text-secondary)" }}>
+                      <div className="ql-dropzone-icon">&#8613;</div>
+                      <div className="ql-dropzone-title">
                         Drop a file here or click to browse
                       </div>
-                      <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 6 }}>
+                      <div className="ql-dropzone-hint">
                         PDF, TXT, Markdown, or JSON
                       </div>
                     </div>
@@ -2375,7 +1731,7 @@ export default function QuickLaunchPage() {
                   type="file"
                   accept=".pdf,.txt,.md,.markdown,.json"
                   onChange={(e) => handleFile(e.target.files?.[0] || null)}
-                  style={{ display: "none" }}
+                  hidden
                 />
               </>
             )}
@@ -2385,30 +1741,13 @@ export default function QuickLaunchPage() {
           <div style={{ padding: "16px 0 0" }}>
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: 14,
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                padding: 0,
-                fontWeight: 500,
-              }}
+              className="ql-advanced-toggle"
             >
               {showAdvanced ? "\u25BE" : "\u25B8"} Advanced options
             </button>
             {showAdvanced && (
               <div style={{ marginTop: 12, maxWidth: 480 }}>
-                <label
-                  htmlFor="qualRef"
-                  style={{
-                    display: "block",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    marginBottom: 6,
-                    color: "var(--text-secondary)",
-                  }}
-                >
+                <label htmlFor="qualRef" className="ql-advanced-label">
                   Qualification reference
                 </label>
                 <input
@@ -2417,27 +1756,7 @@ export default function QuickLaunchPage() {
                   value={qualificationRef}
                   onChange={(e) => setQualificationRef(e.target.value)}
                   placeholder="e.g. Highfield L2 Food Safety"
-                  style={{
-                    width: "100%",
-                    padding: "14px 18px",
-                    borderRadius: 12,
-                    border: "2px solid var(--input-border)",
-                    fontSize: 16,
-                    fontWeight: 500,
-                    background: "var(--input-bg)",
-                    color: "var(--text-primary)",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    transition: "border-color 0.2s, box-shadow 0.2s",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "var(--accent-primary)";
-                    e.target.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "var(--input-border)";
-                    e.target.style.boxShadow = "none";
-                  }}
+                  className="ql-input-hero"
                 />
               </div>
             )}
@@ -2447,62 +1766,21 @@ export default function QuickLaunchPage() {
           <div style={{ padding: "32px 0 0" }}>
             {/* Return to Review — shown when user went Back but analysis is still valid */}
             {analysisComplete && preview.domainId && (
-              <button
-                onClick={() => setPhase("review")}
-                style={{
-                  width: "100%",
-                  padding: "14px 24px",
-                  borderRadius: 12,
-                  border: "2px solid var(--accent-primary)",
-                  background: "var(--surface-primary)",
-                  color: "var(--accent-primary)",
-                  fontSize: 16,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  marginBottom: 12,
-                  transition: "all 0.2s",
-                  letterSpacing: "-0.01em",
-                }}
-              >
+              <button onClick={() => setPhase("review")} className="ql-return-btn">
                 Return to Review
               </button>
             )}
             <button
               onClick={handleBuild}
               disabled={!canLaunch}
-              style={{
-                width: "100%",
-                padding: "18px 32px",
-                borderRadius: 14,
-                border: "none",
-                background: canLaunch
-                  ? "linear-gradient(135deg, var(--accent-primary), var(--accent-primary-hover))"
-                  : "var(--button-disabled-bg)",
-                color: canLaunch ? "var(--accent-primary-text)" : "var(--text-muted)",
-                fontSize: 18,
-                fontWeight: 800,
-                cursor: canLaunch ? "pointer" : "not-allowed",
-                transition: "all 0.25s cubic-bezier(.4,0,.2,1)",
-                letterSpacing: "-0.02em",
-                boxShadow: canLaunch
-                  ? "0 4px 16px color-mix(in srgb, var(--accent-primary) 35%, transparent)"
-                  : "none",
-              }}
+              className={`ql-build-btn ${canLaunch ? "ql-build-btn-active" : "ql-build-btn-disabled"}`}
             >
               Build It
             </button>
 
             {/* Progress bar showing form completion */}
-            <div style={{ marginTop: 16 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 13,
-                  color: "var(--text-muted)",
-                  marginBottom: 6,
-                }}
-              >
+            <div className="hf-mt-md">
+              <div className="ql-form-progress-bar">
                 <span>{completedSteps} of {totalRequired} required</span>
                 {!canLaunch && (
                   <span>
@@ -2518,37 +1796,15 @@ export default function QuickLaunchPage() {
                   </span>
                 )}
               </div>
-              <div
-                style={{
-                  height: 4,
-                  borderRadius: 2,
-                  background: "var(--surface-tertiary)",
-                  overflow: "hidden",
-                }}
-              >
+              <div className="ql-thin-track">
                 <div
-                  style={{
-                    height: "100%",
-                    width: `${(completedSteps / totalRequired) * 100}%`,
-                    borderRadius: 2,
-                    background: completedSteps === totalRequired
-                      ? "var(--status-success-text)"
-                      : "var(--accent-primary)",
-                    transition: "width 0.3s ease",
-                  }}
+                  className={`ql-thin-fill ${completedSteps === totalRequired ? "ql-thin-fill-success" : "ql-thin-fill-accent"}`}
+                  style={{ width: `${(completedSteps / totalRequired) * 100}%` }}
                 />
               </div>
             </div>
 
-            <p
-              style={{
-                textAlign: "center",
-                fontSize: 13,
-                color: "var(--text-muted)",
-                marginTop: 16,
-                lineHeight: 1.5,
-              }}
-            >
+            <p className="ql-form-footer">
               Creates an agent, extracts content, configures the persona, and sets up a test caller.
             </p>
           </div>

@@ -17,6 +17,8 @@ import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { enrollCaller, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 import { updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
 import type { SpecConfig } from "@/lib/types/json-fields";
+import type { ProgressEvent, ProgressCallback } from "./types";
+export type { ProgressEvent, ProgressCallback };
 
 // ── Types ──────────────────────────────────────────────
 
@@ -79,17 +81,6 @@ interface CourseSetupStep {
   args?: Record<string, any>;
 }
 
-export interface ProgressEvent {
-  phase: string;
-  message: string;
-  stepIndex?: number;
-  totalSteps?: number;
-  detail?: Record<string, any>;
-  data?: Record<string, any>;
-}
-
-export type ProgressCallback = (event: ProgressEvent) => void;
-
 // ── Spec Loader ────────────────────────────────────────
 
 /**
@@ -136,16 +127,15 @@ async function loadCourseSetupSteps(): Promise<CourseSetupStep[]> {
 }
 
 function mapStepToOperation(stepId: string): string {
-  // TODO: Wire generate_curriculum, configure_onboarding, invite_students when
-  // course creation moves from all-at-once ("done" → "create_course") to per-step execution.
-  // The executors below are implemented but currently unused (all mapped to "noop").
+  // Onboarding + enrollment logic runs inside create_course (after scaffold)
+  // rather than as separate mapped steps, because they depend on domainId/playbookId.
   const mapping: Record<string, string> = {
-    intent: "noop", // intent step is UI-only, no server work
-    content: "noop", // content upload happens in step itself
-    "lesson-plan": "noop", // UI-only plan configuration (accept/review paths)
-    "course-config": "noop", // UI-only welcome message
-    students: "noop", // UI-only email/cohort/individual collection
-    done: "create_course", // final step runs the full course setup
+    intent: "noop",
+    content: "noop",
+    "lesson-plan": "noop",
+    "course-config": "noop",
+    students: "noop",
+    done: "create_course",
     // Legacy step IDs (kept for backwards compat with existing DB specs)
     "teaching-points": "noop",
     "lesson-structure": "noop",
@@ -244,6 +234,32 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
     }
 
     ctx.results.warnings = [...(ctx.results.warnings || []), ...scaffoldResult.skipped];
+
+    // 5. Configure onboarding (welcome message + behavior targets)
+    if (ctx.input.welcomeMessage || ctx.input.behaviorTargets) {
+      try {
+        ctx.onProgress({ phase: "onboarding", message: "Configuring onboarding..." });
+        await stepExecutors.configure_onboarding(ctx, step);
+      } catch (err: any) {
+        console.error("[course-setup] Onboarding configuration failed:", err.message);
+        ctx.results.warnings!.push(`Onboarding config: ${err.message}`);
+      }
+    }
+
+    // 6. Enroll students (emails + cohorts + individual callers)
+    const hasStudents =
+      (ctx.input.studentEmails?.length ?? 0) > 0 ||
+      (ctx.input.cohortGroupIds?.length ?? 0) > 0 ||
+      (ctx.input.selectedCallerIds?.length ?? 0) > 0;
+    if (hasStudents) {
+      try {
+        ctx.onProgress({ phase: "enrollment", message: "Enrolling students..." });
+        await stepExecutors.invite_students(ctx, step);
+      } catch (err: any) {
+        console.error("[course-setup] Student enrollment failed:", err.message);
+        ctx.results.warnings!.push(`Enrollment: ${err.message}`);
+      }
+    }
   },
 
   generate_curriculum: async (ctx) => {

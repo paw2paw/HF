@@ -14,6 +14,8 @@ import {
   VenetianMask,
   Search,
   Loader2,
+  Bug,
+  Radio,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
@@ -40,6 +42,18 @@ const ROLE_LABELS: Record<string, string> = {
   VIEWER: "Viewer",
 };
 
+const ROLE_LEVEL: Record<string, number> = {
+  SUPERADMIN: 5,
+  ADMIN: 4,
+  OPERATOR: 3,
+  SUPER_TESTER: 2,
+  TESTER: 1,
+  VIEWER: 1,
+  DEMO: 0,
+};
+
+const BUG_REPORTER_KEY = "ui.bugReporter";
+
 export function UserContextMenu({
   isOpen,
   onClose,
@@ -57,6 +71,53 @@ export function UserContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const { isMasquerading, startMasquerade } = useMasquerade();
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  // ── Quick Toggles ──
+  const sessionRole = (session?.user?.role as string) || "";
+  const roleLevel = ROLE_LEVEL[sessionRole] ?? 0;
+  const isOperator = roleLevel >= 3;
+  const isAdmin = roleLevel >= 4;
+
+  // Bug reporter toggle (localStorage)
+  const [bugReporterEnabled, setBugReporterEnabled] = useState(true);
+  useEffect(() => {
+    const stored = localStorage.getItem(BUG_REPORTER_KEY);
+    if (stored !== null) setBugReporterEnabled(stored !== "false");
+  }, []);
+
+  // Deep logging toggle (server-side, ADMIN+ only — fetch on menu open)
+  const [deepLogging, setDeepLogging] = useState(false);
+  useEffect(() => {
+    if (!isAdmin || !isOpen) return;
+    fetch("/api/admin/deep-logging")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setDeepLogging(data.enabled); })
+      .catch(() => {});
+  }, [isAdmin, isOpen]);
+
+  const handleToggleBugReporter = useCallback(() => {
+    const next = !bugReporterEnabled;
+    setBugReporterEnabled(next);
+    localStorage.setItem(BUG_REPORTER_KEY, String(next));
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: BUG_REPORTER_KEY, newValue: String(next) })
+    );
+  }, [bugReporterEnabled]);
+
+  const handleToggleDeepLogging = useCallback(async () => {
+    const newValue = !deepLogging;
+    setDeepLogging(newValue);
+    try {
+      const res = await fetch("/api/admin/deep-logging", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: newValue }),
+      });
+      if (!res.ok) setDeepLogging(!newValue);
+    } catch {
+      setDeepLogging(!newValue);
+    }
+  }, [deepLogging]);
 
   // Fetch users for step-in picker
   const fetchStepInUsers = useCallback(async (q: string) => {
@@ -342,6 +403,82 @@ export function UserContextMenu({
             </div>
           )}
         </div>
+
+        {/* Quick Toggles (OPERATOR+) */}
+        {isOperator && (
+          <>
+            <div
+              className="border-t mx-2"
+              style={{ borderColor: "var(--border-subtle)" }}
+            />
+            <div className="px-2 pt-2 pb-1">
+              <div
+                className="px-3 pb-1 text-[11px] font-medium tracking-wide uppercase"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Quick Toggles
+              </div>
+
+              {/* Bug Reporter */}
+              <div
+                className="flex items-center justify-between px-3 py-2 rounded-lg"
+                style={{ color: "var(--text-primary)" }}
+              >
+                <span className="flex items-center gap-3 text-sm">
+                  <Bug
+                    className="w-[18px] h-[18px] flex-shrink-0"
+                    style={{ color: "var(--text-secondary)" }}
+                  />
+                  Bug Reporter
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={bugReporterEnabled}
+                  className="hf-toggle-mini"
+                  onClick={handleToggleBugReporter}
+                  title={bugReporterEnabled ? "Bug reporter is ON" : "Bug reporter is OFF"}
+                >
+                  <div className="hf-toggle-mini-knob" />
+                </button>
+              </div>
+
+              {/* Deep Logging (ADMIN+ only) */}
+              {isAdmin && (
+                <div
+                  className="flex items-center justify-between px-3 py-2 rounded-lg"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  <span className="flex items-center gap-3 text-sm">
+                    <Radio
+                      className="w-[18px] h-[18px] flex-shrink-0"
+                      style={{
+                        color: deepLogging
+                          ? "var(--status-error-text)"
+                          : "var(--text-secondary)",
+                      }}
+                    />
+                    Deep Logging
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={deepLogging}
+                    className="hf-toggle-mini"
+                    onClick={handleToggleDeepLogging}
+                    title={
+                      deepLogging
+                        ? "Deep logging ON — capturing full AI prompts/responses"
+                        : "Deep logging OFF"
+                    }
+                  >
+                    <div className="hf-toggle-mini-knob" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Divider */}
         <div

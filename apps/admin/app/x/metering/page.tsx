@@ -37,15 +37,9 @@ function ProviderDot({ provider, size = 8 }: { provider: string; size?: number }
   const colors = PROVIDER_COLORS[provider] || PROVIDER_COLORS.unknown;
   return (
     <span
+      className="metering-dot"
       title={colors.label}
-      style={{
-        display: "inline-block",
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        backgroundColor: colors.dot,
-        flexShrink: 0,
-      }}
+      style={{ width: size, height: size, backgroundColor: colors.dot }}
     />
   );
 }
@@ -180,17 +174,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
 function AttributionBanner({ attribution }: { attribution: BreakdownsData["attribution"] }) {
   if (!attribution || attribution.totalEvents === 0) return null;
   return (
-    <div
-      style={{
-        padding: 12,
-        background: "var(--status-info-bg)",
-        border: "1px solid var(--status-info-border)",
-        borderRadius: 8,
-        marginBottom: 20,
-        fontSize: 13,
-        color: "var(--status-info-text)",
-      }}
-    >
+    <div className="hf-banner hf-banner-info hf-mb-md">
       {attribution.attributedEvents.toLocaleString()} of {attribution.totalEvents.toLocaleString()} events
       ({attribution.attributionRate}%) are attributed to a caller.
       {attribution.unattributedEvents > 0 && (
@@ -277,9 +261,9 @@ export default function MeteringPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>Loading...</div>
+      <div className="metering-page">
+        <div className="hf-text-center hf-p-lg">
+          <div className="hf-stat-value hf-mb-md">Loading...</div>
         </div>
       </div>
     );
@@ -287,16 +271,8 @@ export default function MeteringPage() {
 
   if (error) {
     return (
-      <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
-        <div
-          style={{
-            background: "var(--status-error-bg)",
-            border: "1px solid var(--status-error-border)",
-            borderRadius: 8,
-            padding: 16,
-            color: "var(--status-error-text)",
-          }}
-        >
+      <div className="metering-page">
+        <div className="hf-banner hf-banner-error">
           Error: {error}
         </div>
       </div>
@@ -304,31 +280,23 @@ export default function MeteringPage() {
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+    <div className="metering-page">
       <AdvancedBanner />
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="hf-mb-lg">
         <h1 className="hf-page-title">Resource Metering</h1>
-        <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
+        <p className="hf-page-subtitle">
           Track usage and costs across AI, database, compute, storage, and external services
         </p>
       </div>
 
       {/* Period Selector */}
-      <div style={{ marginBottom: 20, display: "flex", gap: 8 }}>
+      <div className="hf-flex hf-gap-sm hf-mb-md">
         {[7, 30, 90].map((d) => (
           <button
             key={d}
             onClick={() => setDays(d)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: days === d ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-              background: days === d ? "var(--status-info-bg)" : "var(--surface-primary)",
-              color: "var(--text-primary)",
-              fontWeight: days === d ? 600 : 400,
-              cursor: "pointer",
-            }}
+            className={`metering-period-btn${days === d ? " metering-period-btn-active" : ""}`}
           >
             {d} days
           </button>
@@ -336,31 +304,12 @@ export default function MeteringPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div
-        style={{
-          display: "flex",
-          gap: 0,
-          borderBottom: "2px solid var(--border-default)",
-          marginBottom: 24,
-        }}
-      >
+      <div className="metering-tab-bar hf-mb-lg">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: "10px 20px",
-              fontSize: 14,
-              fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? "var(--text-primary)" : "var(--text-secondary)",
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === tab.id
-                ? "2px solid var(--button-primary-bg)"
-                : "2px solid transparent",
-              marginBottom: -2,
-              cursor: "pointer",
-            }}
+            className={`metering-tab${activeTab === tab.id ? " metering-tab-active" : ""}`}
           >
             {tab.label}
           </button>
@@ -371,108 +320,62 @@ export default function MeteringPage() {
       {activeTab === "overview" && (
         <>
           {/* Summary Cards Row */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: 16,
-              marginBottom: 24,
-            }}
-          >
+          <div className="metering-summary-grid hf-mb-lg">
             {/* Total Cost Card */}
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 12,
-                padding: 20,
-              }}
-            >
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 4 }}>
+            <div className="metering-stat-card">
+              <div className="hf-text-sm hf-text-secondary hf-mb-sm">
                 Total Cost ({days}d)
               </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>
+              <div className="metering-stat-value">
                 ${summary?.totals.totalCostDollars || "0.00"}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+              <div className="metering-stat-sublabel">
                 {summary?.totals.eventCount.toLocaleString() || 0} events
               </div>
             </div>
 
             {/* Today Card */}
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 12,
-                padding: 20,
-              }}
-            >
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 4 }}>Today</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>
+            <div className="metering-stat-card">
+              <div className="hf-text-sm hf-text-secondary hf-mb-sm">Today</div>
+              <div className="metering-stat-value">
                 ${summary?.today.costDollars || "0.00"}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+              <div className="metering-stat-sublabel">
                 {summary?.today.eventCount.toLocaleString() || 0} events
               </div>
             </div>
 
             {/* MTD Card */}
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 12,
-                padding: 20,
-              }}
-            >
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 4 }}>
+            <div className="metering-stat-card">
+              <div className="hf-text-sm hf-text-secondary hf-mb-sm">
                 Month to Date
               </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>
+              <div className="metering-stat-value">
                 ${summary?.monthToDate.costDollars || "0.00"}
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
+              <div className="metering-stat-sublabel">
                 {summary?.monthToDate.eventCount.toLocaleString() || 0} events
               </div>
             </div>
           </div>
 
           {/* Category Breakdown */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: 12,
-              marginBottom: 24,
-            }}
-          >
+          <div className="metering-category-grid hf-mb-lg">
             {(summary?.byCategory || []).map((cat) => {
               const colors = CATEGORY_COLORS[cat.category] || CATEGORY_COLORS.AI;
               return (
                 <div
                   key={cat.category}
-                  style={{
-                    background: colors.bg,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 10,
-                    padding: 16,
-                  }}
+                  className="metering-category-card"
+                  style={{ background: colors.bg, border: `1px solid ${colors.border}` }}
                 >
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: colors.text,
-                      marginBottom: 4,
-                    }}
-                  >
+                  <div className="hf-mb-sm" style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
                     {cat.category}
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 700, color: colors.text }}>
                     ${cat.costDollars}
                   </div>
-                  <div style={{ fontSize: 11, color: colors.text, opacity: 0.8 }}>
+                  <div className="hf-text-xs" style={{ color: colors.text, opacity: 0.8 }}>
                     {cat.eventCount.toLocaleString()} events
                   </div>
                 </div>
@@ -481,14 +384,7 @@ export default function MeteringPage() {
 
             {/* Show placeholder if no data */}
             {(!summary?.byCategory || summary.byCategory.length === 0) && (
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  textAlign: "center",
-                  padding: 40,
-                  color: "var(--text-muted)",
-                }}
-              >
+              <div className="metering-full-span metering-empty">
                 No usage data yet. Start using AI, running pipelines, or processing
                 transcripts to see metering data.
               </div>
@@ -497,27 +393,12 @@ export default function MeteringPage() {
 
           {/* AI Usage Section */}
           {((summary?.aiByCallPoint?.length ?? 0) > 0 || providerBreakdown.length > 0) && (
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--status-info-border)",
-                borderRadius: 12,
-                padding: 20,
-                marginBottom: 24,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--accent-primary)" }}>
+            <div className="metering-ai-section hf-mb-lg">
+              <div className="hf-flex-between hf-mb-md">
+                <h2 className="metering-h2-accent">
                   AI Usage
                 </h2>
-                <a
-                  href="/x/ai-config"
-                  style={{
-                    fontSize: 12,
-                    color: "var(--accent-primary)",
-                    textDecoration: "none",
-                  }}
-                >
+                <a href="/x/ai-config" className="metering-link">
                   Configure Models &rarr;
                 </a>
               </div>
@@ -525,17 +406,16 @@ export default function MeteringPage() {
               {/* Mock vs Real Summary */}
               {summary?.aiSummary && (summary.aiSummary.mock.eventCount > 0 || summary.aiSummary.real.eventCount > 0) && (
                 <div
+                  className="hf-mb-md hf-p-md"
                   style={{
-                    marginBottom: 20,
-                    padding: 16,
                     background: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-bg)" : "var(--status-success-bg)",
                     border: `1px solid ${summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-border)" : "var(--status-success-border)"}`,
                     borderRadius: 10,
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="hf-flex-between">
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)", marginBottom: 4 }}>
+                      <div className="hf-text-sm hf-text-bold hf-mb-sm" style={{ color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)" }}>
                         {summary.aiSummary.mockPercentage > 50 ? "⚠️ Mostly Mock Calls" : "✓ Real AI Calls"}
                       </div>
                       <div style={{ fontSize: 12, color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)" }}>
@@ -545,21 +425,20 @@ export default function MeteringPage() {
                         )}
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div className="hf-text-center">
                       <div style={{ fontSize: 24, fontWeight: 700, color: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-text)" : "var(--status-success-text)" }}>
                         {100 - summary.aiSummary.mockPercentage}%
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>real calls</div>
+                      <div className="hf-text-xs hf-text-muted">real calls</div>
                     </div>
                   </div>
                   {summary.aiSummary.mockPercentage > 0 && (
-                    <div style={{ marginTop: 10, height: 6, background: "var(--surface-tertiary)", borderRadius: 3, overflow: "hidden" }}>
+                    <div className="metering-progress-track hf-mt-sm">
                       <div
+                        className="metering-progress-fill"
                         style={{
-                          height: "100%",
                           width: `${100 - summary.aiSummary.mockPercentage}%`,
                           background: summary.aiSummary.mockPercentage > 50 ? "var(--status-warning-border)" : "var(--status-success-text)",
-                          borderRadius: 3,
                         }}
                       />
                     </div>
@@ -569,26 +448,19 @@ export default function MeteringPage() {
 
               {/* Provider Summary Cards */}
               {providerBreakdown.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 10 }}>
-                    By Provider
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                <div className="hf-mb-md">
+                  <div className="metering-sub-label">By Provider</div>
+                  <div className="hf-flex-wrap hf-gap-md">
                     {providerBreakdown.map((p) => {
                       const colors = PROVIDER_COLORS[p.provider] || PROVIDER_COLORS.unknown;
                       const pct = totalAICost > 0 ? Math.round((p.costCents / totalAICost) * 100) : 0;
                       return (
                         <div
                           key={p.provider}
-                          style={{
-                            background: colors.bg,
-                            border: `1px solid ${colors.border}`,
-                            borderRadius: 8,
-                            padding: "12px 16px",
-                            minWidth: 140,
-                          }}
+                          className="metering-provider-card"
+                          style={{ background: colors.bg, border: `1px solid ${colors.border}` }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          <div className="hf-flex hf-gap-xs hf-mb-sm">
                             <ProviderDot provider={p.provider} size={10} />
                             <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
                               {colors.label}
@@ -597,7 +469,7 @@ export default function MeteringPage() {
                           <div style={{ fontSize: 20, fontWeight: 700, color: colors.text }}>
                             ${p.costDollars}
                           </div>
-                          <div style={{ fontSize: 11, color: colors.text, opacity: 0.8 }}>
+                          <div className="hf-text-xs" style={{ color: colors.text, opacity: 0.8 }}>
                             {pct}% &middot; {p.eventCount.toLocaleString()} calls
                           </div>
                         </div>
@@ -610,39 +482,23 @@ export default function MeteringPage() {
               {/* By Call Point */}
               {(summary?.aiByCallPoint?.length ?? 0) > 0 && (
                 <>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 10 }}>
-                    By Call Point
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                      gap: 10,
-                    }}
-                  >
+                  <div className="metering-sub-label">By Call Point</div>
+                  <div className="metering-callpoint-grid">
                     {summary?.aiByCallPoint?.map((cp, i) => {
                       const provider = getProvider(cp.model);
                       const colors = PROVIDER_COLORS[provider] || PROVIDER_COLORS.unknown;
                       return (
                         <div
                           key={`${cp.callPoint}-${cp.model}-${i}`}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "10px 14px",
-                            background: "var(--surface-secondary)",
-                            borderRadius: 8,
-                            border: "1px solid var(--border-default)",
-                          }}
+                          className="metering-callpoint-card"
                         >
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: 1 }}>
+                          <div className="hf-flex" style={{ alignItems: "flex-start", gap: 10, flex: 1 }}>
                             <ProviderDot provider={provider} size={8} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
+                              <div className="hf-text-sm" style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                                 {cp.callPoint}
                               </div>
-                              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                              <div className="hf-text-xs hf-text-muted hf-mt-sm">
                                 <span style={{ color: colors.text, fontWeight: 500 }}>{colors.label}</span>
                                 {" · "}
                                 {cp.model}
@@ -653,7 +509,7 @@ export default function MeteringPage() {
                               </div>
                             </div>
                           </div>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginLeft: 12 }}>
+                          <div className="hf-text-md hf-text-bold" style={{ color: "var(--text-primary)", marginLeft: 12 }}>
                             ${cp.costDollars}
                           </div>
                         </div>
@@ -665,21 +521,10 @@ export default function MeteringPage() {
 
               {/* Uncategorized AI Warning */}
               {(summary?.uncategorizedAI?.eventCount ?? 0) > 0 && (
-                <div
-                  style={{
-                    marginTop: 16,
-                    padding: 12,
-                    background: "var(--status-warning-bg)",
-                    border: "1px solid var(--status-warning-border)",
-                    borderRadius: 8,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
+                <div className="hf-banner hf-banner-warning hf-mt-md">
                   <span style={{ fontSize: 18 }}>⚠️</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--status-warning-text)" }}>
+                    <div className="hf-text-sm hf-text-bold hf-text-warning">
                       Uncategorized AI Usage
                     </div>
                     <div style={{ fontSize: 12, color: "var(--status-warning-text)", marginTop: 2 }}>
@@ -687,28 +532,19 @@ export default function MeteringPage() {
                       are not tagged with a call point. These won&apos;t appear in the breakdown above.
                     </div>
                   </div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--status-warning-text)" }}>
+                  <div className="hf-text-md hf-text-bold hf-text-warning">
                     ${summary?.uncategorizedAI?.costDollars}
                   </div>
                 </div>
               )}
 
               {/* Provider Legend */}
-              <div
-                style={{
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTop: "1px solid var(--border-default)",
-                  display: "flex",
-                  gap: 16,
-                  flexWrap: "wrap",
-                }}
-              >
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Providers:</span>
+              <div className="metering-legend hf-flex-wrap hf-gap-lg hf-mt-md">
+                <span className="hf-text-xs hf-text-muted">Providers:</span>
                 {Object.entries(PROVIDER_COLORS).map(([key, val]) => (
-                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <div key={key} className="hf-flex hf-gap-xs">
                     <ProviderDot provider={key} size={6} />
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{val.label}</span>
+                    <span className="hf-text-xs hf-text-muted">{val.label}</span>
                   </div>
                 ))}
               </div>
@@ -716,150 +552,86 @@ export default function MeteringPage() {
           )}
 
           {/* Two Column Layout: Top Operations + Recent Events */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          <div className="metering-two-col">
             {/* Top Operations */}
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 12,
-                padding: 20,
-              }}
-            >
-              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: "var(--text-primary)" }}>
+            <div className="metering-section-card">
+              <h2 className="metering-h2 hf-mb-md">
                 Top Operations by Cost
               </h2>
               {(summary?.topOperations || []).length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="hf-flex-col hf-gap-sm">
                   {summary?.topOperations.map((op, i) => {
                     const colors = CATEGORY_COLORS[op.category] || CATEGORY_COLORS.AI;
                     return (
                       <div
                         key={`${op.category}-${op.operation}-${i}`}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "8px 12px",
-                          background: "var(--surface-secondary)",
-                          borderRadius: 6,
-                        }}
+                        className="metering-op-row"
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div className="hf-flex hf-gap-sm">
                           <span
-                            style={{
-                              display: "inline-block",
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              backgroundColor: colors.text,
-                              flexShrink: 0,
-                            }}
+                            className="metering-dot"
+                            style={{ width: 8, height: 8, backgroundColor: colors.text }}
                           />
                           <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 600,
-                              color: colors.text,
-                              background: colors.bg,
-                              padding: "2px 6px",
-                              borderRadius: 4,
-                            }}
+                            className="metering-category-tag"
+                            style={{ fontSize: 10, color: colors.text, background: colors.bg }}
                           >
                             {op.category}
                           </span>
-                          <span style={{ fontSize: 13, color: "var(--text-primary)" }}>{op.operation}</span>
+                          <span className="hf-text-sm" style={{ color: "var(--text-primary)" }}>{op.operation}</span>
                         </div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>${op.costDollars}</div>
+                        <div className="hf-text-sm hf-text-bold" style={{ color: "var(--text-primary)" }}>${op.costDollars}</div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 20 }}>
+                <div className="hf-text-muted hf-text-center hf-p-md">
                   No operations recorded yet
                 </div>
               )}
             </div>
 
             {/* Recent Events */}
-            <div
-              style={{
-                background: "var(--surface-primary)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 12,
-                padding: 20,
-              }}
-            >
-              <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: "var(--text-primary)" }}>
+            <div className="metering-section-card">
+              <h2 className="metering-h2 hf-mb-md">
                 Recent Events
               </h2>
               {recentEvents.length > 0 ? (
-                <div
-                  style={{
-                    maxHeight: 400,
-                    overflowY: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
+                <div className="metering-events-scroll hf-flex-col" style={{ gap: 6 }}>
                   {recentEvents.map((event) => {
                     const colors = CATEGORY_COLORS[event.category] || CATEGORY_COLORS.AI;
                     const isAI = event.category === "AI";
                     const provider = isAI ? getProvider(event.model, event.engine) : null;
 
                     return (
-                      <div
-                        key={event.id}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "6px 10px",
-                          background: "var(--surface-secondary)",
-                          borderRadius: 6,
-                          fontSize: 12,
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div key={event.id} className="metering-event-row">
+                        <div className="hf-flex hf-gap-sm">
                           {/* Category/Provider dot */}
                           {isAI && provider ? (
                             <ProviderDot provider={provider} size={6} />
                           ) : (
                             <span
-                              style={{
-                                display: "inline-block",
-                                width: 6,
-                                height: 6,
-                                borderRadius: "50%",
-                                backgroundColor: colors.text,
-                                flexShrink: 0,
-                              }}
+                              className="metering-dot"
+                              style={{ width: 6, height: 6, backgroundColor: colors.text }}
                             />
                           )}
                           <span
-                            style={{
-                              fontSize: 9,
-                              fontWeight: 600,
-                              color: colors.text,
-                              background: colors.bg,
-                              padding: "1px 4px",
-                              borderRadius: 3,
-                            }}
+                            className="metering-event-tag"
+                            style={{ color: colors.text, background: colors.bg }}
                           >
                             {event.category}
                           </span>
                           <span style={{ color: "var(--text-primary)" }}>{event.operation}</span>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <span style={{ color: "var(--text-secondary)" }}>
+                        <div className="hf-flex hf-gap-md">
+                          <span className="hf-text-secondary">
                             {event.quantity.toLocaleString()} {event.unitType}
                           </span>
                           <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                             ${(event.costCents / 100).toFixed(4)}
                           </span>
-                          <span style={{ color: "var(--text-muted)", fontSize: 10 }}>
+                          <span className="hf-text-muted" style={{ fontSize: 10 }}>
                             {new Date(event.createdAt).toLocaleTimeString()}
                           </span>
                         </div>
@@ -868,7 +640,7 @@ export default function MeteringPage() {
                   })}
                 </div>
               ) : (
-                <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 20 }}>
+                <div className="hf-text-muted hf-text-center hf-p-md">
                   No events recorded yet
                 </div>
               )}
@@ -876,20 +648,10 @@ export default function MeteringPage() {
           </div>
 
           {/* Info Box */}
-          <div
-            style={{
-              marginTop: 24,
-              padding: 16,
-              background: "var(--status-info-bg)",
-              border: "1px solid var(--status-info-border)",
-              borderRadius: 8,
-              fontSize: 13,
-              color: "var(--status-info-text)",
-            }}
-          >
+          <div className="hf-banner hf-banner-info hf-mt-md">
             <strong>Note:</strong> Usage is tracked automatically when you use AI features,
             run pipeline operations, or execute queries. Run{" "}
-            <code style={{ background: "var(--surface-secondary)", padding: "1px 4px", borderRadius: 3 }}>
+            <code className="metering-code">
               metering:rollup
             </code>{" "}
             via Ops to aggregate data into period summaries. Events are retained for 30 days.
@@ -899,44 +661,24 @@ export default function MeteringPage() {
 
       {/* ===================== MOST EXPENSIVE TAB ===================== */}
       {activeTab === "expensive" && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 20,
-          }}
-        >
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>
+        <div className="metering-section-card">
+          <h2 className="metering-h2-lg hf-mb-sm">
             Most Expensive Operations
           </h2>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
+          <p className="hf-text-sm hf-text-secondary hf-mb-md">
             Top operations ranked by total cost over the last {days} days
           </p>
 
           {(breakdowns?.mostExpensive || []).length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div className="hf-flex-col">
               {/* Header */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "40px 100px 1fr 100px 100px 100px",
-                  gap: 12,
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                  textTransform: "uppercase" as const,
-                  letterSpacing: "0.05em",
-                  borderBottom: "1px solid var(--border-default)",
-                }}
-              >
+              <div className="metering-table-header metering-cols-expensive">
                 <div>#</div>
                 <div>Category</div>
                 <div>Operation</div>
-                <div style={{ textAlign: "right" }}>Events</div>
-                <div style={{ textAlign: "right" }}>Avg Cost</div>
-                <div style={{ textAlign: "right" }}>Total Cost</div>
+                <div className="metering-cell-right">Events</div>
+                <div className="metering-cell-right">Avg Cost</div>
+                <div className="metering-cell-right">Total Cost</div>
               </div>
 
               {(() => {
@@ -947,58 +689,34 @@ export default function MeteringPage() {
                   return (
                     <div
                       key={`${op.category}-${op.operation}`}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "40px 100px 1fr 100px 100px 100px",
-                        gap: 12,
-                        padding: "10px 12px",
-                        alignItems: "center",
-                        background: i % 2 === 0 ? "transparent" : "var(--surface-secondary)",
-                        borderRadius: 4,
-                        position: "relative" as const,
-                      }}
+                      className={`metering-table-row metering-cols-expensive${i % 2 !== 0 ? " metering-table-row-alt" : ""}`}
                     >
                       {/* Cost bar background */}
                       <div
-                        style={{
-                          position: "absolute" as const,
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${barWidth}%`,
-                          background: colors.bg,
-                          opacity: 0.3,
-                          borderRadius: 4,
-                          pointerEvents: "none" as const,
-                        }}
+                        className="metering-bar-bg"
+                        style={{ width: `${barWidth}%`, background: colors.bg }}
                       />
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", position: "relative" as const }}>
+                      <div className="hf-text-sm hf-text-bold hf-text-muted metering-cell-rel">
                         {i + 1}
                       </div>
-                      <div style={{ position: "relative" as const }}>
+                      <div className="metering-cell-rel">
                         <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: colors.text,
-                            background: colors.bg,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                          }}
+                          className="metering-category-tag"
+                          style={{ fontSize: 10, color: colors.text, background: colors.bg }}
                         >
                           {op.category}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: "var(--text-primary)", position: "relative" as const, fontWeight: 500 }}>
+                      <div className="hf-text-sm metering-cell-rel" style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                         {op.operation}
                       </div>
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "right", position: "relative" as const }}>
+                      <div className="hf-text-sm hf-text-secondary metering-cell-right">
                         {op.eventCount.toLocaleString()}
                       </div>
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "right", position: "relative" as const }}>
+                      <div className="hf-text-sm hf-text-secondary metering-cell-right">
                         ${(op.avgCostCents / 100).toFixed(4)}
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", textAlign: "right", position: "relative" as const }}>
+                      <div className="hf-text-md hf-text-bold metering-cell-right" style={{ color: "var(--text-primary)" }}>
                         ${op.costDollars}
                       </div>
                     </div>
@@ -1007,7 +725,7 @@ export default function MeteringPage() {
               })()}
             </div>
           ) : (
-            <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>
+            <div className="metering-empty">
               No operations recorded yet
             </div>
           )}
@@ -1016,43 +734,23 @@ export default function MeteringPage() {
 
       {/* ===================== MOST USED TAB ===================== */}
       {activeTab === "used" && (
-        <div
-          style={{
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-            padding: 20,
-          }}
-        >
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>
+        <div className="metering-section-card">
+          <h2 className="metering-h2-lg hf-mb-sm">
             Most Used Operations
           </h2>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
+          <p className="hf-text-sm hf-text-secondary hf-mb-md">
             Top operations ranked by event count over the last {days} days
           </p>
 
           {(breakdowns?.mostUsed || []).length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div className="hf-flex-col">
               {/* Header */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "40px 100px 1fr 100px 100px",
-                  gap: 12,
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                  textTransform: "uppercase" as const,
-                  letterSpacing: "0.05em",
-                  borderBottom: "1px solid var(--border-default)",
-                }}
-              >
+              <div className="metering-table-header metering-cols-used">
                 <div>#</div>
                 <div>Category</div>
                 <div>Operation</div>
-                <div style={{ textAlign: "right" }}>Events</div>
-                <div style={{ textAlign: "right" }}>Total Cost</div>
+                <div className="metering-cell-right">Events</div>
+                <div className="metering-cell-right">Total Cost</div>
               </div>
 
               {(() => {
@@ -1063,55 +761,31 @@ export default function MeteringPage() {
                   return (
                     <div
                       key={`${op.category}-${op.operation}`}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "40px 100px 1fr 100px 100px",
-                        gap: 12,
-                        padding: "10px 12px",
-                        alignItems: "center",
-                        background: i % 2 === 0 ? "transparent" : "var(--surface-secondary)",
-                        borderRadius: 4,
-                        position: "relative" as const,
-                      }}
+                      className={`metering-table-row metering-cols-used${i % 2 !== 0 ? " metering-table-row-alt" : ""}`}
                     >
                       {/* Event count bar background */}
                       <div
-                        style={{
-                          position: "absolute" as const,
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: `${barWidth}%`,
-                          background: colors.bg,
-                          opacity: 0.3,
-                          borderRadius: 4,
-                          pointerEvents: "none" as const,
-                        }}
+                        className="metering-bar-bg"
+                        style={{ width: `${barWidth}%`, background: colors.bg }}
                       />
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", position: "relative" as const }}>
+                      <div className="hf-text-sm hf-text-bold hf-text-muted metering-cell-rel">
                         {i + 1}
                       </div>
-                      <div style={{ position: "relative" as const }}>
+                      <div className="metering-cell-rel">
                         <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: colors.text,
-                            background: colors.bg,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                          }}
+                          className="metering-category-tag"
+                          style={{ fontSize: 10, color: colors.text, background: colors.bg }}
                         >
                           {op.category}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: "var(--text-primary)", position: "relative" as const, fontWeight: 500 }}>
+                      <div className="hf-text-sm metering-cell-rel" style={{ fontWeight: 500, color: "var(--text-primary)" }}>
                         {op.operation}
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", textAlign: "right", position: "relative" as const }}>
+                      <div className="hf-text-md hf-text-bold metering-cell-right" style={{ color: "var(--text-primary)" }}>
                         {op.eventCount.toLocaleString()}
                       </div>
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "right", position: "relative" as const }}>
+                      <div className="hf-text-sm hf-text-secondary metering-cell-right">
                         ${op.costDollars}
                       </div>
                     </div>
@@ -1120,7 +794,7 @@ export default function MeteringPage() {
               })()}
             </div>
           ) : (
-            <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>
+            <div className="metering-empty">
               No operations recorded yet
             </div>
           )}
@@ -1134,43 +808,23 @@ export default function MeteringPage() {
             <AttributionBanner attribution={breakdowns.attribution} />
           )}
 
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>
+          <div className="metering-section-card">
+            <h2 className="metering-h2-lg hf-mb-sm">
               Usage by Caller
             </h2>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
+            <p className="hf-text-sm hf-text-secondary hf-mb-md">
               Top callers ranked by total cost over the last {days} days
             </p>
 
             {(breakdowns?.byCaller || []).length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div className="hf-flex-col">
                 {/* Header */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "40px 1fr 140px 100px 100px",
-                    gap: 12,
-                    padding: "8px 12px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--text-muted)",
-                    textTransform: "uppercase" as const,
-                    letterSpacing: "0.05em",
-                    borderBottom: "1px solid var(--border-default)",
-                  }}
-                >
+                <div className="metering-table-header metering-cols-caller">
                   <div>#</div>
                   <div>Caller</div>
                   <div>Domain</div>
-                  <div style={{ textAlign: "right" }}>Events</div>
-                  <div style={{ textAlign: "right" }}>Total Cost</div>
+                  <div className="metering-cell-right">Events</div>
+                  <div className="metering-cell-right">Total Cost</div>
                 </div>
 
                 {(() => {
@@ -1184,74 +838,50 @@ export default function MeteringPage() {
                     return (
                       <div
                         key={caller.callerId}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "40px 1fr 140px 100px 100px",
-                          gap: 12,
-                          padding: "10px 12px",
-                          alignItems: "center",
-                          background: i % 2 === 0 ? "transparent" : "var(--surface-secondary)",
-                          borderRadius: 4,
-                          position: "relative" as const,
-                        }}
+                        className={`metering-table-row metering-cols-caller${i % 2 !== 0 ? " metering-table-row-alt" : ""}`}
                       >
                         {/* Cost bar background */}
                         <div
-                          style={{
-                            position: "absolute" as const,
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: `${barWidth}%`,
-                            background: "var(--status-info-bg)",
-                            opacity: 0.25,
-                            borderRadius: 4,
-                            pointerEvents: "none" as const,
-                          }}
+                          className="metering-bar-bg"
+                          style={{ width: `${barWidth}%`, background: "var(--status-info-bg)", opacity: 0.25 }}
                         />
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", position: "relative" as const }}>
+                        <div className="hf-text-sm hf-text-bold hf-text-muted metering-cell-rel">
                           {i + 1}
                         </div>
-                        <div style={{ position: "relative" as const, minWidth: 0 }}>
+                        <div className="metering-cell-rel" style={{ minWidth: 0 }}>
                           <a
                             href={`/x/callers/${caller.callerId}`}
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 500,
-                              color: "var(--text-primary)",
-                              textDecoration: "none",
-                            }}
+                            className="hf-text-sm"
+                            style={{ fontWeight: 500, color: "var(--text-primary)", textDecoration: "none" }}
                           >
                             {displayName}
                           </a>
                           {subtitle && (
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
+                            <div className="hf-text-xs hf-text-muted" style={{ marginTop: 1 }}>
                               {subtitle}
                             </div>
                           )}
                         </div>
-                        <div style={{ position: "relative" as const }}>
+                        <div className="metering-cell-rel">
                           {caller.domainName ? (
                             <span
+                              className="hf-badge hf-badge-info"
                               style={{
-                                fontSize: 11,
-                                fontWeight: 500,
                                 color: "var(--badge-indigo-text)",
                                 background: "var(--badge-indigo-bg)",
-                                padding: "2px 8px",
                                 borderRadius: 10,
                               }}
                             >
                               {caller.domainSlug || caller.domainName}
                             </span>
                           ) : (
-                            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>--</span>
+                            <span className="hf-text-xs hf-text-muted">--</span>
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "right", position: "relative" as const }}>
+                        <div className="hf-text-sm hf-text-secondary metering-cell-right">
                           {caller.eventCount.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", textAlign: "right", position: "relative" as const }}>
+                        <div className="hf-text-md hf-text-bold metering-cell-right" style={{ color: "var(--text-primary)" }}>
                           ${caller.costDollars}
                         </div>
                       </div>
@@ -1260,7 +890,7 @@ export default function MeteringPage() {
                 })()}
               </div>
             ) : (
-              <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>
+              <div className="metering-empty">
                 No caller-attributed events yet
               </div>
             )}
@@ -1275,43 +905,23 @@ export default function MeteringPage() {
             <AttributionBanner attribution={breakdowns.attribution} />
           )}
 
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>
+          <div className="metering-section-card">
+            <h2 className="metering-h2-lg hf-mb-sm">
               Usage by Domain
             </h2>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>
+            <p className="hf-text-sm hf-text-secondary hf-mb-md">
               Domains ranked by total cost over the last {days} days
             </p>
 
             {(breakdowns?.byDomain || []).length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div className="hf-flex-col">
                 {/* Header */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "40px 1fr 100px 100px 120px",
-                    gap: 12,
-                    padding: "8px 12px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "var(--text-muted)",
-                    textTransform: "uppercase" as const,
-                    letterSpacing: "0.05em",
-                    borderBottom: "1px solid var(--border-default)",
-                  }}
-                >
+                <div className="metering-table-header metering-cols-domain">
                   <div>#</div>
                   <div>Domain</div>
-                  <div style={{ textAlign: "right" }}>Callers</div>
-                  <div style={{ textAlign: "right" }}>Events</div>
-                  <div style={{ textAlign: "right" }}>Total Cost</div>
+                  <div className="metering-cell-right">Callers</div>
+                  <div className="metering-cell-right">Events</div>
+                  <div className="metering-cell-right">Total Cost</div>
                 </div>
 
                 {(() => {
@@ -1323,52 +933,37 @@ export default function MeteringPage() {
                     return (
                       <div
                         key={domain.domainId || "none"}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "40px 1fr 100px 100px 120px",
-                          gap: 12,
-                          padding: "10px 12px",
-                          alignItems: "center",
-                          background: i % 2 === 0 ? "transparent" : "var(--surface-secondary)",
-                          borderRadius: 4,
-                          position: "relative" as const,
-                          opacity: isNoDomain ? 0.6 : 1,
-                        }}
+                        className={`metering-table-row metering-cols-domain${i % 2 !== 0 ? " metering-table-row-alt" : ""}`}
+                        style={{ opacity: isNoDomain ? 0.6 : 1 }}
                       >
                         {/* Cost bar background */}
                         <div
+                          className="metering-bar-bg"
                           style={{
-                            position: "absolute" as const,
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
                             width: `${barWidth}%`,
                             background: isNoDomain ? "var(--surface-tertiary)" : "var(--badge-indigo-bg)",
-                            opacity: 0.3,
-                            borderRadius: 4,
-                            pointerEvents: "none" as const,
                           }}
                         />
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", position: "relative" as const }}>
+                        <div className="hf-text-sm hf-text-bold hf-text-muted metering-cell-rel">
                           {i + 1}
                         </div>
-                        <div style={{ position: "relative" as const }}>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: isNoDomain ? "var(--text-muted)" : "var(--text-primary)" }}>
+                        <div className="metering-cell-rel">
+                          <div className="hf-text-sm" style={{ fontWeight: 500, color: isNoDomain ? "var(--text-muted)" : "var(--text-primary)" }}>
                             {domainDisplay}
                           </div>
                           {domain.domainSlug && domain.domainName && (
-                            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
+                            <div className="hf-text-xs hf-text-muted" style={{ marginTop: 1 }}>
                               {domain.domainSlug}
                             </div>
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "right", position: "relative" as const }}>
+                        <div className="hf-text-sm hf-text-secondary metering-cell-right">
                           {domain.callerCount.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "right", position: "relative" as const }}>
+                        <div className="hf-text-sm hf-text-secondary metering-cell-right">
                           {domain.eventCount.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", textAlign: "right", position: "relative" as const }}>
+                        <div className="hf-text-md hf-text-bold metering-cell-right" style={{ color: "var(--text-primary)" }}>
                           ${domain.costDollars}
                         </div>
                       </div>
@@ -1378,32 +973,21 @@ export default function MeteringPage() {
 
                 {/* Unattributed row */}
                 {breakdowns?.attribution && breakdowns.attribution.unattributedEvents > 0 && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "40px 1fr 100px 100px 120px",
-                      gap: 12,
-                      padding: "10px 12px",
-                      alignItems: "center",
-                      borderTop: "1px solid var(--border-default)",
-                      marginTop: 8,
-                      opacity: 0.6,
-                    }}
-                  >
+                  <div className="metering-unattr-row metering-cols-domain">
                     <div />
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-muted)", fontStyle: "italic" }}>
+                    <div className="hf-text-sm hf-text-muted" style={{ fontWeight: 500, fontStyle: "italic" }}>
                       Unattributed (no caller)
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "right" }}>--</div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "right" }}>
+                    <div className="hf-text-sm hf-text-muted metering-cell-right">--</div>
+                    <div className="hf-text-sm hf-text-muted metering-cell-right">
                       {breakdowns.attribution.unattributedEvents.toLocaleString()}
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", textAlign: "right" }}>--</div>
+                    <div className="hf-text-sm hf-text-muted metering-cell-right">--</div>
                   </div>
                 )}
               </div>
             ) : (
-              <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>
+              <div className="metering-empty">
                 No domain-attributed events yet
               </div>
             )}

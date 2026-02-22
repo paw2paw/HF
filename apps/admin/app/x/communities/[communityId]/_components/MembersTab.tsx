@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, Search, Users } from 'lucide-react';
+import { ErrorBanner } from '@/components/shared/ErrorBanner';
 import type { CommunityDetail, CommunityMember } from './types';
 
 interface MembersTabProps {
@@ -74,11 +75,7 @@ export function MembersTab({ community, onRefresh }: MembersTabProps) {
         </h2>
       </div>
 
-      {error && (
-        <div className="hf-banner hf-banner-error" style={{ marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} style={{ marginBottom: 16 }} />
 
       {/* Add member */}
       <div className="hf-card" style={{ marginBottom: 20 }}>

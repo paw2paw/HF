@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database snapshots (local to VM, can be large)
+prisma/snapshots/

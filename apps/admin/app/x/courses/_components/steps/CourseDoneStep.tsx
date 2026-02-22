@@ -8,6 +8,7 @@ import { useBackgroundTaskQueue } from '@/components/shared/ContentJobQueue';
 import { useTerminology } from '@/contexts/TerminologyContext';
 import { WizardSummary } from '@/components/shared/WizardSummary';
 import type { AgentTunerPill } from '@/lib/agent-tuner/types';
+import { useStepFlow } from '@/contexts/StepFlowContext';
 import type { StepProps } from '../CourseSetupWizard';
 
 interface TaskSummary {
@@ -22,6 +23,7 @@ interface TaskSummary {
 export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps) {
   const { addCourseSetupJob } = useBackgroundTaskQueue();
   const { terms } = useTerminology();
+  const { taskId: wizardTaskId } = useStepFlow();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -112,11 +114,13 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
           studentEmails,
           subjectId: getData<string>('subjectId') || undefined,
           curriculumId: getData<string>('curriculumId') || undefined,
+          sourceId: getData<string>('sourceId') || undefined,
           planIntents: planIntents || undefined,
           lessonPlanMode,
           cohortGroupIds: cohortGroupIds.length > 0 ? cohortGroupIds : undefined,
           selectedCallerIds: selectedCallerIds.length > 0 ? selectedCallerIds : undefined,
           behaviorTargets: behaviorTargets && Object.keys(behaviorTargets).length > 0 ? behaviorTargets : undefined,
+          wizardTaskId: wizardTaskId || undefined,
         }),
       });
 
@@ -156,7 +160,10 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
         <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
           <WizardSummary
             title="Course Created Successfully!"
-            subtitle="Your AI tutor is ready. Students can now join and start learning."
+            subtitle={taskSummary?.invitationCount
+              ? `Your AI tutor is ready. ${taskSummary.invitationCount} student${taskSummary.invitationCount !== 1 ? 's' : ''} enrolled and ready to learn.`
+              : "Your AI tutor is ready. Students can now join and start learning."
+            }
             intent={{
               items: [
                 { icon: <BookOpen className="w-4 h-4" />, label: 'Course', value: courseName || '—' },
@@ -185,7 +192,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
             stats={[
               { label: 'Sessions', value: sessionCount },
               { label: 'Duration', value: `${durationMins}m` },
-              { label: 'Students', value: totalStudents > 0 ? totalStudents : '—' },
+              { label: 'Students', value: (taskSummary?.invitationCount ?? totalStudents) > 0 ? (taskSummary?.invitationCount ?? totalStudents) : '—' },
               ...(emphasis !== 'balanced' ? [{ label: 'Focus', value: emphasis }] : []),
             ]}
             tuning={tuningTraits.length > 0 ? { traits: tuningTraits, paramCount } : undefined}
@@ -224,8 +231,8 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
               </>
             ) : (
               <>
-                <div className="text-5xl mb-4 animate-spin" style={{ animationDuration: '2s' }}>
-                  &#x2699;&#xFE0F;
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                  <div className="hf-spinner" style={{ width: 48, height: 48, borderWidth: 3 }} />
                 </div>
                 <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
                   Creating Your Course
@@ -266,13 +273,15 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
                   // Use rAF to ensure state clears before re-launching
                   requestAnimationFrame(() => handleLaunch());
                 }}
-                className="flex-1 px-6 py-3 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity font-semibold"
+                className="hf-btn hf-btn-primary"
+                style={{ flex: 1 }}
               >
                 Retry
               </button>
               <button
                 onClick={handleGoToCourses}
-                className="flex-1 px-6 py-3 border border-[var(--border-default)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-primary)] transition-colors"
+                className="hf-btn hf-btn-secondary"
+                style={{ flex: 1 }}
               >
                 Back to Courses
               </button>
@@ -294,7 +303,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
             items: [
               { icon: <BookOpen className="w-4 h-4" />, label: 'Course', value: courseName || '—' },
               { icon: <GraduationCap className="w-4 h-4" />, label: 'Sessions', value: `${sessionCount} × ${durationMins} min` },
-              { icon: <Users className="w-4 h-4" />, label: 'Students', value: totalStudents > 0 ? `${totalStudents} enrolled` : 'None yet' },
+              { icon: <Users className="w-4 h-4" />, label: 'Students', value: totalStudents > 0 ? `${totalStudents} to enroll` : 'None yet' },
               { label: 'Plan', value: lessonPlanMode === 'reviewed' ? 'Custom plan' : lessonPlanMode === 'accept' ? 'Auto-generated' : 'Defaults' },
               { label: 'Style', value: personaName || teachingStyle || '—' },
             ],

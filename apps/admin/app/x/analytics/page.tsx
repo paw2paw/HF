@@ -369,7 +369,7 @@ export default function AnalyticsPage() {
       <AdvancedBanner />
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+        <h1 className="hf-page-title">
           Analytics
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>

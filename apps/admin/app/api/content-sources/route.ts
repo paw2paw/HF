@@ -12,6 +12,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @query trustLevel string - Filter by trust level
  * @query qualificationRef string - Filter by qualification reference (case-insensitive contains)
  * @query activeOnly string - "false" to include inactive sources (default: true)
+ * @query archivedOnly string - "true" to show only archived sources
  * @response 200 { sources: [...] }
  * @response 500 { error: "..." }
  */
@@ -24,11 +25,17 @@ export async function GET(req: NextRequest) {
     const trustLevel = searchParams.get("trustLevel");
     const qualificationRef = searchParams.get("qualificationRef");
     const activeOnly = searchParams.get("activeOnly") !== "false";
+    const archivedOnly = searchParams.get("archivedOnly") === "true";
 
     const where: any = {};
     if (trustLevel) where.trustLevel = trustLevel;
     if (qualificationRef) where.qualificationRef = { contains: qualificationRef, mode: "insensitive" };
-    if (activeOnly) where.isActive = true;
+    if (archivedOnly) {
+      where.isActive = false;
+      where.archivedAt = { not: null };
+    } else if (activeOnly) {
+      where.isActive = true;
+    }
 
     const sources = await prisma.contentSource.findMany({
       where,

@@ -454,7 +454,7 @@ export default function PlaybooksPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{plural("playbook")}</h1>
+          <h1 className="hf-section-title">{plural("playbook")}</h1>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button
               onClick={() => setShowCreate(true)}

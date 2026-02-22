@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { updateTaskProgress, completeTask } from "@/lib/ai/task-guidance";
+import type { ProgressEvent, ProgressCallback } from "./types";
+export type { ProgressEvent, ProgressCallback };
 
 // ── Types ──────────────────────────────────────────────
 
@@ -52,16 +54,6 @@ interface CommunitySetupStep {
   progressMessage: string;
 }
 
-export interface ProgressEvent {
-  phase: string;
-  message: string;
-  stepIndex?: number;
-  totalSteps?: number;
-  detail?: Record<string, any>;
-  data?: Record<string, any>;
-}
-
-export type ProgressCallback = (event: ProgressEvent) => void;
 
 // ── Spec Loader ────────────────────────────────────────
 
@@ -104,6 +96,8 @@ async function loadCommunitySetupSteps(): Promise<CommunitySetupStep[]> {
 }
 
 function mapStepToOperation(stepId: string): string {
+  // Member invitation runs inside create_community (after scaffold)
+  // rather than as a separate mapped step, because it depends on domainId.
   const mapping: Record<string, string> = {
     "community-purpose": "noop",
     guidelines: "noop",
@@ -211,6 +205,17 @@ const stepExecutors: Record<
         where: { id: domain.id },
         data: updateData,
       });
+    }
+
+    // 6. Invite members (emails collected in the members step)
+    if (ctx.input.memberEmails && ctx.input.memberEmails.length > 0) {
+      try {
+        ctx.onProgress({ phase: "invitations", message: "Inviting members..." });
+        await stepExecutors.invite_members(ctx, {} as CommunitySetupStep);
+      } catch (err: any) {
+        console.error("[community-setup] Member invitation failed:", err.message);
+        ctx.results.warnings!.push(`Invitations: ${err.message}`);
+      }
     }
   },
 

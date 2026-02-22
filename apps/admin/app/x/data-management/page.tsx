@@ -284,15 +284,7 @@ export default function DataManagementPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: "var(--text-primary)",
-          marginBottom: 8,
-          display: "flex",
-          alignItems: "center",
-          gap: 12
-        }}>
+        <h1 className="hf-page-title" style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 32 }}>🌱</span>
           Data Management
         </h1>

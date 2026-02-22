@@ -726,8 +726,8 @@ export default function SimpleSidebarNav({
                             }
                           />
                         )}
-                        {/* Badge dot for tasks/notifications in collapsed mode */}
-                        {item.href === "/x/tasks" && taskActiveCount > 0 && (
+                        {/* Badge dot for jobs/notifications in collapsed mode */}
+                        {item.href === "/x/jobs" && taskActiveCount > 0 && (
                           <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: "var(--accent-primary)" }} />
                         )}
                         {item.href === "/x/student/stuff" && studentUnreadCount > 0 && (
@@ -796,7 +796,7 @@ export default function SimpleSidebarNav({
                             {(rawItem as any).tag}
                           </span>
                         )}
-                        {item.href === "/x/tasks" && taskActiveCount > 0 && (
+                        {item.href === "/x/jobs" && taskActiveCount > 0 && (
                           <span
                             className="ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-semibold text-white min-w-[18px] px-1.5 py-0.5"
                             style={{

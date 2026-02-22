@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { parsePagination } from "@/lib/api-utils";
 
 /**
  * @api GET /api/tickets
@@ -31,8 +32,7 @@ export async function GET(req: Request) {
     const category = url.searchParams.get("category");
     const assigneeId = url.searchParams.get("assigneeId");
     const creatorId = url.searchParams.get("creatorId");
-    const limit = Math.min(100, parseInt(url.searchParams.get("limit") || "50"));
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const { limit, offset } = parsePagination(url.searchParams, { defaultLimit: 50, maxLimit: 100 });
 
     // Build where clause
     const where: any = {};

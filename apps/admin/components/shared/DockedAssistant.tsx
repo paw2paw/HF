@@ -52,7 +52,7 @@ export function DockedAssistant() {
         location={assistant.location}
         layout="embedded"
         defaultTab="chat"
-        enabledTabs={["chat", "tasks", "data", "spec"]}
+        enabledTabs={["chat", "jobs", "data", "spec"]}
       />
     </div>
   );

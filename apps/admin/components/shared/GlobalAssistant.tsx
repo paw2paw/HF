@@ -52,7 +52,7 @@ export function GlobalAssistant() {
       location={assistant.location}
       layout="popout"
       defaultTab="chat"
-      enabledTabs={["chat", "tasks", "data", "spec"]}
+      enabledTabs={["chat", "jobs", "data", "spec"]}
     />
   );
 }

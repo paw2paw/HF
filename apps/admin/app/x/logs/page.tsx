@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Copy, FileText, ClipboardCopy } from "lucide-react";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 type LogType = "ai" | "api" | "system" | "user";
 
@@ -26,7 +27,7 @@ const LOG_TYPE_COLORS: Record<LogType, { bg: string; text: string }> = {
   user: { bg: "var(--badge-purple-bg, #f3e8ff)", text: "var(--badge-purple-text, #6b21a8)" },
 };
 
-const DEEP_BADGE = { bg: "var(--status-error-text)", text: "#fff" };
+const DEEP_BADGE = { bg: "var(--status-error-text)", text: "var(--surface-primary)" };
 
 const ALL_TYPES: LogType[] = ["ai", "api", "system", "user"];
 
@@ -78,7 +79,7 @@ export default function LogsPage() {
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<LogType[]>(ALL_TYPES);
   const [deepOnly, setDeepOnly] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const { copiedKey: copied, copy: copyToClipboard } = useCopyToClipboard();
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -119,16 +120,6 @@ export default function LogsPage() {
         return [...prev, type];
       }
     });
-  };
-
-  const copyToClipboard = async (text: string, key: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 2000);
-    } catch (err) {
-      console.error("Copy failed:", err);
-    }
   };
 
   const copyAllLogs = () => copyToClipboard(logs.map((log) => JSON.stringify(log)).join("\n"), "all");

@@ -889,6 +889,224 @@ async function showInteractiveMenu() {
 }
 
 // ============================================================================
+// SNAPSHOT COMMANDS
+// ============================================================================
+
+program
+  .command('snapshot:take')
+  .description('Take a database snapshot')
+  .argument('<name>', 'Snapshot name (alphanumeric, hyphens, underscores)')
+  .option('--with-learners', 'Include learner data (callers, calls, memories)')
+  .option('--description <desc>', 'Optional description')
+  .action(async (name: string, options: { withLearners?: boolean; description?: string }) => {
+    log('\n📸 TAKE DATABASE SNAPSHOT\n', colors.bright);
+
+    try {
+      const { takeSnapshot, isValidSnapshotName } = await import('../lib/snapshots/index.js');
+
+      if (!isValidSnapshotName(name)) {
+        error('Invalid name. Use alphanumeric characters, hyphens, and underscores.');
+        process.exit(1);
+      }
+
+      const layers = options.withLearners ? '0-3 (with learners)' : '0-2 (structure only)';
+      info(`Snapshot: ${name}`);
+      info(`Layers: ${layers}`);
+      if (options.description) info(`Description: ${options.description}`);
+      log('');
+
+      const metadata = await takeSnapshot(
+        {
+          name,
+          description: options.description,
+          withLearners: options.withLearners,
+        },
+        async (progress) => {
+          if (progress.phase === 'writing') {
+            info('Writing snapshot file...');
+          } else if (progress.table) {
+            const pct = Math.round((progress.index / progress.total) * 100);
+            log(`  [${pct}%] ${progress.table}`, colors.cyan);
+          }
+        }
+      );
+
+      log('');
+      success(`Snapshot "${name}" saved!`);
+      info(`Total rows: ${metadata.totalRows.toLocaleString()}`);
+      info(`Tables: ${Object.keys(metadata.stats).length}`);
+
+      // Show top tables by row count
+      const sorted = Object.entries(metadata.stats)
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      if (sorted.length > 0) {
+        log('\nTop tables:', colors.bright);
+        for (const [table, count] of sorted) {
+          log(`  ${table}: ${count.toLocaleString()}`, colors.cyan);
+        }
+      }
+      log('');
+    } catch (err: any) {
+      error(err.message || 'Failed to take snapshot');
+      process.exit(1);
+    }
+  });
+
+program
+  .command('snapshot:list')
+  .description('List all saved snapshots')
+  .action(async () => {
+    log('\n📋 DATABASE SNAPSHOTS\n', colors.bright);
+
+    try {
+      const { listSnapshots } = await import('../lib/snapshots/index.js');
+      const snapshots = await listSnapshots();
+
+      if (snapshots.length === 0) {
+        info('No snapshots found.');
+        info('Take one with: npm run ctl snapshot:take <name>');
+        log('');
+        return;
+      }
+
+      for (const snap of snapshots) {
+        const date = new Date(snap.metadata.createdAt).toLocaleString();
+        const size = formatBytes(snap.fileSize);
+        const layers = snap.metadata.withLearners ? 'L0-3' : 'L0-2';
+        const rows = snap.metadata.totalRows.toLocaleString();
+
+        log(`  ${snap.name}`, colors.bright);
+        log(`    Created: ${date} | Size: ${size} | Layers: ${layers} | Rows: ${rows}`, colors.cyan);
+        if (snap.metadata.description) {
+          log(`    ${snap.metadata.description}`, colors.reset);
+        }
+        log('');
+      }
+    } catch (err: any) {
+      error(err.message || 'Failed to list snapshots');
+      process.exit(1);
+    }
+  });
+
+program
+  .command('snapshot:restore')
+  .description('Restore database from a snapshot (DESTRUCTIVE)')
+  .argument('<name>', 'Snapshot name to restore')
+  .option('--dry-run', 'Show what would change without modifying data')
+  .option('-y, --yes', 'Skip confirmation prompt')
+  .action(async (name: string, options: { dryRun?: boolean; yes?: boolean }) => {
+    log('\n🔄 RESTORE DATABASE SNAPSHOT\n', colors.bright);
+
+    try {
+      const { restoreSnapshot, getSnapshot } = await import('../lib/snapshots/index.js');
+
+      const snap = await getSnapshot(name);
+      if (!snap) {
+        error(`Snapshot "${name}" not found.`);
+        process.exit(1);
+      }
+
+      const date = new Date(snap.metadata.createdAt).toLocaleString();
+      const layers = snap.metadata.withLearners ? 'L0-3 (with learners)' : 'L0-2 (structure only)';
+      info(`Snapshot: ${snap.name}`);
+      info(`Created: ${date}`);
+      info(`Layers: ${layers}`);
+      info(`Rows: ${snap.metadata.totalRows.toLocaleString()}`);
+      if (snap.metadata.description) info(`Description: ${snap.metadata.description}`);
+
+      if (options.dryRun) {
+        log('\n--- DRY RUN ---\n', colors.yellow);
+        const result = await restoreSnapshot({ name, dryRun: true });
+        info(`Would clear ${result.tablesCleared.length} tables`);
+        info(`Would insert data into ${Object.keys(result.tablesInserted).length} tables:`);
+        for (const [table, count] of Object.entries(result.tablesInserted)) {
+          log(`  ${table}: ${count.toLocaleString()} rows`, colors.cyan);
+        }
+        log('');
+        return;
+      }
+
+      if (!options.yes) {
+        warn('⚠️  This will REPLACE all data in the affected layers!');
+        warn('This action cannot be undone.\n');
+        const confirmed = await confirm(`Restore snapshot "${name}"?`);
+        if (!confirmed) {
+          info('Restore cancelled.');
+          return;
+        }
+      }
+
+      log('');
+      const result = await restoreSnapshot({ name }, async (progress) => {
+        if (progress.table) {
+          const pct = Math.round((progress.index / progress.total) * 100);
+          const phase = progress.phase === 'clearing' ? '🗑️  Clearing' : '📥 Inserting';
+          log(`  ${phase} [${pct}%] ${progress.table}`, colors.cyan);
+        }
+      });
+
+      log('');
+      success(`Snapshot "${name}" restored!`);
+      info(`Tables cleared: ${result.tablesCleared.length}`);
+      const totalInserted = Object.values(result.tablesInserted).reduce((a, b) => a + b, 0);
+      info(`Rows inserted: ${totalInserted.toLocaleString()}`);
+
+      if (result.errors.length > 0) {
+        warn(`Warnings: ${result.errors.join(', ')}`);
+      }
+
+      log('\n⚠️  Derived tables (CallerMemorySummary, CallerTarget, etc.) need regeneration.', colors.yellow);
+      log('');
+    } catch (err: any) {
+      error(err.message || 'Failed to restore snapshot');
+      process.exit(1);
+    }
+  });
+
+program
+  .command('snapshot:delete')
+  .description('Delete a saved snapshot')
+  .argument('<name>', 'Snapshot name to delete')
+  .action(async (name: string) => {
+    log('\n🗑️  DELETE SNAPSHOT\n', colors.bright);
+
+    try {
+      const { deleteSnapshot, getSnapshot } = await import('../lib/snapshots/index.js');
+
+      const snap = await getSnapshot(name);
+      if (!snap) {
+        error(`Snapshot "${name}" not found.`);
+        process.exit(1);
+      }
+
+      const confirmed = await confirm(`Delete snapshot "${name}"?`);
+      if (!confirmed) {
+        info('Delete cancelled.');
+        return;
+      }
+
+      const deleted = await deleteSnapshot(name);
+      if (deleted) {
+        success(`Snapshot "${name}" deleted.`);
+      } else {
+        error('Failed to delete snapshot.');
+      }
+      log('');
+    } catch (err: any) {
+      error(err.message || 'Failed to delete snapshot');
+      process.exit(1);
+    }
+  });
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 

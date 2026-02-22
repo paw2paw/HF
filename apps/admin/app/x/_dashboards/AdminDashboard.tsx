@@ -115,19 +115,19 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* Setup Tasks */}
+      {/* Active Jobs */}
       {pendingTasks.length > 0 && (
         <div style={{ marginBottom: 40 }}>
           <div style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Setup Tasks</h2>
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Tasks in progress — pick up where you left off</p>
+            <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Active Jobs</h2>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Jobs in progress — pick up where you left off</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {pendingTasks.map((task) => {
               const ctx = (task.context || {}) as Record<string, any>;
               const label = TASK_LABELS[task.taskType] || task.taskType;
               const name = ctx.subjectName || ctx.domainName || ctx.name || "";
-              const resumeUrl = RESUME_PATHS[task.taskType]?.(ctx) || "/x/tasks";
+              const resumeUrl = RESUME_PATHS[task.taskType]?.(ctx) || "/x/jobs";
               return (
                 <Link
                   key={task.id}

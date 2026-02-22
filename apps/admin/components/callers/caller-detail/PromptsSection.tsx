@@ -45,26 +45,18 @@ export function UnifiedPromptSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading prompts...</div>
+      <div className="hf-empty hf-text-muted">Loading prompts...</div>
     );
   }
 
   if (!activePrompt) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--background)",
-            borderRadius: 12,
-            border: "1px dashed var(--border-default)",
-          }}
-        >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No Prompt Available</div>
-          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
-            Run the pipeline on a call to generate prompts. Use "Prompt ALL" or click 📝 on individual calls.
+      <div className="hf-flex-col hf-gap-20">
+        <div className="hf-empty-dashed">
+          <div className="hf-empty-state-icon hf-mb-md">📝</div>
+          <div className="hf-empty-state-title">No Prompt Available</div>
+          <div className="hf-text-sm hf-text-muted hf-mt-sm hf-empty-hint-centered">
+            Run the pipeline on a call to generate prompts. Use &quot;Prompt ALL&quot; or click 📝 on individual calls.
           </div>
         </div>
       </div>
@@ -74,59 +66,32 @@ export function UnifiedPromptSection({
   const llm = activePrompt.llmPrompt;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="hf-flex-col hf-gap-20">
       {/* Header with View Toggle */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="hf-flex-between">
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Next Prompt</h3>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+          <h3 className="hf-heading-md">Next Prompt</h3>
+          <p className="hf-text-sm hf-text-muted hf-mt-xs">
             Generated {new Date(activePrompt.composedAt).toLocaleString()} • {activePrompt.status.toUpperCase()}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="hf-flex hf-gap-sm">
           {/* Main View Toggle: Human vs LLM */}
-          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
+          <div className="hf-toggle-group">
             <button
               onClick={() => setViewMode("human")}
-              style={{
-                padding: "8px 16px",
-                fontSize: 12,
-                fontWeight: 500,
-                background: viewMode === "human" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                color: viewMode === "human" ? "var(--text-on-dark)" : "var(--text-secondary)",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className={`hf-toggle-btn ${viewMode === "human" ? "hf-toggle-btn-active" : ""}`}
             >
               📖 Human-Readable
             </button>
             <button
               onClick={() => setViewMode("llm")}
-              style={{
-                padding: "8px 16px",
-                fontSize: 12,
-                fontWeight: 500,
-                background: viewMode === "llm" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                color: viewMode === "llm" ? "var(--text-on-dark)" : "var(--text-secondary)",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className={`hf-toggle-btn ${viewMode === "llm" ? "hf-toggle-btn-active" : ""}`}
             >
               🤖 LLM-Friendly
             </button>
           </div>
-          <button
-            onClick={onRefresh}
-            style={{
-              padding: "8px 12px",
-              background: "var(--surface-secondary)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 6,
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={onRefresh} className="hf-btn-icon">
             ↻
           </button>
         </div>
@@ -134,50 +99,36 @@ export function UnifiedPromptSection({
 
       {/* Human-Readable View */}
       {viewMode === "human" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="hf-flex-col hf-gap-lg">
           {/* Prompt Content */}
-          <div
-            style={{
-              background: "var(--surface-dark)",
-              color: "var(--text-on-dark)",
-              padding: 20,
-              borderRadius: 12,
-              fontSize: 14,
-              lineHeight: 1.7,
-              whiteSpace: "pre-wrap",
-              fontFamily: "ui-monospace, monospace",
-              maxHeight: 500,
-              overflowY: "auto",
-              border: "1px solid var(--border-dark)",
-            }}
-          >
+          <div className="hf-code-block">
             {activePrompt.prompt}
           </div>
 
           {/* Composition Inputs */}
           {activePrompt.inputs && (
-            <div style={{ padding: 12, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8 }}>
+            <div className="hf-banner hf-banner-warning hf-banner-col">
+              <div className="hf-text-xs hf-text-bold hf-text-warning hf-mb-sm">
                 Composition Inputs
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              <div className="hf-flex-wrap hf-gap-md">
                 {activePrompt.inputs.memoriesCount !== undefined && (
-                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                  <span className="hf-text-sm hf-text-warning">
                     Memories: {activePrompt.inputs.memoriesCount}
                   </span>
                 )}
                 {activePrompt.inputs.personalityAvailable !== undefined && (
-                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                  <span className="hf-text-sm hf-text-warning">
                     Personality: {activePrompt.inputs.personalityAvailable ? "Yes" : "No"}
                   </span>
                 )}
                 {activePrompt.inputs.recentCallsCount !== undefined && (
-                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                  <span className="hf-text-sm hf-text-warning">
                     Recent Calls: {activePrompt.inputs.recentCallsCount}
                   </span>
                 )}
                 {activePrompt.inputs.behaviorTargetsCount !== undefined && (
-                  <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                  <span className="hf-text-sm hf-text-warning">
                     Behavior Targets: {activePrompt.inputs.behaviorTargetsCount}
                   </span>
                 )}
@@ -186,19 +137,12 @@ export function UnifiedPromptSection({
           )}
 
           {/* Copy Button */}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="hf-flex hf-gap-sm">
             <button
               onClick={() => copyToClipboard(activePrompt.prompt, "active-prompt")}
+              className="hf-btn-copy"
               style={{
-                padding: "8px 16px",
                 background: copiedButton === "active-prompt" ? "var(--button-success-bg)" : "var(--button-primary-bg)",
-                color: "var(--text-on-dark)",
-                border: "none",
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-                transition: "all 0.2s ease",
                 boxShadow: copiedButton === "active-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
               }}
             >
@@ -208,57 +152,38 @@ export function UnifiedPromptSection({
 
           {/* Prompt History */}
           {prompts.length > 1 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+            <div className="hf-mt-md">
+              <div className="hf-label hf-text-muted hf-mb-sm">
                 Prompt History ({prompts.length})
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="hf-flex-col hf-gap-sm">
                 {prompts.slice(1, 5).map((p) => (
                   <div
                     key={p.id}
                     onClick={() => setExpandedPrompt(expandedPrompt === p.id ? null : p.id)}
-                    style={{
-                      padding: 12,
-                      background: "var(--background)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                    }}
+                    className="hf-prompt-history-item"
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div className="hf-flex-between">
+                      <div className="hf-flex hf-gap-sm">
                         <span
+                          className="hf-micro-badge hf-uppercase"
                           style={{
-                            fontSize: 10,
-                            padding: "2px 6px",
                             background: p.status === "active" ? "var(--status-success-bg)" : "var(--border-default)",
                             color: p.status === "active" ? "var(--status-success-text)" : "var(--text-muted)",
-                            borderRadius: 4,
-                            textTransform: "uppercase",
                           }}
                         >
                           {p.status}
                         </span>
-                        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        <span className="hf-text-sm hf-text-secondary">
                           {new Date(p.composedAt).toLocaleString()}
                         </span>
                       </div>
-                      <span style={{ fontSize: 12, color: "var(--text-placeholder)" }}>{expandedPrompt === p.id ? "−" : "+"}</span>
+                      <span className="hf-expand-toggle">{expandedPrompt === p.id ? "−" : "+"}</span>
                     </div>
                     {expandedPrompt === p.id && (
                       <div
-                        style={{
-                          marginTop: 12,
-                          padding: 12,
-                          background: "var(--surface-dark)",
-                          color: "var(--text-on-dark)",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          whiteSpace: "pre-wrap",
-                          fontFamily: "monospace",
-                          maxHeight: 200,
-                          overflowY: "auto",
-                        }}
+                        className="hf-code-block-sm hf-mt-md"
+                        style={{ maxHeight: 200, fontSize: 12 }}
                       >
                         {p.prompt}
                       </div>
@@ -273,65 +198,39 @@ export function UnifiedPromptSection({
 
       {/* LLM-Friendly View */}
       {viewMode === "llm" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="hf-flex-col hf-gap-lg">
           {!llm ? (
-            <div
-              style={{
-                padding: 40,
-                textAlign: "center",
-                background: "var(--background)",
-                borderRadius: 12,
-                border: "1px dashed var(--border-default)",
-              }}
-            >
-              <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
+            <div className="hf-empty-dashed">
+              <div className="hf-text-md hf-text-muted">
                 No structured LLM data available for this prompt. Compose a new prompt to generate.
               </div>
             </div>
           ) : (
             <>
               {/* Pretty/Raw Toggle */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Structured JSON for AI agent consumption</span>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
+              <div className="hf-flex-between">
+                <span className="hf-text-sm hf-text-muted">Structured JSON for AI agent consumption</span>
+                <div className="hf-flex hf-gap-sm">
+                  <div className="hf-toggle-group">
                     <button
                       onClick={() => setLlmViewMode("pretty")}
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: 11,
-                        background: llmViewMode === "pretty" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                        color: llmViewMode === "pretty" ? "var(--text-on-dark)" : "var(--text-secondary)",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
+                      className={`hf-toggle-btn hf-toggle-btn-sm ${llmViewMode === "pretty" ? "hf-toggle-btn-active" : ""}`}
                     >
                       Pretty
                     </button>
                     <button
                       onClick={() => setLlmViewMode("raw")}
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: 11,
-                        background: llmViewMode === "raw" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                        color: llmViewMode === "raw" ? "var(--text-on-dark)" : "var(--text-secondary)",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
+                      className={`hf-toggle-btn hf-toggle-btn-sm ${llmViewMode === "raw" ? "hf-toggle-btn-active" : ""}`}
                     >
                       Raw JSON
                     </button>
                   </div>
                   <button
                     onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-2")}
+                    className="hf-btn hf-btn-xs"
                     style={{
-                      padding: "4px 10px",
                       background: copiedButton === "llm-json-2" ? "var(--button-success-bg)" : "var(--surface-secondary)",
                       color: copiedButton === "llm-json-2" ? "white" : "var(--text-secondary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      cursor: "pointer",
                       transition: "all 0.2s ease",
                       boxShadow: copiedButton === "llm-json-2" ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
@@ -342,49 +241,34 @@ export function UnifiedPromptSection({
               </div>
 
               {llmViewMode === "raw" ? (
-                <div
-                  style={{
-                    background: "var(--surface-dark)",
-                    color: "var(--text-on-dark-muted)",
-                    padding: 20,
-                    borderRadius: 12,
-                    fontSize: 12,
-                    fontFamily: "ui-monospace, monospace",
-                    whiteSpace: "pre-wrap",
-                    maxHeight: 600,
-                    overflowY: "auto",
-                    border: "1px solid var(--border-dark)",
-                  }}
-                >
+                <div className="hf-code-block-raw">
                   {JSON.stringify(llm, null, 2)}
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div className="hf-flex-col hf-gap-md">
                   {/* Memories */}
                   {llm.memories && llm.memories.totalCount > 0 && (
-                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--badge-cyan-text)" }}>
+                    <div className="hf-card-compact hf-mb-0">
+                      <h4 className="hf-heading-sm" style={{ color: "var(--badge-cyan-text)" }}>
                         💭 Memories ({llm.memories.totalCount})
                       </h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div className="hf-flex-col hf-gap-md">
                         {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
                           <div key={category}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "var(--text-muted)", marginBottom: 6 }}>
+                            <div className="hf-text-xs hf-text-bold hf-mb-xs" style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}>
                               {category}
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div className="hf-flex-col hf-gap-xs">
                               {items.slice(0, 3).map((m: any, i: number) => (
                                 <div
                                   key={i}
+                                  className="hf-info-cell hf-text-sm"
                                   style={{
-                                    padding: 8,
                                     background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
-                                    borderRadius: 6,
-                                    fontSize: 12,
                                   }}
                                 >
-                                  <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
-                                  <span style={{ marginLeft: 8, fontSize: 10, color: "var(--text-placeholder)" }}>
+                                  <span className="hf-text-bold">{m.key}:</span> {m.value}
+                                  <span className="hf-text-xs hf-text-placeholder hf-ml-sm">
                                     ({(m.confidence * 100).toFixed(0)}%)
                                   </span>
                                 </div>
@@ -398,31 +282,29 @@ export function UnifiedPromptSection({
 
                   {/* Behavior Targets */}
                   {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-success-text)" }}>
+                    <div className="hf-card-compact hf-mb-0">
+                      <h4 className="hf-heading-sm hf-text-success">
                         🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
                       </h4>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                      <div className="hf-grid-3">
                         {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
                           <div
                             key={i}
+                            className="hf-info-cell"
                             style={{
-                              padding: 10,
                               background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                              borderRadius: 6,
                             }}
                           >
-                            <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                            <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
                             <div
+                              className="hf-text-sm hf-text-bold"
                               style={{
-                                fontSize: 13,
-                                fontWeight: 700,
                                 color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                               }}
                             >
                               {t.targetLevel}
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                            <div className="hf-text-xs hf-text-muted">
                               {(t.targetValue * 100).toFixed(0)}%
                             </div>
                           </div>
@@ -433,11 +315,11 @@ export function UnifiedPromptSection({
 
                   {/* Call History Summary */}
                   {llm.callHistory && llm.callHistory.totalCalls > 0 && (
-                    <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--badge-indigo-text)" }}>
+                    <div className="hf-card-compact hf-mb-0">
+                      <h4 className="hf-heading-sm" style={{ color: "var(--badge-indigo-text)" }}>
                         📞 Call History ({llm.callHistory.totalCalls} calls)
                       </h4>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      <div className="hf-text-sm hf-text-muted">
                         Recent calls included in prompt context
                       </div>
                     </div>
@@ -445,11 +327,11 @@ export function UnifiedPromptSection({
 
                   {/* AI Instructions */}
                   {llm.instructions && (
-                    <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 12, padding: 16 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-warning-text)" }}>
+                    <div className="hf-callout-warning">
+                      <h4 className="hf-heading-sm hf-text-warning">
                         📋 AI Instructions
                       </h4>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "var(--status-warning-text)" }}>
+                      <div className="hf-flex-col hf-gap-sm hf-text-sm hf-text-warning">
                         {llm.instructions.use_memories && (
                           <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
                         )}
@@ -461,7 +343,7 @@ export function UnifiedPromptSection({
                             <strong>Personality Adaptation:</strong>
                             <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                               {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
-                                <li key={i} style={{ marginBottom: 2 }}>{tip}</li>
+                                <li key={i} className="hf-mb-xs">{tip}</li>
                               ))}
                             </ul>
                           </div>
@@ -511,47 +393,33 @@ function PromptsSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading prompts...</div>
+      <div className="hf-empty hf-text-muted">Loading prompts...</div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="hf-flex-col hf-gap-20">
       {/* Header with actions */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="hf-flex-between">
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Composed Prompts</h3>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+          <h3 className="hf-heading-md">Composed Prompts</h3>
+          <p className="hf-text-sm hf-text-muted hf-mt-xs">
             AI-generated next-call guidance prompts for this caller
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="hf-flex hf-gap-sm">
           <button
             onClick={onRefresh}
-            style={{
-              padding: "8px 16px",
-              background: "var(--surface-secondary)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 6,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
+            className="hf-btn hf-btn-secondary hf-btn-sm"
           >
             Refresh
           </button>
           <button
             onClick={onCompose}
             disabled={composing}
+            className="hf-btn hf-btn-primary hf-btn-sm"
             style={{
-              padding: "8px 16px",
-              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: composing ? "not-allowed" : "pointer",
+              background: composing ? "var(--text-placeholder)" : undefined,
             }}
           >
             {composing ? "Composing..." : "Compose New Prompt"}
@@ -560,23 +428,15 @@ function PromptsSection({
       </div>
 
       {prompts.length === 0 ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--background)",
-            borderRadius: 12,
-            border: "1px dashed var(--border-default)",
-          }}
-        >
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📝</div>
-          <div style={{ fontSize: 14, color: "var(--text-muted)" }}>No prompts composed yet</div>
-          <div style={{ fontSize: 13, color: "var(--text-placeholder)", marginTop: 4 }}>
-            Click "Compose New Prompt" to generate a personalized next-call guidance prompt using AI
+        <div className="hf-empty-dashed">
+          <div className="hf-empty-state-icon" style={{ fontSize: 32 }}>📝</div>
+          <div className="hf-text-md hf-text-muted">No prompts composed yet</div>
+          <div className="hf-text-sm hf-text-placeholder hf-mt-xs">
+            Click &quot;Compose New Prompt&quot; to generate a personalized next-call guidance prompt using AI
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="hf-flex-col hf-gap-md">
           {prompts.map((prompt) => {
             const isExpanded = expandedPrompt === prompt.id;
             const statusColors = STATUS_COLORS[prompt.status] || STATUS_COLORS.superseded;
@@ -584,109 +444,70 @@ function PromptsSection({
             return (
               <div
                 key={prompt.id}
-                style={{
-                  background: "var(--surface-primary)",
-                  border: prompt.status === "active" ? "2px solid var(--button-primary-bg)" : "1px solid var(--border-default)",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                }}
+                className={`hf-prompt-card ${prompt.status === "active" ? "hf-prompt-card-active" : ""}`}
               >
                 {/* Prompt Header */}
                 <div
                   onClick={() => setExpandedPrompt(isExpanded ? null : prompt.id)}
-                  style={{
-                    padding: 16,
-                    cursor: "pointer",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    background: prompt.status === "active" ? "var(--status-info-bg)" : "var(--surface-primary)",
-                  }}
+                  className={`hf-prompt-card-header hf-flex-between ${prompt.status === "active" ? "hf-prompt-card-header-active" : ""}`}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div className="hf-flex hf-gap-md">
                     <span
+                      className="hf-micro-pill hf-uppercase"
                       style={{
-                        fontSize: 11,
-                        padding: "3px 8px",
                         background: statusColors.bg,
                         color: statusColors.text,
-                        borderRadius: 4,
-                        fontWeight: 500,
-                        textTransform: "uppercase",
                       }}
                     >
                       {prompt.status}
                     </span>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                    <span className="hf-text-md hf-text-bold hf-text-primary">
                       {new Date(prompt.composedAt).toLocaleString()}
                     </span>
-                    <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    <span className="hf-text-sm hf-text-secondary">
                       via {prompt.triggerType}
                     </span>
                     {prompt.model && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          padding: "2px 6px",
-                          background: "var(--status-info-bg)",
-                          color: "var(--badge-indigo-text)",
-                          borderRadius: 4,
-                          fontFamily: "monospace",
-                        }}
-                      >
+                      <span className="hf-badge hf-badge-info hf-mono">
                         {prompt.model}
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: 16, color: "var(--text-muted)" }}>{isExpanded ? "−" : "+"}</span>
+                  <span className="hf-expand-toggle-lg">{isExpanded ? "−" : "+"}</span>
                 </div>
 
                 {/* Expanded Content */}
                 {isExpanded && (
-                  <div style={{ padding: 16, borderTop: "1px solid var(--border-default)", background: "var(--surface-primary)" }}>
+                  <div className="hf-prompt-card-body">
                     {/* Prompt Preview */}
-                    <div
-                      style={{
-                        background: "var(--surface-dark)",
-                        color: "var(--text-on-dark)",
-                        padding: 16,
-                        borderRadius: 8,
-                        fontSize: 13,
-                        lineHeight: 1.6,
-                        whiteSpace: "pre-wrap",
-                        fontFamily: "monospace",
-                        maxHeight: 400,
-                        overflowY: "auto",
-                        border: "1px solid var(--border-dark)",
-                      }}
-                    >
+                    <div className="hf-code-block-sm">
                       {prompt.prompt}
                     </div>
 
                     {/* Metadata */}
                     {prompt.inputs && (
-                      <div style={{ marginTop: 16, padding: 12, background: "var(--status-warning-bg)", borderRadius: 8, border: "1px solid var(--status-warning-border)" }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--status-warning-text)", marginBottom: 8 }}>
+                      <div className="hf-banner hf-banner-warning hf-banner-col hf-mt-md">
+                        <div className="hf-text-xs hf-text-bold hf-text-warning hf-mb-sm">
                           Composition Inputs
                         </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                        <div className="hf-flex-wrap hf-gap-md">
                           {prompt.inputs.memoriesCount !== undefined && (
-                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                            <span className="hf-text-sm hf-text-warning">
                               Memories: {prompt.inputs.memoriesCount}
                             </span>
                           )}
                           {prompt.inputs.personalityAvailable !== undefined && (
-                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                            <span className="hf-text-sm hf-text-warning">
                               Personality: {prompt.inputs.personalityAvailable ? "Yes" : "No"}
                             </span>
                           )}
                           {prompt.inputs.recentCallsCount !== undefined && (
-                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                            <span className="hf-text-sm hf-text-warning">
                               Recent Calls: {prompt.inputs.recentCallsCount}
                             </span>
                           )}
                           {prompt.inputs.behaviorTargetsCount !== undefined && (
-                            <span style={{ fontSize: 12, color: "var(--status-warning-text)" }}>
+                            <span className="hf-text-sm hf-text-warning">
                               Behavior Targets: {prompt.inputs.behaviorTargetsCount}
                             </span>
                           )}
@@ -696,30 +517,23 @@ function PromptsSection({
 
                     {/* Trigger Call Link */}
                     {prompt.triggerCall && (
-                      <div style={{ marginTop: 12 }}>
-                        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      <div className="hf-mt-sm">
+                        <span className="hf-text-sm hf-text-secondary">
                           Triggered by call on {new Date(prompt.triggerCall.createdAt).toLocaleDateString()} ({prompt.triggerCall.source})
                         </span>
                       </div>
                     )}
 
                     {/* Copy Button */}
-                    <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                    <div className="hf-flex hf-gap-sm hf-mt-md">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           copyToClipboard(prompt.prompt, `history-prompt-${prompt.id}`);
                         }}
+                        className="hf-btn-copy"
                         style={{
-                          padding: "8px 16px",
                           background: copiedButton === `history-prompt-${prompt.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
-                          color: "var(--text-on-dark)",
-                          border: "none",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          transition: "all 0.2s ease",
                           boxShadow: copiedButton === `history-prompt-${prompt.id}` ? "0 0 12px var(--button-success-bg)" : "none",
                         }}
                       >
@@ -764,25 +578,17 @@ function LlmPromptSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Loading LLM prompt...</div>
+      <div className="hf-empty hf-text-muted">Loading LLM prompt...</div>
     );
   }
 
   if (!activePrompt || !activePrompt.llmPrompt) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            background: "var(--background)",
-            borderRadius: 12,
-            border: "1px dashed var(--border-default)",
-          }}
-        >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No LLM Prompt Available</div>
-          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, maxWidth: 400, margin: "8px auto 0" }}>
+      <div className="hf-flex-col hf-gap-20">
+        <div className="hf-empty-dashed">
+          <div className="hf-empty-state-icon hf-mb-md">🤖</div>
+          <div className="hf-empty-state-title">No LLM Prompt Available</div>
+          <div className="hf-text-sm hf-text-muted hf-mt-sm hf-empty-hint-centered">
             {!activePrompt
               ? "Compose a prompt first to generate structured LLM data."
               : "This prompt was created before the llmPrompt feature. Compose a new prompt to get structured JSON data."}
@@ -790,16 +596,9 @@ function LlmPromptSection({
           <button
             onClick={onCompose}
             disabled={composing}
+            className="hf-btn hf-btn-primary hf-mt-md"
             style={{
-              marginTop: 20,
-              padding: "12px 24px",
-              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: composing ? "not-allowed" : "pointer",
+              background: composing ? "var(--text-placeholder)" : undefined,
             }}
           >
             {composing ? "Composing..." : "Compose New Prompt"}
@@ -812,54 +611,36 @@ function LlmPromptSection({
   const llm = activePrompt.llmPrompt;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="hf-flex-col hf-gap-20">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="hf-flex-between">
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>LLM-Friendly Prompt Data</h3>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+          <h3 className="hf-heading-md">LLM-Friendly Prompt Data</h3>
+          <p className="hf-text-sm hf-text-muted hf-mt-xs">
             Structured JSON for AI agent consumption • Generated {new Date(activePrompt.composedAt).toLocaleString()}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ display: "flex", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border-default)" }}>
+        <div className="hf-flex hf-gap-sm">
+          <div className="hf-toggle-group">
             <button
               onClick={() => setViewMode("pretty")}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                background: viewMode === "pretty" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                color: viewMode === "pretty" ? "var(--text-on-dark)" : "var(--text-secondary)",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "pretty" ? "hf-toggle-btn-active" : ""}`}
             >
               Pretty
             </button>
             <button
               onClick={() => setViewMode("raw")}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                background: viewMode === "raw" ? "var(--button-primary-bg)" : "var(--surface-primary)",
-                color: viewMode === "raw" ? "var(--text-on-dark)" : "var(--text-secondary)",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "raw" ? "hf-toggle-btn-active" : ""}`}
             >
               Raw JSON
             </button>
           </div>
           <button
             onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-3")}
+            className="hf-btn hf-btn-xs"
             style={{
-              padding: "6px 12px",
               background: copiedButton === "llm-json-3" ? "var(--button-success-bg)" : "var(--surface-secondary)",
               color: copiedButton === "llm-json-3" ? "white" : "var(--text-secondary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 6,
-              fontSize: 12,
-              cursor: "pointer",
               transition: "all 0.2s ease",
               boxShadow: copiedButton === "llm-json-3" ? "0 0 12px var(--button-success-bg)" : "none",
             }}
@@ -869,15 +650,9 @@ function LlmPromptSection({
           <button
             onClick={onCompose}
             disabled={composing}
+            className="hf-btn hf-btn-primary hf-btn-xs"
             style={{
-              padding: "6px 12px",
-              background: composing ? "var(--text-placeholder)" : "var(--button-primary-bg)",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: composing ? "not-allowed" : "pointer",
+              background: composing ? "var(--text-placeholder)" : undefined,
             }}
           >
             {composing ? "..." : "Refresh"}
@@ -887,48 +662,35 @@ function LlmPromptSection({
 
       {viewMode === "raw" ? (
         /* Raw JSON View */
-        <div
-          style={{
-            background: "var(--surface-dark)",
-            color: "var(--text-on-dark-muted)",
-            padding: 20,
-            borderRadius: 12,
-            fontSize: 12,
-            fontFamily: "ui-monospace, monospace",
-            whiteSpace: "pre-wrap",
-            maxHeight: 600,
-            overflowY: "auto",
-            border: "1px solid var(--border-dark)",
-          }}
-        >
+        <div className="hf-code-block-raw">
           {JSON.stringify(llm, null, 2)}
         </div>
       ) : (
         /* Pretty View - structured sections */
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="hf-flex-col hf-gap-lg">
           {/* Caller Info */}
           {llm.caller && (
-            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--button-primary-bg)" }}>
+            <div className="hf-card-compact hf-mb-0">
+              <h4 className="hf-heading-sm" style={{ color: "var(--button-primary-bg)" }}>
                 👤 Caller
               </h4>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <div className="hf-grid-3 hf-gap-md">
                 {llm.caller.name && (
-                  <div style={{ padding: 10, background: "var(--status-info-bg)", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Name</div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.name}</div>
+                  <div className="hf-info-cell" style={{ background: "var(--status-info-bg)" }}>
+                    <div className="hf-info-cell-label">Name</div>
+                    <div className="hf-text-sm hf-text-bold">{llm.caller.name}</div>
                   </div>
                 )}
                 {llm.caller.contactInfo?.email && (
-                  <div style={{ padding: 10, background: "var(--status-info-bg)", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Email</div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.contactInfo.email}</div>
+                  <div className="hf-info-cell" style={{ background: "var(--status-info-bg)" }}>
+                    <div className="hf-info-cell-label">Email</div>
+                    <div className="hf-text-sm hf-text-bold">{llm.caller.contactInfo.email}</div>
                   </div>
                 )}
                 {llm.caller.contactInfo?.phone && (
-                  <div style={{ padding: 10, background: "var(--status-info-bg)", borderRadius: 6 }}>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 2 }}>Phone</div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{llm.caller.contactInfo.phone}</div>
+                  <div className="hf-info-cell" style={{ background: "var(--status-info-bg)" }}>
+                    <div className="hf-info-cell-label">Phone</div>
+                    <div className="hf-text-sm hf-text-bold">{llm.caller.contactInfo.phone}</div>
                   </div>
                 )}
               </div>
@@ -937,35 +699,32 @@ function LlmPromptSection({
 
           {/* Personality */}
           {llm.personality && (
-            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--trait-neuroticism)" }}>
+            <div className="hf-card-compact hf-mb-0">
+              <h4 className="hf-heading-sm" style={{ color: "var(--trait-neuroticism)" }}>
                 🧠 Personality Profile
               </h4>
               {llm.personality.traits && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 12 }}>
+                <div className="hf-grid-5 hf-mb-md">
                   {Object.entries(llm.personality.traits).map(([trait, data]: [string, any]) => (
                     <div
                       key={trait}
+                      className="hf-info-cell hf-text-center"
                       style={{
-                        padding: 10,
                         background: data.level === "HIGH" ? "var(--status-success-bg)" : data.level === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                        borderRadius: 6,
-                        textAlign: "center",
                       }}
                     >
-                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: "capitalize", marginBottom: 4 }}>
+                      <div className="hf-text-xs hf-text-bold hf-mb-xs hf-capitalize">
                         {trait}
                       </div>
                       <div
+                        className="hf-text-md hf-text-bold"
                         style={{
-                          fontSize: 14,
-                          fontWeight: 700,
                           color: data.level === "HIGH" ? "var(--status-success-text)" : data.level === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                         }}
                       >
                         {data.level || "—"}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+                      <div className="hf-text-xs hf-text-muted hf-mt-xs">
                         {data.score !== null ? `${(data.score * 100).toFixed(0)}%` : "N/A"}
                       </div>
                     </div>
@@ -973,19 +732,19 @@ function LlmPromptSection({
                 </div>
               )}
               {llm.personality.preferences && Object.values(llm.personality.preferences).some((v) => v) && (
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <div className="hf-flex-wrap hf-gap-md">
                   {llm.personality.preferences.tone && (
-                    <span style={{ fontSize: 11, padding: "4px 8px", background: "var(--status-info-bg)", color: "var(--badge-indigo-text)", borderRadius: 4 }}>
+                    <span className="hf-badge hf-badge-info">
                       Tone: {llm.personality.preferences.tone}
                     </span>
                   )}
                   {llm.personality.preferences.responseLength && (
-                    <span style={{ fontSize: 11, padding: "4px 8px", background: "var(--status-warning-bg)", color: "var(--status-warning-text)", borderRadius: 4 }}>
+                    <span className="hf-badge hf-badge-warning">
                       Length: {llm.personality.preferences.responseLength}
                     </span>
                   )}
                   {llm.personality.preferences.technicalLevel && (
-                    <span style={{ fontSize: 11, padding: "4px 8px", background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", borderRadius: 4 }}>
+                    <span className="hf-badge" style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" }}>
                       Tech: {llm.personality.preferences.technicalLevel}
                     </span>
                   )}
@@ -996,29 +755,27 @@ function LlmPromptSection({
 
           {/* Memories */}
           {llm.memories && llm.memories.totalCount > 0 && (
-            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--badge-cyan-text)" }}>
+            <div className="hf-card-compact hf-mb-0">
+              <h4 className="hf-heading-sm" style={{ color: "var(--badge-cyan-text)" }}>
                 💭 Memories ({llm.memories.totalCount})
               </h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="hf-flex-col hf-gap-md">
                 {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
                   <div key={category}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: CATEGORY_COLORS[category]?.text || "var(--text-muted)", marginBottom: 6 }}>
+                    <div className="hf-text-xs hf-text-bold hf-mb-xs" style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}>
                       {category}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div className="hf-flex-col hf-gap-xs">
                       {items.slice(0, 3).map((m: any, i: number) => (
                         <div
                           key={i}
+                          className="hf-info-cell hf-text-sm"
                           style={{
-                            padding: 8,
                             background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
-                            borderRadius: 6,
-                            fontSize: 12,
                           }}
                         >
-                          <span style={{ fontWeight: 500 }}>{m.key}:</span> {m.value}
-                          <span style={{ marginLeft: 8, fontSize: 10, color: "var(--text-placeholder)" }}>
+                          <span className="hf-text-bold">{m.key}:</span> {m.value}
+                          <span className="hf-text-xs hf-text-placeholder hf-ml-sm">
                             ({(m.confidence * 100).toFixed(0)}%)
                           </span>
                         </div>
@@ -1032,31 +789,29 @@ function LlmPromptSection({
 
           {/* Behavior Targets */}
           {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-            <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-success-text)" }}>
+            <div className="hf-card-compact hf-mb-0">
+              <h4 className="hf-heading-sm hf-text-success">
                 🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
               </h4>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              <div className="hf-grid-3">
                 {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
                   <div
                     key={i}
+                    className="hf-info-cell"
                     style={{
-                      padding: 10,
                       background: t.targetLevel === "HIGH" ? "var(--status-success-bg)" : t.targetLevel === "LOW" ? "var(--status-error-bg)" : "var(--surface-secondary)",
-                      borderRadius: 6,
                     }}
                   >
-                    <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                    <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
                     <div
+                      className="hf-text-sm hf-text-bold"
                       style={{
-                        fontSize: 13,
-                        fontWeight: 700,
                         color: t.targetLevel === "HIGH" ? "var(--status-success-text)" : t.targetLevel === "LOW" ? "var(--status-error-text)" : "var(--text-muted)",
                       }}
                     >
                       {t.targetLevel}
                     </div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    <div className="hf-text-xs hf-text-muted">
                       {(t.targetValue * 100).toFixed(0)}%
                     </div>
                   </div>
@@ -1067,11 +822,11 @@ function LlmPromptSection({
 
           {/* Instructions Summary */}
           {llm.instructions && (
-            <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 12, padding: 16 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: "var(--status-warning-text)" }}>
+            <div className="hf-callout-warning">
+              <h4 className="hf-heading-sm hf-text-warning">
                 📋 AI Instructions
               </h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12, color: "var(--status-warning-text)" }}>
+              <div className="hf-flex-col hf-gap-sm hf-text-sm hf-text-warning">
                 {llm.instructions.use_memories && (
                   <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
                 )}
@@ -1086,7 +841,7 @@ function LlmPromptSection({
                     <strong>Personality Adaptation:</strong>
                     <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                       {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
-                        <li key={i} style={{ marginBottom: 2 }}>{tip}</li>
+                        <li key={i} className="hf-mb-xs">{tip}</li>
                       ))}
                     </ul>
                   </div>
@@ -1121,76 +876,70 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
 
   if (!identities || identities.length === 0) {
     return (
-      <div style={{ display: "grid", gap: 20 }}>
+      <div className="hf-grid hf-gap-20">
         {/* Caller Info Card */}
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
-          <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Caller Identification</h4>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+        <div className="hf-card-compact hf-mb-0 hf-p-lg">
+          <h4 className="hf-heading-sm hf-mb-md">Caller Identification</h4>
+          <div className="hf-grid-2">
             {caller.phone && (
-              <div style={{ padding: 12, background: "var(--status-success-bg)", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--status-success-text)", fontWeight: 500 }}>Phone</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-success-text)", marginTop: 4 }}>{caller.phone}</div>
+              <div className="hf-info-cell-lg" style={{ background: "var(--status-success-bg)" }}>
+                <div className="hf-text-xs hf-text-success hf-text-bold">Phone</div>
+                <div className="hf-text-md hf-text-bold hf-text-success hf-mt-xs">{caller.phone}</div>
               </div>
             )}
             {caller.email && (
-              <div style={{ padding: 12, background: "var(--status-info-bg)", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--status-info-text)", fontWeight: 500 }}>Email</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-info-text)", marginTop: 4 }}>{caller.email}</div>
+              <div className="hf-info-cell-lg" style={{ background: "var(--status-info-bg)" }}>
+                <div className="hf-text-xs hf-text-bold" style={{ color: "var(--status-info-text)" }}>Email</div>
+                <div className="hf-text-md hf-text-bold hf-mt-xs" style={{ color: "var(--status-info-text)" }}>{caller.email}</div>
               </div>
             )}
             {caller.externalId && (
-              <div style={{ padding: 12, background: "var(--badge-purple-bg)", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--badge-purple-text)", fontWeight: 500 }}>External ID</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--badge-purple-text)", marginTop: 4 }}>{caller.externalId}</div>
+              <div className="hf-info-cell-lg" style={{ background: "var(--badge-purple-bg)" }}>
+                <div className="hf-text-xs hf-text-bold" style={{ color: "var(--badge-purple-text)" }}>External ID</div>
+                <div className="hf-text-md hf-text-bold hf-mt-xs" style={{ color: "var(--badge-purple-text)" }}>{caller.externalId}</div>
               </div>
             )}
             {caller.name && (
-              <div style={{ padding: 12, background: "var(--status-warning-bg)", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--status-warning-text)", fontWeight: 500 }}>Name</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-warning-text)", marginTop: 4 }}>{caller.name}</div>
+              <div className="hf-info-cell-lg" style={{ background: "var(--status-warning-bg)" }}>
+                <div className="hf-text-xs hf-text-bold hf-text-warning">Name</div>
+                <div className="hf-text-md hf-text-bold hf-text-warning hf-mt-xs">{caller.name}</div>
               </div>
             )}
           </div>
         </div>
 
         {/* Key Memories for Prompt Composition */}
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
-          <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Key Memories ({memories.length})</h4>
+        <div className="hf-card-compact hf-mb-0 hf-p-lg">
+          <h4 className="hf-heading-sm hf-mb-md">Key Memories ({memories.length})</h4>
           {memories.length === 0 ? (
-            <div style={{ color: "var(--text-placeholder)", fontSize: 13, padding: 20, textAlign: "center" }}>
+            <div className="hf-text-sm hf-text-center hf-text-placeholder hf-p-lg">
               No memories extracted yet. Run analysis on calls to extract memories.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="hf-flex-col hf-gap-lg">
               {Object.entries(memoriesByCategory).map(([category, mems]) => (
                 <div key={category}>
                   <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: CATEGORY_COLORS[category]?.text || "var(--text-muted)",
-                      marginBottom: 8,
-                    }}
+                    className="hf-text-xs hf-text-bold hf-mb-sm"
+                    style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}
                   >
                     {category} ({mems.length})
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div className="hf-flex-col" style={{ gap: 6 }}>
                     {mems.slice(0, 5).map((m) => (
                       <div
                         key={m.id}
+                        className="hf-info-cell hf-text-sm"
                         style={{
-                          padding: 10,
                           background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
-                          borderRadius: 6,
-                          fontSize: 12,
                         }}
                       >
-                        <div style={{ fontWeight: 500, marginBottom: 2 }}>{m.key}</div>
-                        <div style={{ color: "var(--text-secondary)" }}>{m.value}</div>
+                        <div className="hf-text-bold hf-mb-xs">{m.key}</div>
+                        <div className="hf-text-secondary">{m.value}</div>
                       </div>
                     ))}
                     {mems.length > 5 && (
-                      <div style={{ fontSize: 11, color: "var(--text-placeholder)", padding: "4px 10px" }}>
+                      <div className="hf-text-xs hf-text-placeholder" style={{ padding: "4px 10px" }}>
                         + {mems.length - 5} more
                       </div>
                     )}
@@ -1202,27 +951,18 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
         </div>
 
         {/* Prompt Composition Notice */}
-        <div style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)", borderRadius: 12, padding: 20 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div className="hf-callout-warning hf-p-lg">
+          <div className="hf-flex hf-gap-md hf-items-start">
             <span style={{ fontSize: 24 }}>💡</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-warning-text)" }}>No composed prompt yet</div>
-              <div style={{ fontSize: 13, color: "var(--status-warning-text)", marginTop: 4 }}>
+              <div className="hf-text-md hf-text-bold hf-text-warning">No composed prompt yet</div>
+              <div className="hf-text-sm hf-text-warning hf-mt-xs">
                 To compose a personalized prompt for this caller, run the <code>prompt:compose-next</code> operation from the Ops page.
                 This will combine their personality profile, memories, and behavior targets into a ready-to-use prompt.
               </div>
               <Link
                 href="/ops"
-                style={{
-                  display: "inline-block",
-                  marginTop: 12,
-                  padding: "8px 16px",
-                  background: "var(--button-primary-bg)",
-                  color: "var(--text-on-dark)",
-                  borderRadius: 6,
-                  textDecoration: "none",
-                  fontSize: 13,
-                }}
+                className="hf-btn hf-btn-primary hf-mt-sm hf-link-unstyled hf-inline-block"
               >
                 Go to Ops →
               </Link>
@@ -1236,31 +976,24 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
   return (
     <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 20 }}>
       {/* Identity List */}
-      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-        <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Identities ({identities.length})</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="hf-card-compact">
+        <h4 className="hf-text-sm hf-text-bold hf-mb-md">Identities ({identities.length})</h4>
+        <div className="hf-flex-col hf-gap-sm">
           {identities.map((identity) => (
             <button
               key={identity.id}
               onClick={() => setSelectedIdentity(identity)}
-              style={{
-                padding: 10,
-                background: selectedIdentity?.id === identity.id ? "var(--status-info-bg)" : "var(--background)",
-                border: `1px solid ${selectedIdentity?.id === identity.id ? "var(--status-info-border)" : "var(--border-default)"}`,
-                borderRadius: 8,
-                cursor: "pointer",
-                textAlign: "left",
-              }}
+              className={`hf-identity-btn ${selectedIdentity?.id === identity.id ? "hf-identity-btn-selected" : ""}`}
             >
-              <div style={{ fontSize: 13, fontWeight: 500 }}>
+              <div className="hf-text-sm hf-text-bold">
                 {identity.name || identity.externalId || identity.id.slice(0, 8)}
               </div>
               {identity.segment && (
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                <div className="hf-text-xs hf-text-muted hf-mt-xs">
                   {identity.segment.name}
                 </div>
               )}
-              <div style={{ fontSize: 10, marginTop: 4, color: identity.nextPrompt ? "var(--status-success-text)" : "var(--text-placeholder)" }}>
+              <div className="hf-text-xs hf-mt-xs" style={{ color: identity.nextPrompt ? "var(--status-success-text)" : "var(--text-placeholder)" }}>
                 {identity.nextPrompt ? "✓ Prompt ready" : "No prompt"}
               </div>
             </button>
@@ -1269,36 +1002,27 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
       </div>
 
       {/* Prompt Display */}
-      <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20 }}>
+      <div className="hf-card-compact hf-p-lg">
         {!selectedIdentity?.nextPrompt ? (
-          <div style={{ padding: 40, textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✨</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No prompt composed</div>
-            <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+          <div className="hf-text-center" style={{ padding: 40 }}>
+            <div className="hf-empty-state-icon hf-mb-md">✨</div>
+            <div className="hf-empty-state-title">No prompt composed</div>
+            <div className="hf-text-md hf-text-muted hf-mt-xs">
               Run prompt composition to generate a personalized prompt for this identity
             </div>
             <Link
               href="/ops"
-              style={{
-                display: "inline-block",
-                marginTop: 16,
-                padding: "10px 20px",
-                background: "var(--button-primary-bg)",
-                color: "var(--text-on-dark)",
-                borderRadius: 8,
-                textDecoration: "none",
-                fontSize: 14,
-              }}
+              className="hf-btn hf-btn-primary hf-mt-md hf-link-unstyled hf-inline-block"
             >
               Go to Ops →
             </Link>
           </div>
         ) : (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div className="hf-flex-between hf-mb-md">
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Composed Prompt</h3>
-                <div style={{ fontSize: 12, color: "var(--text-placeholder)", marginTop: 2 }}>
+                <h3 className="hf-heading-lg">Composed Prompt</h3>
+                <div className="hf-text-sm hf-text-placeholder hf-mt-xs">
                   {selectedIdentity.nextPromptComposedAt
                     ? `Composed ${new Date(selectedIdentity.nextPromptComposedAt).toLocaleString()}`
                     : ""}
@@ -1306,14 +1030,10 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
               </div>
               <button
                 onClick={() => copyToClipboard(selectedIdentity.nextPrompt || "", "next-prompt")}
+                className="hf-btn hf-btn-sm"
                 style={{
-                  padding: "8px 16px",
                   background: copiedButton === "next-prompt" ? "var(--button-success-bg)" : "var(--surface-secondary)",
                   color: copiedButton === "next-prompt" ? "white" : "inherit",
-                  border: "1px solid var(--input-border)",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 13,
                   transition: "all 0.2s ease",
                   boxShadow: copiedButton === "next-prompt" ? "0 0 12px var(--button-success-bg)" : "none",
                 }}
@@ -1323,25 +1043,13 @@ function PromptSection({ identities, caller, memories }: { identities: CallerIde
             </div>
 
             {selectedIdentity.nextPromptInputs && (
-              <div style={{ display: "flex", gap: 16, marginBottom: 16, padding: 12, background: "var(--status-success-bg)", borderRadius: 8, fontSize: 12 }}>
+              <div className="hf-flex hf-gap-lg hf-mb-md hf-input-summary">
                 <span>🎯 {selectedIdentity.nextPromptInputs.targetCount || 0} targets</span>
                 <span>💭 {selectedIdentity.nextPromptInputs.memoryCount || 0} memories</span>
               </div>
             )}
 
-            <div
-              style={{
-                background: "var(--background)",
-                border: "1px solid var(--border-default)",
-                borderRadius: 10,
-                padding: 20,
-                fontSize: 14,
-                lineHeight: 1.6,
-                whiteSpace: "pre-wrap",
-                maxHeight: 500,
-                overflow: "auto",
-              }}
-            >
+            <div className="hf-prompt-display">
               {selectedIdentity.nextPrompt}
             </div>
           </div>
@@ -1363,16 +1071,16 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
 
   if (!calls || calls.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📜</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No transcripts</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>No calls have been recorded for this caller</div>
+      <div className="hf-empty-dashed">
+        <div className="hf-empty-state-icon hf-mb-md">📜</div>
+        <div className="hf-empty-state-title">No transcripts</div>
+        <div className="hf-text-md hf-text-muted hf-mt-xs">No calls have been recorded for this caller</div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="hf-flex-col hf-gap-md">
       {calls.map((call) => {
         const isExpanded = expandedTranscript === call.id;
         const wordCount = call.transcript?.split(/\s+/).length || 0;
@@ -1380,89 +1088,55 @@ function TranscriptsSection({ calls }: { calls: Call[] }) {
         return (
           <div
             key={call.id}
-            style={{
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-              overflow: "hidden",
-            }}
+            className="hf-transcript-card"
           >
             {/* Header */}
             <button
               onClick={() => setExpandedTranscript(isExpanded ? null : call.id)}
-              style={{
-                width: "100%",
-                padding: 16,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
+              className="hf-transcript-header-btn hf-flex-between"
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="hf-flex hf-gap-md">
                 <span style={{ fontSize: 20 }}>📞</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>
+                  <div className="hf-text-md hf-text-bold">
                     {new Date(call.createdAt).toLocaleDateString()} at {new Date(call.createdAt).toLocaleTimeString()}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  <div className="hf-text-sm hf-text-muted">
                     {call.source} • {wordCount} words
                     {call.externalId && ` • ${call.externalId}`}
                   </div>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="hf-flex hf-gap-md">
                 {/* Analysis badges */}
-                <div style={{ display: "flex", gap: 4 }}>
+                <div className="hf-flex hf-gap-xs">
                   {call.hasScores && (
-                    <span style={{ padding: "2px 6px", fontSize: 10, background: "var(--status-success-bg)", color: "var(--status-success-text)", borderRadius: 4 }}>
+                    <span className="hf-badge hf-badge-success hf-text-xs">
                       Scored
                     </span>
                   )}
                   {call.hasMemories && (
-                    <span style={{ padding: "2px 6px", fontSize: 10, background: "var(--badge-blue-bg)", color: "var(--status-info-text)", borderRadius: 4 }}>
+                    <span className="hf-badge hf-badge-info hf-text-xs">
                       Memories
                     </span>
                   )}
                 </div>
-                <span style={{ color: "var(--text-placeholder)" }}>{isExpanded ? "▼" : "▶"}</span>
+                <span className="hf-text-placeholder">{isExpanded ? "▼" : "▶"}</span>
               </div>
             </button>
 
             {/* Transcript content */}
             {isExpanded && (
-              <div style={{ borderTop: "1px solid var(--border-default)", padding: 16 }}>
-                <div
-                  style={{
-                    background: "var(--surface-dark)",
-                    color: "var(--text-on-dark)",
-                    padding: 16,
-                    borderRadius: 8,
-                    fontSize: 13,
-                    lineHeight: 1.8,
-                    whiteSpace: "pre-wrap",
-                    fontFamily: "ui-monospace, monospace",
-                    maxHeight: 500,
-                    overflowY: "auto",
-                  }}
-                >
+              <div className="hf-prompt-card-body">
+                <div className="hf-code-block-sm">
                   {call.transcript || "No transcript content"}
                 </div>
-                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <div className="hf-flex hf-gap-sm hf-mt-sm">
                   <button
                     onClick={() => copyToClipboard(call.transcript || "", `transcript-${call.id}`)}
+                    className="hf-btn-copy"
                     style={{
-                      padding: "8px 16px",
-                      fontSize: 12,
                       background: copiedButton === `transcript-${call.id}` ? "var(--button-success-bg)" : "var(--button-primary-bg)",
-                      color: "var(--text-on-dark)",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
                       boxShadow: copiedButton === `transcript-${call.id}` ? "0 0 12px var(--button-success-bg)" : "none",
                     }}
                   >

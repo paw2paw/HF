@@ -416,7 +416,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         setCallerGoals((prev) => [data.goal, ...prev]);
       }
     } catch {
-      // Silently fail — user can retry
+      setWizardError("Failed to save goal. Please try again.");
     } finally {
       setSavingGoal(false);
     }
@@ -439,7 +439,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         );
       }
     } catch {
-      // Silently fail
+      setWizardError("Failed to update goal. Please try again.");
     } finally {
       setEditingGoalId(null);
       setEditGoalName("");
@@ -454,7 +454,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         setCallerGoals((prev) => prev.filter((g) => g.id !== goalId));
       }
     } catch {
-      // Silently fail
+      setWizardError("Failed to delete goal. Please try again.");
     }
   };
 

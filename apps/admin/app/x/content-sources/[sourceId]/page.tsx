@@ -29,6 +29,7 @@ type ContentSource = {
   validUntil: string | null;
   qualificationRef: string | null;
   isActive: boolean;
+  archivedAt: string | null;
   createdAt: string;
   assertionCount: number;
   questionCount: number;
@@ -36,6 +37,14 @@ type ContentSource = {
   questionReviewedCount: number;
   vocabularyReviewedCount: number;
   freshnessStatus: "valid" | "expiring" | "expired" | "unknown";
+};
+
+type UsageData = {
+  subjects: Array<{ id: string; name: string; slug: string }>;
+  domains: Array<{ id: string; name: string; slug: string; callerCount: number }>;
+  curricula: Array<{ id: string; slug: string; name: string }>;
+  totalCallerReach: number;
+  contentStats: { assertions: number; questions: number; vocabulary: number; mediaAssets: number };
 };
 
 type Assertion = {
@@ -193,6 +202,12 @@ export default function SourceDetailPage() {
   const [vTotal, setVTotal] = useState(0);
   const [vReviewed, setVReviewed] = useState(0);
 
+  // Archive + Usage state
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [usageData, setUsageData] = useState<UsageData | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+
   // ── Fetch source detail ──
   const fetchSource = useCallback(async () => {
     try {
@@ -235,6 +250,62 @@ export default function SourceDetailPage() {
   }, [sourceId, search, filterCategory, filterReview, sortBy, sortDir, page]);
 
   useEffect(() => { fetchSource(); }, [fetchSource]);
+  // ── Fetch usage data ──
+  const fetchUsage = useCallback(async () => {
+    setUsageLoading(true);
+    try {
+      const res = await fetch(`/api/content-sources/${sourceId}/usage`);
+      const data = await res.json();
+      if (data.ok) setUsageData(data.usage);
+    } catch { /* ignore */ } finally {
+      setUsageLoading(false);
+    }
+  }, [sourceId]);
+
+  // ── Archive handler ──
+  const handleArchive = async (force = false) => {
+    setArchiving(true);
+    try {
+      const url = `/api/content-sources/${sourceId}${force ? "?force=true" : ""}`;
+      const res = await fetch(url, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        setFeedback({ type: "success", message: "Content source archived" });
+        setArchiveConfirm(false);
+        fetchSource();
+      } else if (res.status === 409) {
+        // In use — show usage and ask to force
+        setUsageData(data.usage);
+        setFeedback({ type: "error", message: data.error });
+      } else {
+        setFeedback({ type: "error", message: data.error || "Archive failed" });
+      }
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  // ── Unarchive handler ──
+  const handleUnarchive = async () => {
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/content-sources/${sourceId}/unarchive`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setFeedback({ type: "success", message: "Content source restored" });
+        fetchSource();
+      } else {
+        setFeedback({ type: "error", message: data.error || "Unarchive failed" });
+      }
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   useEffect(() => { fetchAssertions(); }, [fetchAssertions]);
 
   // Reset page when filters change
@@ -305,7 +376,7 @@ export default function SourceDetailPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   if (sourceLoading) {
-    return <p style={{ color: "var(--text-muted)", padding: 24 }}>Loading...</p>;
+    return <div style={{ display: "flex", justifyContent: "center", padding: 24 }}><div className="hf-spinner" /></div>;
   }
 
   if (!source) {
@@ -326,6 +397,24 @@ export default function SourceDetailPage() {
       >
         <span style={{ fontSize: 16 }}>&larr;</span> Back to Content Sources
       </Link>
+
+      {/* Archived banner */}
+      {source.archivedAt && (
+        <div className="hf-banner hf-banner-warning" style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>
+            This source was archived on {new Date(source.archivedAt).toLocaleDateString()}.
+            It is hidden from pickers but its content remains in the knowledge base.
+          </span>
+          <button
+            className="hf-btn hf-btn-secondary"
+            onClick={handleUnarchive}
+            disabled={archiving}
+            style={{ flexShrink: 0 }}
+          >
+            {archiving ? "Restoring..." : "Unarchive"}
+          </button>
+        </div>
+      )}
 
       {/* Source header */}
       <div style={{ marginBottom: 24 }}>
@@ -357,7 +446,11 @@ export default function SourceDetailPage() {
               )}
             </span>
           )}
-          {!source.isActive && (
+          {source.archivedAt ? (
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", padding: "2px 8px", borderRadius: 4, backgroundColor: "var(--surface-secondary)", border: "1px solid var(--border-default)" }}>
+              Archived
+            </span>
+          ) : !source.isActive && (
             <span style={{ fontSize: 11, fontWeight: 600, color: "var(--status-error-text)", padding: "2px 8px", borderRadius: 4, backgroundColor: "var(--status-error-bg)" }}>
               Inactive
             </span>
@@ -411,16 +504,7 @@ export default function SourceDetailPage() {
 
       {/* Feedback banner */}
       {feedback && (
-        <div style={{
-          padding: "8px 16px",
-          marginBottom: 12,
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 500,
-          ...(feedback.type === "error"
-            ? { background: "var(--status-error-bg)", color: "var(--status-error-text)", border: "1px solid var(--status-error-border)" }
-            : { background: "var(--status-success-bg)", color: "var(--status-success-text)", border: "1px solid var(--status-success-border)" }),
-        }}>
+        <div className={`hf-banner ${feedback.type === "error" ? "hf-banner-error" : "hf-banner-success"}`} style={{ marginBottom: 12 }}>
           {feedback.message}
         </div>
       )}
@@ -444,6 +528,7 @@ export default function SourceDetailPage() {
             label: <span>Vocabulary <ReviewTabBadge reviewed={vReviewed || source.vocabularyReviewedCount || 0} total={vTotal || source.vocabularyCount || 0} /></span>,
             count: source.vocabularyCount || null,
           }] : []),
+          { id: "usage", label: "Usage", count: null },
         ] as TabDefinition[]}
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -460,18 +545,14 @@ export default function SourceDetailPage() {
               placeholder="Search assertions..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{
-                padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 220,
-              }}
+              className="hf-input"
+              style={{ width: 220 }}
             />
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              style={{
-                padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
-              }}
+              className="hf-input"
+              style={{ width: "auto" }}
             >
               <option value="">All categories</option>
               {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -479,10 +560,8 @@ export default function SourceDetailPage() {
             <select
               value={filterReview}
               onChange={(e) => setFilterReview(e.target.value)}
-              style={{
-                padding: "7px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13,
-              }}
+              className="hf-input"
+              style={{ width: "auto" }}
             >
               <option value="">All review status</option>
               <option value="true">Reviewed</option>
@@ -494,12 +573,8 @@ export default function SourceDetailPage() {
               <button
                 onClick={handleBulkReview}
                 disabled={bulkLoading}
-                style={{
-                  padding: "7px 14px", borderRadius: 6, border: "none",
-                  background: "var(--status-success-text)", color: "white", fontSize: 12, fontWeight: 600,
-                  cursor: bulkLoading ? "not-allowed" : "pointer",
-                  opacity: bulkLoading ? 0.6 : 1,
-                }}
+                className="hf-btn hf-btn-primary"
+                style={{ fontSize: 12 }}
               >
                 {bulkLoading ? "Reviewing..." : `Mark ${selected.size} Reviewed`}
               </button>
@@ -512,7 +587,7 @@ export default function SourceDetailPage() {
 
           {/* Assertions table */}
           {assertionsLoading && assertions.length === 0 ? (
-            <p style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading assertions...</p>
+            <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><div className="hf-spinner" /></div>
           ) : assertions.length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
               {search || filterCategory || filterReview ? "No assertions match your filters." : "No assertions extracted yet."}
@@ -576,7 +651,8 @@ export default function SourceDetailPage() {
                   <button
                     onClick={() => setPage(Math.max(0, page - 1))}
                     disabled={page === 0}
-                    style={paginationBtnStyle(page === 0)}
+                    className="hf-btn hf-btn-secondary"
+                    style={{ padding: "6px 14px", fontSize: 12 }}
                   >
                     Prev
                   </button>
@@ -586,7 +662,8 @@ export default function SourceDetailPage() {
                   <button
                     onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                     disabled={page >= totalPages - 1}
-                    style={paginationBtnStyle(page >= totalPages - 1)}
+                    className="hf-btn hf-btn-secondary"
+                    style={{ padding: "6px 14px", fontSize: 12 }}
                   >
                     Next
                   </button>
@@ -612,6 +689,173 @@ export default function SourceDetailPage() {
           onCountChange={(t, r) => { setVTotal(t); setVReviewed(r); }}
         />
       )}
+
+      {/* ── Usage Tab ── */}
+      {activeTab === "usage" && (
+        <UsagePanel sourceId={sourceId} usage={usageData} loading={usageLoading} onLoad={fetchUsage} />
+      )}
+
+      {/* ── Danger Zone (archive / delete) ── */}
+      {!source.archivedAt && (
+        <div style={{ marginTop: 40, padding: 20, borderRadius: 12, border: "1px solid var(--status-error-border)", background: "var(--status-error-bg)" }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--status-error-text)", margin: "0 0 8px" }}>
+            Danger Zone
+          </h3>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+            Archiving this source hides it from pickers and the library. Its teaching content remains
+            in the knowledge base until permanently deleted by a Super Admin.
+          </p>
+          {!archiveConfirm ? (
+            <button
+              className="hf-btn hf-btn-destructive"
+              onClick={() => { setArchiveConfirm(true); fetchUsage(); }}
+            >
+              Archive Source
+            </button>
+          ) : (
+            <div>
+              {usageLoading && <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Checking usage...</p>}
+              {usageData && (usageData.subjects.length > 0 || usageData.curricula.length > 0) && (
+                <div className="hf-banner hf-banner-warning" style={{ marginBottom: 12 }}>
+                  <strong>This source is in use:</strong>
+                  {usageData.subjects.length > 0 && (
+                    <span> {usageData.subjects.length} subject{usageData.subjects.length !== 1 ? "s" : ""} ({usageData.subjects.map((s) => s.name).join(", ")})</span>
+                  )}
+                  {usageData.curricula.length > 0 && (
+                    <span> {usageData.curricula.length} curricul{usageData.curricula.length !== 1 ? "a" : "um"}</span>
+                  )}
+                  {usageData.totalCallerReach > 0 && (
+                    <span> reaching {usageData.totalCallerReach} caller{usageData.totalCallerReach !== 1 ? "s" : ""}</span>
+                  )}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="hf-btn hf-btn-destructive"
+                  onClick={() => handleArchive(true)}
+                  disabled={archiving}
+                >
+                  {archiving ? "Archiving..." : "Confirm Archive"}
+                </button>
+                <button
+                  className="hf-btn hf-btn-secondary"
+                  onClick={() => setArchiveConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Usage Panel ──────────────────────────────────────────
+
+function UsagePanel({
+  sourceId,
+  usage,
+  loading,
+  onLoad,
+}: {
+  sourceId: string;
+  usage: UsageData | null;
+  loading: boolean;
+  onLoad: () => void;
+}) {
+  useEffect(() => {
+    if (!usage) onLoad();
+  }, [usage, onLoad]);
+
+  if (loading) {
+    return <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><div className="hf-spinner" /></div>;
+  }
+
+  if (!usage) {
+    return <p style={{ color: "var(--text-muted)", fontSize: 13, padding: 8 }}>No usage data available.</p>;
+  }
+
+  const sectionTitle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" };
+  const listRow: React.CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border-subtle)", fontSize: 13 };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* Subjects */}
+      <div className="hf-card">
+        <h4 style={sectionTitle}>Linked Subjects ({usage.subjects.length})</h4>
+        {usage.subjects.length === 0 ? (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Not linked to any subjects</p>
+        ) : (
+          usage.subjects.map((s) => (
+            <div key={s.id} style={listRow}>
+              <Link href={`/x/subjects?id=${s.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+                {s.name}
+              </Link>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{s.slug}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Domains */}
+      <div className="hf-card">
+        <h4 style={sectionTitle}>Institutions ({usage.domains.length})</h4>
+        {usage.domains.length === 0 ? (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Not used by any institutions</p>
+        ) : (
+          usage.domains.map((d) => (
+            <div key={d.id} style={listRow}>
+              <Link href={`/x/domains?id=${d.id}`} style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500 }}>
+                {d.name}
+              </Link>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                {d.callerCount} caller{d.callerCount !== 1 ? "s" : ""}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Curricula */}
+      {usage.curricula.length > 0 && (
+        <div className="hf-card">
+          <h4 style={sectionTitle}>Curricula ({usage.curricula.length})</h4>
+          {usage.curricula.map((c) => (
+            <div key={c.id} style={listRow}>
+              <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>{c.name}</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "monospace" }}>{c.slug}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Content stats */}
+      <div className="hf-card">
+        <h4 style={sectionTitle}>Content</h4>
+        <div style={listRow}>
+          <span style={{ color: "var(--text-secondary)" }}>Teaching Points</span>
+          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.assertions}</span>
+        </div>
+        <div style={listRow}>
+          <span style={{ color: "var(--text-secondary)" }}>Questions</span>
+          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.questions}</span>
+        </div>
+        <div style={listRow}>
+          <span style={{ color: "var(--text-secondary)" }}>Vocabulary</span>
+          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.vocabulary}</span>
+        </div>
+        <div style={{ ...listRow, borderBottom: "none" }}>
+          <span style={{ color: "var(--text-secondary)" }}>Media Assets</span>
+          <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{usage.contentStats.mediaAssets}</span>
+        </div>
+        {usage.totalCallerReach > 0 && (
+          <div style={{ marginTop: 8, padding: "8px 0 0", borderTop: "1px solid var(--border-default)", fontSize: 12, color: "var(--text-muted)" }}>
+            Total caller reach: <strong style={{ color: "var(--text-primary)" }}>{usage.totalCallerReach}</strong>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -652,18 +896,6 @@ function SortTh({
   );
 }
 
-function paginationBtnStyle(disabled: boolean): React.CSSProperties {
-  return {
-    padding: "6px 14px",
-    borderRadius: 6,
-    border: "1px solid var(--border-default)",
-    background: disabled ? "transparent" : "var(--surface-primary)",
-    color: disabled ? "var(--text-muted)" : "var(--text-primary)",
-    fontSize: 12,
-    cursor: disabled ? "default" : "pointer",
-    opacity: disabled ? 0.5 : 1,
-  };
-}
 
 // ── Assertion Row ──────────────────────────────────────
 
@@ -894,12 +1126,13 @@ function DetailView({
 
       {/* Actions */}
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={onEdit} style={actionBtnStyle}>Edit</button>
+        <button onClick={onEdit} className="hf-btn hf-btn-secondary" style={{ padding: "5px 14px", fontSize: 12 }}>Edit</button>
         {!a.reviewedAt && (
           <button
             onClick={handleMarkReviewed}
             disabled={reviewing}
-            style={{ ...actionBtnStyle, background: "var(--status-success-text)", color: "white", border: "none", opacity: reviewing ? 0.6 : 1 }}
+            className="hf-btn hf-btn-primary"
+            style={{ padding: "5px 14px", fontSize: 12, background: "var(--status-success-text)" }}
           >
             {reviewing ? "..." : "Mark Reviewed"}
           </button>
@@ -908,17 +1141,6 @@ function DetailView({
     </div>
   );
 }
-
-const actionBtnStyle: React.CSSProperties = {
-  padding: "5px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border-default)",
-  background: "var(--surface-primary)",
-  color: "var(--text-primary)",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-};
 
 // ── Edit Form ──────────────────────────────────────────
 
@@ -1010,10 +1232,6 @@ function EditForm({
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    padding: "5px 8px", borderRadius: 4, border: "1px solid var(--border-default)",
-    backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: "100%",
-  };
   const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 2 };
 
   return (
@@ -1025,7 +1243,8 @@ function EditForm({
           value={form.assertion}
           onChange={(e) => setForm({ ...form, assertion: e.target.value })}
           rows={3}
-          style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", lineHeight: 1.4 }}
+          className="hf-input"
+          style={{ resize: "vertical", fontFamily: "inherit", lineHeight: 1.4 }}
         />
       </div>
 
@@ -1036,7 +1255,7 @@ function EditForm({
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
-            style={inputStyle}
+            className="hf-input"
           >
             {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
@@ -1046,7 +1265,7 @@ function EditForm({
           <input
             value={form.tags}
             onChange={(e) => setForm({ ...form, tags: e.target.value })}
-            style={inputStyle}
+            className="hf-input"
             placeholder="tax, isa, allowance"
           />
         </div>
@@ -1056,15 +1275,15 @@ function EditForm({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px", gap: 10, marginBottom: 10 }}>
         <div>
           <div style={labelStyle}>Chapter</div>
-          <input value={form.chapter} onChange={(e) => setForm({ ...form, chapter: e.target.value })} style={inputStyle} placeholder="Chapter 3" />
+          <input value={form.chapter} onChange={(e) => setForm({ ...form, chapter: e.target.value })} className="hf-input"placeholder="Chapter 3" />
         </div>
         <div>
           <div style={labelStyle}>Section</div>
-          <input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} style={inputStyle} placeholder="3.2 ISA Allowances" />
+          <input value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} className="hf-input"placeholder="3.2 ISA Allowances" />
         </div>
         <div>
           <div style={labelStyle}>Page</div>
-          <input value={form.pageRef} onChange={(e) => setForm({ ...form, pageRef: e.target.value })} style={inputStyle} placeholder="p.47" />
+          <input value={form.pageRef} onChange={(e) => setForm({ ...form, pageRef: e.target.value })} className="hf-input"placeholder="p.47" />
         </div>
       </div>
 
@@ -1072,15 +1291,15 @@ function EditForm({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px 120px 1fr", gap: 10, marginBottom: 12 }}>
         <div>
           <div style={labelStyle}>Valid From</div>
-          <input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} style={inputStyle} />
+          <input type="date" value={form.validFrom} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} className="hf-input"/>
         </div>
         <div>
           <div style={labelStyle}>Valid Until</div>
-          <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} style={inputStyle} />
+          <input type="date" value={form.validUntil} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} className="hf-input"/>
         </div>
         <div>
           <div style={labelStyle}>Tax Year</div>
-          <input value={form.taxYear} onChange={(e) => setForm({ ...form, taxYear: e.target.value })} style={inputStyle} placeholder="2024/25" />
+          <input value={form.taxYear} onChange={(e) => setForm({ ...form, taxYear: e.target.value })} className="hf-input"placeholder="2024/25" />
         </div>
         <div>
           <div style={labelStyle}>Exam Rel.</div>
@@ -1091,13 +1310,13 @@ function EditForm({
             step="0.1"
             value={form.examRelevance}
             onChange={(e) => setForm({ ...form, examRelevance: e.target.value })}
-            style={inputStyle}
+            className="hf-input"
             placeholder="0.0-1.0"
           />
         </div>
         <div>
           <div style={labelStyle}>LO Reference</div>
-          <input value={form.learningOutcomeRef} onChange={(e) => setForm({ ...form, learningOutcomeRef: e.target.value })} style={inputStyle} placeholder="R04-LO2-AC2.3" />
+          <input value={form.learningOutcomeRef} onChange={(e) => setForm({ ...form, learningOutcomeRef: e.target.value })} className="hf-input"placeholder="R04-LO2-AC2.3" />
         </div>
       </div>
 
@@ -1106,7 +1325,8 @@ function EditForm({
         <button
           onClick={() => handleSave(false)}
           disabled={saving}
-          style={{ ...actionBtnStyle, background: "var(--accent-primary)", color: "white", border: "none", opacity: saving ? 0.6 : 1 }}
+          className="hf-btn hf-btn-primary"
+          style={{ padding: "5px 14px", fontSize: 12 }}
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -1114,12 +1334,13 @@ function EditForm({
           <button
             onClick={() => handleSave(true)}
             disabled={saving}
-            style={{ ...actionBtnStyle, background: "var(--status-success-text)", color: "white", border: "none", opacity: saving ? 0.6 : 1 }}
+            className="hf-btn hf-btn-primary"
+            style={{ padding: "5px 14px", fontSize: 12, background: "var(--status-success-text)" }}
           >
             Save & Mark Reviewed
           </button>
         )}
-        <button onClick={onCancel} style={actionBtnStyle}>Cancel</button>
+        <button onClick={onCancel} className="hf-btn hf-btn-secondary" style={{ padding: "5px 14px", fontSize: 12 }}>Cancel</button>
 
         {/* Delete (with confirmation) */}
         <div style={{ marginLeft: "auto" }}>
@@ -1132,14 +1353,16 @@ function EditForm({
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  style={{ ...actionBtnStyle, background: "var(--status-error-text)", color: "white", border: "none", fontSize: 11, opacity: deleting ? 0.6 : 1 }}
+                  className="hf-btn hf-btn-destructive"
+                  style={{ padding: "5px 14px", fontSize: 11 }}
                 >
                   {deleting ? "..." : "Confirm"}
                 </button>
               )}
               <button
                 onClick={() => setConfirmDelete(false)}
-                style={{ ...actionBtnStyle, fontSize: 11 }}
+                className="hf-btn hf-btn-secondary"
+                style={{ padding: "5px 14px", fontSize: 11 }}
               >
                 Cancel
               </button>
@@ -1147,7 +1370,8 @@ function EditForm({
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
-              style={{ ...actionBtnStyle, color: "var(--status-error-text)", borderColor: "var(--status-error-border)" }}
+              className="hf-btn hf-btn-secondary"
+              style={{ padding: "5px 14px", fontSize: 12, color: "var(--status-error-text)", borderColor: "var(--status-error-border)" }}
             >
               Delete
             </button>

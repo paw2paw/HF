@@ -21,10 +21,10 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
 
   if (!scores || scores.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No scores yet</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>Run analysis to generate parameter scores</div>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">📈</div>
+        <div className="hf-empty-state-title">No scores yet</div>
+        <div className="hf-empty-state-desc">Run analysis to generate parameter scores</div>
       </div>
     );
   }
@@ -54,7 +54,7 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
     const entries = Object.entries(grouped);
     if (entries.length === 0) {
       return (
-        <div style={{ padding: 20, textAlign: "center", color: "var(--text-placeholder)", fontSize: 12 }}>
+        <div className="hf-text-center hf-text-muted hf-text-xs hf-p-md">
           {emptyMessage}
         </div>
       );
@@ -62,7 +62,7 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
 
     return (
       <div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <div className="hf-flex-wrap hf-gap-md">
           {entries.map(([parameterId, paramScores]) => {
             const avg = paramScores.reduce((sum, s) => sum + s.score, 0) / paramScores.length;
             const paramName = paramScores[0]?.parameter?.name || parameterId;
@@ -80,7 +80,7 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
             const tooltip = `${paramName}\n\nAverage: ${(avg * 100).toFixed(0)}% (${paramScores.length} scores)${historyInfo}\n\n${paramScores[0]?.parameter?.definition || ""}\n\nClick for details`;
 
             return (
-              <div key={parameterId} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div key={parameterId} className="hf-flex-col hf-items-center">
                 <VerticalSlider
                   value={avg}
                   color={color}
@@ -95,18 +95,8 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
 
                 {/* Label */}
                 <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: 9,
-                    fontWeight: 500,
-                    color: isExpanded ? color.primary : "var(--text-muted)",
-                    textAlign: "center",
-                    maxWidth: 70,
-                    lineHeight: 1.2,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.3px",
-                    cursor: "pointer",
-                  }}
+                  className="hf-slider-label"
+                  style={{ color: isExpanded ? color.primary : "var(--text-muted)" }}
                   onClick={() => setExpandedParam(isExpanded ? null : parameterId)}
                 >
                   {paramName}
@@ -126,27 +116,15 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
           const sorted = [...paramScores].sort((a, b) => new Date(b.call.createdAt).getTime() - new Date(a.call.createdAt).getTime());
 
           return (
-            <div style={{
-              marginTop: 16,
-              background: "var(--surface-primary)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 12,
-              overflow: "hidden",
-            }}>
+            <div className="hf-detail-panel">
               {/* Header */}
-              <div style={{
-                padding: "12px 16px",
-                borderBottom: "1px solid var(--border-default)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}>
+              <div className="hf-detail-panel-header">
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{paramName}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{paramScores[0]?.parameter?.definition || ""}</div>
+                  <div className="hf-text-md hf-text-bold">{paramName}</div>
+                  <div className="hf-text-xs hf-text-muted">{paramScores[0]?.parameter?.definition || ""}</div>
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: scoreColor(avg).primary }}>
-                  {(avg * 100).toFixed(0)}% <span style={{ fontSize: 11, fontWeight: 400, color: "var(--text-placeholder)" }}>avg of {paramScores.length}</span>
+                <div className="hf-score-avg" style={{ color: scoreColor(avg).primary }}>
+                  {(avg * 100).toFixed(0)}% <span className="hf-score-avg-sub">avg of {paramScores.length}</span>
                 </div>
               </div>
 
@@ -154,66 +132,53 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
               {sorted.map((s) => {
                 const isScoreExpanded = expandedScore === s.id;
                 return (
-                  <div key={s.id} style={{ borderBottom: "1px solid var(--border-default)" }}>
+                  <div key={s.id} className="hf-border-bottom">
                     <button
                       onClick={() => setExpandedScore(isScoreExpanded ? null : s.id)}
-                      style={{
-                        width: "100%",
-                        padding: "10px 16px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        background: isScoreExpanded ? "var(--background)" : "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
+                      className={`hf-flex hf-gap-md hf-score-row-btn ${isScoreExpanded ? "hf-score-row-btn-active" : ""}`}
                     >
-                      <div style={{
-                        width: 44,
-                        padding: "3px 6px",
-                        textAlign: "center",
-                        background: s.score >= 0.7 ? "var(--status-success-bg)" : s.score >= 0.4 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
-                        color: s.score >= 0.7 ? "var(--status-success-text)" : s.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
-                        borderRadius: 6,
-                        fontWeight: 600,
-                        fontSize: 13,
-                      }}>
+                      <div
+                        className="hf-score-badge"
+                        style={{
+                          background: s.score >= 0.7 ? "var(--status-success-bg)" : s.score >= 0.4 ? "var(--status-warning-bg)" : "var(--status-error-bg)",
+                          color: s.score >= 0.7 ? "var(--status-success-text)" : s.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)",
+                        }}
+                      >
                         {(s.score * 100).toFixed(0)}
                       </div>
-                      <div style={{ width: 50, fontSize: 11, color: "var(--text-muted)" }}>
+                      <div className="hf-text-xs hf-text-muted hf-w-50">
                         {(s.confidence * 100).toFixed(0)}% conf
                       </div>
-                      <div style={{ flex: 1, fontSize: 12, color: "var(--text-secondary)" }}>
+                      <div className="hf-text-secondary hf-text-xs hf-flex-1">
                         {new Date(s.call.createdAt).toLocaleString()}
                       </div>
                       {s.analysisSpec && (
-                        <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)", borderRadius: 4, fontWeight: 500 }}>
+                        <span className="hf-micro-badge hf-micro-badge-purple">
                           {s.analysisSpec.slug || s.analysisSpec.name}
                         </span>
                       )}
-                      <span style={{ color: "var(--text-placeholder)", fontSize: 12 }}>{isScoreExpanded ? "▼" : "▶"}</span>
+                      <span className="hf-text-placeholder hf-text-xs">{isScoreExpanded ? "\u25BC" : "\u25B6"}</span>
                     </button>
 
                     {isScoreExpanded && (
-                      <div style={{ padding: "8px 16px 12px", background: "var(--background)", marginLeft: 56 }}>
+                      <div className="hf-detail-panel-body">
                         {isAdvanced && s.evidence && s.evidence.length > 0 && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Evidence</div>
+                          <div className="hf-mb-sm">
+                            <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-xs">Evidence</div>
                             {s.evidence.map((e: string, i: number) => (
-                              <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", padding: "3px 0", borderLeft: "2px solid var(--border-default)", paddingLeft: 8, marginBottom: 3 }}>
+                              <div key={i} className="hf-evidence-quote">
                                 {e}
                               </div>
                             ))}
                           </div>
                         )}
                         {isAdvanced && s.reasoning && (
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4 }}>Reasoning</div>
-                            <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>{s.reasoning}</div>
+                          <div className="hf-mb-sm">
+                            <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-xs">Reasoning</div>
+                            <div className="hf-text-xs hf-text-secondary hf-text-italic">{s.reasoning}</div>
                           </div>
                         )}
-                        <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-placeholder)" }}>
+                        <div className="hf-flex hf-gap-lg hf-text-xs hf-text-placeholder">
                           <span>Call ID: {s.callId?.slice(0, 8)}...</span>
                           <span>Scored: {new Date(s.scoredAt).toLocaleString()}</span>
                           {s.analysisSpecId && <span>Spec: {s.analysisSpecId.slice(0, 8)}...</span>}
@@ -299,16 +264,10 @@ export function TrustProgressSection({ callerId }: { callerId: string }) {
   if (loading || curricula.length === 0) return null;
 
   return (
-    <div style={{
-      background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
-      borderRadius: 16,
-      padding: 20,
-      border: "1px solid var(--border-default)",
-      boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-success-text)", boxShadow: "0 0 8px color-mix(in srgb, var(--status-success-text) 60%, transparent)" }} />
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "0.5px" }}>Certification Progress</span>
+    <div className="hf-gradient-card">
+      <div className="hf-flex hf-gap-sm hf-mb-md">
+        <div className="hf-status-dot hf-status-dot-success" />
+        <span className="hf-section-header-label">Certification Progress</span>
       </div>
 
       {curricula.map((curr) => {
@@ -317,111 +276,88 @@ export function TrustProgressSection({ callerId }: { callerId: string }) {
 
         return (
           <div key={curr.specSlug} style={{ marginBottom: curricula.length > 1 ? 16 : 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>
+            <div className="hf-text-sm hf-text-bold hf-text-primary hf-mb-10">
               {curr.specName}
             </div>
 
             {/* Dual-track bars */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="hf-flex-col hf-gap-sm">
               {/* Certification Readiness */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--status-success-text)", width: 140, flexShrink: 0 }}>
+              <div className="hf-flex hf-gap-md">
+                <span className="hf-text-xs hf-text-bold hf-text-success hf-w-140 hf-flex-shrink-0">
                   Cert. Readiness
                 </span>
-                <div style={{ flex: 1, height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
-                  <div style={{
-                    width: `${Math.round(curr.certificationReadiness * 100)}%`,
-                    height: "100%",
-                    background: "linear-gradient(90deg, var(--status-success-text), var(--status-success-text))",
-                    borderRadius: 5,
-                    transition: "width 0.4s ease",
-                  }} />
+                <div className="hf-progress-track">
+                  <div
+                    className="hf-progress-fill"
+                    style={{
+                      width: `${Math.round(curr.certificationReadiness * 100)}%`,
+                      background: "var(--status-success-text)",
+                    }}
+                  />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "var(--status-success-text)", width: 40, textAlign: "right" }}>
+                <span className="hf-mono hf-text-bold hf-text-success hf-w-40 hf-text-right">
                   {Math.round(curr.certificationReadiness * 100)}%
                 </span>
               </div>
 
               {/* General Understanding */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", width: 140, flexShrink: 0 }}>
+              <div className="hf-flex hf-gap-md">
+                <span className="hf-text-xs hf-text-bold hf-text-muted hf-w-140 hf-flex-shrink-0">
                   General Understanding
                 </span>
-                <div style={{ flex: 1, height: 10, background: "var(--border-default)", borderRadius: 5, overflow: "hidden" }}>
-                  <div style={{
-                    width: `${Math.round(curr.supplementaryMastery * 100)}%`,
-                    height: "100%",
-                    background: "linear-gradient(90deg, var(--accent-secondary, #8b5cf6), var(--accent-secondary, #8b5cf6))",
-                    borderRadius: 5,
-                    transition: "width 0.4s ease",
-                  }} />
+                <div className="hf-progress-track">
+                  <div
+                    className="hf-progress-fill"
+                    style={{
+                      width: `${Math.round(curr.supplementaryMastery * 100)}%`,
+                      background: "var(--accent-secondary, #8b5cf6)",
+                    }}
+                  />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "var(--accent-secondary, #8b5cf6)", width: 40, textAlign: "right" }}>
+                <span className="hf-mono hf-text-bold hf-w-40 hf-text-right hf-text-accent-secondary">
                   {Math.round(curr.supplementaryMastery * 100)}%
                 </span>
               </div>
             </div>
 
             {/* Summary line */}
-            <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6 }}>
+            <div className="hf-text-xs hf-text-muted hf-mt-6">
               {certCount} of {modules.length} modules count toward certification (L3+)
             </div>
 
             {/* Expandable module breakdown */}
             {modules.length > 0 && (
-              <div style={{ marginTop: 8 }}>
+              <div className="hf-mt-sm">
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    padding: "4px 0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
+                  className="hf-expand-btn hf-text-xs hf-text-muted hf-gap-xs hf-py-sm hf-p-0"
                 >
-                  <span style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", display: "inline-block", fontSize: 9 }}>&#9654;</span>
+                  <span className={`hf-caret ${expanded ? "hf-caret-open" : ""}`}>&#9654;</span>
                   Module breakdown
                 </button>
 
                 {expanded && (
-                  <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div className="hf-flex-col hf-gap-xs hf-mt-6">
                     {modules.map(([moduleId, mod]) => {
                       const badgeColors = TRUST_BADGE_COLORS[mod.trustLevel] || TRUST_BADGE_COLORS.UNVERIFIED;
                       const label = TRUST_LABELS[mod.trustLevel] || mod.trustLevel;
                       return (
-                        <div
-                          key={moduleId}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            padding: "6px 10px",
-                            background: "var(--surface-primary)",
-                            border: "1px solid var(--border-default)",
-                            borderRadius: 6,
-                            fontSize: 11,
-                          }}
-                        >
-                          <span style={{ flex: 1, fontWeight: 500, color: "var(--text-primary)" }}>{moduleId}</span>
-                          <span style={{
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            fontSize: 9,
-                            fontWeight: 600,
-                            background: badgeColors.bg,
-                            color: badgeColors.text,
-                          }}>
+                        <div key={moduleId} className="hf-module-row">
+                          <span className="hf-flex-1 hf-text-500 hf-text-primary">{moduleId}</span>
+                          <span
+                            className="hf-micro-badge"
+                            style={{
+                              background: badgeColors.bg,
+                              color: badgeColors.text,
+                            }}
+                          >
                             {label}
                           </span>
-                          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, color: mod.mastery >= 0.8 ? "var(--status-success-text)" : mod.mastery >= 0.5 ? "var(--status-warning-text)" : "var(--text-muted)", width: 36, textAlign: "right" }}>
+                          <span className="hf-mono hf-text-bold hf-w-36 hf-text-right" style={{ color: mod.mastery >= 0.8 ? "var(--status-success-text)" : mod.mastery >= 0.5 ? "var(--status-warning-text)" : "var(--text-muted)" }}>
                             {Math.round(mod.mastery * 100)}%
                           </span>
-                          <span style={{ fontSize: 10, color: mod.countsToCertification ? "var(--status-success-text)" : "var(--text-placeholder)", width: 14, textAlign: "center" }}>
+                          <span className="hf-text-xs hf-text-center hf-w-14" style={{ color: mod.countsToCertification ? "var(--status-success-text)" : "var(--text-placeholder)" }}>
                             {mod.countsToCertification ? "\u2713" : "\u2212"}
                           </span>
                         </div>
@@ -488,10 +424,10 @@ export function LearningSection({
 
   if (!hasCurriculum && !hasProfile && !hasGoals) {
     return (
-      <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)", background: "var(--background)", borderRadius: "12px" }}>
-        <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎯</div>
-        <div style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-secondary)" }}>No goals yet</div>
-        <div style={{ fontSize: "14px", marginTop: "4px" }}>Goals are created automatically when a caller is assigned to a domain</div>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">🎯</div>
+        <div className="hf-empty-state-title">No goals yet</div>
+        <div className="hf-empty-state-desc">Goals are created automatically when a caller is assigned to a domain</div>
       </div>
     );
   }
@@ -515,7 +451,7 @@ export function LearningSection({
   const archivedGoals = goals?.filter(g => g.status === 'ARCHIVED' || g.status === 'COMPLETED') || [];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="hf-flex-col hf-gap-20">
       {/* Active Goals — each as a visual card */}
       {activeGoals.map((goal) => {
         const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "var(--text-muted)", glow: "var(--text-muted)" };
@@ -530,12 +466,12 @@ export function LearningSection({
                 color={{ primary: typeConfig.color, glow: typeConfig.glow }}
               >
                 {/* Goal metadata strip */}
-                <div style={{ width: "100%", display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", marginBottom: 4, flexWrap: "wrap", alignItems: "center" }}>
+                <div className="hf-flex-wrap hf-text-xs hf-text-muted hf-gap-md hf-w-full hf-mb-xs hf-items-center">
                   {goal.description && <span>{goal.description}</span>}
                   {goal.playbook && <PlaybookPill label={`${goal.playbook.name} v${goal.playbook.version}`} size="compact" />}
-                  {goal.startedAt && <span style={{ opacity: 0.7 }}>Started {new Date(goal.startedAt).toLocaleDateString()}</span>}
+                  {goal.startedAt && <span className="hf-opacity-70">Started {new Date(goal.startedAt).toLocaleDateString()}</span>}
                   {curriculum.nextModule && (
-                    <span style={{ color: "var(--status-success-text)", fontWeight: 600 }}>
+                    <span className="hf-text-success hf-text-bold">
                       Next: {curriculum.modules.find(m => m.id === curriculum.nextModule)?.name || curriculum.nextModule}
                     </span>
                   )}
@@ -562,26 +498,20 @@ export function LearningSection({
               </SliderGroup>
             ) : (
               /* Non-LEARN goal: Progress ring card */
-              <div style={{
-                background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
-                borderRadius: 16,
-                padding: 20,
-                border: "1px solid var(--border-default)",
-                boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div className="hf-gradient-card">
+                <div className="hf-flex hf-gap-lg">
                   <ProgressRing progress={goal.progress} size={72} color={typeConfig.color} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <div className="hf-flex-1">
+                    <div className="hf-flex hf-gap-sm hf-mb-xs">
                       <span style={{ fontSize: 16 }}>{typeConfig.icon}</span>
                       <GoalPill label={typeConfig.label} size="compact" />
                       <StatusBadge status={goal.status === 'ACTIVE' ? 'active' : 'pending'} size="compact" />
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{goal.name}</div>
+                    <div className="hf-section-title">{goal.name}</div>
                     {goal.description && (
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{goal.description}</div>
+                      <div className="hf-text-xs hf-text-muted hf-mt-xs">{goal.description}</div>
                     )}
-                    <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)", marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <div className="hf-flex-wrap hf-text-xs hf-text-muted hf-gap-md hf-mt-sm hf-items-center">
                       {goal.playbook && <PlaybookPill label={`${goal.playbook.name} v${goal.playbook.version}`} size="compact" />}
                       {goal.startedAt && <span>Started {new Date(goal.startedAt).toLocaleDateString()}</span>}
                       {goal.targetDate && <span>Target: {new Date(goal.targetDate).toLocaleDateString()}</span>}
@@ -596,50 +526,44 @@ export function LearningSection({
 
       {/* Learner Profile — compact chips */}
       {hasProfile && learnerProfile && (
-        <div style={{
-          background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
-          borderRadius: 16,
-          padding: 20,
-          border: "1px solid var(--border-default)",
-          boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-secondary, #8b5cf6)", boxShadow: "0 0 8px var(--accent-secondary, #8b5cf6)" }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "0.5px" }}>Learner Profile</span>
+        <div className="hf-gradient-card">
+          <div className="hf-flex hf-gap-sm hf-mb-md">
+            <div className="hf-status-dot hf-status-dot-purple" />
+            <span className="hf-section-header-label">Learner Profile</span>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div className="hf-flex-wrap hf-gap-sm">
             {learnerProfile.learningStyle && (
-              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+              <span className="hf-profile-chip">
                 <strong>Style:</strong> {learnerProfile.learningStyle}
               </span>
             )}
             {learnerProfile.pacePreference && (
-              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+              <span className="hf-profile-chip">
                 <strong>Pace:</strong> {learnerProfile.pacePreference}
               </span>
             )}
             {learnerProfile.interactionStyle && (
-              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+              <span className="hf-profile-chip">
                 <strong>Interaction:</strong> {learnerProfile.interactionStyle}
               </span>
             )}
             {learnerProfile.preferredModality && (
-              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+              <span className="hf-profile-chip">
                 <strong>Modality:</strong> {learnerProfile.preferredModality}
               </span>
             )}
             {learnerProfile.questionFrequency && (
-              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+              <span className="hf-profile-chip">
                 <strong>Questions:</strong> {learnerProfile.questionFrequency}
               </span>
             )}
             {learnerProfile.feedbackStyle && (
-              <span style={{ fontSize: 11, padding: "4px 10px", background: "var(--background)", border: "1px solid var(--border-default)", borderRadius: 6, color: "var(--text-secondary)" }}>
+              <span className="hf-profile-chip">
                 <strong>Feedback:</strong> {learnerProfile.feedbackStyle}
               </span>
             )}
             {Object.entries(learnerProfile.priorKnowledge).map(([domain, level]) => (
-              <span key={domain} style={{ fontSize: 11, padding: "4px 10px", background: "var(--status-info-bg)", border: "1px solid var(--status-info-border)", borderRadius: 6, color: "var(--status-info-text)" }}>
+              <span key={domain} className="hf-profile-chip-info">
                 <strong>{domain}:</strong> {level}
               </span>
             ))}
@@ -655,42 +579,23 @@ export function LearningSection({
         <div>
           <button
             onClick={() => setShowArchived(!showArchived)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 12,
-              color: "var(--text-muted)",
-              padding: "8px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
+            className="hf-expand-btn hf-text-xs hf-text-muted hf-gap-sm hf-py-sm hf-p-0"
           >
-            <span style={{ transform: showArchived ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", display: "inline-block" }}>&#9654;</span>
+            <span className={`hf-caret hf-caret-lg ${showArchived ? "hf-caret-open" : ""}`}>&#9654;</span>
             {archivedGoals.length} archived goal{archivedGoals.length > 1 ? "s" : ""}
           </button>
           {showArchived && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+            <div className="hf-flex-col hf-gap-sm hf-mt-xs">
               {archivedGoals.map((goal) => {
                 const typeConfig = GOAL_TYPE_CONFIG[goal.type] || { label: goal.type, icon: "🎯", color: "var(--text-muted)", glow: "var(--text-muted)" };
                 return (
                   <div
                     key={goal.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "10px 14px",
-                      background: "var(--surface-primary)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                      opacity: 0.7,
-                    }}
+                    className="hf-flex hf-gap-md hf-archived-goal-row"
                   >
-                    <span style={{ fontSize: 14 }}>{typeConfig.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-secondary)", flex: 1 }}>{goal.name}</span>
-                    <span style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: typeConfig.color, fontWeight: 600 }}>
+                    <span className="hf-text-md">{typeConfig.icon}</span>
+                    <span className="hf-text-sm hf-text-secondary hf-text-500 hf-flex-1">{goal.name}</span>
+                    <span className="hf-mono hf-text-bold" style={{ color: typeConfig.color }}>
                       {Math.round(goal.progress * 100)}%
                     </span>
                     <StatusBadge status={goal.status === 'COMPLETED' ? 'validated' : 'archived'} size="compact" />
@@ -718,45 +623,39 @@ export function TopicsCoveredSection({ memorySummary, keyFactCount }: { memorySu
 
   if (!topTopics.length && !keyFactCount) {
     return (
-      <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+      <div className="hf-text-center hf-text-muted hf-text-sm hf-p-md">
         No topics or key facts recorded yet.
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="hf-flex-col hf-gap-lg">
       {/* Stats row */}
-      <div style={{ display: "flex", gap: 12 }}>
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", flex: 1 }}>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="hf-flex hf-gap-md">
+        <div className="hf-summary-card hf-flex-1">
+          <div className="hf-summary-card-label">
             <BookOpen size={12} /> Topics Discussed
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{topicCount}</div>
+          <div className="hf-summary-card-value">{topicCount}</div>
         </div>
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", flex: 1 }}>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="hf-summary-card hf-flex-1">
+          <div className="hf-summary-card-label">
             <CheckSquare size={12} /> Key Facts
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{keyFactCount}</div>
+          <div className="hf-summary-card-value">{keyFactCount}</div>
         </div>
       </div>
 
       {/* Topic chips */}
       {topTopics.length > 0 && (
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 16 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className="hf-card-compact hf-mb-0">
+          <div className="hf-flex-wrap hf-gap-sm">
             {topTopics.map((t) => (
               <span
                 key={t.topic}
+                className="hf-topic-pill"
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "6px 12px",
-                  borderRadius: 20,
-                  fontSize: 12,
-                  fontWeight: 500,
                   background: CATEGORY_COLORS.TOPIC.bg,
                   color: CATEGORY_COLORS.TOPIC.text,
                 }}
@@ -764,7 +663,7 @@ export function TopicsCoveredSection({ memorySummary, keyFactCount }: { memorySu
                 <BookOpen size={11} />
                 {t.topic}
                 {t.lastMentioned && (
-                  <span style={{ fontSize: 10, opacity: 0.7 }}>
+                  <span className="hf-text-xs hf-opacity-70">
                     {formatRelativeDate(t.lastMentioned)}
                   </span>
                 )}
@@ -772,7 +671,7 @@ export function TopicsCoveredSection({ memorySummary, keyFactCount }: { memorySu
             ))}
           </div>
           {topicCount > topTopics.length && (
-            <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
+            <p className="hf-text-xs hf-text-muted hf-mt-sm">
               +{topicCount - topTopics.length} more topics discussed across calls
             </p>
           )}
@@ -822,7 +721,7 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+      <div className="hf-text-center hf-text-muted hf-p-lg">
         Loading exam readiness...
       </div>
     );
@@ -830,19 +729,19 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
 
   if (error) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-        <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>{error}</div>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">⚠️</div>
+        <div className="hf-text-md hf-text-secondary">{error}</div>
       </div>
     );
   }
 
   if (curricula.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No exam data yet</div>
-        <div style={{ fontSize: 14, marginTop: 4 }}>Exam readiness is computed once a caller has curriculum progress and a domain with exams enabled</div>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">📝</div>
+        <div className="hf-empty-state-title">No exam data yet</div>
+        <div className="hf-empty-state-desc">Exam readiness is computed once a caller has curriculum progress and a domain with exams enabled</div>
       </div>
     );
   }
@@ -850,7 +749,7 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
   const LEVEL_CONFIG = EXAM_LEVEL_CONFIG;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="hf-flex-col hf-gap-20">
       {curricula.map((curr: any) => {
         const levelCfg = LEVEL_CONFIG[curr.level] || LEVEL_CONFIG.not_ready;
         const pct = Math.round(curr.readinessScore * 100);
@@ -859,50 +758,39 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
         const moduleEntries = Object.entries(moduleMastery);
 
         return (
-          <div
-            key={curr.specSlug}
-            style={{
-              background: "linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%)",
-              borderRadius: 16,
-              padding: 24,
-              border: "1px solid var(--border-default)",
-              boxShadow: "0 4px 24px color-mix(in srgb, var(--text-primary) 10%, transparent)",
-            }}
-          >
+          <div key={curr.specSlug} className="hf-gradient-card-lg">
             {/* Header: spec slug + level badge + gate */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: levelCfg.color, boxShadow: `0 0 8px ${levelCfg.color}` }} />
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>{curr.specSlug}</span>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "3px 10px",
-                  borderRadius: 6,
-                  background: levelCfg.bg,
-                  color: levelCfg.color,
-                  border: `1px solid ${levelCfg.border}`,
-                  letterSpacing: "0.02em",
-                }}>
+            <div className="hf-flex-between hf-flex-wrap hf-gap-md hf-mb-lg">
+              <div className="hf-flex hf-gap-md">
+                <div className="hf-status-dot" style={{ background: levelCfg.color, boxShadow: `0 0 8px ${levelCfg.color}` }} />
+                <span className="hf-text-md hf-text-bold hf-text-primary" style={{ fontSize: 15 }}>{curr.specSlug}</span>
+                <span
+                  className="hf-badge"
+                  style={{
+                    background: levelCfg.bg,
+                    color: levelCfg.color,
+                    border: `1px solid ${levelCfg.border}`,
+                    letterSpacing: "0.02em",
+                  }}
+                >
                   {levelCfg.label}
                 </span>
               </div>
-              <span style={{
-                fontSize: 11,
-                fontWeight: 600,
-                padding: "3px 10px",
-                borderRadius: 6,
-                background: curr.gateStatus?.allowed ? "var(--status-success-bg)" : "var(--status-error-bg)",
-                color: curr.gateStatus?.allowed ? "var(--status-success-text)" : "var(--status-error-text)",
-                border: `1px solid ${curr.gateStatus?.allowed ? "var(--status-success-border)" : "var(--status-error-border)"}`,
-              }}>
+              <span
+                className="hf-badge"
+                style={{
+                  background: curr.gateStatus?.allowed ? "var(--status-success-bg)" : "var(--status-error-bg)",
+                  color: curr.gateStatus?.allowed ? "var(--status-success-text)" : "var(--status-error-text)",
+                  border: `1px solid ${curr.gateStatus?.allowed ? "var(--status-success-border)" : "var(--status-error-border)"}`,
+                }}
+              >
                 {curr.gateStatus?.allowed ? "Gate: OPEN" : "Gate: LOCKED"}
               </span>
             </div>
 
             {/* Readiness Score — large ring */}
-            <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 20 }}>
-              <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
+            <div className="hf-flex hf-gap-xl hf-mb-lg">
+              <div className="hf-ring-container">
                 <svg width={80} height={80} viewBox="0 0 80 80">
                   <circle cx={40} cy={40} r={34} fill="none" stroke="var(--border-default)" strokeWidth={6} />
                   <circle
@@ -917,35 +805,31 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
                     style={{ filter: `drop-shadow(0 0 4px ${levelCfg.color})` }}
                   />
                 </svg>
-                <div style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 20, fontWeight: 800, color: levelCfg.color,
-                }}>
+                <div className="hf-ring-overlay" style={{ color: levelCfg.color }}>
                   {pct}%
                 </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Readiness Score</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+              <div className="hf-flex-1">
+                <div className="hf-text-sm hf-text-bold hf-text-primary hf-mb-xs">Readiness Score</div>
+                <div className="hf-text-xs hf-text-muted hf-leading-relaxed">
                   {curr.gateStatus?.reason}
                 </div>
-                <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+                <div className="hf-flex-wrap hf-gap-lg hf-mt-sm">
                   {curr.formativeScore !== null && (
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                      Formative: <strong style={{ color: "var(--text-secondary)" }}>{Math.round(curr.formativeScore * 100)}%</strong>
+                    <span className="hf-text-xs hf-text-muted">
+                      Formative: <strong className="hf-text-secondary">{Math.round(curr.formativeScore * 100)}%</strong>
                     </span>
                   )}
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    Attempts: <strong style={{ color: "var(--text-secondary)" }}>{curr.attemptCount}</strong>
+                  <span className="hf-text-xs hf-text-muted">
+                    Attempts: <strong className="hf-text-secondary">{curr.attemptCount}</strong>
                   </span>
                   {curr.bestScore !== null && (
-                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                      Best: <strong style={{ color: "var(--text-secondary)" }}>{Math.round(curr.bestScore * 100)}%</strong>
+                    <span className="hf-text-xs hf-text-muted">
+                      Best: <strong className="hf-text-secondary">{Math.round(curr.bestScore * 100)}%</strong>
                     </span>
                   )}
                   {curr.lastAttemptPassed !== null && (
-                    <span style={{ fontSize: 11, color: curr.lastAttemptPassed ? "var(--status-success-text)" : "var(--status-error-text)" }}>
+                    <span className={`hf-text-xs ${curr.lastAttemptPassed ? "hf-text-success" : "hf-text-error"}`}>
                       Last: {curr.lastAttemptPassed ? "PASSED" : "FAILED"}
                     </span>
                   )}
@@ -956,33 +840,39 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
             {/* Module Mastery Bars */}
             {moduleEntries.length > 0 && (
               <div style={{ marginBottom: weakModules.length > 0 ? 16 : 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10, letterSpacing: "0.03em" }}>
+                <div className="hf-text-xs hf-text-bold hf-text-secondary hf-mb-sm hf-tracking-wide">
                   Module Mastery
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="hf-flex-col hf-gap-sm">
                   {moduleEntries.map(([moduleId, mastery]) => {
                     const masteryPct = Math.round((mastery as number) * 100);
                     const isWeak = weakModules.includes(moduleId);
                     const barColor = isWeak ? "var(--status-warning-text)" : "var(--status-success-text)";
                     return (
-                      <div key={moduleId} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{
-                          width: 140, fontSize: 11, color: isWeak ? "var(--status-warning-text)" : "var(--text-muted)",
-                          fontWeight: isWeak ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          flexShrink: 0,
-                        }} title={moduleId}>
+                      <div key={moduleId} className="hf-flex hf-gap-md">
+                        <div
+                          className="hf-truncate hf-text-xs hf-w-140 hf-flex-shrink-0"
+                          style={{
+                            color: isWeak ? "var(--status-warning-text)" : "var(--text-muted)",
+                            fontWeight: isWeak ? 600 : 400,
+                          }}
+                          title={moduleId}
+                        >
                           {moduleId}
                         </div>
-                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--border-default)", overflow: "hidden" }}>
-                          <div style={{
-                            height: "100%", borderRadius: 4,
+                        <div className="hf-mastery-bar-track">
+                          <div className="hf-mastery-bar-fill" style={{
                             width: `${masteryPct}%`,
                             background: barColor,
                             boxShadow: `0 0 6px ${barColor}`,
-                            transition: "width 0.3s ease",
                           }} />
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: isWeak ? "var(--status-warning-text)" : "var(--text-secondary)", width: 36, textAlign: "right", flexShrink: 0 }}>
+                        <span
+                          className="hf-text-xs hf-text-bold hf-w-36 hf-text-right hf-flex-shrink-0"
+                          style={{
+                            color: isWeak ? "var(--status-warning-text)" : "var(--text-secondary)",
+                          }}
+                        >
                           {masteryPct}%
                         </span>
                       </div>
@@ -994,15 +884,7 @@ export function ExamReadinessSection({ callerId }: { callerId: string }) {
 
             {/* Weak Modules Warning */}
             {weakModules.length > 0 && (
-              <div style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                background: "var(--status-warning-bg)",
-                border: "1px solid var(--status-warning-border)",
-                fontSize: 12,
-                color: "var(--status-warning-text)",
-                lineHeight: 1.5,
-              }}>
+              <div className="hf-banner hf-banner-warning hf-mb-0 hf-leading-relaxed">
                 <strong>Weak modules:</strong> {weakModules.join(", ")} — targeted revision recommended before exam attempt
               </div>
             )}
@@ -1080,18 +962,18 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
 
   if (loading) {
     return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        <div style={{ color: "var(--text-muted)" }}>Loading behaviour data...</div>
+      <div className="hf-text-center hf-p-lg">
+        <div className="hf-text-muted">Loading behaviour data...</div>
       </div>
     );
   }
 
   if (measurements.length === 0 && behaviorTargets.length === 0 && callerTargets.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No behaviour data</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">🤖</div>
+        <div className="hf-empty-state-title">No behaviour data</div>
+        <div className="hf-empty-state-desc">
           Targets and measurements will appear here after calls are analyzed
         </div>
       </div>
@@ -1133,10 +1015,10 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
   // Simple: measurement averages as clean sliders (no targets, no scope cascade)
   if (avgMeasurements.length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: "center", background: "var(--background)", borderRadius: 12 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-secondary)" }}>No measurements yet</div>
-        <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 4 }}>
+      <div className="hf-empty-state">
+        <div className="hf-empty-state-icon">🤖</div>
+        <div className="hf-empty-state-title">No measurements yet</div>
+        <div className="hf-empty-state-desc">
           Behaviour measurements will appear here after calls are analyzed
         </div>
       </div>
@@ -1154,7 +1036,7 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
       title={`Behaviour (${avgMeasurements.length})`}
       color={{ primary: "var(--badge-indigo-text)", glow: "var(--button-primary-bg)" }}
     >
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+      <div className="hf-flex-wrap hf-gap-md">
         {avgMeasurements.map((m) => {
           const name = paramNames[m.parameterId] || m.parameterId;
           const history = historyByParameter[m.parameterId] || [];
@@ -1165,7 +1047,7 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
             : { primary: "var(--status-error-text)", glow: "var(--status-error-text)" };
 
           return (
-            <div key={m.parameterId} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div key={m.parameterId} className="hf-flex-col hf-items-center">
               <VerticalSlider
                 value={m.actualValue}
                 color={color}
@@ -1175,12 +1057,7 @@ export function TopLevelAgentBehaviorSection({ callerId, calls: propCalls, calle
                 showGauge={false}
                 historyPoints={history}
               />
-              <div style={{
-                marginTop: 8, fontSize: 9, fontWeight: 500,
-                color: "var(--text-muted)", textAlign: "center",
-                maxWidth: 70, lineHeight: 1.2,
-                textTransform: "uppercase", letterSpacing: "0.3px",
-              }}>
+              <div className="hf-slider-label hf-text-muted">
                 {name.replace("BEH-", "").replace(/-/g, " ")}
               </div>
             </div>
@@ -1260,18 +1137,18 @@ export function PlanProgressSection({
 
   if (loading) {
     return (
-      <div style={{ padding: 16 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Plan Progress</h3>
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading...</p>
+      <div className="hf-p-md">
+        <h3 className="hf-section-title">Plan Progress</h3>
+        <p className="hf-text-sm hf-text-muted">Loading...</p>
       </div>
     );
   }
 
   if (!plan || !plan.entries?.length) {
     return (
-      <div style={{ padding: 16 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Plan Progress</h3>
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
+      <div className="hf-p-md">
+        <h3 className="hf-section-title">Plan Progress</h3>
+        <p className="hf-text-sm hf-text-muted">
           No lesson plan configured for this caller&apos;s domain. Create one from the Subject page.
         </p>
       </div>
@@ -1307,31 +1184,29 @@ export function PlanProgressSection({
   const progressPct = totalPlanned > 0 ? Math.round((Math.min(completedCalls, totalPlanned) / totalPlanned) * 100) : 0;
 
   return (
-    <div style={{ padding: 16 }}>
-      <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Plan Progress</h3>
-      <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
+    <div className="hf-p-md">
+      <h3 className="hf-section-title hf-mb-xs">Plan Progress</h3>
+      <div className="hf-section-desc hf-mb-12">
         Call {completedCalls} of {totalPlanned} planned ({progressPct}% through plan)
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: 6, borderRadius: 3, background: "var(--surface-tertiary)", overflow: "hidden", marginBottom: 16 }}>
-        <div style={{
-          height: "100%",
-          borderRadius: 3,
-          background: progressPct === 100 ? "var(--status-success-text)" : "linear-gradient(90deg, var(--accent-primary), var(--accent-primary))",
-          width: `${progressPct}%`,
-          transition: "width 0.5s ease-out",
-        }} />
+      <div className="hf-mb-md hf-progress-track-thin">
+        <div
+          className="hf-progress-fill-animated"
+          style={{
+            background: progressPct === 100 ? "var(--status-success-text)" : "var(--accent-primary)",
+            width: `${progressPct}%`,
+          }}
+        />
       </div>
 
       {/* Session list */}
-      <div style={{ display: "grid", gap: 4 }}>
+      <div className="hf-grid-gap-4">
         {progressEntries.map((e: any) => {
           const sessionCfg = PLAN_SESSION_TYPES[e.type] || { label: e.type, color: "var(--text-muted)" };
           return (
-            <div key={e.session} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
-              borderRadius: 6,
+            <div key={e.session} className="hf-plan-row" style={{
               border: e.status === "current" ? "1px solid var(--accent-primary)" : "1px solid var(--border-subtle)",
               background: e.status === "current"
                 ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)"
@@ -1341,43 +1216,41 @@ export function PlanProgressSection({
               opacity: e.status === "upcoming" ? 0.6 : 1,
             }}>
               {/* Status icon */}
-              <span style={{ fontSize: 14, minWidth: 18, textAlign: "center" }}>
+              <span className="hf-text-center hf-text-md hf-w-18">
                 {e.status === "completed" ? "\u2705" : e.status === "current" ? "\uD83D\uDD35" : "\u2B1C"}
               </span>
 
               {/* Session number */}
-              <span style={{
-                fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 20,
-                textAlign: "right", fontVariantNumeric: "tabular-nums",
-              }}>
+              <span className="hf-text-xs hf-text-bold hf-text-muted hf-w-20 hf-text-right hf-tabular-nums">
                 {e.session}.
               </span>
 
               {/* Label */}
-              <span style={{ flex: 1, fontSize: 13, fontWeight: e.status === "current" ? 600 : 400, color: "var(--text-primary)" }}>
+              <span className="hf-text-sm hf-flex-1 hf-text-primary" style={{ fontWeight: e.status === "current" ? 600 : 400 }}>
                 {e.label}
               </span>
 
               {/* Session type badge */}
-              <span style={{
-                display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10,
-                fontWeight: 600, color: sessionCfg.color,
-                backgroundColor: `color-mix(in srgb, ${sessionCfg.color} 12%, transparent)`,
-                textTransform: "uppercase", minWidth: 70, textAlign: "center",
-              }}>
+              <span
+                className="hf-session-badge"
+                style={{
+                  color: sessionCfg.color,
+                  backgroundColor: `color-mix(in srgb, ${sessionCfg.color} 12%, transparent)`,
+                }}
+              >
                 {sessionCfg.label}
               </span>
 
               {/* Module label */}
               {e.moduleLabel && (
-                <span style={{ fontSize: 11, color: "var(--text-muted)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span className="hf-text-xs hf-text-muted hf-truncate hf-max-w-120">
                   {e.moduleLabel}
                 </span>
               )}
 
               {/* Call date */}
               {e.callDate && (
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                <span className="hf-text-xs hf-text-muted hf-tabular-nums">
                   {new Date(e.callDate).toLocaleDateString()}
                 </span>
               )}

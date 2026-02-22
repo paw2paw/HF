@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ContentTrustLevel, DocumentType } from "@prisma/client";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 
+type RouteParams = { params: Promise<{ sourceId: string }> };
+
 const VALID_DOCUMENT_TYPES: DocumentType[] = [
   "CURRICULUM", "TEXTBOOK", "WORKSHEET", "COMPREHENSION", "EXAMPLE",
   "ASSESSMENT", "REFERENCE", "LESSON_PLAN", "POLICY_DOCUMENT",
@@ -28,7 +30,7 @@ const TRUST_LEVEL_ORDER: ContentTrustLevel[] = [
  */
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ sourceId: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authResult = await requireAuth("VIEWER");
@@ -104,7 +106,7 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ sourceId: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authResult = await requireAuth("OPERATOR");
@@ -209,6 +211,92 @@ export async function PATCH(
     });
   } catch (error: any) {
     console.error("[content-sources/:id] PATCH error:", error);
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * @api DELETE /api/content-sources/:sourceId
+ * @visibility internal
+ * @scope content-sources:delete
+ * @auth session
+ * @tags content-trust
+ * @description Archive a content source (soft-delete). Returns 409 with usage details if the source
+ * is linked to subjects or curricula unless ?force=true is passed.
+ * @query force string - "true" to archive even when in use
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    const authResult = await requireAuth("ADMIN");
+    if (isAuthError(authResult)) return authResult.error;
+
+    const { sourceId } = await params;
+    const { searchParams } = new URL(req.url);
+    const force = searchParams.get("force") === "true";
+
+    const source = await prisma.contentSource.findUnique({
+      where: { id: sourceId },
+      include: {
+        subjects: {
+          include: {
+            subject: { select: { id: true, name: true, slug: true } },
+          },
+        },
+        curricula: { select: { id: true, slug: true, name: true } },
+        _count: { select: { assertions: true, questions: true, vocabulary: true } },
+      },
+    });
+
+    if (!source) {
+      return NextResponse.json({ ok: false, error: "Source not found" }, { status: 404 });
+    }
+
+    if (!source.isActive && source.archivedAt) {
+      return NextResponse.json({ ok: false, error: "Source is already archived" }, { status: 400 });
+    }
+
+    // Build usage summary
+    const usage = {
+      subjects: source.subjects.map((ss) => ({
+        id: ss.subject.id,
+        name: ss.subject.name,
+        slug: ss.subject.slug,
+      })),
+      curricula: source.curricula.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+      })),
+      contentStats: {
+        assertions: source._count.assertions,
+        questions: source._count.questions,
+        vocabulary: source._count.vocabulary,
+      },
+    };
+
+    const inUse = usage.subjects.length > 0 || usage.curricula.length > 0;
+    if (inUse && !force) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Source is in use. Pass ?force=true to archive anyway.",
+          usage,
+        },
+        { status: 409 }
+      );
+    }
+
+    await prisma.contentSource.update({
+      where: { id: sourceId },
+      data: { isActive: false, archivedAt: new Date() },
+    });
+
+    return NextResponse.json({ ok: true, message: "Content source archived", usage });
+  } catch (error: any) {
+    console.error("[content-sources/:id] DELETE error:", error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }

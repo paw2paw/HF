@@ -95,7 +95,7 @@ export function PersonalityRadar({
   const axisEndpoints = traits.map((_, i) => traitToPoint(i, 1.0, n, cx, cy, radius));
 
   // Polygon fill color — use first trait color as base
-  const fillColor = traits[0]?.color || "#3b82f6";
+  const fillColor = traits[0]?.color || "var(--accent-primary)";
 
   // --- Compact mode: shape silhouette only ---
   if (compact) {

@@ -4,14 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
 import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
 import { DOCUMENT_TYPES } from "../shared/badges";
-
-interface StepProps {
-  setData: (key: string, value: unknown) => void;
-  getData: <T = unknown>(key: string) => T | undefined;
-  onNext: () => void;
-  onPrev: () => void;
-  endFlow: () => void;
-}
+import type { StepProps } from "../types";
 
 export default function ExtractStep({ setData, getData, onNext, onPrev }: StepProps) {
   const { addExtractionJob } = useBackgroundTaskQueue();
@@ -27,6 +20,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
   const [elapsed, setElapsed] = useState(0);
   const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   // Task ID for polling (UserTask ID returned from extract API as jobId)
   const [extractTaskId, setExtractTaskId] = useState<string | null>(null);
@@ -70,9 +64,15 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
   }, []);
 
   // Poll extraction task using the shared hook
-  const handleComplete = useCallback(async (_task: PollableTask) => {
+  const handleComplete = useCallback(async (task: PollableTask) => {
     if (tickRef.current) clearInterval(tickRef.current);
     setExtractTaskId(null);
+
+    // Capture warnings from task context
+    const ctx = task.context || {};
+    if (Array.isArray(ctx.warnings) && ctx.warnings.length > 0) {
+      setWarnings(ctx.warnings);
+    }
 
     // Fetch final counts for assertions, questions, vocabulary
     try {
@@ -170,10 +170,10 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>
-        Let the AI read your document
+        Extract Teaching Points
       </h2>
       <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" }}>
-        Confirm the document type, then extract teaching assertions from <strong>{sourceName}</strong>.
+        Confirm the document type below, then the AI will extract teaching points, questions, and vocabulary from <strong>{sourceName}</strong>.
       </p>
 
       {phase === "confirm" && (
@@ -186,10 +186,8 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
             <select
               value={documentType}
               onChange={(e) => handleChangeType(e.target.value)}
-              style={{
-                padding: "8px 12px", borderRadius: 6, border: "1px solid var(--border-default)",
-                backgroundColor: "var(--surface-primary)", color: "var(--text-primary)", fontSize: 14,
-              }}
+              className="hf-input"
+              style={{ width: "auto" }}
             >
               {DOCUMENT_TYPES.map((d) => (
                 <option key={d.value} value={d.value}>{d.icon} {d.label}</option>
@@ -198,19 +196,14 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
           </div>
           <div style={{ display: "flex", gap: 12 }}>
             <button onClick={handleExtract}
-              style={{
-                padding: "12px 32px", borderRadius: 8, border: "none",
-                background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
-                fontSize: 15, fontWeight: 700, cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-primary"
+              style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
             >
-              Extract Assertions
+              Extract Teaching Points
             </button>
             <button onClick={onPrev}
-              style={{
-                padding: "12px 24px", borderRadius: 8, border: "1px solid var(--border-default)",
-                background: "transparent", color: "var(--text-secondary)", fontSize: 14, cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-secondary"
+              style={{ padding: "12px 24px" }}
             >
               Back
             </button>
@@ -229,7 +222,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
               animation: "extract-pulse 1.5s ease-in-out infinite",
             }} />
             <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
-              Extracting... {extractedCount > 0 ? `${extractedCount} assertions found` : ""}
+              Extracting... {extractedCount > 0 ? `${extractedCount} teaching points found` : ""}
             </span>
             <span style={{ marginLeft: "auto", fontSize: 14, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
               {timeStr}
@@ -253,62 +246,109 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
         </div>
       )}
 
-      {phase === "done" && (
-        <div style={{
-          padding: 24, borderRadius: 12, border: "2px solid var(--status-success-text, #16a34a)",
-          background: "var(--status-success-bg, #dcfce7)", textAlign: "center",
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>{"\u2705"}</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
-            {extractedCount} teaching points extracted
-          </div>
-          {(questionCount > 0 || vocabCount > 0) && (
-            <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 4, fontSize: 14, color: "var(--text-secondary)" }}>
-              {questionCount > 0 && (
-                <span>{"\uD83D\uDCDD"} {questionCount} question{questionCount !== 1 ? "s" : ""}</span>
-              )}
-              {vocabCount > 0 && (
-                <span>{"\uD83D\uDCDA"} {vocabCount} vocabulary term{vocabCount !== 1 ? "s" : ""}</span>
+      {phase === "done" && (() => {
+        // Parse warnings into structured categories
+        const skippedWarnings = warnings.filter((w) => w.startsWith("Skipped "));
+        const linkedWarnings = warnings.filter((w) => w.startsWith("Linked "));
+        const referenceWarnings = warnings.filter((w) => w.includes("reference content"));
+        const figureWarnings = warnings.filter((w) => w.includes("fig:") || w.includes("Figure"));
+        const otherWarnings = warnings.filter(
+          (w) => !skippedWarnings.includes(w) && !linkedWarnings.includes(w) &&
+                 !referenceWarnings.includes(w) && !figureWarnings.includes(w)
+        );
+        const hasInsights = skippedWarnings.length > 0 || linkedWarnings.length > 0 ||
+                            referenceWarnings.length > 0 || otherWarnings.length > 0;
+
+        return (
+          <div className="hf-banner hf-banner-success" style={{
+            padding: 24, borderRadius: 12, borderWidth: 2, flexDirection: "column", alignItems: "stretch",
+          }}>
+            {/* Main result */}
+            <div style={{ textAlign: "center", marginBottom: hasInsights ? 20 : 16 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>{"\u2705"}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+                {extractedCount} teaching points extracted
+              </div>
+              {(questionCount > 0 || vocabCount > 0) && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 4, fontSize: 14, color: "var(--text-secondary)" }}>
+                  {questionCount > 0 && (
+                    <span>{"\uD83D\uDCDD"} {questionCount} question{questionCount !== 1 ? "s" : ""}</span>
+                  )}
+                  {vocabCount > 0 && (
+                    <span>{"\uD83D\uDCDA"} {vocabCount} vocabulary term{vocabCount !== 1 ? "s" : ""}</span>
+                  )}
+                </div>
               )}
             </div>
-          )}
-          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
-            Ready for review.
+
+            {/* Extraction insights */}
+            {hasInsights && (
+              <div style={{
+                padding: "12px 16px", borderRadius: 8,
+                background: "color-mix(in srgb, var(--surface-primary) 70%, transparent)",
+                marginBottom: 16, fontSize: 13, lineHeight: 1.6,
+              }}>
+                <div style={{ fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+                  Extraction details
+                </div>
+                {skippedWarnings.map((w, i) => (
+                  <div key={`skip-${i}`} style={{ color: "var(--text-muted)" }}>
+                    {"\u23ED\uFE0F"} {w}
+                  </div>
+                ))}
+                {referenceWarnings.map((w, i) => (
+                  <div key={`ref-${i}`} style={{ color: "var(--text-muted)" }}>
+                    {"\uD83D\uDCCB"} {w}
+                  </div>
+                ))}
+                {linkedWarnings.map((w, i) => (
+                  <div key={`link-${i}`} style={{ color: "var(--text-muted)" }}>
+                    {"\uD83D\uDD17"} {w}
+                  </div>
+                ))}
+                {otherWarnings.map((w, i) => (
+                  <div key={`other-${i}`} style={{ color: "var(--text-muted)" }}>
+                    {w}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!hasInsights && (
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16, textAlign: "center" }}>
+                Ready for review.
+              </div>
+            )}
+
+            <div style={{ textAlign: "center" }}>
+              <button onClick={onNext}
+                className="hf-btn hf-btn-primary"
+                style={{ padding: "12px 32px", fontSize: 15, fontWeight: 700 }}
+              >
+                Continue to Review
+              </button>
+            </div>
           </div>
-          <button onClick={onNext}
-            style={{
-              padding: "12px 32px", borderRadius: 8, border: "none",
-              background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)",
-              fontSize: 15, fontWeight: 700, cursor: "pointer",
-            }}
-          >
-            Continue to Review
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {phase === "error" && (
-        <div style={{
-          padding: 24, borderRadius: 12, border: "1px solid color-mix(in srgb, var(--status-error-text) 30%, transparent)",
-          background: "var(--status-error-bg)",
+        <div className="hf-banner hf-banner-error" style={{
+          padding: 24, borderRadius: 12, flexDirection: "column", alignItems: "stretch", gap: 12,
         }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-error-text)", marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--status-error-text)" }}>
             Extraction failed: {error}
           </div>
           <div style={{ display: "flex", gap: 12 }}>
             <button onClick={() => { setPhase("confirm"); setError(null); }}
-              style={{
-                padding: "10px 24px", borderRadius: 6, border: "none",
-                background: "var(--accent-primary)", color: "var(--button-primary-text, #fff)", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-primary"
+              style={{ padding: "10px 24px", fontSize: 13, fontWeight: 600 }}
             >
               Try Again
             </button>
             <button onClick={onPrev}
-              style={{
-                padding: "10px 24px", borderRadius: 6, border: "1px solid var(--border-default)",
-                background: "transparent", color: "var(--text-secondary)", fontSize: 13, cursor: "pointer",
-              }}
+              className="hf-btn hf-btn-secondary"
+              style={{ padding: "10px 24px", fontSize: 13 }}
             >
               Back
             </button>

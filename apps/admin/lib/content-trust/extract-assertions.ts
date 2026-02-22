@@ -16,6 +16,7 @@ import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { resolveExtractionConfig, type ExtractionConfig, type DocumentType } from "./resolve-config";
 import type { DocumentSection } from "./segment-document";
+import { filterSections, detectFigureRefs } from "./filter-sections";
 import crypto from "crypto";
 
 // ------------------------------------------------------------------
@@ -34,6 +35,8 @@ export interface ExtractedAssertion {
   examRelevance?: number;
   learningOutcomeRef?: string;
   contentHash: string;
+  /** Figure/diagram/table references detected in this assertion's source text */
+  figureRefs?: string[];
 }
 
 export interface ExtractionResult {
@@ -233,6 +236,7 @@ async function extractFromChunk(
     options.focusChapters?.length
       ? `Focus on: ${options.focusChapters.join(", ")}`
       : "",
+    `\nIf the text references any figures, diagrams, images, or illustrations (e.g. "Figure 1.2", "Fig. 3", "Diagram A", "see image"), include a "figureRefs" array in each relevant assertion, e.g. ["Figure 1.2", "Diagram A"].`,
     `\n---\n${chunk}\n---`,
   ].filter(Boolean).join("\n");
 
@@ -283,6 +287,7 @@ async function extractFromChunk(
         validUntil: item.validUntil || undefined,
         taxYear: item.taxYear || undefined,
         contentHash: hashAssertion(item.assertion || ""),
+        figureRefs: Array.isArray(item.figureRefs) ? item.figureRefs : undefined,
       }));
     } catch (err: any) {
       const isLastAttempt = attempt === MAX_CHUNK_RETRIES - 1;
@@ -396,8 +401,13 @@ export async function extractAssertionsSegmented(
   const warnings: string[] = [];
   let totalChunksProcessed = 0;
 
-  for (let sIdx = 0; sIdx < sections.length; sIdx++) {
-    const section = sections[sIdx];
+  // Apply smart section filtering (skip TOC, index, copyright, etc.)
+  const filterResult = await filterSections(fullText, sections);
+  const filteredSections = filterResult.sections;
+  warnings.push(...filterResult.warnings);
+
+  for (let sIdx = 0; sIdx < filteredSections.length; sIdx++) {
+    const section = filteredSections[sIdx];
     const sectionText = fullText.substring(section.startOffset, section.endOffset);
 
     if (!sectionText.trim()) continue;
@@ -415,6 +425,13 @@ export async function extractAssertionsSegmented(
       continue;
     }
 
+    // Detect figure refs via regex as fallback for AI-detected ones
+    const regexFigureRefs = detectFigureRefs(sectionText);
+    const sectionFigureRefs = new Set([
+      ...(section.figureRefs || []),
+      ...regexFigureRefs,
+    ]);
+
     // Enrich assertions with section metadata
     for (const assertion of sectionResult.assertions) {
       assertion.chapter = assertion.chapter || section.title;
@@ -422,7 +439,17 @@ export async function extractAssertionsSegmented(
         ...assertion.tags,
         `role:${section.pedagogicalRole}`,
         ...(section.hasAnswerKey ? ["has-answers"] : []),
+        ...(section.filterAction === "reference" ? ["reference-content"] : []),
       ];
+
+      // Tag figure references (AI-detected per-assertion + section-level)
+      const assertionFigRefs = new Set([
+        ...(assertion.figureRefs || []),
+        ...sectionFigureRefs,
+      ]);
+      if (assertionFigRefs.size > 0) {
+        assertion.tags.push(...[...assertionFigRefs].map((ref) => `fig:${ref}`));
+      }
     }
 
     allAssertions.push(...sectionResult.assertions);
@@ -430,7 +457,7 @@ export async function extractAssertionsSegmented(
     totalChunksProcessed++;
 
     // Report overall progress
-    options.onChunkDone?.(sIdx, sections.length, allAssertions.length);
+    options.onChunkDone?.(sIdx, filteredSections.length, allAssertions.length);
   }
 
   // Deduplicate across sections
@@ -451,3 +478,13 @@ export async function extractAssertionsSegmented(
     warnings,
   };
 }
+
+// ── FUTURE: Image Extraction ──
+// TODO: When ready to extract actual images from PDFs:
+// 1. Upgrade pdf-parse to v2.4.5+ (supports image extraction) OR switch to pdfjs-dist
+// 2. Create extractImagesFromPdf(buffer) → { images: Buffer[], captions: string[], positions: number[] }
+// 3. Auto-create MediaAsset records for each extracted image
+// 4. Add mediaId FK to ContentAssertion (schema migration)
+// 5. Link assertions with fig: tags to their MediaAsset via caption matching
+// 6. Update prompt composition to include visual content in rendered teaching materials
+// See: lib/content-trust/extract-assertions.ts, prisma/schema.prisma (MediaAsset model)

@@ -19,6 +19,7 @@ import {
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
 import { embedAssertionsForSource } from "@/lib/embeddings";
+import { linkContentForSource } from "@/lib/content-trust/link-content";
 import { getStorageAdapter } from "@/lib/storage";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
@@ -270,11 +271,28 @@ async function runBackgroundExtraction(
     vocabularyCreated = vResult.created;
   }
 
+  // Link questions/vocabulary to their best-matching assertions
+  let linkingWarnings: string[] = [];
+  if (questionsCreated > 0 || vocabularyCreated > 0) {
+    try {
+      const linkResult = await linkContentForSource(sourceId);
+      linkingWarnings = linkResult.warnings;
+      console.log(
+        `[extract] Linking for ${sourceId}: ${linkResult.questionsLinked}q linked, ${linkResult.questionsOrphaned}q orphaned, ` +
+        `${linkResult.vocabularyLinked}v linked, ${linkResult.vocabularyOrphaned}v orphaned`,
+      );
+    } catch (err: any) {
+      console.error(`[extract] Content linking failed for source ${sourceId}:`, err);
+      linkingWarnings = [`Content linking failed: ${err.message}`];
+    }
+  }
+
   await updateJob(jobId, {
     status: "done",
     importedCount: created,
     duplicatesSkipped,
     extractedCount: assertionResult.assertions.length,
+    warnings: [...(assertionResult.warnings || []), ...linkingWarnings],
   });
 
   console.log(`[extract] Source ${sourceId}: ${created} assertions, ${questionsCreated} questions, ${vocabularyCreated} vocabulary items`);

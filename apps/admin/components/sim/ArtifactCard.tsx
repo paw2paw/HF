@@ -16,20 +16,20 @@ interface Artifact {
 }
 
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  SUMMARY: { icon: '\u{1F4CB}', label: 'Summary', color: '#1B5E20' },
-  KEY_FACT: { icon: '\u{1F4A1}', label: 'Key Fact', color: '#E65100' },
-  FORMULA: { icon: '\u{1F9EE}', label: 'Formula', color: '#4A148C' },
-  EXERCISE: { icon: '\u{270F}\u{FE0F}', label: 'Exercise', color: '#0D47A1' },
-  RESOURCE_LINK: { icon: '\u{1F4D6}', label: 'Resource', color: '#006064' },
-  STUDY_NOTE: { icon: '\u{1F4DD}', label: 'Study Note', color: '#33691E' },
-  REMINDER: { icon: '\u{23F0}', label: 'Reminder', color: '#BF360C' },
-  MEDIA: { icon: '\u{1F4CE}', label: 'Media', color: '#37474F' },
+  SUMMARY: { icon: '\u{1F4CB}', label: 'Summary', color: 'var(--status-success-text)' },
+  KEY_FACT: { icon: '\u{1F4A1}', label: 'Key Fact', color: 'var(--status-warning-text)' },
+  FORMULA: { icon: '\u{1F9EE}', label: 'Formula', color: 'var(--text-muted)' },
+  EXERCISE: { icon: '\u{270F}\u{FE0F}', label: 'Exercise', color: 'var(--accent-primary)' },
+  RESOURCE_LINK: { icon: '\u{1F4D6}', label: 'Resource', color: 'var(--accent-primary)' },
+  STUDY_NOTE: { icon: '\u{1F4DD}', label: 'Study Note', color: 'var(--status-success-text)' },
+  REMINDER: { icon: '\u{23F0}', label: 'Reminder', color: 'var(--status-error-text)' },
+  MEDIA: { icon: '\u{1F4CE}', label: 'Media', color: 'var(--text-primary)' },
 };
 
 const TRUST_BADGE: Record<string, { label: string; bg: string; fg: string }> = {
-  VERIFIED: { label: 'Verified', bg: '#E8F5E9', fg: '#2E7D32' },
-  INFERRED: { label: 'AI Generated', bg: '#FFF3E0', fg: '#E65100' },
-  UNVERIFIED: { label: 'Unverified', bg: '#FAFAFA', fg: '#9E9E9E' },
+  VERIFIED: { label: 'Verified', bg: 'var(--status-success-bg)', fg: 'var(--status-success-text)' },
+  INFERRED: { label: 'AI Generated', bg: 'color-mix(in srgb, var(--status-warning) 12%, transparent)', fg: 'var(--status-warning-text)' },
+  UNVERIFIED: { label: 'Unverified', bg: 'var(--surface-secondary)', fg: 'var(--text-muted)' },
 };
 
 export function ArtifactCard({ artifact }: { artifact: Artifact }) {

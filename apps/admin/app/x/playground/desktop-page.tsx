@@ -7,6 +7,7 @@ import { useTerminology } from "@/contexts/TerminologyContext";
 import { VerticalSlider } from "@/components/shared/VerticalSlider";
 import { CallerPicker } from "@/components/shared/CallerPicker";
 import { FancySelect } from "@/components/shared/FancySelect";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import {
   entityColors,
   specTypeColors,
@@ -322,7 +323,7 @@ export default function PlaygroundPage() {
   const [error, setError] = useState<string | null>(null);
   const [callerSearch, setCallerSearch] = useState("");
   const [showCallerDropdown, setShowCallerDropdown] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
 
   // Create Caller modal state
   const [showCreateCallerModal, setShowCreateCallerModal] = useState(false);
@@ -642,10 +643,8 @@ export default function PlaygroundPage() {
     const text = outputMode === "raw"
       ? JSON.stringify(generatedPrompt.llmPrompt, null, 2)
       : generatedPrompt.prompt;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [generatedPrompt, outputMode]);
+    copyText(text);
+  }, [generatedPrompt, outputMode, copyText]);
 
   // =============================================================================
   // DIFF COMPUTATION
@@ -1504,11 +1503,7 @@ export default function PlaygroundPage() {
                         </button>
                       </div>
                       <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(outputMode === "raw" ? JSON.stringify(generatedPrompt.llmPrompt, null, 2) : generatedPrompt.prompt);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
+                        onClick={() => handleCopy()}
                         style={{ padding: "4px 10px", fontSize: 11, color: copied ? "var(--status-success-text)" : "var(--text-muted)", background: copied ? "var(--status-success-bg, #d1fae5)" : "var(--surface-secondary)", border: "none", borderRadius: 4, cursor: "pointer" }}
                       >
                         {copied ? "Copied!" : "Copy"}

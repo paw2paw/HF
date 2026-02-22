@@ -8,7 +8,6 @@ import { useViewMode } from "@/contexts/ViewModeContext";
 import { AdvancedSection } from "@/components/shared/AdvancedSection";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
-import { theme } from "@/lib/styles/theme";
 import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
 import { ProgressStepper } from "@/components/shared/ProgressStepper";
 
@@ -65,7 +64,7 @@ function TrustBadge({ level }: { level: string }) {
 
 function TagPills({ tags }: { tags: string[] }) {
   return (
-    <span style={{ display: "inline-flex", gap: 3 }}>
+    <span className="hf-flex" style={{ gap: 3 }}>
       {tags.map((tag) => {
         const cfg = SOURCE_TAGS.find((t) => t.value === tag);
         const c = cfg?.color || "var(--text-muted)";
@@ -76,7 +75,7 @@ function TagPills({ tags }: { tags: string[] }) {
         );
       })}
       {tags.length === 0 && (
-        <span style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>no tags</span>
+        <span className="hf-text-xs hf-text-muted" style={{ fontStyle: "italic" }}>no tags</span>
       )}
     </span>
   );
@@ -691,8 +690,8 @@ export default function SubjectDetailPage() {
   // Render
   // ------------------------------------------------------------------
 
-  if (loading) return <div style={{ padding: 24, color: "var(--text-muted)" }}>Loading...</div>;
-  if (!subject) return <div style={{ padding: 24, color: "var(--status-error-text)" }}>Subject not found</div>;
+  if (loading) return <div className="hf-p-lg hf-text-muted">Loading...</div>;
+  if (!subject) return <div className="hf-p-lg hf-text-error">Subject not found</div>;
 
   const linkedDomainIds = new Set(subject.domains.map((d) => d.domain.id));
   const availableDomains = allDomains.filter((d) => !linkedDomainIds.has(d.id));
@@ -703,26 +702,26 @@ export default function SubjectDetailPage() {
   const curriculumModules: CurriculumModule[] = curriculum?.notableInfo?.modules || [];
 
   return (
-    <div style={theme.page}>
+    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto", color: "var(--text-primary)" }}>
       {/* Back link */}
       <button
         onClick={() => router.push("/x/subjects")}
-        style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 13, marginBottom: 16, padding: 0 }}
+        className="hf-btn-unstyled hf-text-sm hf-text-muted hf-mb-md"
       >
         &larr; All Subjects
       </button>
 
       {/* Error */}
       {error && (
-        <div style={{ ...theme.errorAlert, fontSize: 13 }}>
+        <div className="hf-banner hf-banner-error hf-text-sm hf-mb-md">
           {error}
-          <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", cursor: "pointer", color: "var(--status-error-text)" }}>x</button>
+          <button onClick={() => setError(null)} className="hf-btn-unstyled hf-text-error" style={{ float: "right" }}>x</button>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid var(--border-default)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+      <div className="hf-mb-lg" style={{ paddingBottom: 16, borderBottom: "1px solid var(--border-default)" }}>
+        <div className="hf-flex hf-gap-md hf-mb-sm" style={{ alignItems: "center" }}>
           {editingName ? (
             <input
               value={editName}
@@ -741,7 +740,8 @@ export default function SubjectDetailPage() {
           ) : (
             <h1
               onClick={() => setEditingName(true)}
-              style={{ ...theme.h1, cursor: "pointer" }}
+              className="hf-page-title"
+              style={{ cursor: "pointer", margin: 0 }}
               title="Click to edit"
             >
               {subject.name}
@@ -749,7 +749,7 @@ export default function SubjectDetailPage() {
           )}
           <TrustBadge level={subject.defaultTrustLevel} />
           {subject.qualificationLevel && (
-            <span style={{ fontSize: 12, padding: "2px 8px", borderRadius: 4, background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
+            <span className="hf-text-xs hf-badge hf-badge-muted">
               {subject.qualificationLevel}
             </span>
           )}
@@ -766,12 +766,14 @@ export default function SubjectDetailPage() {
             }}
             autoFocus
             rows={2}
-            style={{ width: "100%", fontSize: 14, border: "1px solid var(--accent-primary)", borderRadius: 4, padding: 8, resize: "vertical" }}
+            className="hf-input hf-text-md"
+            style={{ resize: "vertical", border: "1px solid var(--accent-primary)" }}
           />
         ) : (
           <p
             onClick={() => setEditingDesc(true)}
-            style={{ margin: 0, fontSize: 14, color: "var(--text-muted)", cursor: "pointer" }}
+            className="hf-text-md hf-text-muted"
+            style={{ margin: 0, cursor: "pointer" }}
             title="Click to edit"
           >
             {subject.description || "Click to add description..."}
@@ -779,37 +781,29 @@ export default function SubjectDetailPage() {
         )}
 
         {/* Trust level selector + stats + actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Default trust:</span>
+        <div className="hf-flex hf-gap-lg hf-mt-md" style={{ alignItems: "center" }}>
+          <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+            <span className="hf-text-xs hf-text-bold">Default trust:</span>
             <select
               value={subject.defaultTrustLevel}
               onChange={(e) => saveSubjectField("defaultTrustLevel", e.target.value)}
-              style={{ fontSize: 12, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-default)" }}
+              className="hf-text-xs"
+              style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-default)" }}
             >
               {TRUST_LEVELS.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
           </div>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+          <span className="hf-text-sm hf-text-muted">
             {subject.sources.length} sources / {totalAssertions} assertions
           </span>
           <button
             onClick={() => {
               router.push(`/x/content-sources`);
             }}
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "5px 12px",
-              borderRadius: 6,
-              border: "1px solid var(--border-default)",
-              background: "var(--surface-secondary)",
-              color: "var(--accent-primary)",
-              cursor: "pointer",
-              marginLeft: "auto",
-            }}
+            className="hf-btn hf-btn-secondary hf-text-xs hf-text-bold"
+            style={{ marginLeft: "auto" }}
           >
             Content Wizard
           </button>
@@ -848,7 +842,7 @@ export default function SubjectDetailPage() {
 
       {/* === SOURCES SECTION === */}
       <section id="section-sources" style={{ marginBottom: 32 }}>
-        <h2 style={{ ...theme.h2, marginBottom: 12 }}>Sources</h2>
+        <h2 className="hf-section-title hf-mb-md">Sources</h2>
 
         {/* Source cards — unclassified (0 assertions + ai:*) float to top */}
         {subject.sources.length > 0 && (() => {
@@ -858,15 +852,15 @@ export default function SubjectDetailPage() {
             return aAwaiting - bAwaiting;
           });
           return (
-            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+            <div className="hf-mb-md" style={{ display: "grid", gap: 8 }}>
               {sorted.map((ss) => {
                 const awaiting = ss.source._count.assertions === 0 && ss.source.documentTypeSource?.startsWith("ai:");
                 const isExtracting = extractingSourceIds.has(ss.sourceId);
                 return (
                   <div
                     key={ss.id}
+                    className="hf-p-md"
                     style={{
-                      padding: 16,
                       borderRadius: 10,
                       border: awaiting
                         ? "1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent)"
@@ -877,17 +871,17 @@ export default function SubjectDetailPage() {
                     }}
                   >
                     {/* Row 1: badges + name + stats */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                    <div className="hf-flex-between">
+                      <div className="hf-flex hf-gap-sm" style={{ alignItems: "center", flex: 1 }}>
                         <TagPills tags={ss.tags || []} />
                         <DocumentTypeBadge type={ss.source.documentType} source={ss.source.documentTypeSource} />
-                        <span style={{ fontWeight: 600, fontSize: 14 }}>{ss.source.name}</span>
+                        <span className="hf-text-md hf-text-bold">{ss.source.name}</span>
                         <TrustBadge level={ss.trustLevelOverride || ss.source.trustLevel} />
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        <span className="hf-text-xs hf-text-muted">
                           {ss.source._count.assertions} assertions
                         </span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
                         {isAdvanced && SOURCE_TAGS.map((tag) => {
                           const active = ss.tags?.includes(tag.value);
                           return (
@@ -914,7 +908,8 @@ export default function SubjectDetailPage() {
                         })}
                         <button
                           onClick={() => removeSource(ss.sourceId)}
-                          style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}
+                          className="hf-btn-unstyled hf-text-error hf-text-sm"
+                          style={{ padding: "2px 6px" }}
                           title="Remove from subject"
                         >
                           x
@@ -924,12 +919,13 @@ export default function SubjectDetailPage() {
 
                     {/* Row 2: Classification actions (awaiting sources — file stored, ready to extract) */}
                     {isAdvanced && awaiting && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Type:</span>
+                      <div className="hf-flex hf-gap-sm hf-mt-sm" style={{ alignItems: "center", paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
+                        <span className="hf-text-xs hf-text-bold hf-text-muted">Type:</span>
                         <select
                           value={ss.source.documentType}
                           onChange={(e) => changeDocumentType(ss.sourceId, e.target.value)}
-                          style={{ fontSize: 12, padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-default)" }}
+                          className="hf-text-xs"
+                          style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid var(--border-default)" }}
                         >
                           {DOCUMENT_TYPES.map((t) => (
                             <option key={t.value} value={t.value}>{t.label} — {t.desc}</option>
@@ -938,11 +934,8 @@ export default function SubjectDetailPage() {
                         <button
                           onClick={() => triggerExtraction(ss.sourceId, ss.source.name)}
                           disabled={isExtracting}
+                          className="hf-btn hf-btn-primary hf-text-xs hf-text-bold"
                           style={{
-                            ...theme.btnSmall,
-                            background: "var(--accent-primary)",
-                            color: "var(--accent-primary-text)",
-                            fontWeight: 600,
                             cursor: isExtracting ? "wait" : "pointer",
                             opacity: isExtracting ? 0.6 : 1,
                           }}
@@ -951,10 +944,7 @@ export default function SubjectDetailPage() {
                         </button>
                         <button
                           onClick={() => loadSubject()}
-                          style={{
-                            ...theme.btnSmall,
-                            border: "1px solid var(--border-default)",
-                          }}
+                          className="hf-btn hf-btn-secondary hf-text-xs"
                           title="Keep this document for lesson use without extracting assertions"
                         >
                           Store for Lessons
@@ -970,15 +960,14 @@ export default function SubjectDetailPage() {
 
         {/* Upload results */}
         {uploadResults.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          <div className="hf-mb-md">
             {uploadResults.map((r, i) => (
               <div
                 key={i}
+                className="hf-text-sm hf-mb-xs"
                 style={{
                   padding: 8,
                   borderRadius: 4,
-                  marginBottom: 4,
-                  fontSize: 13,
                   background: r.ok ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : "var(--status-error-bg)",
                   color: r.ok ? "var(--text-primary)" : "var(--status-error-text)",
                 }}
@@ -990,7 +979,7 @@ export default function SubjectDetailPage() {
             ))}
             <button
               onClick={() => setUploadResults([])}
-              style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", marginTop: 4 }}
+              className="hf-btn-unstyled hf-text-xs hf-text-muted hf-mt-xs"
             >
               Dismiss
             </button>
@@ -999,7 +988,7 @@ export default function SubjectDetailPage() {
 
         {/* Currently uploading */}
         {uploadingFiles.length > 0 && (
-          <div style={{ marginBottom: 16, fontSize: 13, color: "var(--text-muted)" }}>
+          <div className="hf-mb-md hf-text-sm hf-text-muted">
             Uploading &amp; classifying: {uploadingFiles.join(", ")}...
           </div>
         )}
@@ -1011,11 +1000,11 @@ export default function SubjectDetailPage() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          className="hf-text-center"
           style={{
             border: `2px dashed ${isDragging ? "var(--accent-primary)" : "var(--border-default)"}`,
             borderRadius: 8,
             padding: 32,
-            textAlign: "center",
             cursor: "pointer",
             transition: "all 0.15s",
             background: isDragging ? "color-mix(in srgb, var(--accent-primary) 5%, transparent)" : "transparent",
@@ -1030,10 +1019,10 @@ export default function SubjectDetailPage() {
             style={{ display: "none" }}
           />
           <div style={{ fontSize: 28, marginBottom: 8 }}>{isDragging ? "+" : ""}</div>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: isDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
+          <p className="hf-text-bold" style={{ fontSize: 15, margin: "0 0 4px", color: isDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
             {isDragging ? "Drop files here" : "Drag documents here or click to upload"}
           </p>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+          <p className="hf-text-sm hf-text-muted" style={{ margin: 0 }}>
             PDF, TXT, MD, JSON &mdash; documents will be auto-classified, then extracted after you confirm the type
           </p>
         </div>
@@ -1041,12 +1030,12 @@ export default function SubjectDetailPage() {
 
       {/* === CURRICULUM SECTION === */}
       <section id="section-curriculum" style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ ...theme.h2 }}>Curriculum</h2>
+        <div className="hf-flex-between hf-mb-md">
+          <h2 className="hf-section-title">Curriculum</h2>
           {isAdvanced && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
               {generatingCurriculum && (
-                <span style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600 }}>
+                <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
                   Generating in background...
                 </span>
               )}
@@ -1054,9 +1043,8 @@ export default function SubjectDetailPage() {
                 <button
                   onClick={generateCurriculum}
                   disabled={generatingCurriculum}
+                  className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
                   style={{
-                    ...theme.btnSecondary, fontSize: 13, fontWeight: 600,
-                    border: "1px solid var(--border-default)",
                     cursor: generatingCurriculum ? "not-allowed" : "pointer",
                     opacity: generatingCurriculum ? 0.6 : 1,
                   }}
@@ -1077,31 +1065,27 @@ export default function SubjectDetailPage() {
         <AdvancedSection label="Curriculum generation">
           {/* Auto-trigger notice */}
           {activeExtractionJobs.length > 0 && !generatingCurriculum && (
-            <div style={{
-              ...theme.infoPanel,
-              background: "color-mix(in srgb, var(--accent-primary) 8%, transparent)",
-              marginBottom: 12,
-            }}>
+            <div className="hf-banner hf-banner-info hf-mb-md">
               {activeExtractionJobs.length} extraction{activeExtractionJobs.length > 1 ? "s" : ""} running &mdash; curriculum will generate automatically when complete.
             </div>
           )}
 
           {/* Curriculum preview (unsaved) */}
           {curriculumPreview && (
-            <div style={{ ...theme.cardHighlight, marginBottom: 16, background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontWeight: 600, fontSize: 14, color: "var(--accent-primary)" }}>Generated Preview</span>
-                <div style={{ display: "flex", gap: 8 }}>
+            <div className="hf-card hf-mb-md" style={{ border: "2px solid var(--accent-primary)", background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)" }}>
+              <div className="hf-flex-between hf-mb-md">
+                <span className="hf-text-md hf-text-bold" style={{ color: "var(--accent-primary)" }}>Generated Preview</span>
+                <div className="hf-flex hf-gap-sm">
                   <button
                     onClick={saveCurriculum}
                     disabled={saving}
-                    style={{ ...theme.btnPrimary, fontSize: 13 }}
+                    className="hf-btn hf-btn-primary hf-text-sm"
                   >
                     {saving ? "Saving..." : "Save Curriculum"}
                   </button>
                   <button
                     onClick={() => setCurriculumPreview(null)}
-                    style={{ ...theme.btnSecondary, fontSize: 13, border: "1px solid var(--border-default)" }}
+                    className="hf-btn hf-btn-secondary hf-text-sm"
                   >
                     Discard
                   </button>
@@ -1119,12 +1103,12 @@ export default function SubjectDetailPage() {
 
         {/* No curriculum yet */}
         {!curriculum && !curriculumPreview && totalAssertions === 0 && (
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <p className="hf-text-md hf-text-muted">
             Upload documents first, then generate a curriculum from the extracted content.
           </p>
         )}
         {!curriculum && !curriculumPreview && totalAssertions > 0 && (
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <p className="hf-text-md hf-text-muted">
             {totalAssertions} assertions ready. Click &quot;Generate&quot; to create a curriculum structure.
           </p>
         )}
@@ -1133,11 +1117,11 @@ export default function SubjectDetailPage() {
       {/* === LESSON PLAN SECTION === */}
       {curriculum && (
         <section id="section-lesson-plan" style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ ...theme.h2 }}>Lesson Plan</h2>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="hf-flex-between hf-mb-md">
+            <h2 className="hf-section-title">Lesson Plan</h2>
+            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
               {lessonPlanGenerating && (
-                <span style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 600 }}>
+                <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
                   Generating...
                 </span>
               )}
@@ -1149,13 +1133,12 @@ export default function SubjectDetailPage() {
             <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
           )}
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+          <div className="hf-flex hf-gap-sm hf-mb-md" style={{ alignItems: "center" }}>
               <button
                 onClick={generateLessonPlan}
                 disabled={lessonPlanGenerating}
+                className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
                 style={{
-                  ...theme.btnSecondary, fontSize: 13, fontWeight: 600,
-                  border: "1px solid var(--border-default)",
                   cursor: lessonPlanGenerating ? "not-allowed" : "pointer",
                   opacity: lessonPlanGenerating ? 0.6 : 1,
                 }}
@@ -1168,10 +1151,7 @@ export default function SubjectDetailPage() {
                     setLessonPlanDraft(lessonPlan.entries || []);
                     setLessonPlanEditing(true);
                   }}
-                  style={{
-                    ...theme.btnSecondary, fontSize: 13,
-                    border: "1px solid var(--border-default)",
-                  }}
+                  className="hf-btn hf-btn-secondary hf-text-sm"
                 >
                   Edit
                 </button>
@@ -1180,11 +1160,7 @@ export default function SubjectDetailPage() {
 
           {/* AI reasoning */}
           {lessonPlanReasoning && lessonPlanEditing && (
-            <div style={{
-              ...theme.infoPanel, marginBottom: 12,
-              background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
-              fontStyle: "italic",
-            }}>
+            <div className="hf-banner hf-banner-info hf-mb-md" style={{ fontStyle: "italic" }}>
               AI reasoning: {lessonPlanReasoning}
             </div>
           )}
@@ -1208,44 +1184,43 @@ export default function SubjectDetailPage() {
 
           {/* No plan yet */}
           {!lessonPlanEditing && !lessonPlan && !lessonPlanLoading && (
-            <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+            <p className="hf-text-md hf-text-muted">
               No lesson plan yet. Click &quot;Generate Plan&quot; to create one from the curriculum.
             </p>
           )}
           {lessonPlanLoading && (
-            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading plan...</p>
+            <p className="hf-text-sm hf-text-muted">Loading plan...</p>
           )}
         </section>
       )}
 
       {/* === DOMAINS SECTION === */}
       <section id="section-domains" style={{ marginBottom: 32 }}>
-        <h2 style={{ ...theme.h2, marginBottom: 12 }}>Domains</h2>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: -8, marginBottom: 12 }}>
+        <h2 className="hf-section-title hf-mb-md">Domains</h2>
+        <p className="hf-text-sm hf-text-muted hf-mb-md" style={{ marginTop: -8 }}>
           Link this subject to domains so the AI tutor can teach it to callers in those domains.
         </p>
 
         {/* Linked domains */}
         {subject.domains.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          <div className="hf-flex hf-flex-wrap hf-gap-sm hf-mb-md">
             {subject.domains.map((sd) => (
               <div
                 key={sd.id}
+                className="hf-flex hf-gap-sm hf-text-sm"
                 style={{
-                  display: "flex",
                   alignItems: "center",
-                  gap: 6,
                   padding: "6px 12px",
                   borderRadius: 6,
                   border: "1px solid var(--border-default)",
                   background: "var(--surface-secondary)",
-                  fontSize: 13,
                 }}
               >
-                <span style={{ fontWeight: 600 }}>{sd.domain.name}</span>
+                <span className="hf-text-bold">{sd.domain.name}</span>
                 <button
                   onClick={() => unlinkDomain(sd.domain.id)}
-                  style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", fontSize: 12, padding: "0 2px" }}
+                  className="hf-btn-unstyled hf-text-error hf-text-xs"
+                  style={{ padding: "0 2px" }}
                   title="Unlink domain"
                 >
                   x
@@ -1257,11 +1232,12 @@ export default function SubjectDetailPage() {
 
         {/* Add domain */}
         {availableDomains.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
             <select
               id="link-domain-select"
               defaultValue=""
-              style={{ fontSize: 13, padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-default)" }}
+              className="hf-text-sm"
+              style={{ padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-default)" }}
             >
               <option value="" disabled>Select domain...</option>
               {availableDomains.map((d) => (
@@ -1274,10 +1250,7 @@ export default function SubjectDetailPage() {
                 if (sel?.value) linkDomain(sel.value);
               }}
               disabled={linkingDomain}
-              style={{
-                ...theme.btnSecondary, fontSize: 13, fontWeight: 600,
-                border: "1px solid var(--border-default)",
-              }}
+              className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
             >
               {linkingDomain ? "Linking..." : "Link"}
             </button>
@@ -1285,49 +1258,40 @@ export default function SubjectDetailPage() {
         )}
 
         {availableDomains.length === 0 && subject.domains.length > 0 && (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>All domains are linked.</p>
+          <p className="hf-text-sm hf-text-muted">All domains are linked.</p>
         )}
         {allDomains.length === 0 && (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{`No ${plural("domain").toLowerCase()} configured yet. Create ${plural("domain").toLowerCase()} first.`}</p>
+          <p className="hf-text-sm hf-text-muted">{`No ${plural("domain").toLowerCase()} configured yet. Create ${plural("domain").toLowerCase()} first.`}</p>
         )}
       </section>
 
       {/* === MEDIA LIBRARY SECTION === */}
       <section style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ ...theme.h2 }}>Media Library</h2>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="hf-flex-between hf-mb-md">
+          <h2 className="hf-section-title">Media Library</h2>
+          <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
             {/* Type filter */}
             {["all", "image", "pdf", "audio"].map((f) => (
               <button
                 key={f}
                 onClick={() => setMediaTypeFilter(f)}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "4px 10px",
-                  borderRadius: 4,
-                  border: `1px solid ${mediaTypeFilter === f ? "var(--accent-primary)" : "var(--border-default)"}`,
-                  background: mediaTypeFilter === f ? "color-mix(in srgb, var(--accent-primary) 10%, transparent)" : "transparent",
-                  color: mediaTypeFilter === f ? "var(--accent-primary)" : "var(--text-muted)",
-                  cursor: "pointer",
-                  textTransform: "capitalize",
-                }}
+                className={mediaTypeFilter === f ? "hf-chip hf-chip-selected" : "hf-chip"}
+                style={{ textTransform: "capitalize" }}
               >
                 {f}
               </button>
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: -8, marginBottom: 12 }}>
+        <p className="hf-text-sm hf-text-muted hf-mb-md" style={{ marginTop: -8 }}>
           Images, PDFs, and audio files that the AI tutor can share with learners during conversations.
         </p>
 
         {/* Media grid */}
         {mediaLoading && mediaAssets.length === 0 ? (
-          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Loading media...</p>
+          <p className="hf-text-sm hf-text-muted">Loading media...</p>
         ) : mediaAssets.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+          <div className="hf-mb-md" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
             {mediaAssets.map((m) => {
               const isImage = m.mimeType.startsWith("image/");
               const isPdf = m.mimeType === "application/pdf";
@@ -1346,7 +1310,7 @@ export default function SubjectDetailPage() {
                   }}
                 >
                   {/* Preview */}
-                  <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--surface-secondary)" }}>
+                  <div className="hf-flex-center" style={{ height: 120, background: "var(--surface-secondary)" }}>
                     {isImage ? (
                       <img
                         src={`/api/media/${m.id}`}
@@ -1354,33 +1318,34 @@ export default function SubjectDetailPage() {
                         style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "cover" }}
                       />
                     ) : isPdf ? (
-                      <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                      <div className="hf-text-center hf-text-muted">
                         <div style={{ fontSize: 32 }}>PDF</div>
-                        <div style={{ fontSize: 11 }}>{sizeLabel}</div>
+                        <div className="hf-text-xs">{sizeLabel}</div>
                       </div>
                     ) : isAudio ? (
-                      <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                      <div className="hf-text-center hf-text-muted">
                         <div style={{ fontSize: 32 }}>AUD</div>
-                        <div style={{ fontSize: 11 }}>{sizeLabel}</div>
+                        <div className="hf-text-xs">{sizeLabel}</div>
                       </div>
                     ) : (
-                      <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                      <div className="hf-text-center hf-text-muted">
                         <div style={{ fontSize: 32 }}>FILE</div>
-                        <div style={{ fontSize: 11 }}>{sizeLabel}</div>
+                        <div className="hf-text-xs">{sizeLabel}</div>
                       </div>
                     )}
                   </div>
 
                   {/* Info */}
-                  <div style={{ padding: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={m.fileName}>
+                  <div className="hf-p-sm">
+                    <div className="hf-text-xs hf-text-bold hf-truncate" title={m.fileName}>
                       {m.title || m.fileName}
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                    <div className="hf-flex-between hf-mt-xs">
                       <TrustBadge level={m.trustLevel} />
                       <button
                         onClick={() => unlinkMedia(m.id)}
-                        style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", fontSize: 11, padding: "2px 4px" }}
+                        className="hf-btn-unstyled hf-text-error hf-text-xs"
+                        style={{ padding: "2px 4px" }}
                         title="Remove from subject"
                       >
                         Remove
@@ -1392,7 +1357,7 @@ export default function SubjectDetailPage() {
             })}
           </div>
         ) : (
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+          <p className="hf-text-sm hf-text-muted hf-mb-md">
             No media files yet. Upload images, PDFs, or audio below.
           </p>
         )}
@@ -1409,11 +1374,11 @@ export default function SubjectDetailPage() {
             if (e.dataTransfer.files?.length) handleMediaUpload(Array.from(e.dataTransfer.files));
           }}
           onClick={() => mediaFileRef.current?.click()}
+          className="hf-text-center"
           style={{
             border: `2px dashed ${mediaDragging ? "var(--accent-primary)" : "var(--border-default)"}`,
             borderRadius: 8,
             padding: 24,
-            textAlign: "center",
             cursor: mediaUploading ? "wait" : "pointer",
             transition: "all 0.15s",
             background: mediaDragging ? "color-mix(in srgb, var(--accent-primary) 5%, transparent)" : "transparent",
@@ -1431,10 +1396,10 @@ export default function SubjectDetailPage() {
             }}
             style={{ display: "none" }}
           />
-          <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px", color: mediaDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
+          <p className="hf-text-md hf-text-bold" style={{ margin: "0 0 4px", color: mediaDragging ? "var(--accent-primary)" : "var(--text-primary)" }}>
             {mediaUploading ? "Uploading..." : mediaDragging ? "Drop media here" : "Drag media files here or click to upload"}
           </p>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+          <p className="hf-text-xs hf-text-muted" style={{ margin: 0 }}>
             JPG, PNG, WebP, PDF, MP3, WAV, OGG &mdash; files the AI can share in conversations
           </p>
         </div>
@@ -1450,28 +1415,28 @@ export default function SubjectDetailPage() {
 function CurriculumView({ modules, name, description }: { modules: CurriculumModule[]; name?: string; description?: string }) {
   return (
     <div>
-      {name && <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 4 }}>{name}</h3>}
-      {description && <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>{description}</p>}
+      {name && <h3 className="hf-heading-md" style={{ marginTop: 0, marginBottom: 4 }}>{name}</h3>}
+      {description && <p className="hf-text-sm hf-text-muted" style={{ margin: "0 0 12px" }}>{description}</p>}
 
       {modules.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: 13 }}>No modules defined.</p>
+        <p className="hf-text-sm hf-text-muted">No modules defined.</p>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>
           {modules.map((mod) => (
-            <div key={mod.id} style={{ ...theme.card }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-primary)", fontFamily: "monospace" }}>{mod.id}</span>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>{mod.title}</span>
+            <div key={mod.id} className="hf-card-compact">
+              <div className="hf-flex hf-gap-sm hf-mb-sm" style={{ alignItems: "center" }}>
+                <span className="hf-text-xs hf-mono" style={{ fontWeight: 700, color: "var(--accent-primary)" }}>{mod.id}</span>
+                <span className="hf-text-md hf-text-bold">{mod.title}</span>
                 {mod.estimatedDurationMinutes && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{mod.estimatedDurationMinutes}min</span>
+                  <span className="hf-text-xs hf-text-muted">{mod.estimatedDurationMinutes}min</span>
                 )}
               </div>
               {mod.description && (
-                <p style={{ margin: "0 0 6px", fontSize: 13, color: "var(--text-muted)" }}>{mod.description}</p>
+                <p className="hf-text-sm hf-text-muted" style={{ margin: "0 0 6px" }}>{mod.description}</p>
               )}
               {mod.learningOutcomes.length > 0 && (
-                <div style={{ fontSize: 12 }}>
-                  <span style={{ fontWeight: 600, fontSize: 11, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.5px" }}>
+                <div className="hf-text-xs">
+                  <span className="hf-category-label">
                     Learning Outcomes
                   </span>
                   <ul style={{ margin: "4px 0 0", paddingLeft: 20 }}>
@@ -1482,9 +1447,9 @@ function CurriculumView({ modules, name, description }: { modules: CurriculumMod
                 </div>
               )}
               {mod.keyTerms && mod.keyTerms.length > 0 && (
-                <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <div className="hf-flex hf-flex-wrap hf-gap-xs hf-mt-sm">
                   {mod.keyTerms.map((t, i) => (
-                    <span key={i} style={{ fontSize: 10, padding: "1px 5px", borderRadius: 3, background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
+                    <span key={i} className="hf-micro-pill" style={{ background: "var(--surface-secondary)", color: "var(--text-muted)" }}>
                       {t}
                     </span>
                   ))}
@@ -1529,30 +1494,26 @@ function LessonPlanView({ entries }: { entries: any[] }) {
   if (entries.length === 0) return null;
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
+      <div className="hf-text-sm hf-text-bold hf-text-secondary hf-mb-sm">
         {entries.length} sessions planned
       </div>
       <div style={{ display: "grid", gap: 4 }}>
         {entries.map((e: any) => (
-          <div key={e.session} style={{
-            display: "flex", alignItems: "center", gap: 10, padding: "6px 10px",
-            borderRadius: 6, background: "var(--surface-primary)",
-            border: "1px solid var(--border-subtle)",
-          }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", minWidth: 24, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+          <div key={e.session} className="hf-plan-row" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-subtle)" }}>
+            <span className="hf-text-xs hf-text-bold hf-text-muted" style={{ minWidth: 24, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
               {e.session}.
             </span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", flex: 1 }}>
+            <span className="hf-text-sm" style={{ fontWeight: 500, color: "var(--text-primary)", flex: 1 }}>
               {e.label}
             </span>
             <SessionTypeBadge type={e.type} />
             {e.moduleLabel && (
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              <span className="hf-text-xs hf-text-muted">
                 {e.moduleLabel}
               </span>
             )}
             {e.assertionCount != null && (
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              <span className="hf-text-xs hf-text-muted">
                 {e.assertionCount} pts
               </span>
             )}
@@ -1592,7 +1553,7 @@ function LessonPlanEditor({
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
+      <div className="hf-mb-md">
         <SortableList
           items={entries}
           getItemId={(e) => `session-${e.session}-${e.label}`}
@@ -1616,8 +1577,8 @@ function LessonPlanEditor({
           addLabel="+ Add Session"
           emptyLabel="No sessions. Click + Add Session to begin."
           renderCard={(e, index) => (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 20, textAlign: "right" }}>
+            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center", flex: 1 }}>
+              <span className="hf-text-xs hf-text-bold hf-text-muted" style={{ minWidth: 20, textAlign: "right" }}>
                 {index + 1}
               </span>
               <input
@@ -1659,17 +1620,15 @@ function LessonPlanEditor({
         />
       </div>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
-        <button onClick={onCancel} style={{
-          ...theme.btnSecondary, fontSize: 13, border: "1px solid var(--border-default)",
-        }}>
+      <div className="hf-flex hf-gap-sm" style={{ alignItems: "center", justifyContent: "flex-end" }}>
+        <button onClick={onCancel} className="hf-btn hf-btn-secondary hf-text-sm">
           Cancel
         </button>
         <button
           onClick={onSave}
           disabled={saving || entries.length === 0}
+          className="hf-btn hf-btn-primary hf-text-sm"
           style={{
-            ...theme.btnPrimary, fontSize: 13,
             cursor: saving ? "not-allowed" : "pointer",
             opacity: saving || entries.length === 0 ? 0.6 : 1,
           }}

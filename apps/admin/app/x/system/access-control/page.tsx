@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Lock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { ErrorBanner } from '@/components/shared/ErrorBanner';
 
 interface InstitutionTypeSummary {
   id: string;
@@ -158,11 +159,7 @@ export default function AccessControlPage() {
       </div>
 
       {/* Messages */}
-      {error && (
-        <div className="hf-banner hf-banner-error">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
       {success && (
         <div className="hf-banner hf-banner-success">
           {success}

@@ -1,14 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-interface StepProps {
-  setData: (key: string, value: unknown) => void;
-  getData: <T = unknown>(key: string) => T | undefined;
-  onNext: () => void;
-  onPrev: () => void;
-  endFlow: () => void;
-}
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import type { StepProps } from "../types";
 
 type PromptPreviewData = {
   promptSummary: string;
@@ -26,7 +20,7 @@ export default function PreviewStep({ setData, getData, onNext, onPrev }: StepPr
   const [data, setPreviewData] = useState<PromptPreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"summary" | "voice" | "json">("summary");
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyToClipboard();
 
   // ── Generate preview on mount ─────────────────────────
   useEffect(() => {
@@ -64,10 +58,7 @@ export default function PreviewStep({ setData, getData, onNext, onPrev }: StepPr
         : tab === "voice"
           ? data?.voicePrompt || ""
           : data?.promptSummary || "";
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
+    copyText(text);
   }
 
   if (!domainId) {

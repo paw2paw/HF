@@ -34,7 +34,7 @@ const PUBLIC_PAGES = new Set([
   "/x/account",
   // Home section (no requiredRole)
   "/x/quick-launch",
-  "/x/tasks",
+  "/x/jobs",
   "/x/demos",
   "/x/tickets",
   // Calls section (no requiredRole)

@@ -63,6 +63,7 @@
   - [Settings](#settings)
   - [Sidebar](#sidebar)
   - [Sim](#sim)
+  - [Snapshots](#snapshots)
   - [Specs](#specs)
   - [Subjects](#subjects)
   - [System](#system)
@@ -3702,6 +3703,7 @@ List all content sources with optional filtering by trust level, qualification, 
 | trustLevel | query | string | No | Filter by trust level |
 | qualificationRef | query | string | No | Filter by qualification reference (case-insensitive contains) |
 | activeOnly | query | string | No | "false" to include inactive sources (default: true) |
+| archivedOnly | query | string | No | "true" to show only archived sources |
 
 **Response** `200`
 ```json
@@ -3790,6 +3792,18 @@ AI-fills content source metadata from a free-text description, ISBN, or URL.
 ---
 
 ## Content Trust
+
+### `DELETE` /api/content-sources/:sourceId
+
+Archive a content source (soft-delete). Returns 409 with usage details if the source
+
+**Auth**: Session · **Scope**: `content-sources:delete`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| force | query | string | No | "true" to archive even when in use |
+
+---
 
 ### `GET` /api/content-sources/:sourceId
 
@@ -3994,6 +4008,36 @@ Generate a lesson plan from a content source's assertions, questions, and vocabu
 
 ---
 
+### `POST` /api/content-sources/:sourceId/link
+
+Re-run question/vocabulary → assertion linking for a content source.
+
+**Auth**: OPERATOR · **Scope**: `content-sources:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes | ContentSource UUID |
+
+**Response** `200`
+```json
+{ ok, questionsLinked, questionsOrphaned, vocabularyLinked, vocabularyOrphaned, warnings }
+```
+
+**Response** `404`
+```json
+{ ok: false, error }
+```
+
+---
+
+### `DELETE` /api/content-sources/:sourceId/permanent
+
+Permanently delete an archived content source and all its children.
+
+**Auth**: Session · **Scope**: `content-sources:delete`
+
+---
+
 ### `DELETE` /api/content-sources/:sourceId/questions
 
 Delete all questions for a content source (for re-extraction).
@@ -4095,6 +4139,22 @@ Mark multiple questions as reviewed in a single transaction.
 ```json
 { ok: false, error: "..." }
 ```
+
+---
+
+### `POST` /api/content-sources/:sourceId/unarchive
+
+Restore an archived content source (set active, clear archivedAt).
+
+**Auth**: Session · **Scope**: `content-sources:write`
+
+---
+
+### `GET` /api/content-sources/:sourceId/usage
+
+Get usage/dependency info for a content source: linked subjects, domains
+
+**Auth**: Session · **Scope**: `content-sources:read`
 
 ---
 
@@ -7095,6 +7155,22 @@ Save sidebar visibility rules
 
 ---
 
+### `GET` /api/admin/deep-logging
+
+Get deep logging status
+
+**Auth**: ADMIN · **Scope**: `admin:read`
+
+---
+
+### `POST` /api/admin/deep-logging
+
+Toggle deep logging on/off
+
+**Auth**: ADMIN · **Scope**: `admin:write`
+
+---
+
 ### `POST` /api/content-sources/:sourceId/structure
 
 **Auth**: OPERATOR
@@ -9233,6 +9309,127 @@ Returns setup info for a new sim tester: whether they have an assigned domain (f
 
 ---
 
+## Snapshots
+
+### `GET` /api/snapshots
+
+List all saved database snapshots
+
+**Auth**: session (ADMIN+) · **Scope**: `snapshots:read`
+
+**Response** `200`
+```json
+{ ok: true, snapshots: SnapshotInfo[] }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/snapshots
+
+Start a snapshot take job (async, returns taskId)
+
+**Auth**: session (ADMIN+) · **Scope**: `snapshots:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Snapshot name (alphanumeric, hyphens, underscores) |
+
+**Response** `200`
+```json
+{ ok: true, taskId: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `DELETE` /api/snapshots/:name
+
+Delete a saved snapshot
+
+**Auth**: session (ADMIN+) · **Scope**: `snapshots:write`
+
+**Response** `200`
+```json
+{ ok: true }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `GET` /api/snapshots/:name
+
+Get details for a specific snapshot
+
+**Auth**: session (ADMIN+) · **Scope**: `snapshots:read`
+
+**Response** `200`
+```json
+{ ok: true, snapshot: SnapshotInfo }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/snapshots/:name/restore
+
+Start a snapshot restore job (async, returns taskId). DESTRUCTIVE: replaces data in affected layers.
+
+**Auth**: session (SUPERADMIN only) · **Scope**: `snapshots:write`
+
+**Response** `200`
+```json
+{ ok: true, taskId: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Specs
 
 ### `GET` /api/specs
@@ -10043,7 +10240,7 @@ Retrieves task guidance for a specific task ID, or lists tasks by status.
 
 ### `PATCH` /api/tasks
 
-Archives or unarchives completed tasks in bulk.
+Archives, unarchives, or permanently deletes completed tasks in bulk.
 
 **Auth**: Session · **Scope**: `tasks:archive`
 
@@ -10135,6 +10332,24 @@ Returns lightweight task counts by status for the current user.
 **Response** `500`
 ```json
 { ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/tasks/sync
+
+Beacon-friendly sync endpoint for wizard state persistence.
+
+**Auth**: Session · **Scope**: `tasks:sync`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| taskId | body | string | No | Task ID to sync (required) |
+| updates | body | object | No | Progress updates to apply (required) |
+
+**Response** `204`
+```json
+(always, even on error — beacon endpoints must not fail)
 ```
 
 ---
@@ -11003,8 +11218,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 295 |
-| Files with annotations | 294 |
+| Route files found | 304 |
+| Files with annotations | 303 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

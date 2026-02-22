@@ -43,17 +43,63 @@ async function runGeneratePlan(
   durationMins: number | null,
   emphasis: string,
   assessments: string,
+  sourceId: string | null,
 ) {
   try {
-    // 1. Generate curriculum from goals
+    // 0. If sourceId provided, read document text from uploaded file
+    let documentText: string | null = null;
+    if (sourceId) {
+      try {
+        await updateTaskProgress(taskId, {
+          context: { phase: "reading", message: "Reading uploaded document..." },
+        });
+
+        const source = await prisma.contentSource.findUnique({
+          where: { id: sourceId },
+          select: {
+            textSample: true,
+            mediaAssets: {
+              take: 1,
+              select: { storageKey: true, fileName: true },
+            },
+          },
+        });
+
+        if (source?.mediaAssets[0]) {
+          const { getStorageAdapter } = await import("@/lib/storage");
+          const { extractTextFromBuffer } = await import("@/lib/content-trust/extract-assertions");
+          const storage = getStorageAdapter();
+          const buffer = await storage.download(source.mediaAssets[0].storageKey);
+          const extracted = await extractTextFromBuffer(buffer, source.mediaAssets[0].fileName);
+          documentText = extracted?.text || null;
+        } else if (source?.textSample) {
+          documentText = source.textSample;
+        }
+      } catch (err: any) {
+        console.warn("[courses/generate-plan] Failed to read document, proceeding without:", err.message);
+      }
+    }
+
+    // 1. Generate curriculum from goals (enriched with document text if available)
     await updateTaskProgress(taskId, {
-      context: { phase: "curriculum", message: "Generating curriculum from your goals..." },
+      context: { phase: "curriculum", message: documentText ? "Generating curriculum from your goals and document..." : "Generating curriculum from your goals..." },
     });
+
+    // Inject document context into learning outcomes to enrich AI generation
+    // (avoids changing generateCurriculumFromGoals signature which is shared)
+    let enrichedOutcomes = learningOutcomes;
+    if (documentText) {
+      const truncatedDoc = documentText.substring(0, 8000);
+      enrichedOutcomes = [
+        ...learningOutcomes,
+        `[DOCUMENT CONTEXT — the educator uploaded a document with this content. Use it to inform the curriculum structure and ensure modules cover the document's topics:]\n${truncatedDoc}`,
+      ];
+    }
 
     const curriculum = await generateCurriculumFromGoals(
       courseName,
       teachingStyle,
-      learningOutcomes,
+      enrichedOutcomes,
       undefined, // no qualificationRef
     );
 
@@ -152,13 +198,17 @@ Respond with ONLY a JSON object (no markdown, no explanation outside JSON):
   ]
 }`;
 
+    const documentExcerpt = documentText
+      ? `\n\nUploaded Document Excerpt (use to inform session content and depth):\n${documentText.substring(0, 4000)}`
+      : "";
+
     const userMessage = `Curriculum: "${courseName}"
 ${curriculum.description ? `Description: ${curriculum.description}` : ""}
 
 Modules:
 ${moduleSummary}
 
-Total modules: ${curriculum.modules.length}`;
+Total modules: ${curriculum.modules.length}${documentExcerpt}`;
 
     // @ai-call lesson-plan.generate — Generate structured lesson plan for course wizard | config: /x/ai-config
     const result = await getConfiguredMeteredAICompletion({
@@ -226,7 +276,7 @@ Total modules: ${curriculum.modules.length}`;
  * @description Generate a curriculum + lesson plan from course intent (name, outcomes, style).
  * Creates temporary Subject + Curriculum, generates lesson plan via AI.
  * Returns taskId to poll for progress. Used by Course Setup Wizard "Generate & Review" path.
- * @body { courseName: string, learningOutcomes: string[], teachingStyle: string, sessionCount?: number, durationMins?: number, emphasis?: string, assessments?: string }
+ * @body { courseName: string, learningOutcomes: string[], teachingStyle: string, sessionCount?: number, durationMins?: number, emphasis?: string, assessments?: string, sourceId?: string }
  * @response 202 { ok: true, taskId: string }
  * @response 400 { ok: false, error: "..." }
  */
@@ -244,6 +294,7 @@ export async function POST(request: NextRequest) {
       durationMins,
       emphasis,
       assessments,
+      sourceId,
     } = body;
 
     if (!courseName || typeof courseName !== "string") {
@@ -282,6 +333,7 @@ export async function POST(request: NextRequest) {
       durationMins || null,
       emphasis || "balanced",
       assessments || "light",
+      sourceId || null,
     ).catch(async (err) => {
       console.error("[courses/generate-plan] Unhandled error:", err);
       await failTask(taskId, err.message);

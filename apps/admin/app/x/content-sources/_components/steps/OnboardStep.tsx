@@ -7,14 +7,7 @@ import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
 import { AgentTuner } from "@/components/shared/AgentTuner";
 import type { AgentTunerOutput } from "@/lib/agent-tuner/types";
-
-interface StepProps {
-  setData: (key: string, value: unknown) => void;
-  getData: <T = unknown>(key: string) => T | undefined;
-  onNext: () => void;
-  onPrev: () => void;
-  endFlow: () => void;
-}
+import type { StepProps } from "../types";
 
 type FlowPhase = {
   _id: string;

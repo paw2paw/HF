@@ -192,7 +192,7 @@ export default function TestDashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <a href="/x/settings" style={{ fontSize: 13, color: "#818cf8", textDecoration: "none" }}>&larr; Back to Settings</a>
+          <a href="/x/settings" style={{ fontSize: 13, color: "var(--accent-primary)", textDecoration: "none" }}>&larr; Back to Settings</a>
           <h1 className="text-2xl font-bold" style={{ marginTop: 4 }}>E2E Test Dashboard</h1>
           <p className="text-neutral-400 mt-1">
             {tests.length} tests across {Object.keys(grouped).length} files

@@ -3,8 +3,8 @@
 import { useRouter, usePathname } from 'next/navigation';
 
 const AVATAR_COLORS = [
-  '#6B7B8D', '#E06B56', '#7C6BC4', '#3D9970', '#D4A843',
-  '#4A90D9', '#C45BAA', '#5B8C5A', '#D97B4A', '#8B5E83',
+  'var(--text-muted)', 'var(--status-error-text)', 'var(--accent-secondary, #7c6bc4)', 'var(--status-success-text)', 'var(--status-warning-text)',
+  'var(--accent-primary)', 'var(--badge-pink-text, #c45baa)', 'var(--status-success-text)', 'var(--status-warning-text)', 'var(--text-muted)',
 ];
 
 function hashColor(str: string): string {

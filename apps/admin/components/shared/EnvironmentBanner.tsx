@@ -22,30 +22,36 @@ const ENV = process.env.NEXT_PUBLIC_APP_ENV || 'DEV';
 /** @deprecated Banner removed — kept at 0 for any remaining references */
 export const ENV_BANNER_HEIGHT = 0;
 
-const ENV_COLORS: Record<string, { sidebar: string; sidebarWidth: number; label: string } | null> = {
-  DEV:  { sidebar: 'var(--env-dev-color, #3b82f6)', sidebarWidth: 6, label: 'DEV' },    // Blue
-  TEST: { sidebar: 'var(--env-test-color, #8b5cf6)', sidebarWidth: 6, label: 'TEST' },   // Purple
-  STG:  { sidebar: 'var(--env-stg-color, #f59e0b)', sidebarWidth: 6, label: 'STG' },    // Amber
-  LIVE: null,                                                                              // No indicator
+const ENV_COLORS: Record<string, { sidebar: string; text?: string; sidebarWidth: number; label: string } | null> = {
+  DEV:  { sidebar: 'var(--env-dev-color, #3b82f6)', sidebarWidth: 6, label: 'DEV' },                                     // Blue
+  TEST: { sidebar: 'var(--env-test-color, #8b5cf6)', sidebarWidth: 6, label: 'TEST' },                                   // Purple
+  STG:  { sidebar: 'var(--env-stg-color, #f59e0b)', sidebarWidth: 6, label: 'STG' },                                     // Amber
+  LIVE: { sidebar: 'var(--env-live-color, #F5B856)', text: 'var(--login-navy, #1F1B4A)', sidebarWidth: 6, label: 'LIVE' }, // Gold
 };
 
 const ENV_NORMALIZED = ENV.toUpperCase();
 const ENV_CONFIG = ENV_COLORS[ENV_NORMALIZED];
 
-if (!ENV_CONFIG && ENV_NORMALIZED !== 'LIVE') {
+if (!ENV_CONFIG) {
   console.warn(`⚠️ Unknown NEXT_PUBLIC_APP_ENV: "${ENV}". Valid values: DEV | TEST | STG | LIVE`);
 }
 
-/** Whether a non-production environment is active */
+/** Whether an environment badge should be shown (all envs now show a badge) */
 export const showEnvBanner = ENV_CONFIG != null;
 
-/** Environment accent color (null in production). Used by StatusBar badge + login page. */
+/** Whether this is a non-production environment (use for demo panels, dev-only features) */
+export const isNonProd = ENV_NORMALIZED !== 'LIVE';
+
+/** Environment accent color (null if unknown env). Used by StatusBar badge + login page. */
 export const envSidebarColor = ENV_CONFIG?.sidebar ?? null;
+
+/** Environment text color override (null = white). Used for light backgrounds like gold LIVE badge. */
+export const envTextColor = ENV_CONFIG?.text ?? null;
 
 /** @deprecated Sidebar stripe removed — kept for backward compatibility */
 export const envSidebarWidth = ENV_CONFIG?.sidebarWidth ?? 0;
 
-/** Short label for the environment (null in production) */
+/** Short label for the environment (null if unknown env) */
 export const envLabel = ENV_CONFIG?.label ?? null;
 
 /**

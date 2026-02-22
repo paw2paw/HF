@@ -180,7 +180,7 @@ export default function InstitutionDetailPage() {
         >
           &larr; Back to Institutions
         </button>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--text-primary)" }}>
+        <h1 className="hf-page-title">
           {institution.name}
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", fontFamily: "monospace" }}>

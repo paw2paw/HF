@@ -3,14 +3,7 @@
 import { useState, useEffect } from "react";
 import { FileText, Building2, GraduationCap, BookOpen } from "lucide-react";
 import { WizardSummary } from "@/components/shared/WizardSummary";
-
-interface StepProps {
-  setData: (key: string, value: unknown) => void;
-  getData: <T = unknown>(key: string) => T | undefined;
-  onNext: () => void;
-  onPrev: () => void;
-  endFlow: () => void;
-}
+import type { StepProps } from "../types";
 
 type ReadinessCheck = {
   id: string;
@@ -83,8 +76,11 @@ export default function DoneStep({ getData, onPrev, endFlow }: StepProps) {
 
   return (
     <WizardSummary
-      title="Content Ready!"
-      subtitle="Your content has been extracted and configured."
+      title={readiness?.ready !== false ? "Content Ready!" : "Content Extracted"}
+      subtitle={readiness?.ready === false
+        ? "Your content has been extracted. Review the readiness checks below to finish setup."
+        : "Your content has been extracted and configured."
+      }
       intent={{
         items: [
           { icon: <FileText className="w-4 h-4" />, label: "Source", value: sourceName || "—" },

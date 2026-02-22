@@ -144,44 +144,8 @@ const defaultFormData: SpecFormData = {
 // ============================================================================
 
 const StepBadge = ({ number, active = true }: { number: number; active?: boolean }) => (
-  <div
-    style={{
-      width: 32,
-      height: 32,
-      borderRadius: 10,
-      background: active
-        ? "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)"
-        : "var(--surface-tertiary)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: active ? "white" : "var(--text-muted)",
-      fontWeight: 700,
-      fontSize: 13,
-      boxShadow: active ? "0 2px 8px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)" : "none",
-    }}
-  >
+  <div className={`hf-step-badge ${active ? "hf-step-badge-active" : "hf-step-badge-inactive"}`}>
     {number}
-  </div>
-);
-
-const SectionCard = ({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) => (
-  <div
-    style={{
-      background: "var(--surface-primary)",
-      border: "1px solid var(--border-default)",
-      borderRadius: 16,
-      padding: 24,
-      ...style,
-    }}
-  >
-    {children}
   </div>
 );
 
@@ -197,22 +161,13 @@ const InputField = ({
   children: React.ReactNode;
 }) => (
   <div>
-    <label
-      style={{
-        display: "block",
-        fontSize: 12,
-        fontWeight: 600,
-        color: "var(--text-secondary)",
-        marginBottom: 8,
-        letterSpacing: "0.02em",
-      }}
-    >
+    <label className="hf-label" style={{ marginBottom: 8, letterSpacing: "0.02em" }}>
       {label}
-      {required && <span style={{ color: "var(--error-text)", marginLeft: 4 }}>*</span>}
+      {required && <span className="hf-text-error" style={{ marginLeft: 4 }}>*</span>}
     </label>
     {children}
     {error && (
-      <p style={{ marginTop: 6, fontSize: 12, color: "var(--error-text)" }}>{error}</p>
+      <p className="hf-text-error" style={{ marginTop: 6, fontSize: 12 }}>{error}</p>
     )}
   </div>
 );
@@ -637,36 +592,29 @@ export default function CreateSpecPage() {
     })),
   ];
 
-  // Common input styles
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 14px",
-    fontSize: 14,
-    borderRadius: 10,
-    border: "1px solid var(--border-default)",
-    background: "var(--surface-secondary)",
-    color: "var(--text-primary)",
-    outline: "none",
-    transition: "all 0.15s ease",
+  // Input class helper — returns className + optional inline style for dynamic states
+  const getInputClassName = (fieldName: string, hasError?: boolean): string => {
+    const base = "hf-input";
+    if (hasError) return `${base} hf-input-error`;
+    if (aiUpdatedFields.has(fieldName)) return `${base} hf-input-ai-updated`;
+    return base;
   };
 
-  const inputErrorStyle: React.CSSProperties = {
-    ...inputStyle,
-    borderColor: "var(--error-text)",
-    boxShadow: "0 0 0 3px var(--error-bg)",
-  };
-
-  const getInputStyle = (fieldName: string, hasError?: boolean): React.CSSProperties => {
-    if (hasError) return inputErrorStyle;
+  const getInputDynamicStyle = (fieldName: string, hasError?: boolean): React.CSSProperties | undefined => {
+    if (hasError) {
+      return {
+        borderColor: "var(--error-text)",
+        boxShadow: "0 0 0 3px var(--error-bg)",
+      };
+    }
     if (aiUpdatedFields.has(fieldName)) {
       return {
-        ...inputStyle,
         borderColor: "var(--accent-primary)",
-        boxShadow: "0 0 0 3px rgba(99, 102, 241, 0.15)",
+        boxShadow: "0 0 0 3px color-mix(in srgb, var(--accent-primary) 15%, transparent)",
         animation: "aiGlow 0.5s ease-in-out",
       };
     }
-    return inputStyle;
+    return undefined;
   };
 
   // ============================================================================
@@ -684,25 +632,7 @@ export default function CreateSpecPage() {
 
       {/* AI Update Notification */}
       {showAiUpdateNotification && (
-        <div
-          style={{
-            position: "fixed",
-            top: 24,
-            right: 24,
-            zIndex: 1000,
-            background: "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--badge-indigo-text, #6366f1) 100%)",
-            color: "white",
-            padding: "16px 20px",
-            borderRadius: 12,
-            boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-secondary, #8b5cf6) 40%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            animation: "slideInRight 0.3s ease-out",
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
+        <div className="hf-toast hf-toast-ai">
           <span style={{ fontSize: 20 }}>✨</span>
           <span>AI filled in {aiUpdatedFields.size} field{aiUpdatedFields.size !== 1 ? "s" : ""}</span>
         </div>
@@ -710,82 +640,26 @@ export default function CreateSpecPage() {
 
       {/* Draft Restore Modal */}
       {showDraftPrompt && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              background: "var(--surface-primary)",
-              borderRadius: 20,
-              padding: 32,
-              maxWidth: 420,
-              width: "100%",
-              margin: 16,
-              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
-              border: "1px solid var(--border-default)",
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
+        <div className="hf-modal-overlay hf-modal-overlay-dark" style={{ backdropFilter: "blur(4px)" }}>
+          <div className="hf-modal hf-modal-lg">
+            <div className="hf-text-center">
               <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 16,
-                  background: "linear-gradient(135deg, var(--status-warning-accent, #fbbf24) 0%, var(--status-warning-text, #f59e0b) 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 20px",
-                  fontSize: 28,
-                }}
+                className="hf-modal-icon"
+                style={{ background: "linear-gradient(135deg, var(--status-warning-accent, #fbbf24) 0%, var(--status-warning-text, #f59e0b) 100%)" }}
               >
                 📝
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
                 Restore Draft?
               </h3>
-              <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 24, lineHeight: 1.5 }}>
+              <p className="hf-text-md hf-text-muted" style={{ marginBottom: 24, lineHeight: 1.5 }}>
                 You have a saved draft from a previous session. Would you like to continue where you left off?
               </p>
-              <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-                <button
-                  onClick={handleDiscardDraft}
-                  style={{
-                    padding: "12px 24px",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    borderRadius: 10,
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-secondary)",
-                    color: "var(--text-secondary)",
-                    cursor: "pointer",
-                  }}
-                >
+              <div className="hf-flex-center hf-gap-md">
+                <button onClick={handleDiscardDraft} className="hf-btn hf-btn-secondary">
                   Discard
                 </button>
-                <button
-                  onClick={handleRestoreDraft}
-                  style={{
-                    padding: "12px 24px",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    borderRadius: 10,
-                    border: "none",
-                    background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
-                    color: "white",
-                    cursor: "pointer",
-                    boxShadow: "0 4px 12px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)",
-                  }}
-                >
+                <button onClick={handleRestoreDraft} className="hf-btn-gradient-primary">
                   Restore Draft
                 </button>
               </div>
@@ -800,40 +674,25 @@ export default function CreateSpecPage() {
           background: "linear-gradient(135deg, var(--surface-primary) 0%, var(--surface-secondary) 100%)",
           borderBottom: "1px solid var(--border-default)",
           padding: "20px 0",
-          marginBottom: 24,
         }}
+        className="hf-mb-lg"
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Link
-              href="/x/specs"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                background: "var(--surface-secondary)",
-                border: "1px solid var(--border-default)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--text-muted)",
-                textDecoration: "none",
-                transition: "all 0.15s ease",
-              }}
-            >
+        <div className="hf-flex-between hf-flex-wrap hf-gap-lg">
+          <div className="hf-flex hf-gap-lg">
+            <Link href="/x/specs" className="hf-back-btn">
               <ChevronLeft size={20} />
             </Link>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+              <h1 className="hf-page-title hf-flex hf-gap-sm" style={{ gap: 10 }}>
                 <span style={{ fontSize: 28 }}>✨</span>
                 Create New Spec
               </h1>
-              <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "4px 0 0" }}>
+              <p className="hf-text-md hf-text-muted" style={{ margin: "4px 0 0" }}>
                 Define a new behavior specification for your AI system
               </p>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="hf-flex hf-gap-md">
             <div style={{ minWidth: 240 }}>
               <FancySelect
                 value=""
@@ -843,42 +702,11 @@ export default function CreateSpecPage() {
                 disabled={loadingSpecs}
               />
             </div>
-            <Link
-              href="/x/import?tab=specs"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 10,
-                border: "1px solid var(--accent-primary)",
-                background: "var(--accent-bg)",
-                color: "var(--accent-primary)",
-                textDecoration: "none",
-                transition: "all 0.15s ease",
-              }}
-            >
+            <Link href="/x/import?tab=specs" className="hf-link-btn hf-link-btn-accent">
               <Upload size={16} />
               Import
             </Link>
-            <Link
-              href="/x/admin/spec-sync"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 10,
-                border: "1px solid var(--warning-border)",
-                background: "var(--warning-bg)",
-                color: "var(--warning-text)",
-                textDecoration: "none",
-              }}
-            >
+            <Link href="/x/admin/spec-sync" className="hf-link-btn hf-link-btn-warning">
               <RefreshCw size={16} />
               Sync
             </Link>
@@ -888,31 +716,14 @@ export default function CreateSpecPage() {
 
       {/* Error Banner */}
       {error && (
-        <div
-          style={{
-            background: "var(--error-bg)",
-            border: "1px solid var(--error-border)",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 24,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="hf-banner hf-banner-error hf-mb-lg" style={{ justifyContent: "space-between" }}>
+          <div className="hf-flex hf-gap-md">
             <span style={{ fontSize: 20 }}>⚠️</span>
-            <span style={{ fontSize: 14, color: "var(--error-text)", fontWeight: 500 }}>{error}</span>
+            <span className="hf-text-md" style={{ fontWeight: 500 }}>{error}</span>
           </div>
           <button
             onClick={() => setError(null)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--error-text)",
-              cursor: "pointer",
-              padding: 4,
-            }}
+            style={{ background: "none", border: "none", color: "var(--status-error-text)", cursor: "pointer", padding: 4 }}
           >
             <X size={20} />
           </button>
@@ -922,7 +733,7 @@ export default function CreateSpecPage() {
       {/* AI Assistant - Large Top Section */}
       <div
         style={{
-          background: "linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%)",
+          background: "linear-gradient(135deg, color-mix(in srgb, var(--accent-secondary, #8b5cf6) 5%, transparent) 0%, color-mix(in srgb, var(--badge-indigo-text, #6366f1) 5%, transparent) 100%)",
           border: "2px solid",
           borderColor: chatMessages.length > 0 ? "var(--accent-primary)" : "var(--border-default)",
           borderRadius: 20,
@@ -933,47 +744,34 @@ export default function CreateSpecPage() {
       >
         {/* AI Header */}
         <div
+          className="hf-flex-between"
           style={{
             background: "var(--surface-primary)",
             borderBottom: "1px solid var(--border-default)",
             padding: 20,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 16,
-                background: "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--badge-indigo-text, #6366f1) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                boxShadow: "0 4px 16px color-mix(in srgb, var(--accent-secondary, #8b5cf6) 30%, transparent)",
-              }}
-            >
+          <div className="hf-flex hf-gap-lg">
+            <div className="hf-ai-avatar">
               🤖
             </div>
             <div>
-              <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>
+              <h2 className="hf-ai-title">
                 AI Spec Builder
               </h2>
-              <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "4px 0 0" }}>
-                Describe what you want to measure, and I'll build the spec for you
+              <p className="hf-text-md hf-text-muted" style={{ margin: "4px 0 0" }}>
+                Describe what you want to measure, and I&apos;ll build the spec for you
               </p>
-              <div style={{ marginTop: 8 }}>
+              <div className="hf-mt-sm">
                 <AIModelBadge callPoint="spec.assistant" variant="text" size="sm" />
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="hf-flex hf-gap-sm">
             {taskId && (
               <button
                 onClick={() => setShowFlashSidebar(!showFlashSidebar)}
+                className="hf-btn"
                 style={{
                   padding: "8px 16px",
                   fontSize: 13,
@@ -982,10 +780,6 @@ export default function CreateSpecPage() {
                   border: "1px solid var(--border-default)",
                   background: showFlashSidebar ? "var(--accent-primary)" : "var(--surface-secondary)",
                   color: showFlashSidebar ? "white" : "var(--text-primary)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
                   transition: "all 0.2s ease",
                 }}
               >
@@ -997,8 +791,8 @@ export default function CreateSpecPage() {
         </div>
 
         {/* Chat Input - ALWAYS VISIBLE AT TOP */}
-        <div style={{ padding: 24, background: "var(--surface-primary)" }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div className="hf-p-lg" style={{ background: "var(--surface-primary)" }}>
+          <div className="hf-flex hf-gap-md" style={{ alignItems: "flex-start" }}>
             <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
@@ -1010,15 +804,13 @@ export default function CreateSpecPage() {
               }}
               placeholder="Tell me what you want to measure... (e.g., 'I want to track how curious someone is during conversations')"
               rows={4}
+              className="hf-input"
               style={{
                 flex: 1,
                 padding: 16,
                 fontSize: 15,
                 borderRadius: 12,
-                border: "2px solid var(--border-default)",
-                background: "var(--surface-secondary)",
-                color: "var(--text-primary)",
-                outline: "none",
+                borderWidth: 2,
                 resize: "vertical",
                 fontFamily: "inherit",
                 lineHeight: 1.6,
@@ -1059,16 +851,7 @@ export default function CreateSpecPage() {
             >
               {chatLoading ? (
                 <>
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      borderTopColor: "white",
-                      borderRadius: "50%",
-                      animation: "spin 1s linear infinite",
-                    }}
-                  />
+                  <span className="hf-spinner-inline" />
                   Thinking...
                 </>
               ) : (
@@ -1079,62 +862,40 @@ export default function CreateSpecPage() {
               )}
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8, marginBottom: 0 }}>
-            💡 Tip: Press <kbd style={{ padding: "2px 6px", background: "var(--surface-tertiary)", borderRadius: 4, fontSize: 11 }}>⌘ Enter</kbd> to send
+          <p className="hf-text-muted hf-mt-sm" style={{ fontSize: 12, marginBottom: 0 }}>
+            💡 Tip: Press <kbd style={{ padding: "2px 6px", background: "var(--surface-tertiary)", borderRadius: 4 }} className="hf-text-xs">⌘ Enter</kbd> to send
           </p>
         </div>
 
         {/* Conversation History */}
         {chatMessages.length > 0 && (
-          <div
-            style={{
-              maxHeight: 400,
-              overflow: "auto",
-              padding: "0 24px 24px",
-              background: "var(--surface-primary)",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ maxHeight: 400, overflow: "auto", padding: "0 24px 24px", background: "var(--surface-primary)" }}>
+            <div className="hf-flex-col hf-gap-lg">
               {chatMessages.map((msg, i) => (
                 <div
                   key={i}
+                  className="hf-flex hf-gap-md"
                   style={{
-                    display: "flex",
                     alignItems: "flex-start",
-                    gap: 12,
                     ...(msg.role === "user" && { flexDirection: "row-reverse" }),
                   }}
                 >
                   <div
+                    className="hf-chat-avatar"
                     style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
                       background: msg.role === "user"
                         ? "linear-gradient(135deg, var(--status-success-text, #10b981) 0%, var(--status-success-accent, #059669) 100%)"
                         : "linear-gradient(135deg, var(--accent-secondary, #8b5cf6) 0%, var(--badge-indigo-text, #6366f1) 100%)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 18,
-                      flexShrink: 0,
                     }}
                   >
                     {msg.role === "user" ? "👤" : "🤖"}
                   </div>
                   <div
+                    className="hf-chat-bubble"
                     style={{
-                      flex: 1,
-                      padding: "12px 16px",
-                      borderRadius: 12,
-                      fontSize: 14,
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-wrap",
                       background: msg.role === "user"
                         ? "var(--surface-secondary)"
                         : "var(--surface-tertiary)",
-                      color: "var(--text-primary)",
-                      border: "1px solid var(--border-default)",
                     }}
                   >
                     {msg.content}
@@ -1159,13 +920,11 @@ export default function CreateSpecPage() {
           >
             {/* Progress Steps */}
             <div
+              className="hf-flex hf-gap-sm"
               style={{
                 background: "var(--surface-secondary)",
                 borderBottom: "1px solid var(--border-default)",
                 padding: "16px 24px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
               }}
             >
               {[
@@ -1175,13 +934,11 @@ export default function CreateSpecPage() {
                 { num: 4, label: "Parameters" },
                 { num: 5, label: "Review" },
               ].map((step, idx) => (
-                <div key={step.num} style={{ display: "flex", alignItems: "center" }}>
+                <div key={step.num} className="hf-flex">
                   <button
                     onClick={() => setActiveStep(step.num)}
+                    className="hf-flex hf-gap-sm"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
                       padding: "8px 12px",
                       borderRadius: 8,
                       border: "none",
@@ -1190,41 +947,24 @@ export default function CreateSpecPage() {
                     }}
                   >
                     <div
+                      className="hf-step-badge-sm"
                       style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 6,
                         background: activeStep === step.num ? "var(--accent-primary)" : "var(--surface-tertiary)",
                         color: activeStep === step.num ? "white" : "var(--text-muted)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 12,
-                        fontWeight: 700,
                       }}
                     >
                       {step.num}
                     </div>
                     <span
+                      className="hf-text-sm hf-text-bold"
                       style={{
-                        fontSize: 13,
-                        fontWeight: 600,
                         color: activeStep === step.num ? "var(--accent-primary)" : "var(--text-muted)",
                       }}
                     >
                       {step.label}
                     </span>
                   </button>
-                  {idx < 4 && (
-                    <div
-                      style={{
-                        width: 24,
-                        height: 2,
-                        background: "var(--border-default)",
-                        margin: "0 4px",
-                      }}
-                    />
-                  )}
+                  {idx < 4 && <div className="hf-step-connector" />}
                 </div>
               ))}
             </div>
@@ -1233,26 +973,27 @@ export default function CreateSpecPage() {
             <div style={{ padding: 24, maxHeight: "calc(100vh - 340px)", overflowY: "auto" }}>
               {/* Step 1: Basics */}
               <section style={{ marginBottom: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div className="hf-flex hf-gap-md" style={{ marginBottom: 20 }}>
                   <StepBadge number={1} />
                   <div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    <h2 className="hf-step-header-title">
                       Basic Information
                     </h2>
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                    <p className="hf-step-header-desc">
                       Define the core identity of your spec
                     </p>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="hf-grid-2" style={{ gap: 16 }}>
                   <InputField label="Spec ID" required error={validationErrors.id}>
                     <input
                       type="text"
                       value={formData.id}
                       onChange={(e) => updateForm({ id: e.target.value.toUpperCase() })}
                       placeholder="e.g., PERS-001"
-                      style={getInputStyle("id", !!validationErrors.id)}
+                      className={getInputClassName("id", !!validationErrors.id)}
+                      style={getInputDynamicStyle("id", !!validationErrors.id)}
                     />
                   </InputField>
 
@@ -1262,7 +1003,8 @@ export default function CreateSpecPage() {
                       value={formData.title}
                       onChange={(e) => updateForm({ title: e.target.value })}
                       placeholder="e.g., Personality Measurement"
-                      style={getInputStyle("title", !!validationErrors.title)}
+                      className={getInputClassName("title", !!validationErrors.title)}
+                      style={getInputDynamicStyle("title", !!validationErrors.title)}
                     />
                   </InputField>
 
@@ -1272,7 +1014,7 @@ export default function CreateSpecPage() {
                       value={formData.version}
                       onChange={(e) => updateForm({ version: e.target.value })}
                       placeholder="1.0"
-                      style={inputStyle}
+                      className="hf-input"
                     />
                   </InputField>
 
@@ -1292,7 +1034,8 @@ export default function CreateSpecPage() {
                         value={formData.domain}
                         onChange={(e) => updateForm({ domain: e.target.value })}
                         placeholder="e.g., personality, memory, engagement"
-                        style={getInputStyle("domain")}
+                        className={getInputClassName("domain")}
+                        style={getInputDynamicStyle("domain")}
                       />
                     </InputField>
                   </div>
@@ -1301,19 +1044,19 @@ export default function CreateSpecPage() {
 
               {/* Step 2: Classification */}
               <section style={{ marginBottom: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div className="hf-flex hf-gap-md" style={{ marginBottom: 20 }}>
                   <StepBadge number={2} />
                   <div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    <h2 className="hf-step-header-title">
                       Classification
                     </h2>
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                    <p className="hf-step-header-desc">
                       How this spec fits into the system
                     </p>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                <div className="hf-grid-3" style={{ gap: 16 }}>
                   <InputField label="Spec Type">
                     <FancySelect
                       value={formData.specType}
@@ -1362,36 +1105,28 @@ export default function CreateSpecPage() {
 
               {/* Step 3: User Story */}
               <section style={{ marginBottom: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div className="hf-flex hf-gap-md" style={{ marginBottom: 20 }}>
                   <StepBadge number={3} />
                   <div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    <h2 className="hf-step-header-title">
                       User Story
                     </h2>
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                    <p className="hf-step-header-desc">
                       What problem does this spec solve?
                     </p>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: "var(--surface-secondary)",
-                    borderRadius: 16,
-                    padding: 20,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 16,
-                  }}
-                >
+                <div className="hf-surface-section hf-flex-col hf-gap-lg">
                   <InputField label="As a..." required error={validationErrors["story.asA"]}>
                     <textarea
                       value={formData.story.asA}
                       onChange={(e) => updateStory("asA", e.target.value)}
                       placeholder="e.g., conversational AI system"
                       rows={2}
+                      className={getInputClassName("story.asA", !!validationErrors["story.asA"])}
                       style={{
-                        ...getInputStyle("story.asA", !!validationErrors["story.asA"]),
+                        ...getInputDynamicStyle("story.asA", !!validationErrors["story.asA"]),
                         resize: "vertical",
                       }}
                     />
@@ -1403,8 +1138,9 @@ export default function CreateSpecPage() {
                       onChange={(e) => updateStory("iWant", e.target.value)}
                       placeholder="e.g., to measure and adapt to the caller's personality traits"
                       rows={2}
+                      className={getInputClassName("story.iWant", !!validationErrors["story.iWant"])}
                       style={{
-                        ...getInputStyle("story.iWant", !!validationErrors["story.iWant"]),
+                        ...getInputDynamicStyle("story.iWant", !!validationErrors["story.iWant"]),
                         resize: "vertical",
                       }}
                     />
@@ -1416,8 +1152,9 @@ export default function CreateSpecPage() {
                       onChange={(e) => updateStory("soThat", e.target.value)}
                       placeholder="e.g., I can provide a more personalized and engaging experience"
                       rows={2}
+                      className={getInputClassName("story.soThat", !!validationErrors["story.soThat"])}
                       style={{
-                        ...getInputStyle("story.soThat", !!validationErrors["story.soThat"]),
+                        ...getInputDynamicStyle("story.soThat", !!validationErrors["story.soThat"]),
                         resize: "vertical",
                       }}
                     />
@@ -1428,27 +1165,20 @@ export default function CreateSpecPage() {
               {/* Step 3.5: Curriculum Configuration (CONTENT specs only) */}
               {formData.specRole === "CONTENT" && formData.metadata?.curriculum && (
                 <section style={{ marginBottom: 32 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                  <div className="hf-flex hf-gap-md" style={{ marginBottom: 20 }}>
                     <StepBadge number={4} />
                     <div>
-                      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                      <h2 className="hf-step-header-title">
                         Curriculum Configuration
                       </h2>
-                      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                      <p className="hf-step-header-desc">
                         How the pipeline tracks learner progress through modules
                       </p>
                     </div>
                   </div>
 
-                  <div style={{
-                    background: "var(--surface-secondary)",
-                    borderRadius: 16,
-                    padding: 20,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 16,
-                  }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div className="hf-surface-section hf-flex-col hf-gap-lg">
+                    <div className="hf-grid-2" style={{ gap: 16 }}>
                       <InputField label="Curriculum Type" required>
                         <FancySelect
                           value={formData.metadata.curriculum.type}
@@ -1494,7 +1224,7 @@ export default function CreateSpecPage() {
                       </InputField>
 
                       <InputField label="Mastery Threshold">
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div className="hf-flex hf-gap-md">
                           <input
                             type="range"
                             min={0}
@@ -1506,28 +1236,14 @@ export default function CreateSpecPage() {
                             })}
                             style={{ flex: 1 }}
                           />
-                          <span style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: "var(--text-primary)",
-                            minWidth: 44,
-                            textAlign: "right",
-                          }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", minWidth: 44, textAlign: "right" }}>
                             {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%
                           </span>
                         </div>
                       </InputField>
                     </div>
 
-                    <div style={{
-                      padding: "10px 14px",
-                      borderRadius: 8,
-                      background: "var(--status-info-bg)",
-                      border: "1px solid var(--status-info-border)",
-                      fontSize: 12,
-                      color: "var(--button-primary-bg)",
-                      lineHeight: 1.5,
-                    }}>
+                    <div className="hf-banner hf-banner-info" style={{ padding: "10px 14px", fontSize: 12, lineHeight: 1.5 }}>
                       Module selector: <strong>{formData.metadata.curriculum.moduleSelector}</strong> — parameters with <code>section=&quot;content&quot;</code> are treated as curriculum modules.
                       A caller advances to the next module when mastery reaches {Math.round(formData.metadata.curriculum.masteryThreshold * 100)}%.
                     </div>
@@ -1537,14 +1253,14 @@ export default function CreateSpecPage() {
 
               {/* Step 4: Parameters (renumbered to 5 when CONTENT) */}
               <section style={{ marginBottom: 32 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div className="hf-flex-between" style={{ marginBottom: 20 }}>
+                  <div className="hf-flex hf-gap-md">
                     <StepBadge number={formData.specRole === "CONTENT" ? 5 : 4} />
                     <div>
-                      <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                      <h2 className="hf-step-header-title">
                         {formData.specRole === "CONTENT" ? "Modules" : "Parameters"}
                       </h2>
-                      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                      <p className="hf-step-header-desc">
                         {formData.specRole === "CONTENT"
                           ? "What modules does this curriculum contain?"
                           : "What does this spec measure or track?"}
@@ -1553,19 +1269,13 @@ export default function CreateSpecPage() {
                   </div>
                   <button
                     onClick={addParameter}
+                    className="hf-btn"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "10px 16px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      borderRadius: 10,
-                      border: "none",
                       background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
                       color: "white",
-                      cursor: "pointer",
                       boxShadow: "0 2px 8px color-mix(in srgb, var(--badge-indigo-text, #6366f1) 30%, transparent)",
+                      fontSize: 13,
+                      fontWeight: 600,
                     }}
                   >
                     <Plus size={16} />
@@ -1575,75 +1285,44 @@ export default function CreateSpecPage() {
 
                 {formData.parameters.length === 0 ? (
                   <div
+                    className="hf-text-center"
                     style={{
                       padding: 48,
                       background: "var(--surface-secondary)",
                       borderRadius: 16,
                       border: "2px dashed var(--border-default)",
-                      textAlign: "center",
                     }}
                   >
                     <div
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 16,
-                        background: "var(--surface-tertiary)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        margin: "0 auto 16px",
-                        fontSize: 28,
-                      }}
+                      className="hf-modal-icon"
+                      style={{ background: "var(--surface-tertiary)", margin: "0 auto 16px" }}
                     >
                       📊
                     </div>
                     <p style={{ fontSize: 15, fontWeight: 600, color: "var(--text-secondary)", margin: "0 0 4px" }}>
                       No parameters yet
                     </p>
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+                    <p className="hf-text-sm hf-text-muted" style={{ margin: 0 }}>
                       Parameters define what this spec measures or tracks
                     </p>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div className="hf-flex-col hf-gap-lg">
                     {formData.parameters.map((param, index) => (
-                      <div
-                        key={param.id}
-                        style={{
-                          background: "var(--surface-secondary)",
-                          borderRadius: 16,
-                          border: "1px solid var(--border-default)",
-                          padding: 20,
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 8,
-                                background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--badge-indigo-text, #6366f1) 100%)",
-                                color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 12,
-                                fontWeight: 700,
-                              }}
-                            >
+                      <div key={param.id} className="hf-param-card">
+                        <div className="hf-flex-between hf-mb-md">
+                          <div className="hf-flex" style={{ gap: 10 }}>
+                            <div className="hf-param-index">
                               {index + 1}
                             </div>
-                            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                            <span className="hf-text-md hf-text-bold" style={{ color: "var(--text-primary)" }}>
                               Parameter
                             </span>
                           </div>
                           <button
                             onClick={() => removeParameter(index)}
+                            className="hf-text-sm hf-text-bold"
                             style={{
-                              fontSize: 13,
-                              fontWeight: 600,
                               color: "var(--error-text)",
                               background: "none",
                               border: "none",
@@ -1655,14 +1334,15 @@ export default function CreateSpecPage() {
                             Remove
                           </button>
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div className="hf-grid-2">
                           <InputField label="ID">
                             <input
                               type="text"
                               value={param.id}
                               onChange={(e) => updateParameter(index, { id: e.target.value.toUpperCase() })}
                               placeholder={formData.specRole === "CONTENT" ? "e.g., MOD-1" : "e.g., OPENNESS"}
-                              style={{ ...inputStyle, fontSize: 13 }}
+                              className="hf-input"
+                              style={{ fontSize: 13 }}
                             />
                           </InputField>
                           <InputField label="Name">
@@ -1671,7 +1351,8 @@ export default function CreateSpecPage() {
                               value={param.name}
                               onChange={(e) => updateParameter(index, { name: e.target.value })}
                               placeholder={formData.specRole === "CONTENT" ? "e.g., Food Hygiene Legislation" : "e.g., Openness to Experience"}
-                              style={{ ...inputStyle, fontSize: 13 }}
+                              className="hf-input"
+                              style={{ fontSize: 13 }}
                             />
                           </InputField>
                           <div style={{ gridColumn: "span 2" }}>
@@ -1681,7 +1362,8 @@ export default function CreateSpecPage() {
                                 onChange={(e) => updateParameter(index, { description: e.target.value })}
                                 placeholder={formData.specRole === "CONTENT" ? "What does this module cover?" : "What does this parameter measure?"}
                                 rows={2}
-                                style={{ ...inputStyle, fontSize: 13, resize: "vertical" }}
+                                className="hf-input"
+                                style={{ fontSize: 13, resize: "vertical" }}
                               />
                             </InputField>
                           </div>
@@ -1701,7 +1383,8 @@ export default function CreateSpecPage() {
                                   step="0.1"
                                   min="0"
                                   max="1"
-                                  style={{ ...inputStyle, fontSize: 13 }}
+                                  className="hf-input"
+                                  style={{ fontSize: 13 }}
                                 />
                               </InputField>
                               <InputField label="Target Max">
@@ -1716,7 +1399,8 @@ export default function CreateSpecPage() {
                                   step="0.1"
                                   min="0"
                                   max="1"
-                                  style={{ ...inputStyle, fontSize: 13 }}
+                                  className="hf-input"
+                                  style={{ fontSize: 13 }}
                                 />
                               </InputField>
                             </>
@@ -1726,10 +1410,10 @@ export default function CreateSpecPage() {
                           {formData.specRole === "CONTENT" && (
                             <div style={{ gridColumn: "span 2" }}>
                               <InputField label="Learning Outcomes">
-                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                <div className="hf-flex-col hf-gap-sm">
                                   {(param.learningOutcomes || []).map((lo, loIdx) => (
-                                    <div key={loIdx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 28 }}>
+                                    <div key={loIdx} className="hf-flex hf-gap-sm">
+                                      <span className="hf-text-xs hf-text-muted" style={{ fontWeight: 700, minWidth: 28 }}>
                                         LO{loIdx + 1}
                                       </span>
                                       <input
@@ -1741,7 +1425,8 @@ export default function CreateSpecPage() {
                                           updateParameter(index, { learningOutcomes: updated });
                                         }}
                                         placeholder="e.g., Understand the role of local authorities in food safety enforcement"
-                                        style={{ ...inputStyle, fontSize: 12, padding: "6px 10px" }}
+                                        className="hf-input"
+                                        style={{ fontSize: 12, padding: "6px 10px" }}
                                       />
                                       <button
                                         onClick={() => {
@@ -1794,38 +1479,20 @@ export default function CreateSpecPage() {
 
               {/* Step 5/6: Review */}
               <section>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div className="hf-flex hf-gap-md" style={{ marginBottom: 20 }}>
                   <StepBadge number={formData.specRole === "CONTENT" ? 6 : 5} />
                   <div>
-                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    <h2 className="hf-step-header-title">
                       Review JSON
                     </h2>
-                    <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 0" }}>
+                    <p className="hf-step-header-desc">
                       Preview the generated spec
                     </p>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: "var(--code-block-bg)",
-                    borderRadius: 16,
-                    padding: 20,
-                    maxHeight: 320,
-                    overflow: "auto",
-                    border: "1px solid var(--code-block-border)",
-                  }}
-                >
-                  <pre
-                    style={{
-                      fontSize: 12,
-                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                      color: "var(--code-block-text)",
-                      whiteSpace: "pre-wrap",
-                      margin: 0,
-                      lineHeight: 1.6,
-                    }}
-                  >
+                <div className="hf-json-preview">
+                  <pre>
                     {JSON.stringify(formData, null, 2)}
                   </pre>
                 </div>
@@ -1834,87 +1501,45 @@ export default function CreateSpecPage() {
 
             {/* Footer Actions */}
             <div
+              className="hf-flex-between"
               style={{
                 padding: "16px 24px",
                 borderTop: "1px solid var(--border-default)",
                 background: "var(--surface-secondary)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
               }}
             >
               <div>
                 {isDirty && (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 13,
-                      color: "var(--warning-text)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: "var(--warning-text)",
-                        animation: "pulse 2s infinite",
-                      }}
-                    />
+                  <span className="hf-flex hf-gap-sm hf-text-sm hf-text-warning">
+                    <span className="hf-autosave-dot" />
                     Auto-saving draft...
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", gap: 12 }}>
+              <div className="hf-flex hf-gap-md">
                 <Link
                   href="/x/specs"
-                  style={{
-                    padding: "12px 20px",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    borderRadius: 10,
-                    border: "1px solid var(--border-default)",
-                    background: "var(--surface-primary)",
-                    color: "var(--text-secondary)",
-                    textDecoration: "none",
-                  }}
+                  className="hf-btn hf-btn-secondary"
+                  style={{ textDecoration: "none", padding: "12px 20px" }}
                 >
                   Cancel
                 </Link>
                 <button
                   onClick={handleCreate}
                   disabled={creating}
-                  style={{
+                  className={creating ? "hf-btn" : "hf-btn-gradient-success"}
+                  style={creating ? {
                     padding: "12px 24px",
+                    background: "var(--surface-tertiary)",
+                    color: "var(--text-muted)",
+                    cursor: "not-allowed",
+                    border: "none",
+                    borderRadius: 10,
                     fontSize: 14,
                     fontWeight: 600,
-                    borderRadius: 10,
-                    border: "none",
-                    background: creating
-                      ? "var(--surface-tertiary)"
-                      : "linear-gradient(135deg, var(--success-text) 0%, var(--status-success-accent, #059669) 100%)",
-                    color: creating ? "var(--text-muted)" : "white",
-                    cursor: creating ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    boxShadow: creating ? "none" : "0 4px 12px color-mix(in srgb, var(--status-success-text, #10b981) 30%, transparent)",
-                  }}
+                  } : undefined}
                 >
-                  {creating && (
-                    <span
-                      style={{
-                        width: 16,
-                        height: 16,
-                        border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "white",
-                        borderRadius: "50%",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    />
-                  )}
+                  {creating && <span className="hf-spinner-inline" />}
                   {creating ? "Creating..." : "Create & Activate"}
                 </button>
               </div>

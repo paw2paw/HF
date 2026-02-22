@@ -34,11 +34,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create UserTask for this setup
-    const taskId = await startTaskTracking(userId, "course_setup", {
-      courseName: body.courseName,
-      phase: "initializing",
-    });
+    // Reuse wizard task if provided (one task, two phases: wizard → execution)
+    // Otherwise create a new task (backward compat / API calls without wizard)
+    let taskId: string;
+    if (body.wizardTaskId) {
+      taskId = body.wizardTaskId;
+      await updateTaskProgress(taskId, {
+        currentStep: 1,
+        context: { courseName: body.courseName, phase: "initializing" },
+      });
+    } else {
+      taskId = await startTaskTracking(userId, "course_setup", {
+        courseName: body.courseName,
+        phase: "initializing",
+      });
+    }
 
     // Fire executor non-blocking (don't await)
     courseSetup(body, userId, taskId, async (event) => {

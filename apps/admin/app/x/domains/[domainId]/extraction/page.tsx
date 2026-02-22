@@ -337,7 +337,7 @@ export default function ExtractionConfigPage() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Extraction Config</h1>
+            <h1 className="hf-section-title">Extraction Config</h1>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
               {domainName}
               {hasOverride && (

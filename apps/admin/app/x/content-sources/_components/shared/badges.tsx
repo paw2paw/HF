@@ -47,6 +47,7 @@ export type ContentSource = {
   qualificationRef: string | null;
   moduleCoverage: string[];
   isActive: boolean;
+  archivedAt: string | null;
   verifiedBy: string | null;
   verifiedAt: string | null;
   createdAt: string;
@@ -124,6 +125,29 @@ export function DocumentTypeBadge({ type, source }: { type: string; source?: str
       {isAuto && (
         <span style={{ fontSize: 9, color: "var(--text-muted)", fontStyle: "italic" }}>auto</span>
       )}
+    </span>
+  );
+}
+
+export function ArchivedBadge({ archivedAt }: { archivedAt?: string | null }) {
+  const label = archivedAt
+    ? `Archived ${new Date(archivedAt).toLocaleDateString()}`
+    : "Archived";
+  return (
+    <span
+      title={label}
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        color: "var(--text-muted)",
+        backgroundColor: "var(--surface-secondary)",
+        border: "1px solid var(--border-default)",
+      }}
+    >
+      Archived
     </span>
   );
 }

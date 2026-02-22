@@ -145,6 +145,15 @@ export async function validateSourceAuthority(
       }
     }
 
+    // Check if archived
+    if (!dbSource.isActive) {
+      result.warnings.push({
+        field,
+        slug,
+        message: `Source "${slug}" is archived${dbSource.archivedAt ? ` (since ${dbSource.archivedAt.toISOString().split("T")[0]})` : ""}.`,
+      });
+    }
+
     // Check if superseded
     if (dbSource.supersededById) {
       result.warnings.push({
@@ -224,6 +233,7 @@ export async function listAvailableSources(): Promise<
   }>
 > {
   const sources = await prisma.contentSource.findMany({
+    where: { isActive: true },
     orderBy: [{ trustLevel: "asc" }, { name: "asc" }],
     select: {
       slug: true,

@@ -28,6 +28,8 @@ import { enrollCaller } from "@/lib/enrollment";
 import { loadComposeConfig, executeComposition, persistComposedPrompt } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
 import type { SpecConfig } from "@/lib/types/json-fields";
+import type { ProgressEvent, ProgressCallback } from "./types";
+export type { ProgressEvent, ProgressCallback };
 
 // ── Types ──────────────────────────────────────────────
 
@@ -56,18 +58,6 @@ export interface QuickLaunchInput {
   behaviorTargets?: Record<string, number>; // Matrix/pill-derived behavior targets → BehaviorTarget rows + onboardingDefaultTargets
   matrixPositions?: Record<string, { x: number; y: number }>; // UI metadata for round-trip matrix reconstruction
 }
-
-export interface ProgressEvent {
-  phase: string;
-  message: string;
-  stepIndex?: number;
-  totalSteps?: number;
-  detail?: Record<string, any>;
-  /** Structured data payload for progressive UI updates */
-  data?: Record<string, any>;
-}
-
-export type ProgressCallback = (event: ProgressEvent) => void;
 
 export interface QuickLaunchResult {
   domainId: string;
