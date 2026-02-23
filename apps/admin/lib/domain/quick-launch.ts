@@ -22,7 +22,7 @@ import {
   type GeneratedIdentityConfig,
 } from "@/lib/domain/generate-identity";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
-import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
+import { applyBehaviorTargets, applyCallerTargets } from "@/lib/domain/agent-tuning";
 import { generateContentSpec, patchContentSpecForContract } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
 import { generateSkeletonCurriculum } from "@/lib/content-trust/generate-skeleton-curriculum";
@@ -460,6 +460,7 @@ const stepExecutors: Record<string, StepExecutor> = {
   scaffold_domain: async (ctx) => {
     const domainId = ctx.results.domainId!;
     const p = db(ctx.tx);
+    const isCommunityAttach = ctx.input.kind === "COMMUNITY" && !!ctx.results.useExistingDomain;
 
     // Ensure domain kind is correct (defensive: analyze step sets it, but commit may override)
     if (ctx.input.kind) {
@@ -469,52 +470,83 @@ const stepExecutors: Record<string, StepExecutor> = {
       });
     }
 
-    // Load persona flow phases from INIT-001 spec
-    const flowPhases = await loadPersonaFlowPhases(ctx.input.persona);
-    // Use cached archetype from generate_identity step, or look up now
-    const archetype = ctx.results._archetypeSlug ?? await loadPersonaArchetype(ctx.input.persona);
-
-    const scaffoldResult = await scaffoldDomain(domainId, {
-      identityConfig: ctx.results.identityConfig || undefined,
-      flowPhases: flowPhases || undefined,
-      extendsAgent: archetype || undefined,
-      forceNewPlaybook: !!ctx.results.useExistingDomain,
-      playbookName: ctx.results.useExistingDomain ? ctx.input.subjectName : undefined,
-    }, ctx.tx);
-
-    if (scaffoldResult.identitySpec) {
-      ctx.results.identitySpecId = scaffoldResult.identitySpec.id;
-    }
-    if (scaffoldResult.playbook) {
-      ctx.results.playbookId = scaffoldResult.playbook.id;
-    }
-    ctx.results.warnings!.push(...scaffoldResult.skipped);
-
-    // Apply behavior targets from matrix/pills if provided
-    const targets = ctx.input.behaviorTargets;
-    if (targets && Object.keys(targets).length > 0) {
-      // Store on Domain.onboardingDefaultTargets (first-call fallback)
-      const targetPayload: Record<string, unknown> = {};
-      for (const [paramId, value] of Object.entries(targets)) {
-        targetPayload[paramId] = { value, confidence: 0.5 };
-      }
-      // Stash matrix positions for UI round-trip
-      if (ctx.input.matrixPositions) {
-        targetPayload._matrixPositions = ctx.input.matrixPositions;
-      }
-      await p.domain.update({
-        where: { id: domainId },
-        data: { onboardingDefaultTargets: targetPayload },
+    if (isCommunityAttach) {
+      // ── Community attach: reuse existing Playbook, skip scaffold ──
+      // The community already has its domain, identity spec, and playbook.
+      // We just need to find them so create_caller can enroll into them.
+      const existingPlaybook = await p.playbook.findFirst({
+        where: { domainId, status: "PUBLISHED" },
+        select: { id: true },
+        orderBy: { publishedAt: "desc" },
       });
+      if (existingPlaybook) {
+        ctx.results.playbookId = existingPlaybook.id;
+      } else {
+        ctx.results.warnings!.push("No published playbook found in existing community");
+      }
 
-      // Apply as PLAYBOOK-scoped BehaviorTarget rows (always-active)
-      if (ctx.results.playbookId) {
-        const applied = await applyBehaviorTargets(ctx.results.playbookId, targets, 0.5, ctx.tx);
-        if (applied > 0) {
-          ctx.onProgress({
-            phase: "scaffold_domain",
-            message: `Applied ${applied} behavior targets`,
+      // Find existing identity spec for reference
+      const existingIdentity = await p.analysisSpec.findFirst({
+        where: { specType: "DOMAIN", specRole: "IDENTITY", isActive: true,
+          playbookItems: { some: { playbook: { domainId } } } },
+        select: { id: true },
+      });
+      if (existingIdentity) {
+        ctx.results.identitySpecId = existingIdentity.id;
+      }
+
+      // Tuning deferred to create_caller step (CallerTarget, not BehaviorTarget)
+      ctx.results._deferCallerTuning = true;
+    } else {
+      // ── New domain or EDU attach: full scaffold ──
+      const flowPhases = await loadPersonaFlowPhases(ctx.input.persona);
+      const archetype = ctx.results._archetypeSlug ?? await loadPersonaArchetype(ctx.input.persona);
+
+      const scaffoldResult = await scaffoldDomain(domainId, {
+        identityConfig: ctx.results.identityConfig || undefined,
+        flowPhases: flowPhases || undefined,
+        extendsAgent: archetype || undefined,
+        forceNewPlaybook: !!ctx.results.useExistingDomain,
+        playbookName: ctx.results.useExistingDomain ? ctx.input.subjectName : undefined,
+      }, ctx.tx);
+
+      if (scaffoldResult.identitySpec) {
+        ctx.results.identitySpecId = scaffoldResult.identitySpec.id;
+      }
+      if (scaffoldResult.playbook) {
+        ctx.results.playbookId = scaffoldResult.playbook.id;
+      }
+      ctx.results.warnings!.push(...scaffoldResult.skipped);
+
+      // Apply behavior targets from matrix/pills if provided
+      const targets = ctx.input.behaviorTargets;
+      if (targets && Object.keys(targets).length > 0) {
+        // Only update domain-level defaults for NEW domains.
+        // When attaching to an existing domain, skip to avoid overwriting
+        // onboardingDefaultTargets that affect existing callers' first calls.
+        if (!ctx.results.useExistingDomain) {
+          const targetPayload: Record<string, unknown> = {};
+          for (const [paramId, value] of Object.entries(targets)) {
+            targetPayload[paramId] = { value, confidence: 0.5 };
+          }
+          if (ctx.input.matrixPositions) {
+            targetPayload._matrixPositions = ctx.input.matrixPositions;
+          }
+          await p.domain.update({
+            where: { id: domainId },
+            data: { onboardingDefaultTargets: targetPayload },
           });
+        }
+
+        // Apply as PLAYBOOK-scoped BehaviorTarget rows (always-active)
+        if (ctx.results.playbookId) {
+          const applied = await applyBehaviorTargets(ctx.results.playbookId, targets, 0.5, ctx.tx);
+          if (applied > 0) {
+            ctx.onProgress({
+              phase: "scaffold_domain",
+              message: `Applied ${applied} behavior targets`,
+            });
+          }
         }
       }
     }
@@ -691,6 +723,7 @@ const stepExecutors: Record<string, StepExecutor> = {
     const { subjectName } = ctx.input;
     let { learningGoals } = ctx.input;
     const p = db(ctx.tx);
+    const isCommunityAttach = ctx.input.kind === "COMMUNITY" && !!ctx.results.useExistingDomain;
 
     // Create test caller
     const caller = await p.caller.create({
@@ -724,14 +757,47 @@ const stepExecutors: Record<string, StepExecutor> = {
 
     ctx.results.goalCount = learningGoals.length;
 
-    // Enroll caller in the newly created playbook
+    // Enroll caller in playbook (existing or newly created)
     if (ctx.results.playbookId) {
       await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch", ctx.tx);
     }
 
-    // Create CohortGroup for communities (requires callerId as owner)
-    if (ctx.input.kind === "COMMUNITY" && ctx.results.playbookId) {
-      // Find or create a facilitator caller for the admin user who's running the wizard
+    if (isCommunityAttach) {
+      // ── Community attach: join existing CohortGroup, apply per-caller tuning ──
+      const existingCohort = await p.cohortGroup.findFirst({
+        where: { domainId },
+        select: { id: true, joinToken: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (existingCohort) {
+        // Enroll caller as member of existing cohort
+        await p.callerCohortMembership.create({
+          data: {
+            callerId: caller.id,
+            cohortGroupId: existingCohort.id,
+          },
+        });
+        ctx.results.cohortGroupId = existingCohort.id;
+        ctx.results.joinToken = existingCohort.joinToken ?? undefined;
+      } else {
+        ctx.results.warnings!.push("No CohortGroup found in existing community");
+      }
+
+      // Apply tuning as CallerTarget rows (per-caller, highest priority).
+      // Does not affect existing community members.
+      const targets = ctx.input.behaviorTargets;
+      if (targets && Object.keys(targets).length > 0) {
+        const applied = await applyCallerTargets(caller.id, targets, 0.5, ctx.tx);
+        if (applied > 0) {
+          ctx.onProgress({
+            phase: "create_caller",
+            message: `Applied ${applied} personal tuning targets`,
+          });
+        }
+      }
+    } else if (ctx.input.kind === "COMMUNITY" && ctx.results.playbookId) {
+      // ── New community: create CohortGroup ──
       let facilitator = await p.caller.findFirst({
         where: { userId: ctx.userId, domainId, role: { in: ["TEACHER", "TUTOR"] } },
         select: { id: true },

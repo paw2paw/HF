@@ -2356,6 +2356,7 @@ List all domains with caller counts and playbook info
 |-----------|-----|------|----------|-------------|
 | includeInactive | query | boolean | No | Include inactive domains (default: false) |
 | onlyInstitution | query | boolean | No | Only return domains linked to an institution (default: false) |
+| kind | query | string | No | Filter by domain kind (INSTITUTION | COMMUNITY) |
 
 **Response** `200`
 ```json

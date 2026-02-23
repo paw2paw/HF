@@ -403,3 +403,76 @@ export async function applyBehaviorTargets(
 
   return applied;
 }
+
+/**
+ * Apply a parameter map as CallerTarget rows (per-caller personalization).
+ *
+ * Used when attaching a new caller to an existing community — tuning affects
+ * only this caller, not the community's existing members.
+ *
+ * CallerTarget has highest priority in the merge chain:
+ *   CallerTarget > BehaviorTarget (PLAYBOOK) > Domain defaults > INIT-001
+ *
+ * The pipeline's ADAPT stage will refine these over time as real data comes in.
+ *
+ * @param callerId - The caller to set targets for
+ * @param parameterMap - Record<parameterId, targetValue> (all values 0-1)
+ * @param confidence - Confidence level for seed targets (default 0.5)
+ * @returns Number of targets applied
+ */
+export async function applyCallerTargets(
+  callerId: string,
+  parameterMap: Record<string, number>,
+  confidence = 0.5,
+  tx?: TxClient,
+): Promise<number> {
+  const entries = Object.entries(parameterMap);
+  if (entries.length === 0) return 0;
+
+  const p = db(tx);
+  let applied = 0;
+
+  // Validate parameter IDs exist in the DB
+  const validParams = await p.parameter.findMany({
+    where: {
+      parameterId: { in: entries.map(([id]) => id) },
+      parameterType: "BEHAVIOR",
+    },
+    select: { parameterId: true },
+  });
+  const validIds = new Set(validParams.map((pp) => pp.parameterId));
+
+  for (const [parameterId, targetValue] of entries) {
+    if (!validIds.has(parameterId)) {
+      console.warn(`[applyCallerTargets] Skipping unknown parameter: ${parameterId}`);
+      continue;
+    }
+
+    const clamped = Math.max(0, Math.min(1, targetValue));
+
+    await p.callerTarget.upsert({
+      where: {
+        callerId_parameterId: { callerId, parameterId },
+      },
+      create: {
+        callerId,
+        parameterId,
+        targetValue: clamped,
+        confidence,
+        callsUsed: 0,
+      },
+      update: {
+        targetValue: clamped,
+        confidence,
+      },
+    });
+
+    applied++;
+  }
+
+  if (applied > 0) {
+    console.log(`[applyCallerTargets] Applied ${applied} targets to caller ${callerId}`);
+  }
+
+  return applied;
+}

@@ -11,6 +11,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @description List all domains with caller counts and playbook info
  * @query includeInactive boolean - Include inactive domains (default: false)
  * @query onlyInstitution boolean - Only return domains linked to an institution (default: false)
+ * @query kind string - Filter by domain kind (INSTITUTION | COMMUNITY)
  * @response 200 { ok: true, domains: Domain[], count: number }
  * @response 500 { ok: false, error: "..." }
  */
@@ -22,11 +23,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
     const onlyInstitution = searchParams.get("onlyInstitution") === "true";
+    const kind = searchParams.get("kind");
 
     const domains = await prisma.domain.findMany({
       where: {
         ...(includeInactive ? {} : { isActive: true }),
         ...(onlyInstitution ? { institutionId: { not: null } } : {}),
+        ...(kind ? { kind: kind as any } : {}),
       },
       orderBy: [{ isDefault: "desc" }, { name: "asc" }],
       include: {

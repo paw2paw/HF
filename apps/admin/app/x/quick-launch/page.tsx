@@ -172,8 +172,8 @@ export default function QuickLaunchPage() {
       })
       .finally(() => setPersonasLoading(false));
 
-    // Load domains for domain picker
-    fetch("/api/domains?activeOnly=true")
+    // Load existing communities for "attach to existing" picker
+    fetch("/api/domains?kind=COMMUNITY")
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.domains) {
@@ -907,7 +907,7 @@ export default function QuickLaunchPage() {
         <div className="hf-flex-col" style={{ gap: 20 }}>
           {/* ── Summary ── */}
           <WizardSummary
-            title={selectedDomainId ? `${terms.playbook} Added!` : "Your Community is Ready!"}
+            title={selectedDomainId ? "Topic Added to Community!" : "Your Community is Ready!"}
             subtitle={result.goalCount > 0 ? `${result.goalCount} goals` : undefined}
             intent={{
               items: [
@@ -1179,31 +1179,7 @@ export default function QuickLaunchPage() {
         <>
           {/* Step 1: Describe what you're building */}
           <FormCard>
-            <StepMarker number={1} label={selectedDomainId ? `Add a ${lower("playbook")}` : "Describe your community"} completed={!!subjectName.trim()} />
-
-            {/* Domain picker */}
-            {domains.length > 0 && (
-              <div className="hf-mb-md">
-                <label className="hf-label">
-                  {terms.domain}
-                </label>
-                <select
-                  value={selectedDomainId}
-                  onChange={(e) => setSelectedDomainId(e.target.value)}
-                  className="ql-select"
-                >
-                  <option value="">{`Create new ${lower("domain")}`}</option>
-                  {domains.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                {selectedDomainId && (
-                  <div className="hf-text-xs hf-text-muted hf-mt-xs">
-                    {`A new ${lower("playbook")} (class) will be created within this ${lower("domain")}.`}
-                  </div>
-                )}
-              </div>
-            )}
+            <StepMarker number={1} label={selectedDomainId ? "Add a topic to existing community" : "Describe your community"} completed={!!subjectName.trim()} />
 
             <div className="ql-form-hint">
               Tell us what you&apos;re creating &mdash; a tutor, coach, support agent, or anything else.
@@ -1224,7 +1200,7 @@ export default function QuickLaunchPage() {
             <div className="hf-mt-md">
               <div className="hf-flex hf-gap-sm hf-mb-sm">
                 <label htmlFor="subject" className="ql-name-label">
-                  {selectedDomainId ? `${terms.playbook} name` : "Community name"}
+                  {selectedDomainId ? "Topic name" : "Community name"}
                 </label>
                 {nameLoading && (
                   <span className="ql-name-suggesting">
@@ -1424,6 +1400,30 @@ export default function QuickLaunchPage() {
             </button>
             {showAdvanced && (
               <div style={{ marginTop: 12, maxWidth: 480 }}>
+                {/* Attach to existing community */}
+                {domains.length > 0 && (
+                  <div className="hf-mb-md">
+                    <label className="ql-advanced-label">
+                      Add to existing community
+                    </label>
+                    <select
+                      value={selectedDomainId}
+                      onChange={(e) => setSelectedDomainId(e.target.value)}
+                      className="ql-select"
+                    >
+                      <option value="">Create new community</option>
+                      {domains.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                    {selectedDomainId && (
+                      <div className="hf-text-xs hf-text-muted hf-mt-xs">
+                        A new topic will be added to this community. Tuning only affects new members.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <label htmlFor="qualRef" className="ql-advanced-label">
                   Qualification reference
                 </label>
