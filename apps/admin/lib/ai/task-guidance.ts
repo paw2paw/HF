@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 export interface TaskContext {
   taskId: string;
   taskType: string;        // 'create_spec', 'configure_caller', 'setup_goal', etc.
+  status: string;          // 'in_progress', 'completed', 'abandoned'
   currentStep: number;
   totalSteps: number;
   stepTitle: string;
@@ -23,6 +24,7 @@ export interface TaskContext {
   completedSteps: string[];
   blockers?: string[];     // What's preventing progress
   userIntent?: string;     // What user is trying to accomplish
+  context?: Record<string, any>; // Raw task context (progress messages, skeleton modules, etc.)
 }
 
 export interface TaskGuidance {
@@ -211,6 +213,7 @@ export async function getTaskGuidance(taskId: string): Promise<TaskGuidance> {
   const taskContext: TaskContext = {
     taskId: task.id,
     taskType: task.taskType,
+    status: task.status,
     currentStep: task.currentStep,
     totalSteps: task.totalSteps,
     stepTitle: getStepTitle(task.taskType, task.currentStep),
@@ -218,6 +221,7 @@ export async function getTaskGuidance(taskId: string): Promise<TaskGuidance> {
     completedSteps: (task.completedSteps as string[]) || [],
     blockers: (task.blockers as string[]) || undefined,
     userIntent: (task.context as any)?.intent,
+    context: (task.context as Record<string, any>) || undefined,
   };
 
   // Generate suggestions based on task type and current step
