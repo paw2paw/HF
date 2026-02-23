@@ -6,7 +6,7 @@ import { useEffect } from 'react';
  * Dynamic favicon — HF monogram colored by environment.
  *
  * DEV (Cloud Run):  Blue background (#3b82f6)
- * DEV (VM/local):   Blue background with green corner dot
+ * DEV (VM/local):   Teal background (#06b6d4) — distinct from Cloud Run DEV
  * TEST:             Purple background (#8b5cf6)
  * STG:              Amber background (#f59e0b)
  * LIVE:             Navy background (#1F1B4A) with gold "HF" text
@@ -19,31 +19,25 @@ const ENV = (process.env.NEXT_PUBLIC_APP_ENV || 'DEV').toUpperCase();
 interface EnvFaviconConfig {
   bg: string;
   text: string;
-  /** Optional corner dot color for VM/localhost */
-  dot?: string;
 }
 
 const ENV_FAVICON: Record<string, EnvFaviconConfig> = {
   DEV:  { bg: '#3b82f6', text: '#ffffff' },
+  /** VM/localhost gets teal — visually distinct from Cloud Run DEV blue */
+  VM:   { bg: '#06b6d4', text: '#ffffff' },
   TEST: { bg: '#8b5cf6', text: '#ffffff' },
   STG:  { bg: '#f59e0b', text: '#ffffff' },
   LIVE: { bg: '#1F1B4A', text: '#F5B856' },
 };
 
-function generateFaviconSVG(config: EnvFaviconConfig, isLocal: boolean): string {
+function generateFaviconSVG(config: EnvFaviconConfig): string {
   const { bg, text } = config;
-
-  // Corner dot for VM/localhost — small green circle in bottom-right
-  const dotMarkup = isLocal && ENV === 'DEV'
-    ? '<circle cx="27" cy="27" r="6" fill="#22c55e" stroke="#ffffff" stroke-width="1.5"/>'
-    : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <rect width="32" height="32" rx="6" fill="${bg}"/>
   <text x="16" y="17" text-anchor="middle" dominant-baseline="central"
         font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700"
         fill="${text}">HF</text>
-  ${dotMarkup}
 </svg>`;
 }
 
@@ -64,12 +58,14 @@ function setFavicon(svg: string) {
 
 export default function DynamicFavicon() {
   useEffect(() => {
-    const config = ENV_FAVICON[ENV] || ENV_FAVICON.DEV;
     const isLocal = typeof window !== 'undefined' && (
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1'
     );
-    const svg = generateFaviconSVG(config, isLocal);
+    // VM/localhost DEV gets teal favicon; Cloud Run DEV gets blue
+    const key = isLocal && ENV === 'DEV' ? 'VM' : ENV;
+    const config = ENV_FAVICON[key] || ENV_FAVICON.DEV;
+    const svg = generateFaviconSVG(config);
     setFavicon(svg);
   }, []);
 

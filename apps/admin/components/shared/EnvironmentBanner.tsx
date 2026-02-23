@@ -61,8 +61,10 @@ export const envLabel = ENV_CONFIG?.label ?? null;
 export default function EnvironmentBanner() {
   useEffect(() => {
     if (ENV_NORMALIZED === 'LIVE') return;
-    const base = document.title.replace(/^\[(DEV|TEST|STG|LIVE)\]\s*/, '');
-    document.title = `[${ENV_NORMALIZED}] ${base || 'HF Admin'}`;
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const label = isLocal && ENV_NORMALIZED === 'DEV' ? 'VM' : ENV_NORMALIZED;
+    const base = document.title.replace(/^\[(DEV|TEST|STG|LIVE|VM)\]\s*/, '');
+    document.title = `[${label}] ${base || 'HF Admin'}`;
   }, []);
 
   return null;
