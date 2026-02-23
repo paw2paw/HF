@@ -5103,6 +5103,29 @@ Auto-scaffold minimum viable domain setup: identity spec, playbook, publish, onb
 
 ---
 
+### `GET` /api/domains/:domainId/teaching-points
+
+Get teaching points (assertions) for a domain through the subject→source chain.
+
+**Auth**: Session · **Scope**: `domains:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | path | string | Yes | Domain UUID |
+| limit | query | number | No | Max results (default 50, max 200) |
+
+**Response** `200`
+```json
+{ ok: true, teachingPoints: [...], total: number }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Domain not found" }
+```
+
+---
+
 ### `POST` /api/domains/quick-launch
 
 Runs the Quick Launch flow: upload content → create domain → scaffold tutor → ready.
@@ -11276,8 +11299,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 306 |
-| Files with annotations | 305 |
+| Route files found | 307 |
+| Files with annotations | 306 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

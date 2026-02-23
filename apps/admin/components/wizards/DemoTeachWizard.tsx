@@ -193,6 +193,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const lastSuggestText = useRef("");
+  const suggestFetchId = useRef(0);
 
   // Caller goals (CRUD)
   const [callerGoals, setCallerGoals] = useState<CallerGoal[]>([]);
@@ -256,6 +257,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   // Curriculum generation tracking (parent-level, survives step transitions)
   const [curriculumTaskId, setCurriculumTaskId] = useState<string | null>(null);
   const [curriculumGenerating, setCurriculumGenerating] = useState(false);
+  const existingCurriculumFetched = useRef(false);
 
   // Convenience flag
   const needsCallerUpfront = config.requireCallerUpfront !== false;
@@ -300,6 +302,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setCurriculumGenerating(false);
     clearWizardError();
     domainsFetchedRef.current = false; // Allow domain refetch on restart
+    existingCurriculumFetched.current = false; // Allow curriculum refetch on restart
     setLoadingDomains(true);
     // Re-start the flow fresh
     startFlow({
@@ -380,6 +383,37 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       console.warn("[Teach] Failed to fetch enriched modules:", err);
     }
   }, [setData]);
+
+  // Load existing curriculum from DB when data bag is empty (e.g. fresh wizard, domain already has content spec)
+  const fetchExistingCurriculum = useCallback(async () => {
+    if (!selectedDomainId) return;
+    try {
+      // Get domain's playbooks
+      const domRes = await fetch(`/api/domains/${selectedDomainId}`);
+      const domData = await domRes.json();
+      if (!domData.ok) return;
+      const playbooks = domData.domain?.playbooks || [];
+      if (playbooks.length === 0) return;
+
+      // Fetch first playbook's items to find CONTENT spec
+      const pbRes = await fetch(`/api/playbooks/${playbooks[0].id}`);
+      const pbData = await pbRes.json();
+      if (!pbData.ok) return;
+
+      const contentItem = (pbData.playbook?.items || [])
+        .find((item: any) => item.spec?.specRole === "CONTENT" && item.isEnabled);
+      if (!contentItem?.spec?.config?.modules) return;
+
+      const modules = contentItem.spec.config.modules;
+      if (Array.isArray(modules) && modules.length > 0) {
+        setData("curriculumModules", modules);
+        setData("moduleCount", modules.length);
+        setData("contentSpecId", contentItem.spec.id);
+      }
+    } catch (e) {
+      console.warn("[Teach] Failed to fetch existing curriculum:", e);
+    }
+  }, [selectedDomainId, setData]);
 
   useTaskPoll({
     taskId: curriculumTaskId,
@@ -561,6 +595,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       const text = forceText ?? goalText;
       if (text === lastSuggestText.current && suggestions.length > 0) return;
       lastSuggestText.current = text;
+      const thisId = ++suggestFetchId.current;
       setLoadingSuggestions(true);
       try {
         const params = new URLSearchParams({ domainId: selectedDomainId });
@@ -568,13 +603,19 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         if (text) params.set("currentGoal", text);
         const res = await fetch(`/api/demonstrate/suggest?${params}`);
         const data = await res.json();
+        // Only update state from the most recent request (prevents race conditions)
+        if (suggestFetchId.current !== thisId) return;
         if (data.ok && data.suggestions) {
           setSuggestions(data.suggestions);
         }
       } catch {
         // Non-critical — suggestions are optional
+        if (suggestFetchId.current !== thisId) return;
       } finally {
-        setLoadingSuggestions(false);
+        // Only clear loading if this is still the latest request
+        if (suggestFetchId.current === thisId) {
+          setLoadingSuggestions(false);
+        }
       }
     },
     [selectedDomainId, selectedCallerId, needsCallerUpfront, goalText, suggestions.length],
@@ -721,6 +762,17 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   useEffect(() => {
     if (currentStep === STEP_LAUNCH && selectedDomainId) fetchReadiness();
   }, [currentStep, STEP_LAUNCH, selectedDomainId, selectedCallerId, fetchReadiness]);
+
+  // Load existing curriculum from DB when data bag is empty (fresh wizard with pre-existing content spec)
+  useEffect(() => {
+    if (currentStep !== STEP_LAUNCH || !isTeachFlow || !selectedDomainId) return;
+    if (existingCurriculumFetched.current) return; // Already tried
+    if (curriculumGenerating) return; // Generation in progress
+    const existingModules = getData<any[]>("curriculumModules");
+    if (existingModules && existingModules.length > 0) return; // Already have modules
+    existingCurriculumFetched.current = true;
+    fetchExistingCurriculum();
+  }, [currentStep, STEP_LAUNCH, isTeachFlow, selectedDomainId, curriculumGenerating, getData, fetchExistingCurriculum]);
 
   // ── Content upload step logic ─────────────────────
 
@@ -1220,36 +1272,20 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     }
   }, [selectedDomainId]);
 
-  // Fetch teaching points for selected domain (via domain's content sources)
+  // Fetch teaching points for selected domain (direct query through subject chain)
   const fetchTeachingPoints = useCallback(async () => {
     if (!selectedDomainId) return;
     setTeachingPointsLoading(true);
     try {
-      // Get domain's sources through subjects
-      const domRes = await fetch(`/api/domains/${selectedDomainId}`);
-      const domData = await domRes.json();
-      if (!domData.ok) { setTeachingPointsLoading(false); return; }
-
-      const subjects = domData.domain?.subjects || [];
-      const sourceIds: string[] = [];
-      for (const s of subjects) {
-        for (const src of s.subject?.sources || []) {
-          if (src.source?.id) sourceIds.push(src.source.id);
-        }
-      }
-
-      if (sourceIds.length === 0) { setTeachingPointsLoading(false); return; }
-
-      // Fetch assertions from first source (demo)
-      const aRes = await fetch(`/api/content-sources/${sourceIds[0]}/assertions?limit=50`);
-      const aData = await aRes.json();
-      if (aData.ok) {
+      const res = await fetch(`/api/domains/${selectedDomainId}/teaching-points?limit=50`);
+      const data = await res.json();
+      if (data.ok) {
         setTeachingPoints(
-          (aData.assertions || []).map((a: any) => ({
-            id: a.id,
-            text: a.text || a.assertion,
-            type: a.assertionType || a.category || "FACT",
-            reviewed: !!a.reviewedAt,
+          (data.teachingPoints || []).map((tp: any) => ({
+            id: tp.id,
+            text: tp.text,
+            type: tp.type || "FACT",
+            reviewed: !!tp.reviewed,
           }))
         );
       }

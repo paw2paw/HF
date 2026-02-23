@@ -346,14 +346,9 @@ export function OnboardingTabContent({
                   )}
 
                   <div className="hf-flex-between hf-mb-md">
-                    <div>
-                      <h3 className="hf-text-bold" style={{ margin: 0, fontSize: 16 }}>
-                        First-Call Onboarding Configuration
-                      </h3>
-                      <p className="hf-text-md hf-text-muted hf-mt-xs" style={{ marginBottom: 0 }}>
-                        Customize the onboarding experience for new callers in this domain
-                      </p>
-                    </div>
+                    <h3 className="hf-text-bold" style={{ margin: 0, fontSize: 16 }}>
+                      Onboarding
+                    </h3>
                     {!editingOnboarding && (
                       <div className="hf-flex hf-gap-sm">
                         <button
@@ -365,13 +360,13 @@ export function OnboardingTabContent({
                             borderColor: "var(--accent-primary)",
                           }}
                         >
-                          {promptPreviewLoading ? "Composing..." : "Preview First Prompt"}
+                          {promptPreviewLoading ? "Composing..." : "Preview Prompt"}
                         </button>
                         <button
                           className="hf-btn hf-btn-primary"
                           onClick={() => setEditingOnboarding(true)}
                         >
-                          Edit Configuration
+                          Edit
                         </button>
                       </div>
                     )}
@@ -874,260 +869,209 @@ export function OnboardingTabContent({
                     /* View Mode */
                     <div>
 
-                  {/* Quick Stats - Dashboard Style */}
-                  <div className="hf-grid-4 hf-mb-lg">
-                    {/* Persona Card */}
-                    <div
-                      className="hf-onboard-stat"
-                      style={{
-                        border: `2px solid ${domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)"}`,
-                      }}
-                    >
-                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
+                  {/* Compact entity rows */}
+                  <div className="hf-card hf-mb-lg" style={{ padding: 0, overflow: "hidden" }}>
+                    {/* Persona */}
+                    <div className="hf-list-row" style={{ padding: "12px 16px" }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>
                         {domain.onboardingIdentitySpec ? "\uD83D\uDC64" : "\u26A0\uFE0F"}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="hf-text-sm hf-text-bold">Persona</div>
+                        <div className="hf-text-xs hf-text-muted" style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                          {domain.onboardingIdentitySpec?.name || "Not configured"}
+                        </div>
                       </div>
-                      <div
-                        className="hf-text-sm hf-text-bold hf-text-center hf-mb-xs"
-                        style={{
-                          color: domain.onboardingIdentitySpec ? "var(--status-success-text)" : "var(--status-error-text)",
-                        }}
-                      >
-                        {domain.onboardingIdentitySpec?.name || "Not Set"}
-                      </div>
-                      <div className="hf-text-xs hf-text-muted hf-text-bold">
-                        Persona
-                      </div>
-                      {domain.onboardingIdentitySpec && (
-                        <Link
-                          href={`/x/layers?overlayId=${domain.onboardingIdentitySpec.id}`}
-                          className="hf-link-pill hf-mt-sm"
-                        >
-                          <Layers style={{ width: 12, height: 12 }} />
-                          View Layers
-                        </Link>
-                      )}
-                    </div>
-
-                    {/* Welcome Message Card */}
-                    <div
-                      className="hf-onboard-stat"
-                      style={{
-                        border: `2px solid ${domain.onboardingWelcome ? "var(--status-success-text)" : "var(--border-default)"}`,
-                      }}
-                    >
-                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
-                        {domain.onboardingWelcome ? "\u2705" : "\uD83D\uDCAC"}
-                      </div>
-                      <div
-                        className="hf-text-sm hf-text-bold hf-text-center hf-mb-xs"
-                        style={{
-                          color: domain.onboardingWelcome ? "var(--status-success-text)" : "var(--text-muted)",
-                        }}
-                      >
-                        {domain.onboardingWelcome ? "Configured" : "Default"}
-                      </div>
-                      <div className="hf-text-xs hf-text-muted hf-text-bold">
-                        Welcome Message
+                      <div className="hf-flex hf-gap-sm" style={{ flexShrink: 0 }}>
+                        {domain.onboardingIdentitySpec ? (
+                          <>
+                            <span className="hf-badge hf-badge-success">Set</span>
+                            <Link
+                              href={`/x/layers?overlayId=${domain.onboardingIdentitySpec.id}`}
+                              className="hf-link-pill"
+                            >
+                              <Layers style={{ width: 12, height: 12 }} />
+                              Layers
+                            </Link>
+                          </>
+                        ) : (
+                          <span className="hf-badge" style={{ color: "var(--status-error-text)" }}>Required</span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Flow Phases Card */}
-                    <div
-                      className="hf-onboard-stat"
-                      style={{
-                        border: `2px solid ${domain.onboardingFlowPhases ? "var(--status-success-text)" : "var(--border-default)"}`,
-                      }}
-                    >
-                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
-                        {domain.onboardingFlowPhases ? "\uD83D\uDD04" : "\u23ED\uFE0F"}
+                    {/* Welcome Message */}
+                    <div className="hf-list-row" style={{ padding: "12px 16px" }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{"\uD83D\uDCAC"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="hf-text-sm hf-text-bold">Welcome Message</div>
+                        {domain.onboardingWelcome ? (
+                          <div className="hf-text-xs hf-text-muted" style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}>
+                            {"\u201c"}{domain.onboardingWelcome}{"\u201d"}
+                          </div>
+                        ) : (
+                          <div className="hf-text-xs hf-text-muted">Using default</div>
+                        )}
                       </div>
-                      <div className="hf-mb-xs" style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color: domain.onboardingFlowPhases ? "var(--button-primary-bg)" : "var(--text-muted)",
-                        lineHeight: 1,
-                      }}>
-                        {domain.onboardingFlowPhases ?
-                          (domain.onboardingFlowPhases as any).phases?.length || 0 :
-                          "0"}
-                      </div>
-                      <div className="hf-text-xs hf-text-muted hf-text-bold">
-                        Flow Phases
-                      </div>
+                      <span className={`hf-badge ${domain.onboardingWelcome ? "hf-badge-success" : ""}`} style={{ flexShrink: 0 }}>
+                        {domain.onboardingWelcome ? "Set" : "Default"}
+                      </span>
                     </div>
 
-                    {/* Default Targets Card */}
-                    <div
-                      className="hf-onboard-stat"
-                      style={{
-                        border: `2px solid ${domain.onboardingDefaultTargets ? "var(--status-success-text)" : "var(--border-default)"}`,
-                      }}
-                    >
-                      <div style={{ fontSize: 24 }} className="hf-mb-sm">
-                        {domain.onboardingDefaultTargets ? "\uD83C\uDFAF" : "\u2699\uFE0F"}
+                    {/* Flow Phases */}
+                    <div className="hf-list-row" style={{ padding: "12px 16px" }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{"\uD83D\uDD04"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="hf-text-sm hf-text-bold">Flow Phases</div>
+                        <div className="hf-text-xs hf-text-muted">
+                          {domain.onboardingFlowPhases
+                            ? `${(domain.onboardingFlowPhases as any).phases?.length || 0} phases defined`
+                            : "Using default flow"}
+                        </div>
                       </div>
-                      <div className="hf-mb-xs" style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color: domain.onboardingDefaultTargets ? "var(--button-primary-bg)" : "var(--text-muted)",
-                        lineHeight: 1,
-                      }}>
-                        {domain.onboardingDefaultTargets ?
-                          Object.keys(domain.onboardingDefaultTargets as object).length :
-                          "0"}
+                      <span className={`hf-badge ${domain.onboardingFlowPhases ? "hf-badge-success" : ""}`} style={{ flexShrink: 0 }}>
+                        {domain.onboardingFlowPhases ? "Set" : "Default"}
+                      </span>
+                    </div>
+
+                    {/* Default Targets */}
+                    <div className="hf-list-row" style={{ padding: "12px 16px", borderBottom: "none" }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{"\u2699\uFE0F"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="hf-text-sm hf-text-bold">Default Targets</div>
+                        <div className="hf-text-xs hf-text-muted">
+                          {domain.onboardingDefaultTargets
+                            ? `${Object.keys(domain.onboardingDefaultTargets as object).filter(k => !k.startsWith("_")).length} parameters`
+                            : "Using default targets"}
+                        </div>
                       </div>
-                      <div className="hf-text-xs hf-text-muted hf-text-bold">
-                        Default Targets
-                      </div>
+                      <span className={`hf-badge ${domain.onboardingDefaultTargets ? "hf-badge-success" : ""}`} style={{ flexShrink: 0 }}>
+                        {domain.onboardingDefaultTargets ? "Set" : "Default"}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Welcome Message Preview */}
-                  {domain.onboardingWelcome && (
-                    <div className="hf-card hf-p-md" style={{ borderRadius: 8 }}>
-                      <h4 className="hf-heading-sm">
-                        Welcome Message Preview
-                      </h4>
-                      <div className="hf-p-md hf-text-md hf-text-italic" style={{
-                        background: "var(--surface-tertiary)",
-                        borderRadius: 6,
-                        lineHeight: 1.6,
-                      }}>
-                        {"\u201c"}{domain.onboardingWelcome}{"\u201d"}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Flow Phases Visual */}
+                  {/* Flow Phases — vertical timeline */}
                   {domain.onboardingFlowPhases && (domain.onboardingFlowPhases as any).phases && (
-                    <div className="hf-card hf-p-20" style={{ borderRadius: 12 }}>
-                      <h4 className="hf-flex hf-gap-sm hf-mb-md hf-text-bold hf-text-primary" style={{ margin: 0, fontSize: 16 }}>
-                        <span style={{ fontSize: 20 }}>{"\uD83D\uDD04"}</span>
-                        Onboarding Flow Phases
-                      </h4>
-                      <div className="hf-flex hf-gap-lg" style={{ overflowX: "auto", paddingBottom: 8 }}>
-                        {((domain.onboardingFlowPhases as any).phases || []).map((phase: any, idx: number) => (
-                          <div key={idx} className="hf-phase-card">
-                            <div className="hf-badge" style={{
-                              position: "absolute",
-                              top: 12,
-                              right: 12,
-                              background: "var(--button-primary-bg)",
-                              color: "white",
-                              padding: "4px 10px",
-                              fontWeight: 700,
-                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                            }}>
-                              {idx + 1}
-                            </div>
-                            <div className="hf-capitalize hf-mt-sm" style={{
-                              fontSize: 16,
-                              fontWeight: 700,
-                              marginBottom: 12,
-                              color: "var(--button-primary-bg)",
-                            }}>
-                              {phase.phase}
-                            </div>
-                            <div className="hf-flex hf-gap-xs hf-text-sm hf-text-muted hf-text-500 hf-mb-md" style={{
-                              padding: "6px 10px",
-                              background: "var(--surface-secondary)",
-                              borderRadius: 6,
-                            }}>
-                              <span>{"\u23F1\uFE0F"}</span>
-                              <span>{phase.duration}</span>
+                    <div className="hf-card hf-mb-lg" style={{ padding: 0, overflow: "hidden" }}>
+                      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                        <h4 className="hf-text-sm hf-text-bold" style={{ margin: 0 }}>
+                          Flow Phases
+                        </h4>
+                      </div>
+                      {((domain.onboardingFlowPhases as any).phases || []).map((phase: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="hf-list-row"
+                          style={{
+                            padding: "12px 16px",
+                            alignItems: "flex-start",
+                            borderBottom: idx === ((domain.onboardingFlowPhases as any).phases.length - 1) ? "none" : undefined,
+                          }}
+                        >
+                          <div className="hf-number-badge" style={{ flexShrink: 0, marginTop: 2 }}>
+                            {idx + 1}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="hf-flex hf-gap-sm" style={{ alignItems: "center" }}>
+                              <span className="hf-text-sm hf-text-bold hf-capitalize">
+                                {phase.phase}
+                              </span>
+                              {phase.duration && (
+                                <span className="hf-badge" style={{ fontSize: 11 }}>
+                                  {phase.duration}
+                                </span>
+                              )}
                             </div>
                             {phase.goals && phase.goals.length > 0 && (
-                              <div>
-                                <div className="hf-category-label hf-mb-sm">
-                                  Goals
-                                </div>
-                                <ul style={{
-                                  margin: 0,
-                                  paddingLeft: 18,
-                                  fontSize: 13,
-                                  lineHeight: 1.6,
-                                  color: "var(--text-secondary)",
-                                }}>
-                                  {phase.goals.map((goal: string, gIdx: number) => (
-                                    <li key={gIdx} className="hf-mb-xs">{goal}</li>
-                                  ))}
-                                </ul>
-                              </div>
+                              <ul style={{
+                                margin: "4px 0 0",
+                                paddingLeft: 16,
+                                fontSize: 12,
+                                lineHeight: 1.5,
+                                color: "var(--text-muted)",
+                              }}>
+                                {phase.goals.map((goal: string, gIdx: number) => (
+                                  <li key={gIdx}>{goal}</li>
+                                ))}
+                              </ul>
                             )}
                             {phase.content && phase.content.length > 0 && (
-                              <div className="hf-mt-md" style={{ marginTop: 12 }}>
-                                <div className="hf-category-label hf-mb-sm" style={{ marginBottom: 6 }}>
-                                  Content
-                                </div>
+                              <div className="hf-flex hf-gap-xs" style={{ marginTop: 4, flexWrap: "wrap" }}>
                                 {phase.content.map((ref: any, cIdx: number) => (
-                                  <div key={cIdx} className="hf-flex hf-gap-xs hf-mb-xs" style={{
-                                    fontSize: 12,
-                                    padding: "4px 8px",
-                                    background: "var(--surface-tertiary)",
-                                    borderRadius: 4,
-                                  }}>
-                                    <span>{"\uD83D\uDCCE"}</span>
-                                    <span className="hf-text-bold">{ref.instruction || "Media attached"}</span>
-                                  </div>
+                                  <span key={cIdx} className="hf-badge" style={{ fontSize: 11 }}>
+                                    {"\uD83D\uDCCE"} {ref.instruction || "Media"}
+                                  </span>
                                 ))}
                               </div>
                             )}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  {/* Default Targets Visual */}
-                  {domain.onboardingDefaultTargets && Object.keys(domain.onboardingDefaultTargets as object).length > 0 && (
-                    <div className="hf-card hf-p-md" style={{ borderRadius: 8, marginBottom: 0 }}>
-                      <h4 className="hf-heading-sm hf-mb-md">
-                        Default Parameter Targets
-                      </h4>
-                      <div className="hf-grid hf-gap-md" style={{
-                        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                      }}>
-                        {Object.entries(domain.onboardingDefaultTargets as object).map(([param, data]: [string, any]) => {
-                          const value = data.value ?? data;
-                          const confidence = data.confidence ?? null;
-                          const normalizedValue = typeof value === 'number' ? value : 0;
-                          const percentage = Math.round(normalizedValue * 100);
+                  {/* Default Targets */}
+                  {domain.onboardingDefaultTargets && Object.keys(domain.onboardingDefaultTargets as object).filter(k => !k.startsWith("_")).length > 0 && (
+                    <div className="hf-card" style={{ padding: 0, overflow: "hidden", marginBottom: 0 }}>
+                      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                        <h4 className="hf-text-sm hf-text-bold" style={{ margin: 0 }}>
+                          Default Targets
+                        </h4>
+                      </div>
+                      <div style={{ padding: 16 }}>
+                        <div className="hf-grid hf-gap-md" style={{
+                          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                        }}>
+                          {Object.entries(domain.onboardingDefaultTargets as object)
+                            .filter(([k]) => !k.startsWith("_"))
+                            .map(([param, data]: [string, any]) => {
+                              const value = data.value ?? data;
+                              const confidence = data.confidence ?? null;
+                              const normalizedValue = typeof value === 'number' ? value : 0;
+                              const percentage = Math.round(normalizedValue * 100);
 
-                          return (
-                            <div key={param} className="hf-stat-card" style={{ gap: 0 }}>
-                              <div className="hf-text-sm hf-text-bold hf-mb-sm hf-capitalize">
-                                {param.replace(/_/g, " ")}
-                              </div>
-                              <div className="hf-flex hf-mb-sm" style={{ alignItems: "baseline", gap: 6 }}>
-                                <div style={{
-                                  fontSize: 24,
-                                  fontWeight: 700,
-                                  color: "var(--accent-primary)",
+                              return (
+                                <div key={param} style={{
+                                  padding: "10px 12px",
+                                  background: "var(--surface-secondary)",
+                                  borderRadius: 8,
                                 }}>
-                                  {percentage}%
+                                  <div className="hf-text-xs hf-text-bold hf-capitalize" style={{ marginBottom: 6 }}>
+                                    {param.replace(/_/g, " ")}
+                                  </div>
+                                  <div className="hf-flex" style={{ alignItems: "baseline", gap: 4, marginBottom: 4 }}>
+                                    <span style={{
+                                      fontSize: 18,
+                                      fontWeight: 700,
+                                      color: "var(--accent-primary)",
+                                    }}>
+                                      {percentage}%
+                                    </span>
+                                  </div>
+                                  <div className="hf-progress-track-sm" style={{ marginBottom: confidence !== null ? 4 : 0 }}>
+                                    <div className="hf-progress-fill" style={{
+                                      width: `${percentage}%`,
+                                      background: "var(--accent-primary)",
+                                    }} />
+                                  </div>
+                                  {confidence !== null && (
+                                    <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
+                                      Conf: {Math.round(confidence * 100)}%
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="hf-text-xs hf-text-muted">
-                                  ({normalizedValue.toFixed(2)})
-                                </div>
-                              </div>
-                              {/* Progress bar */}
-                              <div className="hf-progress-track-sm" style={{ marginBottom: confidence !== null ? 8 : 0 }}>
-                                <div className="hf-progress-fill" style={{
-                                  width: `${percentage}%`,
-                                  background: "var(--accent-primary)",
-                                }} />
-                              </div>
-                              {confidence !== null && (
-                                <div className="hf-flex hf-gap-xs hf-text-xs hf-text-muted">
-                                  <span>Confidence:</span>
-                                  <span className="hf-text-bold">
-                                    {Math.round(confidence * 100)}%
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                        </div>
                       </div>
                     </div>
                   )}
