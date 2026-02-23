@@ -74,8 +74,9 @@ export function ErrorCaptureProvider({ children }: { children: React.ReactNode }
               : input instanceof URL
                 ? input.href
                 : input.url;
-          // Don't log auth-related 401s (normal session expiry)
-          if (response.status !== 401) {
+          // Don't log expected non-error statuses:
+          // 401 = normal session expiry, 409 = idempotent "already exists"
+          if (response.status !== 401 && response.status !== 409) {
             // Clone response to read error body without consuming the original
             let errorDetail = "";
             try {

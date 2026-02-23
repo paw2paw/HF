@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
 import { useViewMode } from "@/contexts/ViewModeContext";
-import { AdvancedSection } from "@/components/shared/AdvancedSection";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
 import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
@@ -883,11 +883,18 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator 
                       <div className="hf-flex hf-gap-sm hf-items-center hf-flex-1">
                         <TagPills tags={ss.tags || []} />
                         <DetailDocumentTypeBadge type={ss.source.documentType} source={ss.source.documentTypeSource} />
-                        <span className="hf-text-md hf-text-bold">{ss.source.name}</span>
+                        <Link href={`/x/content-sources/${ss.sourceId}`} className="hf-text-md hf-text-bold" style={{ color: "var(--accent-primary)" }}>
+                          {ss.source.name}
+                        </Link>
                         <TrustBadge level={ss.trustLevelOverride || ss.source.trustLevel} />
-                        <span className="hf-text-xs hf-text-muted">
+                        <Link
+                          href={`/x/content-sources/${ss.sourceId}`}
+                          className="hf-text-xs hf-text-muted"
+                          style={{ textDecoration: "underline", textDecorationStyle: "dotted" }}
+                          title="View assertions in source detail"
+                        >
                           {ss.source._count.assertions} assertions
-                        </span>
+                        </Link>
                       </div>
                       <div className="hf-flex hf-gap-sm hf-items-center">
                         {isAdvanced && SOURCE_TAGS.map((tag) => {
@@ -920,7 +927,7 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator 
                       </div>
                     </div>
 
-                    {isAdvanced && awaiting && (
+                    {awaiting && (
                       <div className="hf-flex hf-gap-sm hf-mt-sm hf-items-center" style={{ paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
                         <span className="hf-text-xs hf-text-bold hf-text-muted">Type:</span>
                         <select
@@ -1023,34 +1030,32 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator 
       <section id="section-curriculum" style={{ marginBottom: 32 }}>
         <div className="hf-flex-between hf-mb-md">
           <h3 className="hf-heading-lg">Curriculum</h3>
-          {isAdvanced && (
-            <div className="hf-flex hf-gap-sm hf-items-center">
-              {generatingCurriculum && (
-                <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
-                  Generating in background...
-                </span>
-              )}
-              {totalAssertions > 0 && (
-                <button
-                  onClick={generateCurriculum}
-                  disabled={generatingCurriculum}
-                  className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
-                  style={{ opacity: generatingCurriculum ? 0.6 : 1 }}
-                >
-                  {generatingCurriculum
-                    ? "Generating..."
-                    : curriculum
-                    ? "Regenerate"
-                    : hasSyllabus
-                    ? "Generate from Syllabus"
-                    : "Generate from All Sources"}
-                </button>
-              )}
-            </div>
-          )}
+          <div className="hf-flex hf-gap-sm hf-items-center">
+            {generatingCurriculum && (
+              <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
+                Generating in background...
+              </span>
+            )}
+            {totalAssertions > 0 && (
+              <button
+                onClick={generateCurriculum}
+                disabled={generatingCurriculum}
+                className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
+                style={{ opacity: generatingCurriculum ? 0.6 : 1 }}
+              >
+                {generatingCurriculum
+                  ? "Generating..."
+                  : curriculum
+                  ? "Regenerate"
+                  : hasSyllabus
+                  ? "Generate from Syllabus"
+                  : "Generate from All Sources"}
+              </button>
+            )}
+          </div>
         </div>
 
-        <AdvancedSection label="Curriculum generation">
+        <>
           {activeExtractionJobs.length > 0 && !generatingCurriculum && (
             <div className="hf-banner hf-banner-info hf-mb-md">
               {activeExtractionJobs.length} extraction{activeExtractionJobs.length > 1 ? "s" : ""} running &mdash; curriculum will generate automatically when complete.
@@ -1073,7 +1078,7 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator 
               <CurriculumView modules={curriculumPreview.modules || []} name={curriculumPreview.name} description={curriculumPreview.description} />
             </div>
           )}
-        </AdvancedSection>
+        </>
 
         {curriculum && !curriculumPreview && (
           <CurriculumView modules={curriculumModules} name={curriculum.name} description={curriculum.description} />
@@ -1092,74 +1097,101 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator 
       </section>
 
       {/* === LESSON PLAN SECTION === */}
-      {curriculum && (
-        <section id="section-lesson-plan" style={{ marginBottom: 32 }}>
-          <div className="hf-flex-between hf-mb-md">
-            <h3 className="hf-heading-lg">Lesson Plan</h3>
-            {lessonPlanGenerating && (
-              <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
-                Generating...
-              </span>
-            )}
-          </div>
-
-          {!lessonPlanEditing && (
-            <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+      <section id="section-lesson-plan" style={{ marginBottom: 32 }}>
+        <div className="hf-flex-between hf-mb-md">
+          <h3 className="hf-heading-lg">Lesson Plan</h3>
+          {lessonPlanGenerating && (
+            <span className="hf-text-xs hf-text-bold" style={{ color: "var(--accent-primary)" }}>
+              Generating...
+            </span>
           )}
+        </div>
 
-          <div className="hf-flex hf-gap-sm hf-mb-md hf-items-center">
-            <button
-              onClick={generateLessonPlan}
-              disabled={lessonPlanGenerating}
-              className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
-              style={{ opacity: lessonPlanGenerating ? 0.6 : 1 }}
-            >
-              {lessonPlan ? "Regenerate Plan" : "Generate Plan"}{sessionCount ? ` (${sessionCount} sessions)` : ""}
-            </button>
-            {lessonPlan && !lessonPlanEditing && (
+        {/* No sources yet */}
+        {subject.sources.length === 0 && (
+          <p className="hf-text-md hf-text-muted">
+            Upload content sources first, then generate a curriculum and lesson plan.
+          </p>
+        )}
+
+        {/* Has sources but no curriculum */}
+        {subject.sources.length > 0 && !curriculum && (
+          <div className="hf-flex hf-gap-md hf-items-center">
+            <p className="hf-text-md hf-text-muted" style={{ margin: 0 }}>
+              Generate a curriculum first to create a lesson plan.
+            </p>
+            {totalAssertions > 0 && (
               <button
-                onClick={() => {
-                  setLessonPlanDraft(lessonPlan.entries || []);
-                  setLessonPlanEditing(true);
-                }}
-                className="hf-btn hf-btn-secondary hf-text-sm"
+                onClick={() => document.getElementById("section-curriculum")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="hf-btn-sm hf-btn-secondary"
               >
-                Edit
+                Go to Curriculum
               </button>
             )}
           </div>
+        )}
 
-          {lessonPlanReasoning && lessonPlanEditing && (
-            <div className="hf-banner hf-banner-info hf-mb-md hf-text-italic">
-              AI reasoning: {lessonPlanReasoning}
+        {/* Has curriculum — show lesson plan controls */}
+        {curriculum && (
+          <>
+            {!lessonPlanEditing && (
+              <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+            )}
+
+            <div className="hf-flex hf-gap-sm hf-mb-md hf-items-center">
+              <button
+                onClick={generateLessonPlan}
+                disabled={lessonPlanGenerating}
+                className="hf-btn hf-btn-secondary hf-text-sm hf-text-bold"
+                style={{ opacity: lessonPlanGenerating ? 0.6 : 1 }}
+              >
+                {lessonPlan ? "Regenerate Plan" : "Generate Plan"}{sessionCount ? ` (${sessionCount} sessions)` : ""}
+              </button>
+              {lessonPlan && !lessonPlanEditing && (
+                <button
+                  onClick={() => {
+                    setLessonPlanDraft(lessonPlan.entries || []);
+                    setLessonPlanEditing(true);
+                  }}
+                  className="hf-btn hf-btn-secondary hf-text-sm"
+                >
+                  Edit
+                </button>
+              )}
             </div>
-          )}
 
-          {lessonPlanEditing && (
-            <LessonPlanEditor
-              entries={lessonPlanDraft}
-              modules={curriculumModules}
-              onChange={setLessonPlanDraft}
-              onSave={() => saveLessonPlan(lessonPlanDraft)}
-              onCancel={() => { setLessonPlanEditing(false); setLessonPlanDraft([]); setLessonPlanReasoning(null); }}
-              saving={saving}
-            />
-          )}
+            {lessonPlanReasoning && lessonPlanEditing && (
+              <div className="hf-banner hf-banner-info hf-mb-md hf-text-italic">
+                AI reasoning: {lessonPlanReasoning}
+              </div>
+            )}
 
-          {!lessonPlanEditing && lessonPlan && (
-            <LessonPlanView entries={lessonPlan.entries || []} />
-          )}
+            {lessonPlanEditing && (
+              <LessonPlanEditor
+                entries={lessonPlanDraft}
+                modules={curriculumModules}
+                onChange={setLessonPlanDraft}
+                onSave={() => saveLessonPlan(lessonPlanDraft)}
+                onCancel={() => { setLessonPlanEditing(false); setLessonPlanDraft([]); setLessonPlanReasoning(null); }}
+                saving={saving}
+              />
+            )}
 
-          {!lessonPlanEditing && !lessonPlan && !lessonPlanLoading && (
-            <p className="hf-text-md hf-text-muted">
-              No lesson plan yet. Click &quot;Generate Plan&quot; to create one from the curriculum.
-            </p>
-          )}
-          {lessonPlanLoading && (
-            <p className="hf-text-sm hf-text-muted">Loading plan...</p>
-          )}
-        </section>
-      )}
+            {!lessonPlanEditing && lessonPlan && (
+              <LessonPlanView entries={lessonPlan.entries || []} />
+            )}
+
+            {!lessonPlanEditing && !lessonPlan && !lessonPlanLoading && (
+              <p className="hf-text-md hf-text-muted">
+                No lesson plan yet. Click &quot;Generate Plan&quot; to create one from the curriculum.
+              </p>
+            )}
+            {lessonPlanLoading && (
+              <p className="hf-text-sm hf-text-muted">Loading plan...</p>
+            )}
+          </>
+        )}
+      </section>
 
       {/* === DOMAINS SECTION === */}
       <section id="section-domains" style={{ marginBottom: 32 }}>

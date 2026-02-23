@@ -319,14 +319,15 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         // Silent — use hardcoded fallback
       }
 
-      if (!isActive) {
+      if (!isActive || state?.flowId !== config.flowId) {
+        // Start fresh — either no active flow, or a different wizard's flow is active
         startFlow({
           flowId: config.flowId,
           steps: stepsToUse,
           returnPath: config.returnPath,
         });
       } else {
-        // Returning from a fix-action page — restore state from context
+        // Returning from a fix-action page — restore state from matching flow
         const savedDomainId = getData<string>("domainId");
         const savedCallerId = getData<string>("callerId");
         const savedGoal = getData<string>("goal");
