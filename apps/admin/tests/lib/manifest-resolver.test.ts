@@ -3,12 +3,12 @@ import { resolveManifestItem, getAllManifestItemIds } from "@/lib/tours/manifest
 
 describe("resolveManifestItem", () => {
   it("returns href/label/icon for a known item", () => {
-    const result = resolveManifestItem("callers");
+    const result = resolveManifestItem("manage-callers");
     expect(result).toEqual({
       href: "/x/callers",
       label: "Callers",
       icon: "User",
-      sectionId: "calls",
+      sectionId: "manage",
     });
   });
 
@@ -17,19 +17,19 @@ describe("resolveManifestItem", () => {
   });
 
   it("applies role variant when role matches", () => {
-    const base = resolveManifestItem("edu-classrooms");
+    const base = resolveManifestItem("manage-cohorts");
     expect(base?.href).toBe("/x/cohorts");
     expect(base?.label).toBe("Cohorts");
 
-    const withRole = resolveManifestItem("edu-classrooms", "EDUCATOR");
+    const withRole = resolveManifestItem("manage-cohorts", "EDUCATOR");
     expect(withRole?.href).toBe("/x/educator/classrooms");
-    // EDUCATOR variant only overrides href and icon, label falls back to base
+    // EDUCATOR variant only overrides href, label falls back to base
     expect(withRole?.label).toBe("Cohorts");
     expect(withRole?.icon).toBe("School");
   });
 
   it("returns base values when role has no variant", () => {
-    const result = resolveManifestItem("callers", "ADMIN");
+    const result = resolveManifestItem("manage-callers", "ADMIN");
     expect(result?.href).toBe("/x/callers");
     expect(result?.label).toBe("Callers");
   });
@@ -39,7 +39,7 @@ describe("getAllManifestItemIds", () => {
   it("returns all manifest items", () => {
     const ids = getAllManifestItemIds();
     expect(ids.length).toBeGreaterThan(30);
-    expect(ids).toContain("callers");
+    expect(ids).toContain("manage-callers");
     expect(ids).toContain("domains");
     expect(ids).toContain("stu-progress");
     expect(ids).toContain("ai-config");

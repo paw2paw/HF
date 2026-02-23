@@ -9,15 +9,28 @@
     ]
   },
   {
+    "id": "config",
+    "title": "Configure",
+    "href": "/x/domains",
+    "items": [
+      { "id": "domains", "href": "/x/domains", "label": "Domains", "icon": "Globe", "terminologyLabel": "domain_plural" },
+      { "id": "playbooks", "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen", "terminologyLabel": "playbook_plural" },
+      { "id": "specs", "href": "/x/specs", "label": "Specs", "icon": "ClipboardList", "terminologyLabel": "spec_plural" },
+      { "id": "layers", "href": "/x/layers", "label": "Layers", "icon": "Layers" },
+      { "id": "taxonomy-graph", "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" },
+      { "id": "flows", "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
+      { "id": "content-explorer", "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" }
+    ]
+  },
+  {
     "id": "manage",
     "title": "Manage",
-    "requiredRole": "OPERATOR",
-    "defaultHiddenFor": ["EDUCATOR"],
+    "defaultHiddenFor": ["STUDENT", "DEMO", "TESTER"],
     "items": [
-      { "id": "cohorts", "href": "/x/cohorts", "label": "Cohorts", "icon": "School", "terminologyLabel": "cohort_plural" },
-      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "wizard": true, "terminologyLabel": "playbook_plural" },
-      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural" },
-      { "id": "jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog" }
+      { "id": "manage-cohorts", "href": "/x/cohorts", "label": "Cohorts", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms" } } },
+      { "id": "manage-courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "wizard": true, "terminologyLabel": "playbook_plural", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "manage-callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/students" } } },
+      { "id": "manage-jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {
@@ -27,8 +40,6 @@
     "defaultHiddenFor": ["OPERATOR", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
     "items": [
       { "id": "edu-dashboard", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-classrooms", "href": "/x/cohorts", "label": "Cohorts", "icon": "Users", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms", "icon": "School" } } },
-      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["ADMIN", "SUPERADMIN"] }
@@ -63,7 +74,6 @@
     "title": "Library",
     "href": "/x/subjects",
     "requiredRole": "OPERATOR",
-    "defaultHiddenFor": ["DEMO", "EDUCATOR"],
     "advancedOnly": true,
     "items": [
       { "id": "subjects", "href": "/x/subjects", "label": "Subjects", "icon": "BookMarked" },
@@ -71,23 +81,6 @@
       { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck" },
       { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA" },
       { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download" }
-    ]
-  },
-  {
-    "id": "config",
-    "title": "Configure",
-    "href": "/x/domains",
-    "requiredRole": "OPERATOR",
-    "defaultHiddenFor": ["EDUCATOR"],
-    "advancedOnly": true,
-    "items": [
-      { "id": "domains", "href": "/x/domains", "label": "Domains", "icon": "Globe", "terminologyLabel": "domain_plural" },
-      { "id": "playbooks", "href": "/x/playbooks", "label": "Playbooks", "icon": "BookOpen", "terminologyLabel": "playbook_plural" },
-      { "id": "specs", "href": "/x/specs", "label": "Specs", "icon": "ClipboardList", "terminologyLabel": "spec_plural" },
-      { "id": "layers", "href": "/x/layers", "label": "Layers", "icon": "Layers" },
-      { "id": "taxonomy-graph", "href": "/x/taxonomy-graph", "label": "Taxonomy", "icon": "Orbit" },
-      { "id": "flows", "href": "/x/flows", "label": "Flows", "icon": "Workflow" },
-      { "id": "content-explorer", "href": "/x/content-explorer", "label": "Content Explorer", "icon": "FileSearch" }
     ]
   },
   {

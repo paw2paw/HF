@@ -64,7 +64,7 @@ export const TOUR_DEFINITIONS: TourDefinition[] = [
         id: "admin-callers",
         title: "Callers",
         description: "Callers are the people your AI speaks with. View profiles, call history, and learning progress here.",
-        manifestItem: "callers",
+        manifestItem: "manage-callers",
       },
       {
         id: "admin-domains",
@@ -128,16 +128,16 @@ export const TOUR_DEFINITIONS: TourDefinition[] = [
         placement: "center",
       },
       {
-        id: "edu-classrooms",
+        id: "manage-cohorts",
         title: "Classrooms",
         description: "Create classrooms and organise students into learning groups.",
-        manifestItem: "edu-classrooms",
+        manifestItem: "manage-cohorts",
       },
       {
-        id: "edu-students",
+        id: "manage-callers",
         title: "Students",
         description: "Track individual student progress, view their calls, and identify who needs attention.",
-        manifestItem: "edu-students",
+        manifestItem: "manage-callers",
       },
       {
         id: "edu-try",
@@ -238,7 +238,7 @@ export const TOUR_DEFINITIONS: TourDefinition[] = [
         id: "test-callers",
         title: "Test Callers",
         description: "View and manage your test caller profiles. Each caller has their own personality and memory.",
-        manifestItem: "callers",
+        manifestItem: "manage-callers",
       },
       {
         id: "test-analytics",

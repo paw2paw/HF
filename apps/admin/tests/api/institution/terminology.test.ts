@@ -49,7 +49,7 @@ describe("GET /api/institution/terminology", () => {
     const body = await res.json();
 
     expect(body.ok).toBe(true);
-    expect(body.terms).toEqual(TECHNICAL_TERMS); // unified 7-key TermMap
+    expect(body.terms).toEqual(TECHNICAL_TERMS); // unified 13-key TermMap
   });
 
   it("returns resolved terminology when institution type is configured", async () => {
@@ -73,17 +73,18 @@ describe("GET /api/institution/terminology", () => {
     expect(body.terminology.instructor).toBe("Trainer");
   });
 
-  it("maps supervisor to instructor in legacy shape", async () => {
+  it("maps supervisor and instructor independently in legacy shape", async () => {
     mockResolveTerminology.mockResolvedValue({
       ...TECHNICAL_TERMS,
       instructor: "Coach",
+      supervisor: "My Coach",
     });
 
     const res = await GET();
     const body = await res.json();
 
     expect(body.ok).toBe(true);
-    expect(body.terminology.supervisor).toBe("Coach"); // supervisor maps to instructor
+    expect(body.terminology.supervisor).toBe("My Coach"); // supervisor is its own key
     expect(body.terminology.instructor).toBe("Coach");
   });
 });

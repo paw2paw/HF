@@ -26,8 +26,10 @@ const SCHOOL_TERMS: TermMap = {
   cohort: 'Class',
   instructor: 'Teacher',
   session: 'Lesson',
+  session_short: 'Lesson',
   persona: 'Teaching Style',
   supervisor: 'My Teacher',
+  mentor: 'Teacher',
   teach_action: 'Teach',
   learning_noun: 'Learning',
 };
@@ -112,7 +114,7 @@ describe('lib/terminology (two-tier resolution)', () => {
       const terms = await resolveTerminology('EDUCATOR', 'inst-1');
 
       expect(terms.domain).toBe('Organization');
-      expect(terms.playbook).toBe('Playbook'); // fallback
+      expect(terms.playbook).toBe('Subject'); // fallback to TECHNICAL_TERMS
       expect(terms.caller).toBe('Caller'); // fallback
     });
 

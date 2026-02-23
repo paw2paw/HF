@@ -35,10 +35,10 @@ describe("tour-manifest binding", () => {
   });
 
   it("educator tour classrooms step resolves to role-variant href", () => {
-    const resolved = resolveManifestItem("edu-classrooms", "EDUCATOR");
+    const resolved = resolveManifestItem("manage-cohorts", "EDUCATOR");
     expect(resolved).not.toBeNull();
     expect(resolved!.href).toBe("/x/educator/classrooms");
-    // EDUCATOR variant only overrides href and icon, label falls back to base
+    // EDUCATOR variant only overrides href, label falls back to base
     expect(resolved!.label).toBe("Cohorts");
   });
 
