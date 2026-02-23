@@ -67,36 +67,103 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     });
 
     if (existingPublished) {
-      // Still ensure onboarding identity spec is set (may be missing from earlier scaffold)
+      // Ensure identity spec exists (may be missing if domain was created manually)
+      const archetypeSlug = options?.extendsAgent || config.specs.defaultArchetype;
+      const archetypeLabel = archetypeSlug.replace(/-\d+$/, "").toLowerCase();
       const identitySlug = `${domain.slug}-identity`;
-      const existingIdentity = await p.analysisSpec.findFirst({
+
+      let identitySpec = await p.analysisSpec.findFirst({
         where: { slug: identitySlug },
         select: { id: true, slug: true, name: true },
       });
 
-      if (existingIdentity) {
-        const currentDomain = await p.domain.findUnique({
-          where: { id: domainId },
-          select: { onboardingIdentitySpecId: true },
+      if (!identitySpec) {
+        // Create identity spec overlay (same logic as step 3 below)
+        const overlayConfig = options?.identityConfig
+          ? JSON.parse(JSON.stringify(options.identityConfig))
+          : {
+              parameters: [
+                {
+                  id: "agent_role",
+                  name: "Domain Role Override",
+                  section: "identity",
+                  config: {
+                    roleStatement: `You are a friendly, supportive ${archetypeLabel} specializing in ${domain.name}. You adapt to each person's pace and style.`,
+                    primaryGoal: `Help people engage meaningfully with ${domain.name}`,
+                  },
+                },
+              ],
+            };
+
+        identitySpec = await p.analysisSpec.create({
+          data: {
+            slug: identitySlug,
+            name: `${domain.name} Identity`,
+            description: `Domain overlay for ${domain.name} — extends the base ${archetypeLabel} archetype with domain-specific adaptations.`,
+            outputType: "COMPOSE",
+            specRole: "IDENTITY",
+            specType: "DOMAIN",
+            domain: "identity",
+            scope: "DOMAIN",
+            isActive: true,
+            isDirty: false,
+            isDeletable: true,
+            extendsAgent: archetypeSlug,
+            config: overlayConfig,
+            triggers: {
+              create: [
+                {
+                  given: `A ${domain.name} session`,
+                  when: "The system needs to establish agent identity and tone",
+                  then: "A consistent, domain-appropriate personality is presented to the caller",
+                  name: "Identity establishment",
+                  sortOrder: 0,
+                },
+              ],
+            },
+          },
+          select: { id: true, slug: true, name: true },
         });
-        if (!currentDomain?.onboardingIdentitySpecId) {
-          await p.domain.update({
-            where: { id: domainId },
+
+        // Link identity spec to existing playbook
+        const existingItem = await p.playbookItem.findFirst({
+          where: { playbookId: existingPublished.id, specId: identitySpec.id },
+        });
+        if (!existingItem) {
+          await p.playbookItem.create({
             data: {
-              onboardingIdentitySpecId: existingIdentity.id,
-              onboardingFlowPhases: options?.flowPhases || await getFlowPhasesFallback(),
+              playbookId: existingPublished.id,
+              itemType: "SPEC",
+              specId: identitySpec.id,
+              sortOrder: 0,
+              isEnabled: true,
             },
           });
         }
       }
 
+      // Ensure onboarding is configured
+      const currentDomain = await p.domain.findUnique({
+        where: { id: domainId },
+        select: { onboardingIdentitySpecId: true, onboardingFlowPhases: true },
+      });
+      if (!currentDomain?.onboardingIdentitySpecId) {
+        await p.domain.update({
+          where: { id: domainId },
+          data: {
+            onboardingIdentitySpecId: identitySpec.id,
+            onboardingFlowPhases: currentDomain?.onboardingFlowPhases || options?.flowPhases || await getFlowPhasesFallback(),
+          },
+        });
+      }
+
       return {
-        identitySpec: existingIdentity || null,
+        identitySpec: { id: identitySpec.id, slug: identitySpec.slug, name: identitySpec.name },
         playbook: { id: existingPublished.id, name: existingPublished.name },
         published: false,
-        onboardingConfigured: !!existingIdentity,
-        extendsAgent: options?.extendsAgent || config.specs.defaultArchetype,
-        skipped: ["Published playbook already exists — skipping scaffold"],
+        onboardingConfigured: true,
+        extendsAgent: archetypeSlug,
+        skipped: ["Published playbook already exists — ensured identity spec + onboarding"],
       };
     }
   }
