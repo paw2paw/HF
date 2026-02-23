@@ -2,7 +2,7 @@
 /* Extracted from DemoTeachWizard.tsx — imported by DemoTeachWizard.tsx */
 
 /* Page wrapper */
-.dtw-page { max-width: 720px; margin: 0 auto; padding: 48px 32px 64px; }
+.dtw-page { max-width: 880px; margin: 0 auto; padding: 48px 32px 64px; }
 
 /* Hero header */
 .dtw-hero { margin-bottom: 32px; text-align: center; padding: 32px 24px 28px; border-radius: 20px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, var(--surface-primary)), color-mix(in srgb, var(--accent-primary) 3%, var(--surface-primary))); border: 1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent); }
