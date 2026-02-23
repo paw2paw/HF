@@ -291,6 +291,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setLaunching(false);
     setLaunchPhase("idle");
     clearWizardError();
+    domainsFetchedRef.current = false; // Allow domain refetch on restart
+    setLoadingDomains(true);
     // Re-start the flow fresh
     startFlow({
       flowId: config.flowId,
@@ -369,14 +371,17 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   }, [isActive, currentStep, goalText, selectedDomainId, selectedCallerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load domains on mount ─────────────────────────
+  const domainsFetchedRef = useRef(false);
 
   useEffect(() => {
+    if (domainsFetchedRef.current) return; // Already loaded — don't refetch on searchParams changes
     (async () => {
       try {
         const filter = config.domainApiFilter || "";
         const res = await fetch(`/api/domains${filter}`);
         const data = await res.json();
         if (data.ok) {
+          domainsFetchedRef.current = true;
           const list: DomainInfo[] = data.domains || [];
           setDomains(list);
           setDomainOptions(
