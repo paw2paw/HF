@@ -12,7 +12,12 @@
 .dtw-hero-subtitle { font-size: 16px; color: var(--text-secondary); max-width: 480px; margin: 0 auto; line-height: 1.5; }
 
 /* Progress stepper wrapper */
-.dtw-stepper { margin-bottom: 24px; }
+.dtw-stepper { margin-bottom: 8px; }
+
+/* Start Over link (below stepper) */
+.dtw-start-over { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.dtw-btn-start-over { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; transition: color 0.15s, background 0.15s; }
+.dtw-btn-start-over:hover { color: var(--text-secondary); background: var(--surface-secondary); }
 
 /* Error banner layout overrides */
 .dtw-error-banner { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }

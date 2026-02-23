@@ -39,6 +39,7 @@ import {
   FileText,
   CheckCircle2,
   Library,
+  RotateCcw,
 } from "lucide-react";
 import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
 import { PromptPreviewContent } from "@/app/x/domains/components/PromptPreviewModal";
@@ -241,6 +242,44 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
   // Warn on browser refresh/close when user has started filling in data
   useUnsavedGuard(goalText.trim().length > 0 || !!selectedDomainId);
+
+  // ── Start Over (reset wizard to step 0) ───────────
+
+  const handleStartOver = useCallback(() => {
+    endFlow();
+    // Reset all local state
+    setSelectedDomainId("");
+    setSelectedCallerId("");
+    setGoalText("");
+    setChecks([]);
+    setReady(false);
+    setScore(0);
+    setLevel("incomplete");
+    setSuggestions([]);
+    setCallerGoals([]);
+    setContentPhase("loading");
+    setContentCount(0);
+    setUploadFile(null);
+    setUploadError(null);
+    setAutoWireResult(null);
+    setAvailableSources([]);
+    setSelectedSourceId(null);
+    setContentMode("select");
+    setOnboardingExpanded(false);
+    setTeachingPointsExpanded(false);
+    setTunePersonaExpanded(false);
+    setDomainDetail(null);
+    setTeachingPoints([]);
+    setLaunching(false);
+    setLaunchPhase("idle");
+    clearWizardError();
+    // Re-start the flow fresh
+    startFlow({
+      flowId: config.flowId,
+      steps: config.fallbackSteps,
+      returnPath: config.returnPath,
+    });
+  }, [endFlow, startFlow, config, clearWizardError]);
 
   // ── Initialize step flow ──────────────────────────
 
@@ -1208,6 +1247,16 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           })}
         />
       </div>
+
+      {/* ── Start Over (shown when resuming a previous run) ── */}
+      {currentStep > 0 && (
+        <div className="dtw-start-over">
+          <button onClick={handleStartOver} className="dtw-btn-start-over">
+            <RotateCcw size={14} />
+            Start Over
+          </button>
+        </div>
+      )}
 
       {/* ── Error banner ── */}
       {wizardError && (
