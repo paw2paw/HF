@@ -297,6 +297,7 @@ export default function NewClassroomPage() {
           label: s.label,
           completed: i < (state?.currentStep ?? 0),
           active: i === (state?.currentStep ?? 0),
+          processing: (i === 1 && loadingPlaybooks) || (i === 2 && creating),
           onClick: i < (state?.currentStep ?? 0) ? () => flowSetStep(i) : undefined,
         }))}
       />
@@ -541,7 +542,7 @@ export default function NewClassroomPage() {
               className="hf-btn hf-btn-primary"
               style={{ flex: 2 }}
             >
-              {creating ? "Creating..." : `Create ${terms.cohort}`}
+              {creating ? <><span className="hf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Creating...</> : `Create ${terms.cohort}`}
             </button>
           </div>
         </div>

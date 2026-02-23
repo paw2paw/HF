@@ -12,7 +12,7 @@ import { config } from "@/lib/config";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
 import { generateCurriculumFromGoals } from "@/lib/content-trust/extract-curriculum";
-import { loadPersonaFlowPhases } from "@/lib/domain/quick-launch";
+import { loadPersonaFlowPhases, loadPersonaArchetype } from "@/lib/domain/quick-launch";
 import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { enrollCaller, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 import { updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
@@ -222,8 +222,10 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
 
     // 4. Scaffold domain (identity spec + playbook)
     const flowPhases = await loadPersonaFlowPhases(ctx.input.teachingStyle);
+    const archetypeSlug = await loadPersonaArchetype(ctx.input.teachingStyle);
     const scaffoldResult = await scaffoldDomain(domain.id, {
       flowPhases: flowPhases || undefined,
+      extendsAgent: archetypeSlug || undefined,
       forceNewPlaybook: !!ctx.input.domainId,
       playbookName: ctx.input.courseName,
     });

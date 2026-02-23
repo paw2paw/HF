@@ -21,6 +21,8 @@ export interface ScaffoldOptions {
   identityConfig?: Record<string, any>;
   /** Persona-specific onboarding flow phases (from INIT-001). If omitted, uses DEFAULT_FLOW_PHASES. */
   flowPhases?: any;
+  /** Base archetype slug to extend (e.g., "TUT-001", "COMPANION-001"). If omitted, uses config.specs.defaultArchetype. */
+  extendsAgent?: string;
   /** When true, always create a new playbook even if one already exists (new class in existing school). */
   forceNewPlaybook?: boolean;
   /** Custom playbook name (used when forceNewPlaybook=true). Falls back to "{domain.name} Playbook". */
@@ -32,6 +34,7 @@ export interface ScaffoldResult {
   playbook: { id: string; name: string } | null;
   published: boolean;
   onboardingConfigured: boolean;
+  extendsAgent: string;
   skipped: string[];
 }
 
@@ -92,12 +95,16 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
         playbook: { id: existingPublished.id, name: existingPublished.name },
         published: false,
         onboardingConfigured: !!existingIdentity,
+        extendsAgent: options?.extendsAgent || config.specs.defaultArchetype,
         skipped: ["Published playbook already exists — skipping scaffold"],
       };
     }
   }
 
   // 3. Find or create Identity spec
+  const archetypeSlug = options?.extendsAgent || config.specs.defaultArchetype;
+  const archetypeLabel = archetypeSlug.replace(/-\d+$/, "").toLowerCase(); // "TUT-001" → "tut", "COMPANION-001" → "companion"
+
   const identitySlug = `${domain.slug}-identity`;
   let identitySpec = await p.analysisSpec.findFirst({
     where: { slug: identitySlug },
@@ -105,6 +112,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   });
 
   if (!identitySpec) {
+
     // Build overlay config: only domain-specific parameters, not a full standalone spec.
     // At prompt composition time, mergeIdentitySpec() merges this overlay with the base archetype.
     const overlayConfig = options?.identityConfig
@@ -112,12 +120,12 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
       : {
           parameters: [
             {
-              id: "tutor_role",
+              id: "agent_role",
               name: "Domain Role Override",
               section: "identity",
               config: {
-                roleStatement: `You are a friendly, patient tutor specializing in ${domain.name}. You adapt to each learner's pace and style while maintaining high standards for understanding.`,
-                primaryGoal: `Help learners build genuine understanding of ${domain.name}`,
+                roleStatement: `You are a friendly, supportive ${archetypeLabel} specializing in ${domain.name}. You adapt to each person's pace and style.`,
+                primaryGoal: `Help people engage meaningfully with ${domain.name}`,
               },
             },
           ],
@@ -127,7 +135,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
       data: {
         slug: identitySlug,
         name: `${domain.name} Identity`,
-        description: `Domain overlay for ${domain.name} — extends the base tutor archetype with domain-specific adaptations.`,
+        description: `Domain overlay for ${domain.name} — extends the base ${archetypeLabel} archetype with domain-specific adaptations.`,
         outputType: "COMPOSE",
         specRole: "IDENTITY",
         specType: "DOMAIN",
@@ -136,14 +144,14 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
         isActive: true,
         isDirty: false,
         isDeletable: true,
-        extendsAgent: config.specs.defaultArchetype,
+        extendsAgent: archetypeSlug,
         config: overlayConfig,
         triggers: {
           create: [
             {
-              given: `A ${domain.name} teaching session`,
+              given: `A ${domain.name} session`,
               when: "The system needs to establish agent identity and tone",
-              then: "A consistent, domain-appropriate teaching personality is presented to the caller",
+              then: "A consistent, domain-appropriate personality is presented to the caller",
               name: "Identity establishment",
               sortOrder: 0,
             },
@@ -272,6 +280,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     playbook: { id: playbook.id, name: playbook.name },
     published: true,
     onboardingConfigured: true,
+    extendsAgent: archetypeSlug,
     skipped,
   };
 }

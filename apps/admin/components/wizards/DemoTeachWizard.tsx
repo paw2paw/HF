@@ -1190,12 +1190,22 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       {/* ── Progress Stepper ── */}
       <div className="dtw-stepper">
         <ProgressStepper
-          steps={(state?.steps ?? config.fallbackSteps).map((s, i) => ({
-            label: s.label,
-            completed: i < currentStep,
-            active: i === currentStep,
-            onClick: i < currentStep ? () => setStep(i) : undefined,
-          }))}
+          steps={(state?.steps ?? config.fallbackSteps).map((s, i) => {
+            // Determine if this step is actively processing something
+            const stepProcessing =
+              (i === 0 && loadingDomains) ||
+              (i === 1 && (loadingSuggestions || loadingGoals || savingGoal)) ||
+              (i === 2 && ["uploading", "extracting", "generating-curriculum", "composing-prompt", "attaching-source"].includes(contentPhase)) ||
+              (i === 3 && checksLoading) ||
+              (i === 5 && launching);
+            return {
+              label: s.label,
+              completed: i < currentStep,
+              active: i === currentStep,
+              processing: stepProcessing,
+              onClick: i < currentStep ? () => setStep(i) : undefined,
+            };
+          })}
         />
       </div>
 
@@ -1219,7 +1229,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         <div className="dtw-section">
           <div className="dtw-section-label">{t.domain}</div>
           {loadingDomains ? (
-            <div className="dtw-muted-text">
+            <div className="dtw-muted-text dtw-loading-text">
+              <span className="dtw-inline-spinner" />
               Loading {t.domain.toLowerCase()}s...
             </div>
           ) : domainOptions.length === 0 ? (
@@ -1379,7 +1390,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                 {t.caller}&apos;s Goals
               </div>
               {loadingGoals ? (
-                <div className="dtw-goals-loading">
+                <div className="dtw-goals-loading dtw-loading-text">
+                  <span className="dtw-inline-spinner" />
                   Loading goals...
                 </div>
               ) : (
@@ -1512,7 +1524,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* Loading state */}
           {contentPhase === "loading" && (
-            <div className="dtw-muted-text">Checking content...</div>
+            <div className="dtw-muted-text dtw-loading-text"><span className="dtw-inline-spinner" /> Checking content...</div>
           )}
 
           {/* Content exists — summary */}
@@ -1555,7 +1567,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
               {contentMode === "select" && availableSources.length > 0 && (
                 <div className="dtw-source-library">
                   {loadingSources ? (
-                    <div className="dtw-muted-text">Loading content library...</div>
+                    <div className="dtw-muted-text dtw-loading-text"><span className="dtw-inline-spinner" /> Loading content library...</div>
                   ) : (
                     <div className="dtw-source-list">
                       {availableSources.map((source) => {
@@ -1812,7 +1824,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
           {/* Check items */}
           {checksLoading && checks.length === 0 ? (
-            <div className="dtw-muted-text">
+            <div className="dtw-muted-text dtw-loading-text">
+              <span className="dtw-inline-spinner" />
               Loading checks...
             </div>
           ) : checks.length === 0 ? (

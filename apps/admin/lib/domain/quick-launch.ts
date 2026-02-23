@@ -9,6 +9,7 @@
  * Tuning args (maxAssertions, maxSampleSize) = edit the spec, zero code changes.
  */
 
+import { randomUUID } from "crypto";
 import { prisma, db, type TxClient } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import {
@@ -84,6 +85,10 @@ export interface QuickLaunchResult {
   };
   /** Background curriculum enrichment task ID (skeleton mode) */
   enrichmentTaskId?: string;
+  /** CohortGroup ID (created for COMMUNITY domains) */
+  cohortGroupId?: string;
+  /** Join token for community CohortGroup magic link */
+  joinToken?: string;
 }
 
 /** Shared context accumulating results across steps */
@@ -419,11 +424,16 @@ const stepExecutors: Record<string, StepExecutor> = {
     const assertions: ExtractedAssertion[] = ctx.results.assertions || [];
     const maxSampleSize = step.args?.maxSampleSize ?? 60;
 
+    // Load archetype from INIT-001 persona config and cache for scaffold_domain step
+    const archetype = await loadPersonaArchetype(ctx.input.persona);
+    ctx.results._archetypeSlug = archetype;
+
     const result = await generateIdentityFromAssertions({
       subjectName: ctx.input.subjectName,
       persona: ctx.input.persona,
       learningGoals: ctx.input.learningGoals,
       toneTraits: ctx.input.toneTraits,
+      archetypeSlug: archetype || undefined,
       assertions: assertions.map((a) => ({
         assertion: a.assertion,
         category: a.category,
@@ -461,10 +471,13 @@ const stepExecutors: Record<string, StepExecutor> = {
 
     // Load persona flow phases from INIT-001 spec
     const flowPhases = await loadPersonaFlowPhases(ctx.input.persona);
+    // Use cached archetype from generate_identity step, or look up now
+    const archetype = ctx.results._archetypeSlug ?? await loadPersonaArchetype(ctx.input.persona);
 
     const scaffoldResult = await scaffoldDomain(domainId, {
       identityConfig: ctx.results.identityConfig || undefined,
       flowPhases: flowPhases || undefined,
+      extendsAgent: archetype || undefined,
       forceNewPlaybook: !!ctx.results.useExistingDomain,
       playbookName: ctx.results.useExistingDomain ? ctx.input.subjectName : undefined,
     }, ctx.tx);
@@ -715,6 +728,59 @@ const stepExecutors: Record<string, StepExecutor> = {
     if (ctx.results.playbookId) {
       await enrollCaller(caller.id, ctx.results.playbookId, "quick-launch", ctx.tx);
     }
+
+    // Create CohortGroup for communities (requires callerId as owner)
+    if (ctx.input.kind === "COMMUNITY" && ctx.results.playbookId) {
+      // Find or create a facilitator caller for the admin user who's running the wizard
+      let facilitator = await p.caller.findFirst({
+        where: { userId: ctx.userId, domainId, role: { in: ["TEACHER", "TUTOR"] } },
+        select: { id: true },
+      });
+      if (!facilitator) {
+        facilitator = await p.caller.create({
+          data: {
+            name: "Community Facilitator",
+            role: "TEACHER",
+            userId: ctx.userId,
+            domainId,
+            externalId: `facilitator-${ctx.userId}-${domainId}`,
+          },
+          select: { id: true },
+        });
+      }
+
+      const joinToken = randomUUID().replace(/-/g, "").slice(0, 12);
+      const cohort = await p.cohortGroup.create({
+        data: {
+          name: ctx.results.domainName || ctx.input.subjectName,
+          description: ctx.input.brief || null,
+          domainId,
+          ownerId: facilitator.id,
+          institutionId: ctx.input.institutionId ?? undefined,
+          joinToken,
+        },
+      });
+
+      // Link playbook to cohort
+      await p.cohortPlaybook.create({
+        data: {
+          cohortGroupId: cohort.id,
+          playbookId: ctx.results.playbookId,
+          assignedBy: "quick-launch",
+        },
+      });
+
+      // Enroll the test caller as a member of this cohort
+      await p.callerCohortMembership.create({
+        data: {
+          callerId: caller.id,
+          cohortGroupId: cohort.id,
+        },
+      });
+
+      ctx.results.cohortGroupId = cohort.id;
+      ctx.results.joinToken = joinToken;
+    }
   },
 
   /**
@@ -769,6 +835,35 @@ export async function loadPersonaFlowPhases(persona: string): Promise<any | null
   const specConfig = spec.config as SpecConfig;
   const personaConfig = specConfig.personas?.[persona];
   return personaConfig?.firstCallFlow?.phases ? { phases: personaConfig.firstCallFlow.phases } : null;
+}
+
+/**
+ * Load persona-specific archetype slug from INIT-001 spec.
+ * Returns the identitySpec slug (e.g., "TUT-001", "COMPANION-001", "COACH-001")
+ * or null if persona/spec not found (scaffold falls back to config.specs.defaultArchetype).
+ *
+ * Exported for use by other wizards (e.g., course-setup.ts).
+ */
+export async function loadPersonaArchetype(persona: string): Promise<string | null> {
+  const onboardingSlug = config.specs.onboarding.toLowerCase();
+
+  const spec = await prisma.analysisSpec.findFirst({
+    where: {
+      OR: [
+        { slug: { contains: onboardingSlug, mode: "insensitive" } },
+        { slug: { contains: "onboarding" } },
+        { domain: "onboarding" },
+      ],
+      isActive: true,
+    },
+    select: { config: true },
+  });
+
+  if (!spec?.config) return null;
+
+  const specConfig = spec.config as SpecConfig;
+  const personaConfig = specConfig.personas?.[persona];
+  return personaConfig?.identitySpec || null;
 }
 
 // ── Main Executor ──────────────────────────────────────
@@ -873,6 +968,8 @@ export async function quickLaunch(
     assertionCount: ctx.results.assertionCount || 0,
     moduleCount: ctx.results.moduleCount || 0,
     goalCount: ctx.results.goalCount || 0,
+    cohortGroupId: ctx.results.cohortGroupId,
+    joinToken: ctx.results.joinToken,
     warnings: ctx.results.warnings || [],
   };
 }
@@ -1250,6 +1347,8 @@ export async function quickLaunchCommit(
       moduleCount: ctx.results.moduleCount || 0,
       goalCount: ctx.results.goalCount ?? effectiveGoals.length,
       enrichmentTaskId: ctx.results.enrichmentTaskId,
+      cohortGroupId: ctx.results.cohortGroupId,
+      joinToken: ctx.results.joinToken,
       warnings: ctx.results.warnings || [],
       documentStructure: preview.documentStructure,
     };

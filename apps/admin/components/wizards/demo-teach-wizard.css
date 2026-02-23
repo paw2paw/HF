@@ -28,6 +28,18 @@
 /* Loading / empty text */
 .dtw-muted-text { font-size: 13px; color: var(--text-muted); padding: 8px 0; }
 
+/* Loading text with inline spinner */
+.dtw-loading-text { display: flex; align-items: center; gap: 8px; }
+.dtw-inline-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: dtw-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
 /* Inline link (accent colored, clickable) */
 .dtw-inline-link { color: var(--accent-primary); cursor: pointer; font-weight: 600; }
 
@@ -152,14 +164,18 @@
 /* ── Content upload step ── */
 
 @keyframes dtw-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.7); }
 }
 
 @keyframes dtw-indeterminate {
-  0% { margin-left: 0; }
-  50% { margin-left: 70%; }
-  100% { margin-left: 0; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(333%); }
+}
+
+@keyframes dtw-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 /* Drag-drop zone */
@@ -186,15 +202,41 @@
 
 /* Progress section */
 .dtw-extract-status { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.dtw-pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-primary); animation: dtw-pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
+.dtw-pulse-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-top-color: var(--accent-primary);
+  background: transparent;
+  animation: dtw-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes dtw-spin {
+  to { transform: rotate(360deg); }
+}
 .dtw-extract-label { font-size: 15px; font-weight: 700; color: var(--text-primary); }
 .dtw-extract-elapsed { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
 
 /* Progress bar */
-.dtw-progress-track { height: 6px; border-radius: 3px; background: var(--surface-tertiary); overflow: hidden; margin-bottom: 8px; }
+.dtw-progress-track { height: 6px; border-radius: 3px; background: var(--surface-tertiary); overflow: hidden; margin-bottom: 8px; position: relative; }
 .dtw-progress-fill { height: 100%; border-radius: 3px; background: var(--accent-primary); transition: width 0.5s ease-out; }
 .dtw-progress-fill--done { background: var(--status-success-text); width: 100%; }
-.dtw-progress-fill--indeterminate { width: 30%; animation: dtw-indeterminate 1.5s ease-in-out infinite; }
+.dtw-progress-fill--indeterminate {
+  width: 30%;
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 60%, white), var(--accent-primary));
+  background-size: 200% 100%;
+  animation: dtw-indeterminate 1.2s ease-in-out infinite, dtw-shimmer 1.5s linear infinite;
+}
+
+/* Shimmer overlay on determinate progress bars too */
+.dtw-progress-fill:not(.dtw-progress-fill--done):not(.dtw-progress-fill--indeterminate) {
+  background-image: linear-gradient(90deg, transparent, color-mix(in srgb, white 25%, transparent), transparent);
+  background-size: 200% 100%;
+  animation: dtw-shimmer 2s linear infinite;
+  background-color: var(--accent-primary);
+}
 .dtw-progress-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 /* Done badge */

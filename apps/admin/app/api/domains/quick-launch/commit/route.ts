@@ -138,6 +138,9 @@ export async function POST(req: NextRequest) {
                   modules: result.moduleCount ?? 0,
                   goals: result.goalCount ?? 0,
                 },
+                ...(result.cohortGroupId && {
+                  cohort: { id: result.cohortGroupId, joinToken: result.joinToken },
+                }),
               },
             },
           });

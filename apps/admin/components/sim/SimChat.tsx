@@ -878,7 +878,7 @@ export function SimChat({
                   cursor: 'pointer',
                 }}
               >
-                {isEnding ? 'Saving...' : 'End Call'}
+                {isEnding ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span className="hf-spinner" style={{ width: 16, height: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} /> Saving...</span> : 'End Call'}
               </button>
             </div>
           </div>

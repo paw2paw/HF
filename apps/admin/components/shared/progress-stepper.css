@@ -55,6 +55,25 @@
   color: var(--status-success-text);
 }
 
+/* Processing state — spinning ring inside circle */
+.ps-circle--processing {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: var(--accent-primary);
+}
+
+.ps-ring {
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: ps-spin 0.8s linear infinite;
+}
+
+@keyframes ps-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Step label */
 .ps-label {
   font-size: 12px;

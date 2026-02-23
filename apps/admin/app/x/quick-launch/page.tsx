@@ -15,7 +15,7 @@ import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import {
   Building2, BookOpen, User, PlayCircle, Target,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Link2, Copy, Check,
 } from "lucide-react";
 import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
 import type { DomainDetail } from "@/app/x/domains/components/types";
@@ -52,6 +52,8 @@ type LaunchResult = {
   warnings: string[];
   identitySpecId?: string;
   playbookId?: string;
+  cohortGroupId?: string;
+  joinToken?: string;
 };
 
 type CourseCheck = {
@@ -928,6 +930,12 @@ export default function QuickLaunchPage() {
                   name: result.callerName,
                   href: `/x/callers/${result.callerId}`,
                 },
+                ...(result.cohortGroupId ? [{
+                  icon: <Link2 className="w-5 h-5" />,
+                  label: "Community Group",
+                  name: result.domainName,
+                  href: `/x/communities?cohort=${result.cohortGroupId}`,
+                }] : []),
               ],
             }}
             stats={result.goalCount > 0 ? [{ label: "Goals", value: result.goalCount }] : []}
@@ -1117,6 +1125,36 @@ export default function QuickLaunchPage() {
               Start Test Call
             </button>
           </div>
+
+          {/* ── Join Link (communities only) ── */}
+          {result.joinToken && (
+            <div className="ql-result-card">
+              <div className="ql-result-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Link2 className="w-5 h-5" />
+                Join Link
+              </div>
+              <div className="ql-result-desc">
+                Share this link with community members so they can join.
+              </div>
+              <div className="hf-flex" style={{ gap: 8, alignItems: "center" }}>
+                <input
+                  readOnly
+                  value={`${typeof window !== "undefined" ? window.location.origin : ""}/join/${result.joinToken}`}
+                  className="hf-input"
+                  style={{ flex: 1, fontSize: 14 }}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  onClick={() => copyText(`${window.location.origin}/join/${result.joinToken}`)}
+                  className="hf-btn hf-btn-secondary"
+                  style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Bottom Actions ── */}
           <div className="hf-flex" style={{ justifyContent: "center", gap: 12, paddingTop: 8, paddingBottom: 24 }}>

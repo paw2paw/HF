@@ -149,9 +149,10 @@ const stepExecutors: Record<
     ctx.results.domainSlug = domain.slug;
     ctx.results.domainName = domain.name;
 
-    // 2. Scaffold domain (identity spec + playbook with facilitator archetype)
+    // 2. Scaffold domain (identity spec + playbook with companion archetype)
     const scaffoldResult = await scaffoldDomain(domain.id, {
       playbookName: ctx.input.communityName,
+      extendsAgent: "COMPANION-001",
     });
 
     if (scaffoldResult.playbook) {

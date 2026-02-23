@@ -37,6 +37,8 @@ export interface GenerateIdentityOptions {
   persona: string;
   learningGoals: string[];
   toneTraits?: string[];
+  /** Base archetype slug for prompt framing (e.g., "TUT-001", "COMPANION-001"). */
+  archetypeSlug?: string;
   assertions: Array<{
     assertion: string;
     category: string;
@@ -93,21 +95,55 @@ function sampleAssertions(
 
 // ── AI Prompt ──────────────────────────────────────────
 
-const IDENTITY_SYSTEM_PROMPT = `You are generating a DOMAIN OVERLAY for an AI teaching agent's identity.
-This overlay will be MERGED with a base tutor archetype that already provides:
-- Generic session structure (opening/main/closing phases)
+const ARCHETYPE_DESCRIPTORS: Record<string, { label: string; capabilities: string }> = {
+  "TUT-001": {
+    label: "tutor",
+    capabilities: `- Generic session structure (opening/main/closing phases)
 - Interaction style defaults (warmth, formality, pacing)
 - Core boundaries (what tutors do and don't do)
 - Assessment principles and methods
-- General teaching pedagogy
+- General teaching pedagogy`,
+  },
+  "COMPANION-001": {
+    label: "companion",
+    capabilities: `- Conversational warmth and genuine engagement
+- Active listening and empathetic responding
+- Exploration and curiosity facilitation
+- Emotional awareness and supportive presence
+- Open-ended dialogue techniques`,
+  },
+  "COACH-001": {
+    label: "coach",
+    capabilities: `- Goal-setting and accountability frameworks
+- Motivational interviewing techniques
+- Progress tracking and reflection prompts
+- Challenge and support balance
+- Action planning and follow-through`,
+  },
+};
 
-Your job is to generate ONLY the domain-specific adaptations. Do NOT repeat generic tutor behaviors.
+const DEFAULT_DESCRIPTOR = {
+  label: "agent",
+  capabilities: `- Generic session structure (opening/main/closing phases)
+- Interaction style defaults (warmth, formality, pacing)
+- Core boundaries
+- General conversational patterns`,
+};
+
+function buildIdentitySystemPrompt(archetypeSlug?: string): string {
+  const desc = (archetypeSlug && ARCHETYPE_DESCRIPTORS[archetypeSlug]) || DEFAULT_DESCRIPTOR;
+
+  return `You are generating a DOMAIN OVERLAY for an AI ${desc.label}'s identity.
+This overlay will be MERGED with a base ${desc.label} archetype that already provides:
+${desc.capabilities}
+
+Your job is to generate ONLY the domain-specific adaptations. Do NOT repeat generic ${desc.label} behaviors.
 
 The configuration MUST include ALL of these fields:
 - roleStatement: A 2-3 sentence description positioning the agent as an expert in this specific subject
-- primaryGoal: The main teaching objective (informed by the learner's goals if provided)
+- primaryGoal: The main objective (informed by the person's goals if provided)
 - secondaryGoals: Array of 3-5 secondary goals specific to this subject
-- techniques: Array of 3-5 DOMAIN-SPECIFIC teaching techniques, each with { name, description, when }
+- techniques: Array of 3-5 DOMAIN-SPECIFIC techniques, each with { name, description, when }
   (e.g. for physics: "phenomena before equations"; for law: "case study analysis")
 - domainVocabulary: Array of 10-20 key terms the agent should use naturally
 - styleGuidelines: Array of 3-5 style guidelines SPECIFIC to this subject domain
@@ -115,12 +151,13 @@ The configuration MUST include ALL of these fields:
 IMPORTANT:
 - The agent should sound like a genuine expert in this specific subject
 - Use vocabulary and examples from the actual source material
-- Do NOT include generic teaching behaviors (scaffolding, checking understanding, etc.) — those come from the base
+- Do NOT include generic ${desc.label} behaviors — those come from the base
 - Do NOT include generic boundaries — those come from the base
 - Do NOT include session structure — that comes from the base
 - Focus on what makes THIS subject different from any other
-- Tailor everything to phone-based teaching (verbal, conversational)
+- Tailor everything to phone-based conversation (verbal, conversational)
 - Return ONLY valid JSON (no markdown code fences)`;
+}
 
 // ── Main Function ──────────────────────────────────────
 
@@ -171,7 +208,7 @@ Generate the identity configuration JSON.`;
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "quick-launch.identity",
       messages: [
-        { role: "system", content: IDENTITY_SYSTEM_PROMPT },
+        { role: "system", content: buildIdentitySystemPrompt(options.archetypeSlug) },
         { role: "user", content: userPrompt },
       ],
     });

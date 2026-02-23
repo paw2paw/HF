@@ -413,6 +413,9 @@ export default function CallerDetailPage() {
 
   // Sections organized into logical groups:
   // Consolidated tabs: Calls | Profile | Assess | Artifacts | Call (action)
+  // Tabs affected by pipeline processing (will show pulsing indicator)
+  const processingTabs = new Set<SectionId>(["calls", "profile", "progress", "artifacts"]);
+
   const sections: { id: SectionId; label: string; icon: React.ReactNode; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "action" }[] = [
     { id: "calls", label: "Calls", icon: <Smartphone size={13} />, count: data.counts.calls, group: "history" },
     { id: "profile", label: "Profile", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
@@ -669,7 +672,7 @@ export default function CallerDetailPage() {
       {/* Processing Banner */}
       {isProcessing && (
         <div className="cdp-processing-banner">
-          <span className="cdp-processing-spinner">⏳</span>
+          <span className="cdp-processing-spinner-ring" />
           Processing {processingCallIds.size === 1 ? "latest call" : `${processingCallIds.size} calls`} — extracting scores, memories, and generating prompt...
         </div>
       )}
@@ -698,6 +701,9 @@ export default function CallerDetailPage() {
                   <span className="cdp-tab-count">
                     {section.count}
                   </span>
+                )}
+                {isProcessing && processingTabs.has(section.id) && (
+                  <span className="cdp-tab-processing" title="Pipeline processing..." />
                 )}
               </button>
             </span>

@@ -335,9 +335,15 @@
   flex-shrink: 0;
 }
 
-.cdp-processing-spinner {
-  animation: cdp-spin 1s linear infinite;
-  display: inline-block;
+/* Ring spinner for processing banner */
+.cdp-processing-spinner-ring {
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, var(--status-info-text) 25%, transparent);
+  border-top-color: var(--status-info-text);
+  border-radius: 50%;
+  animation: cdp-spin 0.8s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes cdp-spin {
@@ -423,6 +429,21 @@
 .cdp-tab-active .cdp-tab-count {
   background: color-mix(in srgb, var(--button-primary-bg) 15%, transparent);
   color: var(--button-primary-bg);
+}
+
+/* Pulsing dot — shown on tabs affected by pipeline processing */
+.cdp-tab-processing {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-info-text);
+  animation: cdp-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes cdp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
 }
 
 /* ── Profile section divider ── */
