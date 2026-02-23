@@ -2985,6 +2985,9 @@ model AIModel {
   // Model tier for cost/capability indication
   tier String // flagship, standard, fast, test
 
+  // Maximum output tokens the model supports (for validation)
+  maxOutputTokens Int?
+
   // Whether this model is available for selection
   isActive Boolean @default(true)
 

@@ -50,6 +50,8 @@ const EXPECTED_PROVIDERS = ["claude", "openai", "mock"];
 
 const EXPECTED_CLAUDE_MODELS = [
   "claude-sonnet-4-20250514",
+  "claude-3-5-haiku-20241022",
+  "claude-haiku-4-5-20251001",
   "claude-3-haiku-20240307",
 ];
 
@@ -219,6 +221,52 @@ describe("AI Config API", () => {
       expect(data.error).toContain("Invalid model");
       expect(response.status).toBe(400);
     });
+
+    it("should reject maxTokens exceeding model output limit", async () => {
+      const { POST } = await import("../../app/api/ai-config/route");
+      const request = {
+        json: vi.fn().mockResolvedValue({
+          callPoint: "pipeline.measure",
+          provider: "claude",
+          model: "claude-3-haiku-20240307", // 4096 max output
+          maxTokens: 8000, // Exceeds limit
+        }),
+      } as any;
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.ok).toBe(false);
+      expect(data.error).toContain("exceeds");
+      expect(data.error).toContain("4096");
+      expect(response.status).toBe(400);
+    });
+
+    it("should allow maxTokens within model output limit", async () => {
+      mockPrisma.aIConfig.upsert.mockResolvedValue({
+        id: "config-1",
+        callPoint: "pipeline.measure",
+        provider: "claude",
+        model: "claude-sonnet-4-20250514",
+        maxTokens: 8000,
+        isActive: true,
+      });
+
+      const { POST } = await import("../../app/api/ai-config/route");
+      const request = {
+        json: vi.fn().mockResolvedValue({
+          callPoint: "pipeline.measure",
+          provider: "claude",
+          model: "claude-sonnet-4-20250514", // 16384 max output
+          maxTokens: 8000, // Within limit
+        }),
+      } as any;
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(data.ok).toBe(true);
+    });
   });
 
   describe("DELETE /api/ai-config", () => {
@@ -297,6 +345,24 @@ describe("AI Call Point Definitions", () => {
       expect(EXPECTED_PROVIDERS).toContain(cp.defaultProvider);
     }
   });
+
+  it("should assign a valid category to every call point", async () => {
+    const { AI_CALL_POINTS, AI_CONFIG_CATEGORY_META } = await import("../../app/api/ai-config/route");
+    const validCategories = Object.keys(AI_CONFIG_CATEGORY_META);
+
+    for (const cp of AI_CALL_POINTS) {
+      expect(validCategories, `Call point "${cp.callPoint}" has invalid category "${cp.category}"`).toContain(cp.category);
+    }
+  });
+
+  it("should have all categories represented by at least one call point", async () => {
+    const { AI_CALL_POINTS, AI_CONFIG_CATEGORY_META } = await import("../../app/api/ai-config/route");
+    const usedCategories = new Set(AI_CALL_POINTS.map((cp: { category: string }) => cp.category));
+
+    for (const category of Object.keys(AI_CONFIG_CATEGORY_META)) {
+      expect(usedCategories.has(category), `Category "${category}" should have at least one call point`).toBe(true);
+    }
+  });
 });
 
 // =====================================================
@@ -326,6 +392,8 @@ describe("Available Models", () => {
         expect(model.id).toBeDefined();
         expect(model.label).toBeDefined();
         expect(model.tier).toBeDefined();
+        expect(model.maxOutputTokens).toBeDefined();
+        expect(model.maxOutputTokens).toBeGreaterThan(0);
       }
     }
   });
@@ -360,7 +428,7 @@ describe("AI Config Loader Logic", () => {
   const DEFAULT_CONFIGS: Record<string, { provider: string; model: string }> = {
     "pipeline.measure": { provider: "claude", model: "claude-sonnet-4-20250514" },
     "pipeline.learn": { provider: "claude", model: "claude-sonnet-4-20250514" },
-    "analysis.measure": { provider: "claude", model: "claude-3-haiku-20240307" },
+    "analysis.measure": { provider: "claude", model: "claude-3-5-haiku-20241022" },
   };
 
   // Simulates the config loading logic
@@ -442,6 +510,6 @@ describe("AI Config Loader Logic", () => {
     const analysisConfig = simulateGetConfig("analysis.measure", null);
 
     expect(pipelineConfig.model).toBe("claude-sonnet-4-20250514");
-    expect(analysisConfig.model).toBe("claude-3-haiku-20240307");
+    expect(analysisConfig.model).toBe("claude-3-5-haiku-20241022");
   });
 });

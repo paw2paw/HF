@@ -144,7 +144,7 @@ export const config = {
       },
       /** Claude lightweight model ID (for fast/cheap tasks) */
       get lightModel(): string {
-        return optional("CLAUDE_LIGHT_MODEL_ID", "claude-3-haiku-20240307");
+        return optional("CLAUDE_LIGHT_MODEL_ID", "claude-3-5-haiku-20241022");
       },
       /** Check if Claude is configured */
       get isConfigured(): boolean {

@@ -41,6 +41,7 @@ import {
   FileText,
   CheckCircle2,
   Library,
+  Loader2,
   RotateCcw,
 } from "lucide-react";
 import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
@@ -52,6 +53,7 @@ import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { TeachPlanStep } from "@/components/wizards/TeachPlanStep";
 import { POLL_TIMEOUT_MS } from "@/lib/tasks/constants";
+import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
 import "./demo-teach-wizard.css";
 
 // ── Types ──────────────────────────────────────────
@@ -251,6 +253,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [launching, setLaunching] = useState(false);
   const [launchPhase, setLaunchPhase] = useState<LaunchPhase>("idle");
 
+  // Curriculum generation tracking (parent-level, survives step transitions)
+  const [curriculumTaskId, setCurriculumTaskId] = useState<string | null>(null);
+  const [curriculumGenerating, setCurriculumGenerating] = useState(false);
+
   // Convenience flag
   const needsCallerUpfront = config.requireCallerUpfront !== false;
 
@@ -290,6 +296,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setTeachingPoints([]);
     setLaunching(false);
     setLaunchPhase("idle");
+    setCurriculumTaskId(null);
+    setCurriculumGenerating(false);
     clearWizardError();
     domainsFetchedRef.current = false; // Allow domain refetch on restart
     setLoadingDomains(true);
@@ -346,10 +354,85 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         if (savedReady !== undefined) setReady(savedReady);
         if (savedScore !== undefined) setScore(savedScore);
         if (savedLevel) setLevel(savedLevel);
+        // Restore curriculum task state
+        const savedCurrTaskId = getData<string>("contentSpecTaskId");
+        if (savedCurrTaskId) {
+          setCurriculumTaskId(savedCurrTaskId);
+          setCurriculumGenerating(true);
+        }
       }
     };
     initFlow();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Curriculum generation polling (parent-level, survives step transitions) ──
+
+  const fetchCurriculumModules = useCallback(async (specId: string) => {
+    try {
+      const res = await fetch(`/api/specs/${specId}`);
+      const data = await res.json();
+      const specConfig = data.spec?.config || data.config;
+      if (specConfig?.modules && Array.isArray(specConfig.modules)) {
+        setData("curriculumModules", specConfig.modules);
+        setData("moduleCount", specConfig.modules.length);
+      }
+    } catch (err: any) {
+      console.warn("[Teach] Failed to fetch enriched modules:", err);
+    }
+  }, [setData]);
+
+  useTaskPoll({
+    taskId: curriculumTaskId,
+    onProgress: useCallback((task: PollableTask) => {
+      const ctx = task.context || {};
+      if (ctx.skeletonReady && ctx.skeletonModules) {
+        const skeletonMods = ctx.skeletonModules.map((m: any, i: number) => ({
+          id: m.id || `MOD-${i + 1}`,
+          title: m.title || `Module ${i + 1}`,
+          description: m.description || "",
+          learningOutcomes: [],
+          assessmentCriteria: [],
+          keyTerms: [],
+          estimatedDurationMinutes: null,
+          sortOrder: m.sortOrder || i + 1,
+        }));
+        setData("curriculumModules", skeletonMods);
+        setData("moduleCount", skeletonMods.length);
+        setData("curriculumEnriching", true);
+      }
+    }, [setData]),
+    onComplete: useCallback((task: PollableTask) => {
+      const ctx = task.context || {};
+      if (ctx.error || !ctx.result) {
+        setData("curriculumError", ctx.error || "Generation completed but no result");
+        setCurriculumGenerating(false);
+        setCurriculumTaskId(null);
+        setData("contentSpecTaskId", null);
+        return;
+      }
+      const result = ctx.result;
+      if (result.contentSpec && result.moduleCount > 0) {
+        fetchCurriculumModules(result.contentSpec.id);
+        setData("contentSpecId", result.contentSpec.id);
+        setData("contentSpecGenerated", true);
+        setData("lessonPlanMode", "auto-accepted");
+      }
+      setCurriculumGenerating(false);
+      setCurriculumTaskId(null);
+      setData("contentSpecTaskId", null);
+      setData("curriculumEnriching", false);
+    }, [setData, fetchCurriculumModules]),
+    onError: useCallback((message: string) => {
+      const existingModules = getData<any[]>("curriculumModules");
+      if (!existingModules || existingModules.length === 0) {
+        setData("curriculumError", message);
+      }
+      setCurriculumGenerating(false);
+      setCurriculumTaskId(null);
+      setData("contentSpecTaskId", null);
+      setData("curriculumEnriching", false);
+    }, [setData, getData]),
+  });
 
   // ── Push flow breadcrumb for Cmd+K awareness ──────
 
@@ -1262,6 +1345,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
               completed: i < currentStep,
               active: i === currentStep,
               processing: stepProcessing,
+              backgroundProcessing: i === STEP_PLAN && i < currentStep && curriculumGenerating,
               onClick: i < currentStep ? () => setStep(i) : undefined,
             };
           })}
@@ -1877,6 +1961,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           getData={getData}
           onNext={handleNext}
           onPrev={handlePrev}
+          onTaskStarted={(taskId) => {
+            setCurriculumTaskId(taskId);
+            setCurriculumGenerating(true);
+          }}
         />
       )}
 
@@ -2075,7 +2163,15 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             )}
           </div>
 
-          {/* ── 4. Review Lesson Plan (Teach flow only, when modules exist) ── */}
+          {/* ── 4. Lesson Plan (generating indicator or review accordion) ── */}
+          {isTeachFlow && curriculumGenerating && !(getData<any[]>("curriculumModules")?.length) && (
+            <div className="dtw-accordion-card">
+              <div className="dtw-accordion-toggle" style={{ cursor: "default" }}>
+                <Loader2 size={16} style={{ animation: "spin 1s linear infinite", flexShrink: 0, color: "var(--accent-primary)" }} />
+                <span>Generating Lesson Plan...</span>
+              </div>
+            </div>
+          )}
           {isTeachFlow && (() => {
             const modules = getData<Array<{ id: string; title: string; description: string; learningOutcomes: string[]; assessmentCriteria?: string[]; keyTerms?: string[]; estimatedDurationMinutes?: number | null; sortOrder: number }>>("curriculumModules");
             const moduleCount = getData<number>("moduleCount") ?? 0;

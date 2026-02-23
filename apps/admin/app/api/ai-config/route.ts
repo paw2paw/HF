@@ -16,14 +16,36 @@ import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 import { config } from "@/lib/config";
 
 // =====================================================
+// CATEGORIES (user-intent grouping for the /x/ai-config UI)
+// =====================================================
+
+export type AIConfigCategory =
+  | "conversation"
+  | "call-analysis"
+  | "content-processing"
+  | "course-setup"
+  | "admin-ai"
+  | "advanced";
+
+export const AI_CONFIG_CATEGORY_META: Record<AIConfigCategory, { label: string; order: number; description: string }> = {
+  "conversation":       { label: "Conversation AI",    order: 0, description: "Powers the live tutoring experience" },
+  "call-analysis":      { label: "Call Analysis",      order: 1, description: "What the system learns after each call" },
+  "content-processing": { label: "Content Processing", order: 2, description: "Analysing and structuring uploaded documents" },
+  "course-setup":       { label: "Course Setup",       order: 3, description: "Building curriculum, lesson plans, and courses" },
+  "admin-ai":           { label: "Admin AI",           order: 4, description: "AI tools that help administrators" },
+  "advanced":           { label: "Advanced",           order: 5, description: "Specs, standalone analysis, developer tools" },
+};
+
+// =====================================================
 // CALL POINT DEFINITIONS
 // =====================================================
 
 /**
  * All configurable AI call points in the system.
- * Each has a unique ID, label, description, and default settings.
+ * Each has a unique ID, label, description, category, and default settings.
  */
 export const AI_CALL_POINTS = [
+  // ── Call Analysis ──
   {
     callPoint: "pipeline.measure",
     label: "Pipeline - MEASURE",
@@ -31,6 +53,7 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
     defaultTranscriptLimit: 4000,
+    category: "call-analysis" as AIConfigCategory,
   },
   {
     callPoint: "pipeline.learn",
@@ -39,6 +62,7 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
     defaultTranscriptLimit: 4000,
+    category: "call-analysis" as AIConfigCategory,
   },
   {
     callPoint: "pipeline.score_agent",
@@ -47,6 +71,7 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
     defaultTranscriptLimit: 4000,
+    category: "call-analysis" as AIConfigCategory,
   },
   {
     callPoint: "pipeline.adapt",
@@ -55,6 +80,7 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 2000,
+    category: "call-analysis" as AIConfigCategory,
   },
   {
     callPoint: "pipeline.extract_goals",
@@ -63,6 +89,7 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 3000,
+    category: "call-analysis" as AIConfigCategory,
   },
   {
     callPoint: "pipeline.artifacts",
@@ -71,6 +98,7 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 4000,
+    category: "call-analysis" as AIConfigCategory,
   },
   {
     callPoint: "pipeline.actions",
@@ -79,20 +107,25 @@ export const AI_CALL_POINTS = [
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
     defaultTranscriptLimit: 4000,
+    category: "call-analysis" as AIConfigCategory,
   },
+  // ── Conversation AI ──
   {
     callPoint: "compose.prompt",
     label: "Prompt Composition",
     description: "Generates personalized agent guidance prompts",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "conversation" as AIConfigCategory,
   },
+  // ── Advanced ──
   {
     callPoint: "analysis.measure",
     label: "Analysis - MEASURE",
     description: "Standalone parameter scoring (used by /api/analysis/run)",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "analysis.learn",
@@ -100,6 +133,7 @@ export const AI_CALL_POINTS = [
     description: "Standalone memory extraction (used by /api/analysis/run)",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "parameter.enrich",
@@ -107,6 +141,7 @@ export const AI_CALL_POINTS = [
     description: "Enriches parameter definitions with KB context",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "bdd.parse",
@@ -114,13 +149,16 @@ export const AI_CALL_POINTS = [
     description: "Parses BDD specifications into structured data",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "advanced" as AIConfigCategory,
   },
+  // ── Admin AI ──
   {
     callPoint: "chat.stream",
     label: "Chat (Streaming)",
     description: "Interactive chat completions with streaming",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
   {
     callPoint: "spec.assistant",
@@ -128,6 +166,7 @@ export const AI_CALL_POINTS = [
     description: "AI assistant for creating and editing BDD specifications",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "spec.view",
@@ -135,6 +174,7 @@ export const AI_CALL_POINTS = [
     description: "AI assistant for viewing and understanding BDD specifications",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "spec.extract",
@@ -142,6 +182,7 @@ export const AI_CALL_POINTS = [
     description: "Converts raw documents into structured BDD specification JSON",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "spec.parse",
@@ -149,6 +190,7 @@ export const AI_CALL_POINTS = [
     description: "Detects document type for BDD spec conversion (CURRICULUM, MEASURE, etc.)",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
+    category: "advanced" as AIConfigCategory,
   },
   {
     callPoint: "chat.data",
@@ -156,6 +198,7 @@ export const AI_CALL_POINTS = [
     description: "Data exploration mode with tool calling in the chat panel",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
   {
     callPoint: "chat.call",
@@ -163,6 +206,7 @@ export const AI_CALL_POINTS = [
     description: "Call analysis mode in the chat panel",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
   {
     callPoint: "assistant.chat",
@@ -170,6 +214,7 @@ export const AI_CALL_POINTS = [
     description: "General-purpose AI assistant with system context awareness",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
   {
     callPoint: "assistant.tasks",
@@ -177,6 +222,7 @@ export const AI_CALL_POINTS = [
     description: "Task-focused AI assistant for workflow completion",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
   {
     callPoint: "assistant.data",
@@ -184,6 +230,7 @@ export const AI_CALL_POINTS = [
     description: "Data exploration AI assistant for querying and understanding system data",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
   {
     callPoint: "assistant.spec",
@@ -191,6 +238,16 @@ export const AI_CALL_POINTS = [
     description: "Spec-focused AI assistant for spec creation and troubleshooting",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
+  },
+  // ── Content Processing ──
+  {
+    callPoint: "content-trust.classify",
+    label: "Content Trust - Classify",
+    description: "Classifies document type (CURRICULUM, TEXTBOOK, etc.) from text sample",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel,
+    category: "content-processing" as AIConfigCategory,
   },
   {
     callPoint: "content-trust.extract",
@@ -198,118 +255,7 @@ export const AI_CALL_POINTS = [
     description: "Extracts assertions from training materials for content trust verification",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "workflow.classify",
-    label: "Workflow - Discovery & Planning",
-    description: "Multi-turn discovery conversation that understands user intent and generates guided workflow plans",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "workflow.step",
-    label: "Workflow - Step Guidance",
-    description: "Per-step AI guidance during workflow execution (field suggestions, validation help, context)",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "content-trust.curriculum",
-    label: "Content Trust - Curriculum",
-    description: "Generates structured curriculum from extracted assertions",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "content-trust.curriculum-from-goals",
-    label: "Content Trust - Curriculum from Goals",
-    description: "Generates structured curriculum from subject + persona + learning goals (no document upload)",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "content-trust.curriculum-skeleton",
-    label: "Content Trust - Curriculum Skeleton",
-    description: "Fast skeleton curriculum (titles + descriptions only) using lightweight model. Detail added async.",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.lightModel,
-  },
-  {
-    callPoint: "quick-launch.suggest-name",
-    label: "Quick Launch - Suggest Name",
-    description: "Suggests a short course name from a free-text brief",
-    defaultProvider: "claude",
-    defaultModel: "claude-haiku-4-5-20251001",
-  },
-  {
-    callPoint: "quick-launch.identity",
-    label: "Quick Launch - Identity",
-    description: "Generates agent identity configuration from domain assertions",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "test-harness.system",
-    label: "Test Harness - System Agent",
-    description: "System agent turns in simulated conversations",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "test-harness.caller",
-    label: "Test Harness - Caller Persona",
-    description: "Caller persona turns in simulated conversations",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "test-harness.greeting",
-    label: "Test Harness - Greeting",
-    description: "Initial AI greeting for onboarding calls",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "workflow.step-guidance",
-    label: "Workflow - Step Guidance (Active)",
-    description: "Per-step AI guidance during active workflow execution",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "chat.bug",
-    label: "Chat - Bug Report",
-    description: "Bug report analysis mode in the chat panel",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
-  },
-  {
-    callPoint: "content-sources.suggest",
-    label: "Content Sources - Suggest",
-    description: "Suggests content source metadata from document text",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.lightModel,
-  },
-  {
-    callPoint: "targets.suggest",
-    label: "Targets - Suggest",
-    description: "Suggests adaptation targets for a playbook based on spec parameters",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.lightModel,
-  },
-  {
-    callPoint: "content-trust.classify",
-    label: "Content Trust - Classify",
-    description: "Classifies document type (CURRICULUM, TEXTBOOK, etc.) from text sample",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.lightModel,
-  },
-  {
-    callPoint: "content-trust.lesson-plan",
-    label: "Content Trust - Lesson Plan",
-    description: "Generates lesson plan structure from curriculum assertions",
-    defaultProvider: "claude",
-    defaultModel: config.ai.claude.model,
+    category: "content-processing" as AIConfigCategory,
   },
   {
     callPoint: "content-trust.segment",
@@ -317,6 +263,7 @@ export const AI_CALL_POINTS = [
     description: "Segments composite documents into logical sections for targeted extraction",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
+    category: "content-processing" as AIConfigCategory,
   },
   {
     callPoint: "content-trust.structure",
@@ -324,6 +271,48 @@ export const AI_CALL_POINTS = [
     description: "Structures extracted assertions into hierarchical topics and modules",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "content-processing" as AIConfigCategory,
+  },
+  {
+    callPoint: "content-sources.suggest",
+    label: "Content Sources - Suggest",
+    description: "Suggests content source metadata from document text",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel,
+    category: "content-processing" as AIConfigCategory,
+  },
+  // ── Course Setup ──
+  {
+    callPoint: "content-trust.curriculum",
+    label: "Content Trust - Curriculum",
+    description: "Generates structured curriculum from extracted assertions",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel, // lightModel for market test — matches config-loader
+    category: "course-setup" as AIConfigCategory,
+  },
+  {
+    callPoint: "content-trust.curriculum-from-goals",
+    label: "Content Trust - Curriculum from Goals",
+    description: "Generates structured curriculum from subject + persona + learning goals (no document upload)",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel, // lightModel for market test — matches config-loader
+    category: "course-setup" as AIConfigCategory,
+  },
+  {
+    callPoint: "content-trust.curriculum-skeleton",
+    label: "Content Trust - Curriculum Skeleton",
+    description: "Fast skeleton curriculum (titles + descriptions only) using lightweight model. Detail added async.",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel,
+    category: "course-setup" as AIConfigCategory,
+  },
+  {
+    callPoint: "content-trust.lesson-plan",
+    label: "Content Trust - Lesson Plan",
+    description: "Generates lesson plan structure from curriculum assertions",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "course-setup" as AIConfigCategory,
   },
   {
     callPoint: "lesson-plan.generate",
@@ -331,6 +320,31 @@ export const AI_CALL_POINTS = [
     description: "AI-generates a structured lesson plan from curriculum modules",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.model,
+    category: "course-setup" as AIConfigCategory,
+  },
+  {
+    callPoint: "targets.suggest",
+    label: "Targets - Suggest",
+    description: "Suggests adaptation targets for a playbook based on spec parameters",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.lightModel,
+    category: "course-setup" as AIConfigCategory,
+  },
+  {
+    callPoint: "quick-launch.suggest-name",
+    label: "Quick Launch - Suggest Name",
+    description: "Suggests a short course name from a free-text brief",
+    defaultProvider: "claude",
+    defaultModel: "claude-haiku-4-5-20251001",
+    category: "course-setup" as AIConfigCategory,
+  },
+  {
+    callPoint: "quick-launch.identity",
+    label: "Quick Launch - Identity",
+    description: "Generates agent identity configuration from domain assertions",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "course-setup" as AIConfigCategory,
   },
   {
     callPoint: "demonstrate.suggest",
@@ -338,6 +352,65 @@ export const AI_CALL_POINTS = [
     description: "Suggests session goals for the demonstrate flow",
     defaultProvider: "claude",
     defaultModel: config.ai.claude.lightModel,
+    category: "course-setup" as AIConfigCategory,
+  },
+  // ── Conversation AI (continued) ──
+  {
+    callPoint: "test-harness.system",
+    label: "Test Harness - System Agent",
+    description: "System agent turns in simulated conversations",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "conversation" as AIConfigCategory,
+  },
+  {
+    callPoint: "test-harness.caller",
+    label: "Test Harness - Caller Persona",
+    description: "Caller persona turns in simulated conversations",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "conversation" as AIConfigCategory,
+  },
+  {
+    callPoint: "test-harness.greeting",
+    label: "Test Harness - Greeting",
+    description: "Initial AI greeting for onboarding calls",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "conversation" as AIConfigCategory,
+  },
+  // ── Admin AI (continued) ──
+  {
+    callPoint: "workflow.classify",
+    label: "Workflow - Discovery & Planning",
+    description: "Multi-turn discovery conversation that understands user intent and generates guided workflow plans",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
+  },
+  {
+    callPoint: "workflow.step",
+    label: "Workflow - Step Guidance",
+    description: "Per-step AI guidance during workflow execution (field suggestions, validation help, context)",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
+  },
+  {
+    callPoint: "workflow.step-guidance",
+    label: "Workflow - Step Guidance (Active)",
+    description: "Per-step AI guidance during active workflow execution",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
+  },
+  {
+    callPoint: "chat.bug",
+    label: "Chat - Bug Report",
+    description: "Bug report analysis mode in the chat panel",
+    defaultProvider: "claude",
+    defaultModel: config.ai.claude.model,
+    category: "admin-ai" as AIConfigCategory,
   },
 ];
 
@@ -345,17 +418,19 @@ export const AI_CALL_POINTS = [
 // These are seeded to the AIModel table on first access via /api/ai-models
 export const AVAILABLE_MODELS = {
   claude: [
-    { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4", tier: "flagship" },
-    { id: "claude-3-haiku-20240307", label: "Claude 3 Haiku", tier: "fast" },
-    { id: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet", tier: "standard" },
+    { id: "claude-sonnet-4-20250514", label: "Claude Sonnet 4", tier: "flagship", maxOutputTokens: 16384 },
+    { id: "claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet", tier: "standard", maxOutputTokens: 8192 },
+    { id: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku", tier: "fast", maxOutputTokens: 8192 },
+    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", tier: "fast", maxOutputTokens: 8192 },
+    { id: "claude-3-haiku-20240307", label: "Claude 3 Haiku", tier: "legacy", maxOutputTokens: 4096 },
   ],
   openai: [
-    { id: "gpt-4o", label: "GPT-4o", tier: "flagship" },
-    { id: "gpt-4o-mini", label: "GPT-4o Mini", tier: "fast" },
-    { id: "gpt-4-turbo", label: "GPT-4 Turbo", tier: "standard" },
+    { id: "gpt-4o", label: "GPT-4o", tier: "flagship", maxOutputTokens: 16384 },
+    { id: "gpt-4o-mini", label: "GPT-4o Mini", tier: "fast", maxOutputTokens: 16384 },
+    { id: "gpt-4-turbo", label: "GPT-4 Turbo", tier: "standard", maxOutputTokens: 4096 },
   ],
   mock: [
-    { id: "mock-model", label: "Mock (Testing)", tier: "test" },
+    { id: "mock-model", label: "Mock (Testing)", tier: "test", maxOutputTokens: 4096 },
   ],
 } as const;
 
@@ -363,7 +438,7 @@ export const AVAILABLE_MODELS = {
  * Fetch available models from database, grouped by provider.
  * Falls back to hardcoded AVAILABLE_MODELS if DB is empty.
  */
-async function getAvailableModels(): Promise<Record<string, Array<{ id: string; label: string; tier: string }>>> {
+async function getAvailableModels(): Promise<Record<string, Array<{ id: string; label: string; tier: string; maxOutputTokens: number | null }>>> {
   try {
     const models = await prisma.aIModel.findMany({
       where: { isActive: true },
@@ -376,7 +451,7 @@ async function getAvailableModels(): Promise<Record<string, Array<{ id: string; 
     }
 
     // Group by provider
-    const byProvider: Record<string, Array<{ id: string; label: string; tier: string }>> = {};
+    const byProvider: Record<string, Array<{ id: string; label: string; tier: string; maxOutputTokens: number | null }>> = {};
     for (const model of models) {
       if (!byProvider[model.provider]) {
         byProvider[model.provider] = [];
@@ -385,6 +460,7 @@ async function getAvailableModels(): Promise<Record<string, Array<{ id: string; 
         id: model.modelId,
         label: model.label,
         tier: model.tier,
+        maxOutputTokens: model.maxOutputTokens,
       });
     }
 
@@ -393,6 +469,17 @@ async function getAvailableModels(): Promise<Record<string, Array<{ id: string; 
     console.error("[ai-config] Error fetching models from DB, using fallback:", error);
     return AVAILABLE_MODELS as any;
   }
+}
+
+/**
+ * Look up the maxOutputTokens for a given model across all providers.
+ */
+async function getModelMaxOutputTokens(provider: string, modelId: string): Promise<number | null> {
+  const availableModels = await getAvailableModels();
+  const providerModels = availableModels[provider];
+  if (!providerModels) return null;
+  const model = providerModels.find((m) => m.id === modelId);
+  return model?.maxOutputTokens ?? null;
 }
 
 export type CallPointId = string;
@@ -442,6 +529,7 @@ export async function GET() {
         callPoint: def.callPoint,
         label: def.label,
         description: def.description,
+        category: def.category,
         // Use saved values or defaults
         provider,
         model: saved?.model ?? def.defaultModel,
@@ -468,6 +556,7 @@ export async function GET() {
       availableModels,
       callPoints: AI_CALL_POINTS,
       keyStatus, // Which providers have keys configured
+      categoryMeta: AI_CONFIG_CATEGORY_META,
     });
   } catch (error) {
     console.error("[ai-config] GET error:", error);
@@ -542,6 +631,18 @@ export async function POST(request: NextRequest) {
         { ok: false, error: `Invalid model ${body.model} for provider ${body.provider}` },
         { status: 400 }
       );
+    }
+
+    // Validate maxTokens against model's output token limit
+    if (body.maxTokens != null && body.maxTokens > 0) {
+      const modelDef = providerModels?.find((m) => m.id === body.model);
+      const maxOutput = modelDef?.maxOutputTokens;
+      if (maxOutput && body.maxTokens > maxOutput) {
+        return NextResponse.json(
+          { ok: false, error: `maxTokens (${body.maxTokens}) exceeds ${modelDef?.label ?? body.model} output limit of ${maxOutput}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Upsert the configuration

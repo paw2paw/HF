@@ -94,6 +94,15 @@ const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; tempe
   "targets.suggest": { provider: "claude", model: config.ai.claude.lightModel },
   "content-sources.suggest": { provider: "claude", model: config.ai.claude.lightModel },
   "agent-tuner.interpret": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2048 },
+  // Missing from original — synced from route.ts AI_CALL_POINTS
+  "pipeline.artifacts": { provider: "claude", model: config.ai.claude.lightModel },
+  "pipeline.actions": { provider: "claude", model: config.ai.claude.lightModel },
+  "content-trust.segment": { provider: "claude", model: config.ai.claude.lightModel },
+  "content-trust.lesson-plan": { provider: "claude", model: config.ai.claude.model },
+  "lesson-plan.generate": { provider: "claude", model: config.ai.claude.model },
+  "quick-launch.suggest-name": { provider: "claude", model: "claude-haiku-4-5-20251001" },
+  "demonstrate.suggest": { provider: "claude", model: config.ai.claude.lightModel },
+  "workflow.step-guidance": { provider: "claude", model: config.ai.claude.model },
 };
 
 // In-memory cache with TTL
@@ -186,7 +195,9 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
 
   // Fall back to defaults (SystemSettings → hardcoded constant)
   const fallbackConfigs = await getAIModelConfigsFallback();
-  const defaultConfig = fallbackConfigs[callPoint] || DEFAULT_CONFIGS[callPoint];
+  const fallbackConfig = fallbackConfigs[callPoint];
+  const hardcodedConfig = DEFAULT_CONFIGS[callPoint];
+  const defaultConfig = fallbackConfig || hardcodedConfig;
   if (defaultConfig) {
     // Ensure the default provider is actually available
     const { provider, model } = ensureAvailableProvider(
@@ -197,8 +208,8 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
     const result: AIConfigResult = {
       provider,
       model,
-      maxTokens: defaultConfig.maxTokens,
-      temperature: defaultConfig.temperature,
+      maxTokens: hardcodedConfig?.maxTokens,
+      temperature: hardcodedConfig?.temperature,
       isCustomized: false,
     };
     configCache.set(callPoint, { config: result, fetchedAt: Date.now() });

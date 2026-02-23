@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 import { useSession } from "next-auth/react";
@@ -10,10 +11,17 @@ import "./ai-config.css";
 // TYPES
 // =====================================================
 
+interface CategoryMeta {
+  label: string;
+  order: number;
+  description: string;
+}
+
 interface AIConfig {
   callPoint: string;
   label: string;
   description: string;
+  category: string;
   provider: string;
   model: string;
   maxTokens: number | null;
@@ -93,6 +101,8 @@ export default function AIConfigPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [categoryMeta, setCategoryMeta] = useState<Record<string, CategoryMeta>>({});
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   const { data: session } = useSession();
   const isOperator = ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"].includes((session?.user?.role as string) || "");
@@ -128,6 +138,32 @@ export default function AIConfigPage() {
     );
   });
 
+  // Group filtered configs by category, sorted by category order
+  const groupedConfigs = useMemo(() => {
+    const groups = new Map<string, AIConfig[]>();
+    for (const c of filteredConfigs) {
+      const cat = c.category || "advanced";
+      const existing = groups.get(cat) ?? [];
+      existing.push(c);
+      groups.set(cat, existing);
+    }
+    return [...groups.entries()].sort(([a], [b]) => {
+      const orderA = categoryMeta[a]?.order ?? 99;
+      const orderB = categoryMeta[b]?.order ?? 99;
+      return orderA - orderB;
+    });
+  }, [filteredConfigs, categoryMeta]);
+
+  const toggleSection = (category: string) => {
+    setCollapsedSections((prev) => ({ ...prev, [category]: !prev[category] }));
+  };
+
+  // When searching, force all sections open
+  const isSectionCollapsed = (category: string) => {
+    if (search.trim()) return false;
+    return !!collapsedSections[category];
+  };
+
   // Fetch configurations
   const fetchConfigs = useCallback(async () => {
     try {
@@ -136,6 +172,7 @@ export default function AIConfigPage() {
       if (data.ok) {
         setConfigs(data.configs);
         setAvailableModels(data.availableModels);
+        if (data.categoryMeta) setCategoryMeta(data.categoryMeta);
       } else {
         setError(data.error || "Failed to fetch configurations");
       }
@@ -784,137 +821,166 @@ export default function AIConfigPage() {
         </div>
       )}
 
-      {/* Configuration Cards */}
+      {/* Configuration Cards — grouped by category */}
       <div className="aic-config-list">
-        {filteredConfigs.map((config) => {
-          const providerStyle = PROVIDER_STYLES[config.provider] || PROVIDER_STYLES.mock;
-          const models = availableModels?.[config.provider as keyof AvailableModels] || [];
-          const currentModel = models.find((m) => m.id === config.model);
-          const tierStyle = currentModel
-            ? TIER_STYLES[currentModel.tier] || TIER_STYLES.standard
-            : TIER_STYLES.standard;
-          const isSaving = saving === config.callPoint;
+        {groupedConfigs.map(([category, categoryConfigs]) => {
+          const meta = categoryMeta[category];
+          const collapsed = isSectionCollapsed(category);
 
           return (
-            <div
-              key={config.callPoint}
-              className="aic-config-card"
-              style={{
-                borderColor: config.isCustomized ? providerStyle.border : "var(--border-default)",
-                opacity: isSaving ? 0.7 : 1,
-              }}
-            >
-              <div className="aic-config-card-layout">
-                {/* Left: Label and Description */}
-                <div className="aic-config-info">
-                  <div className="aic-config-label-row">
-                    <span className="aic-config-label">{config.label}</span>
-                    {config.isCustomized && (
-                      <span
-                        className="aic-customized-badge"
-                        style={{ background: providerStyle.bg, color: providerStyle.text }}
-                      >
-                        Customized
-                      </span>
-                    )}
-                  </div>
-                  <p className="aic-config-desc">{config.description}</p>
+            <div key={category} className="aic-category-section">
+              <button
+                className="aic-category-header"
+                onClick={() => toggleSection(category)}
+              >
+                <div className="aic-category-header-left">
+                  <span className="aic-category-chevron">
+                    {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                  </span>
+                  <span className="aic-category-title">{meta?.label ?? category}</span>
+                  <span className="aic-category-desc">{meta?.description ?? ""}</span>
                 </div>
+                <span className="aic-category-count">
+                  {categoryConfigs.length}
+                </span>
+              </button>
 
-                {/* Right: Controls */}
-                <div className="aic-config-controls">
-                  {/* Provider Selector */}
-                  <div className="aic-control-group">
-                    <label className="aic-control-label">
-                      PROVIDER
-                    </label>
-                    <FancySelect
-                      value={config.provider}
-                      onChange={(v) => updateConfig(config.callPoint, { provider: v })}
-                      disabled={isSaving}
-                      searchable={false}
-                      style={{ minWidth: 100 }}
-                      selectedStyle={{ border: `1px solid ${providerStyle.border}`, background: providerStyle.bg }}
-                      options={[
-                        { value: "claude", label: "Claude" },
-                        { value: "openai", label: "OpenAI" },
-                        { value: "mock", label: "Mock" },
-                      ]}
-                    />
-                  </div>
+              {!collapsed && (
+                <div className="aic-category-cards">
+                  {categoryConfigs.map((config) => {
+                    const providerStyle = PROVIDER_STYLES[config.provider] || PROVIDER_STYLES.mock;
+                    const models = availableModels?.[config.provider as keyof AvailableModels] || [];
+                    const currentModel = models.find((m) => m.id === config.model);
+                    const tierStyle = currentModel
+                      ? TIER_STYLES[currentModel.tier] || TIER_STYLES.standard
+                      : TIER_STYLES.standard;
+                    const isSaving = saving === config.callPoint;
 
-                  {/* Model Selector */}
-                  <div className="aic-control-group">
-                    <label className="aic-control-label">MODEL</label>
-                    <FancySelect
-                      value={config.model}
-                      onChange={(v) => updateConfig(config.callPoint, { model: v })}
-                      disabled={isSaving}
-                      searchable={models.length > 5}
-                      style={{ minWidth: 180 }}
-                      options={models.map((m) => ({ value: m.id, label: m.label }))}
-                    />
-                  </div>
-
-                  {/* Transcript Limit (only for pipeline stages that use transcripts) */}
-                  {config.defaultTranscriptLimit && (
-                    <div className="aic-control-group">
-                      <label className="aic-control-label">
-                        TRANSCRIPT LIMIT
-                      </label>
-                      <input
-                        type="number"
-                        value={config.transcriptLimit ?? config.defaultTranscriptLimit ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value ? parseInt(e.target.value, 10) : null;
-                          updateConfig(config.callPoint, { transcriptLimit: val });
+                    return (
+                      <div
+                        key={config.callPoint}
+                        className="aic-config-card"
+                        style={{
+                          borderColor: config.isCustomized ? providerStyle.border : "var(--border-default)",
+                          opacity: isSaving ? 0.7 : 1,
                         }}
-                        disabled={isSaving}
-                        placeholder={String(config.defaultTranscriptLimit)}
-                        min={500}
-                        max={50000}
-                        step={500}
-                        className="aic-transcript-input"
-                        title={`Characters of transcript to include. Default: ${config.defaultTranscriptLimit}`}
-                      />
-                    </div>
-                  )}
+                      >
+                        <div className="aic-config-card-layout">
+                          {/* Left: Label and Description */}
+                          <div className="aic-config-info">
+                            <div className="aic-config-label-row">
+                              <span className="aic-config-label">{config.label}</span>
+                              {config.isCustomized && (
+                                <span
+                                  className="aic-customized-badge"
+                                  style={{ background: providerStyle.bg, color: providerStyle.text }}
+                                >
+                                  Customized
+                                </span>
+                              )}
+                            </div>
+                            <p className="aic-config-desc">{config.description}</p>
+                          </div>
 
-                  {/* Tier Badge */}
-                  {currentModel && (
-                    <div
-                      className="aic-config-tier"
-                      style={{ background: tierStyle.bg, color: tierStyle.text }}
-                    >
-                      {currentModel.tier}
-                    </div>
-                  )}
+                          {/* Right: Controls */}
+                          <div className="aic-config-controls">
+                            {/* Provider Selector */}
+                            <div className="aic-control-group">
+                              <label className="aic-control-label">
+                                PROVIDER
+                              </label>
+                              <FancySelect
+                                value={config.provider}
+                                onChange={(v) => updateConfig(config.callPoint, { provider: v })}
+                                disabled={isSaving}
+                                searchable={false}
+                                style={{ minWidth: 100 }}
+                                selectedStyle={{ border: `1px solid ${providerStyle.border}`, background: providerStyle.bg }}
+                                options={[
+                                  { value: "claude", label: "Claude" },
+                                  { value: "openai", label: "OpenAI" },
+                                  { value: "mock", label: "Mock" },
+                                ]}
+                              />
+                            </div>
 
-                  {/* Reset Button */}
-                  {config.isCustomized && (
-                    <button
-                      onClick={() => resetToDefault(config.callPoint)}
-                      disabled={isSaving}
-                      className="aic-reset-btn"
-                      title={`Reset to default: ${config.defaultProvider} / ${config.defaultModel}`}
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-              </div>
+                            {/* Model Selector */}
+                            <div className="aic-control-group">
+                              <label className="aic-control-label">MODEL</label>
+                              <FancySelect
+                                value={config.model}
+                                onChange={(v) => updateConfig(config.callPoint, { model: v })}
+                                disabled={isSaving}
+                                searchable={models.length > 5}
+                                style={{ minWidth: 180 }}
+                                options={models.map((m) => ({ value: m.id, label: m.label }))}
+                              />
+                            </div>
 
-              {/* Default hint */}
-              {!config.isCustomized && (
-                <div className="aic-config-hint">
-                  Using default: {config.defaultProvider} / {config.defaultModel}
-                </div>
-              )}
+                            {/* Transcript Limit (only for pipeline stages that use transcripts) */}
+                            {config.defaultTranscriptLimit && (
+                              <div className="aic-control-group">
+                                <label className="aic-control-label">
+                                  TRANSCRIPT LIMIT
+                                </label>
+                                <input
+                                  type="number"
+                                  value={config.transcriptLimit ?? config.defaultTranscriptLimit ?? ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                                    updateConfig(config.callPoint, { transcriptLimit: val });
+                                  }}
+                                  disabled={isSaving}
+                                  placeholder={String(config.defaultTranscriptLimit)}
+                                  min={500}
+                                  max={50000}
+                                  step={500}
+                                  className="aic-transcript-input"
+                                  title={`Characters of transcript to include. Default: ${config.defaultTranscriptLimit}`}
+                                />
+                              </div>
+                            )}
 
-              {/* Last updated */}
-              {config.updatedAt && (
-                <div className="aic-config-hint">
-                  Last updated: {new Date(config.updatedAt).toLocaleString()}
+                            {/* Tier Badge */}
+                            {currentModel && (
+                              <div
+                                className="aic-config-tier"
+                                style={{ background: tierStyle.bg, color: tierStyle.text }}
+                              >
+                                {currentModel.tier}
+                              </div>
+                            )}
+
+                            {/* Reset Button */}
+                            {config.isCustomized && (
+                              <button
+                                onClick={() => resetToDefault(config.callPoint)}
+                                disabled={isSaving}
+                                className="aic-reset-btn"
+                                title={`Reset to default: ${config.defaultProvider} / ${config.defaultModel}`}
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Default hint */}
+                        {!config.isCustomized && (
+                          <div className="aic-config-hint">
+                            Using default: {config.defaultProvider} / {config.defaultModel}
+                          </div>
+                        )}
+
+                        {/* Last updated */}
+                        {config.updatedAt && (
+                          <div className="aic-config-hint">
+                            Last updated: {new Date(config.updatedAt).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
