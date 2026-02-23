@@ -411,17 +411,17 @@ export function OnboardingTabContent({
                         </div>
                       </div>
 
-                      {/* Identity Spec */}
+                      {/* Persona */}
                       <div style={{ marginBottom: 20 }}>
                         <label className="hf-text-md hf-text-bold hf-mb-sm" style={{ display: "block" }}>
-                          Identity Spec
+                          Persona
                         </label>
                         <select
                           className="hf-select"
                           value={onboardingForm.identitySpecId}
                           onChange={(e) => setOnboardingForm({ ...onboardingForm, identitySpecId: e.target.value })}
                         >
-                          <option value="">Use default identity spec</option>
+                          <option value="">Use default persona</option>
                           {availableSpecs.map((spec) => (
                             <option key={spec.id} value={spec.id}>
                               {spec.name} ({spec.slug})
@@ -429,7 +429,7 @@ export function OnboardingTabContent({
                           ))}
                         </select>
                         <div className="hf-hint">
-                          Which identity/persona spec to use for onboarding
+                          Which persona to use for onboarding conversations
                         </div>
                       </div>
 
@@ -876,7 +876,7 @@ export function OnboardingTabContent({
 
                   {/* Quick Stats - Dashboard Style */}
                   <div className="hf-grid-4 hf-mb-lg">
-                    {/* Identity Spec Card */}
+                    {/* Persona Card */}
                     <div
                       className="hf-onboard-stat"
                       style={{
@@ -895,7 +895,7 @@ export function OnboardingTabContent({
                         {domain.onboardingIdentitySpec?.name || "Not Set"}
                       </div>
                       <div className="hf-text-xs hf-text-muted hf-text-bold">
-                        Identity Spec
+                        Persona
                       </div>
                       {domain.onboardingIdentitySpec && (
                         <Link

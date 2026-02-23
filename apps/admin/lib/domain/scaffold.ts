@@ -64,11 +64,34 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     });
 
     if (existingPublished) {
+      // Still ensure onboarding identity spec is set (may be missing from earlier scaffold)
+      const identitySlug = `${domain.slug}-identity`;
+      const existingIdentity = await p.analysisSpec.findFirst({
+        where: { slug: identitySlug },
+        select: { id: true, slug: true, name: true },
+      });
+
+      if (existingIdentity) {
+        const currentDomain = await p.domain.findUnique({
+          where: { id: domainId },
+          select: { onboardingIdentitySpecId: true },
+        });
+        if (!currentDomain?.onboardingIdentitySpecId) {
+          await p.domain.update({
+            where: { id: domainId },
+            data: {
+              onboardingIdentitySpecId: existingIdentity.id,
+              onboardingFlowPhases: options?.flowPhases || await getFlowPhasesFallback(),
+            },
+          });
+        }
+      }
+
       return {
-        identitySpec: null,
+        identitySpec: existingIdentity || null,
         playbook: { id: existingPublished.id, name: existingPublished.name },
         published: false,
-        onboardingConfigured: false,
+        onboardingConfigured: !!existingIdentity,
         skipped: ["Published playbook already exists — skipping scaffold"],
       };
     }

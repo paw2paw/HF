@@ -38,87 +38,87 @@
         "checks": [
           {
             "id": "playbook_published",
-            "name": "Published Playbook",
-            "description": "Domain has at least one published playbook linking specs together",
+            "name": "Learning Programme Ready",
+            "description": "Your learning programme needs to be set up and activated before learners can start",
             "severity": "critical",
             "query": "playbook",
-            "fixAction": { "label": "Create Playbook", "href": "/x/domains?tab=playbooks" }
+            "fixAction": { "label": "Set Up Programme", "href": "/x/domains?tab=playbooks" }
           },
           {
             "id": "identity_spec",
-            "name": "Identity Spec",
-            "description": "Playbook includes an IDENTITY spec (domain PlaybookItem or enabled system spec toggle)",
+            "name": "Persona Configured",
+            "description": "Your AI tutor needs a persona and teaching style set up for your programme",
             "severity": "critical",
             "query": "playbook_spec_role",
             "queryArgs": { "specRole": "IDENTITY" },
-            "fixAction": { "label": "Create Identity Spec", "href": "/x/specs/new" }
+            "fixAction": { "label": "Set Up Persona", "href": "/x/specs/new" }
           },
           {
             "id": "content_spec",
-            "name": "Content Spec",
-            "description": "Playbook includes a CONTENT spec (domain PlaybookItem or enabled system spec toggle)",
+            "name": "Curriculum Content Linked",
+            "description": "Your programme needs curriculum content connected for the AI tutor to teach from",
             "severity": "recommended",
             "query": "playbook_spec_role",
             "queryArgs": { "specRole": "CONTENT" },
-            "fixAction": { "label": "Create Content Spec", "href": "/x/specs/new" }
+            "fixAction": { "label": "Add Curriculum", "href": "/x/specs/new" }
           },
           {
             "id": "content_sources",
-            "name": "Content Sources",
-            "description": "Domain has content sources registered with trust levels",
+            "name": "Teaching Materials Linked",
+            "description": "Upload or link teaching materials so the AI tutor has content to teach from",
             "severity": "recommended",
             "query": "content_sources",
-            "fixAction": { "label": "Add Content Sources", "href": "/x/content-sources" }
+            "fixAction": { "label": "Add Materials", "href": "/x/content-sources" }
           },
           {
             "id": "assertions_extracted",
-            "name": "Teaching Points Extracted",
-            "description": "Content assertions (approved teaching points) have been extracted from uploaded documents",
+            "name": "Teaching Points Ready",
+            "description": "Key facts and concepts need to be extracted from your teaching materials",
             "severity": "recommended",
             "query": "assertions",
-            "fixAction": { "label": "Upload Documents", "href": "/x/content-review" }
+            "fixAction": { "label": "Upload Materials", "href": "/x/content-review" }
           },
           {
             "id": "onboarding_configured",
-            "name": "Onboarding Configured",
-            "description": "Domain has onboarding identity spec and flow phases configured for first-call experience",
+            "name": "Welcome Experience Set Up",
+            "description": "Configure the welcome message and flow for your learners' first call",
             "severity": "recommended",
             "query": "onboarding",
-            "fixAction": { "label": "Configure Onboarding", "href": "/x/domains?tab=onboarding" }
+            "fixAction": { "label": "Set Up Welcome", "href": "/x/domains?tab=onboarding" }
           },
           {
             "id": "pipeline_spec",
-            "name": "Pipeline Spec Active",
-            "description": "PIPELINE-001 system spec is active and compiled (required for post-call analysis)",
+            "name": "Post-Call Analysis Ready",
+            "description": "The system that analyses calls after each session needs to be active",
             "severity": "critical",
             "query": "system_spec",
             "queryArgs": { "slug": "PIPELINE-001" },
-            "fixAction": { "label": "Activate Pipeline Spec", "href": "/x/specs" }
+            "fixAction": { "label": "Activate Analysis", "href": "/x/specs" }
           },
           {
             "id": "compose_spec",
-            "name": "Compose Spec Active",
-            "description": "COMP-001 system spec is active and compiled (required for prompt composition)",
+            "name": "Prompt System Ready",
+            "description": "The system that creates the AI tutor's instructions needs to be active",
             "severity": "critical",
             "query": "system_spec",
             "queryArgs": { "slug": "COMP-001" },
-            "fixAction": { "label": "Activate Compose Spec", "href": "/x/specs" }
+            "fixAction": { "label": "Activate Prompt System", "href": "/x/specs" }
           },
           {
             "id": "ai_keys",
-            "name": "AI Keys Configured",
-            "description": "At least one AI provider (Claude or OpenAI) has an API key configured",
+            "name": "AI Service Connected",
+            "description": "At least one AI service (Claude or OpenAI) needs to be connected",
             "severity": "critical",
             "query": "ai_keys",
-            "fixAction": { "label": "Configure AI Keys", "href": "/x/settings" }
+            "fixAction": { "label": "Connect AI Service", "href": "/x/settings" }
           },
           {
             "id": "test_caller",
-            "name": "Test Caller Available",
-            "description": "Domain has at least one caller assigned for testing",
+            "name": "Test Learner Added",
+            "description": "Add at least one test learner so you can preview the teaching experience",
             "severity": "optional",
             "query": "test_caller",
-            "fixAction": { "label": "Create Test Caller", "href": "/x/callers" }
+            "fixAction": { "label": "Add Test Learner", "href": "/x/callers" }
           }
         ]
       }
