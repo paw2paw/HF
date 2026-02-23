@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { requireEntityAccess, isEntityAuthError } from "@/lib/access-control";
 
 /**
  * @api GET /api/content-sources
@@ -8,24 +9,28 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @scope content:read
  * @auth session
  * @tags content
- * @description List all content sources with optional filtering by trust level, qualification, and active status.
+ * @description List content sources with domain scoping. DOMAIN-scoped users see only sources linked to their domain. Supports optional domainId filter.
  * @query trustLevel string - Filter by trust level
  * @query qualificationRef string - Filter by qualification reference (case-insensitive contains)
  * @query activeOnly string - "false" to include inactive sources (default: true)
  * @query archivedOnly string - "true" to show only archived sources
+ * @query domainId string - Filter by domain (explicit filter for any role)
  * @response 200 { sources: [...] }
+ * @response 403 { error: "Forbidden" }
  * @response 500 { error: "..." }
  */
 export async function GET(req: NextRequest) {
   try {
-    const authResult = await requireAuth("VIEWER");
-    if (isAuthError(authResult)) return authResult.error;
+    const authResult = await requireEntityAccess("content", "R");
+    if (isEntityAuthError(authResult)) return authResult.error;
+    const { session, scope } = authResult;
 
     const { searchParams } = new URL(req.url);
     const trustLevel = searchParams.get("trustLevel");
     const qualificationRef = searchParams.get("qualificationRef");
     const activeOnly = searchParams.get("activeOnly") !== "false";
     const archivedOnly = searchParams.get("archivedOnly") === "true";
+    const domainIdParam = searchParams.get("domainId");
 
     const where: any = {};
     if (trustLevel) where.trustLevel = trustLevel;
@@ -35,6 +40,21 @@ export async function GET(req: NextRequest) {
       where.archivedAt = { not: null };
     } else if (activeOnly) {
       where.isActive = true;
+    }
+
+    // Domain scoping: DOMAIN scope uses assignedDomainId, explicit param overrides for any role
+    const targetDomainId = scope === "DOMAIN"
+      ? session.user.assignedDomainId
+      : domainIdParam;
+
+    if (targetDomainId) {
+      where.subjects = {
+        some: {
+          subject: {
+            domains: { some: { domainId: targetDomainId } },
+          },
+        },
+      };
     }
 
     const sources = await prisma.contentSource.findMany({

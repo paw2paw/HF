@@ -220,9 +220,11 @@ export function hasSourceAuthority(config: any): boolean {
 }
 
 /**
- * List all ContentSource records for the source picker UI.
+ * List ContentSource records for the source picker UI.
+ * When domainId is provided, only returns sources linked to that domain
+ * via SubjectSource → Subject → SubjectDomain.
  */
-export async function listAvailableSources(): Promise<
+export async function listAvailableSources(domainId?: string): Promise<
   Array<{
     slug: string;
     name: string;
@@ -232,8 +234,19 @@ export async function listAvailableSources(): Promise<
     isExpired: boolean;
   }>
 > {
+  const where: any = { isActive: true };
+  if (domainId) {
+    where.subjects = {
+      some: {
+        subject: {
+          domains: { some: { domainId } },
+        },
+      },
+    };
+  }
+
   const sources = await prisma.contentSource.findMany({
-    where: { isActive: true },
+    where,
     orderBy: [{ trustLevel: "asc" }, { name: "asc" }],
     select: {
       slug: true,

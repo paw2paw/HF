@@ -3697,7 +3697,7 @@ Returns text fragments extracted from AnalysisSpec configs with category, prompt
 
 ### `GET` /api/content-sources
 
-List all content sources with optional filtering by trust level, qualification, and active status.
+List content sources with domain scoping. DOMAIN-scoped users see only sources linked to their domain. Supports optional domainId filter.
 
 **Auth**: Session · **Scope**: `content:read`
 
@@ -3707,10 +3707,16 @@ List all content sources with optional filtering by trust level, qualification, 
 | qualificationRef | query | string | No | Filter by qualification reference (case-insensitive contains) |
 | activeOnly | query | string | No | "false" to include inactive sources (default: true) |
 | archivedOnly | query | string | No | "true" to show only archived sources |
+| domainId | query | string | No | Filter by domain (explicit filter for any role) |
 
 **Response** `200`
 ```json
 { sources: [...] }
+```
+
+**Response** `403`
+```json
+{ error: "Forbidden" }
 ```
 
 **Response** `500`
@@ -3757,17 +3763,55 @@ Create a new content source with provenance metadata.
 
 ---
 
+### `DELETE` /api/domains/:domainId/content
+
+Bulk archive or permanently delete all content sources linked to a domain.
+
+**Auth**: session (SUPERADMIN) · **Scope**: `content:delete`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | path | string | Yes | The domain ID |
+| permanent | query | string | No | "true" to permanently delete (default: archive only) |
+| dryRun | query | string | No | "true" to preview what would be affected without making changes |
+
+**Response** `200`
+```json
+{ ok: true, action, count, sources: [...] }
+```
+
+**Response** `404`
+```json
+{ error: "Domain not found" }
+```
+
+**Response** `500`
+```json
+{ error: "..." }
+```
+
+---
+
 ## Content Sources
 
 ### `GET` /api/content-sources/available
 
-List content sources in a lightweight format for the source picker UI in the spec editor
+List content sources in a lightweight format for the source picker UI. Domain-scoped users see only their domain's sources.
 
 **Auth**: Session · **Scope**: `content-sources:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | query | string | No | Filter by domain (explicit filter for any role) |
 
 **Response** `200`
 ```json
 { ok: true, sources: Array<{ slug, name, trustLevel, publisherOrg, validUntil, isExpired }> }
+```
+
+**Response** `403`
+```json
+{ error: "Forbidden" }
 ```
 
 ---
@@ -11300,8 +11344,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 307 |
-| Files with annotations | 306 |
+| Route files found | 308 |
+| Files with annotations | 307 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 
