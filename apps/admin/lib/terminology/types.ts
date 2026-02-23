@@ -1,7 +1,7 @@
 /**
  * Terminology Types & Helpers — Client-safe (no Prisma dependency)
  *
- * The unified 11-key TermMap is the canonical terminology type.
+ * The unified 13-key TermMap is the canonical terminology type.
  * Resolution is now DB-driven via InstitutionType.terminology (see lib/terminology.ts).
  *
  * This file provides:
@@ -12,7 +12,7 @@
 
 // ── Canonical Types (unified system) ────────────────────────
 
-/** The 11 canonical term keys used across the app */
+/** The 13 canonical term keys used across the app */
 export type TermKey =
   | "domain"
   | "playbook"
@@ -21,15 +21,17 @@ export type TermKey =
   | "cohort"
   | "instructor"
   | "session"
+  | "session_short"
   | "persona"
   | "supervisor"
+  | "mentor"
   | "teach_action"
   | "learning_noun";
 
-/** A complete terminology map — all 11 keys present, all strings */
+/** A complete terminology map — all 13 keys present, all strings */
 export type TermMap = Record<TermKey, string>;
 
-/** All 11 term keys in canonical order */
+/** All 13 term keys in canonical order */
 export const TERM_KEYS: TermKey[] = [
   "domain",
   "playbook",
@@ -38,8 +40,10 @@ export const TERM_KEYS: TermKey[] = [
   "cohort",
   "instructor",
   "session",
+  "session_short",
   "persona",
   "supervisor",
+  "mentor",
   "teach_action",
   "learning_noun",
 ];
@@ -53,8 +57,10 @@ export const TERM_KEY_LABELS: Record<TermKey, string> = {
   cohort: "Group / Class",
   instructor: "Teacher / Facilitator",
   session: "Call / Session",
+  session_short: "Session (short)",
   persona: "Agent Style / Role",
   supervisor: "Supervisor / Guide",
+  mentor: "Mentor / Guide (bare)",
   teach_action: "Teaching Verb",
   learning_noun: "Learning Concept",
 };
@@ -71,8 +77,10 @@ export const TECHNICAL_TERMS: TermMap = {
   cohort: "Cohort",
   instructor: "Instructor",
   session: "Session",
+  session_short: "Session",
   persona: "Persona",
   supervisor: "Supervisor",
+  mentor: "Supervisor",
   teach_action: "Teach",
   learning_noun: "Learning",
 };

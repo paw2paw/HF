@@ -1,8 +1,8 @@
 /**
- * Course Readiness Checker
+ * Course / Community Readiness Checker
  *
- * Loads COURSE-READY-001 ORCHESTRATE spec and evaluates each check
- * against the database for a given course context (domain + caller + source).
+ * Loads a readiness ORCHESTRATE spec (COURSE-READY-001 or COMMUNITY-READY-001)
+ * and evaluates each check against the database for a given context.
  *
  * Spec-driven: checks are defined in the spec config, not hardcoded here.
  * Adding/removing/reordering checks = edit the spec, zero code changes.
@@ -12,6 +12,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 
 // =====================================================
 // TYPES
@@ -63,21 +64,24 @@ export interface CourseReadinessContext {
 // =====================================================
 
 /**
- * Load readiness checks from COURSE-READY-001 spec.
+ * Load readiness checks from a readiness spec (COURSE-READY-001 or COMMUNITY-READY-001).
  * Falls back to defaults if spec not found (during initial setup).
+ *
+ * @param specSlug - Optional spec slug override. Defaults to config.specs.courseReady.
  */
-export async function loadCourseReadinessChecks(): Promise<CourseReadinessCheck[]> {
+export async function loadCourseReadinessChecks(specSlug?: string): Promise<CourseReadinessCheck[]> {
+  const slug = specSlug || config.specs.courseReady;
   const spec = await prisma.analysisSpec.findFirst({
     where: {
-      slug: { contains: "course-ready-001", mode: "insensitive" },
+      slug: { contains: slug.toLowerCase(), mode: "insensitive" },
       isActive: true,
     },
     select: { config: true },
   });
 
   if (spec?.config) {
-    const config = spec.config as Record<string, any>;
-    const params = config.parameters || [];
+    const specConfig = spec.config as Record<string, any>;
+    const params = specConfig.parameters || [];
     const checksParam = params.find((p: any) => p.id === "readiness_checks");
     if (checksParam?.config?.checks) {
       return checksParam.config.checks as CourseReadinessCheck[];
@@ -295,13 +299,18 @@ const checkExecutors: Record<string, CheckExecutor> = {
 // =====================================================
 
 /**
- * Check course readiness by evaluating all checks from COURSE-READY-001 spec.
+ * Check readiness by evaluating all checks from the given readiness spec.
  * All checks run in parallel for performance.
+ *
+ * @param ctx - Domain/caller/source context for evaluating checks.
+ * @param specSlug - Optional spec slug. Defaults to COURSE-READY-001 for institutions,
+ *   but callers should pass COMMUNITY-READY-001 for community domains.
  */
 export async function checkCourseReadiness(
   ctx: CourseReadinessContext,
+  specSlug?: string,
 ): Promise<CourseReadinessResult> {
-  const checks = await loadCourseReadinessChecks();
+  const checks = await loadCourseReadinessChecks(specSlug);
 
   // Execute all checks in parallel
   const results: CourseReadinessCheckResult[] = await Promise.all(

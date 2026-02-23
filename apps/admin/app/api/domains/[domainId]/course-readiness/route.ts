@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkCourseReadiness } from "@/lib/domain/course-readiness";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 
 export const runtime = "nodejs";
 
@@ -9,9 +11,9 @@ export const runtime = "nodejs";
  * @visibility public
  * @scope domains:read
  * @auth session
- * @tags domains, readiness, course
- * @description Check if a course is content-ready for its first lesson. Evaluates checks defined in COURSE-READY-001 ORCHESTRATE spec. Returns structured pass/fail results with action links.
- * @pathParam domainId string - The domain ID to check course readiness for
+ * @tags domains, readiness, course, community
+ * @description Check if a course or community is content-ready. Automatically selects the right readiness spec based on domain kind: COURSE-READY-001 for institutions, COMMUNITY-READY-001 for communities. Returns structured pass/fail results with action links.
+ * @pathParam domainId string - The domain ID to check readiness for
  * @queryParam callerId string - Test caller ID (for prompt composition check)
  * @queryParam sourceId string - Content source ID (for assertion review link)
  * @queryParam subjectId string - Subject ID (for lesson plan link)
@@ -32,12 +34,19 @@ export async function GET(
     const sourceId = url.searchParams.get("sourceId") || undefined;
     const subjectId = url.searchParams.get("subjectId") || undefined;
 
-    const result = await checkCourseReadiness({
-      domainId,
-      callerId,
-      sourceId,
-      subjectId,
+    // Detect domain kind to select the right readiness spec
+    const domain = await prisma.domain.findUnique({
+      where: { id: domainId },
+      select: { kind: true },
     });
+    const specSlug = domain?.kind === "COMMUNITY"
+      ? config.specs.communityReady
+      : config.specs.courseReady;
+
+    const result = await checkCourseReadiness(
+      { domainId, callerId, sourceId, subjectId },
+      specSlug,
+    );
 
     return NextResponse.json({
       ok: true,

@@ -4817,13 +4817,13 @@ Auto-create a classroom (cohort + join link) for a domain.
 
 ### `GET` /api/domains/:domainId/course-readiness
 
-Check if a course is content-ready for its first lesson. Evaluates checks defined in COURSE-READY-001 ORCHESTRATE spec. Returns structured pass/fail results with action links.
+Check if a course or community is content-ready. Automatically selects the right readiness spec based on domain kind: COURSE-READY-001 for institutions, COMMUNITY-READY-001 for communities. Returns structured pass/fail results with action links.
 
 **Auth**: Session · **Scope**: `domains:read`
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
-| domainId | path | string | Yes | The domain ID to check course readiness for |
+| domainId | path | string | Yes | The domain ID to check readiness for |
 
 **Response** `200`
 ```json

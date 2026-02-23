@@ -16,12 +16,31 @@ vi.mock("@/lib/domain/course-readiness", () => ({
   checkCourseReadiness: vi.fn(),
 }));
 
+const mockPrisma = {
+  domain: {
+    findUnique: vi.fn(),
+  },
+};
+vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+
+vi.mock("@/lib/config", () => ({
+  config: {
+    specs: {
+      courseReady: "COURSE-READY-001",
+      communityReady: "COMMUNITY-READY-001",
+    },
+  },
+}));
+
 describe("GET /api/domains/:domainId/course-readiness", () => {
   let GET: any;
   let mockCheckCourseReadiness: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Default: INSTITUTION domain
+    mockPrisma.domain.findUnique.mockResolvedValue({ kind: "INSTITUTION" });
 
     const courseReadiness = await import("@/lib/domain/course-readiness");
     mockCheckCourseReadiness = courseReadiness.checkCourseReadiness;
@@ -58,13 +77,42 @@ describe("GET /api/domains/:domainId/course-readiness", () => {
     expect(data.checks).toHaveLength(2);
     expect(data.timestamp).toBeTruthy();
 
-    // Verify context was passed correctly
-    expect(mockCheckCourseReadiness).toHaveBeenCalledWith({
-      domainId: "dom-1",
-      callerId: "c1",
-      sourceId: "s1",
-      subjectId: "sub1",
+    // Verify context and spec slug were passed correctly
+    expect(mockCheckCourseReadiness).toHaveBeenCalledWith(
+      {
+        domainId: "dom-1",
+        callerId: "c1",
+        sourceId: "s1",
+        subjectId: "sub1",
+      },
+      "COURSE-READY-001",
+    );
+  });
+
+  it("uses COMMUNITY-READY-001 for community domains", async () => {
+    mockPrisma.domain.findUnique.mockResolvedValue({ kind: "COMMUNITY" });
+    mockCheckCourseReadiness.mockResolvedValue({
+      domainId: "dom-2",
+      ready: true,
+      score: 100,
+      level: "ready",
+      checks: [],
+      criticalPassed: 1,
+      criticalTotal: 1,
+      recommendedPassed: 1,
+      recommendedTotal: 1,
     });
+
+    const url = "http://localhost/api/domains/dom-2/course-readiness";
+    const request = new Request(url);
+    const params = Promise.resolve({ domainId: "dom-2" });
+
+    await GET(request, { params });
+
+    expect(mockCheckCourseReadiness).toHaveBeenCalledWith(
+      expect.objectContaining({ domainId: "dom-2" }),
+      "COMMUNITY-READY-001",
+    );
   });
 
   it("handles errors gracefully", async () => {
@@ -101,11 +149,14 @@ describe("GET /api/domains/:domainId/course-readiness", () => {
 
     await GET(request, { params });
 
-    expect(mockCheckCourseReadiness).toHaveBeenCalledWith({
-      domainId: "dom-1",
-      callerId: undefined,
-      sourceId: undefined,
-      subjectId: undefined,
-    });
+    expect(mockCheckCourseReadiness).toHaveBeenCalledWith(
+      {
+        domainId: "dom-1",
+        callerId: undefined,
+        sourceId: undefined,
+        subjectId: undefined,
+      },
+      "COURSE-READY-001",
+    );
   });
 });

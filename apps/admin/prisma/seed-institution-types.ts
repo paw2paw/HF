@@ -25,8 +25,10 @@ interface InstitutionTypeSeed {
     cohort: string;
     instructor: string;
     session: string;
+    session_short: string;
     persona: string;
     supervisor: string;
+    mentor: string;
     teach_action: string;
     learning_noun: string;
   };
@@ -47,8 +49,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Class",
       instructor: "Teacher",
       session: "Lesson",
+      session_short: "Lesson",
       persona: "Teaching Style",
       supervisor: "My Teacher",
+      mentor: "Teacher",
       teach_action: "Teach",
       learning_noun: "Learning",
     },
@@ -67,8 +71,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Team",
       instructor: "Trainer",
       session: "Training Session",
+      session_short: "Session",
       persona: "Agent Style",
       supervisor: "My Manager",
+      mentor: "Manager",
       teach_action: "Train",
       learning_noun: "Development",
     },
@@ -87,8 +93,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Community",
       instructor: "Facilitator",
       session: "Call",
+      session_short: "Call",
       persona: "Guide Style",
       supervisor: "My Guide",
+      mentor: "Guide",
       teach_action: "Facilitate",
       learning_noun: "Journey",
     },
@@ -107,8 +115,10 @@ const TYPES: InstitutionTypeSeed[] = [
       cohort: "Group",
       instructor: "Coach",
       session: "Coaching Session",
+      session_short: "Session",
       persona: "Coaching Style",
       supervisor: "My Coach",
+      mentor: "Coach",
       teach_action: "Coach",
       learning_noun: "Growth",
     },

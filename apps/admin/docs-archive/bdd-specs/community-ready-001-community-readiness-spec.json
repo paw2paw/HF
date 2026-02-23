@@ -1,0 +1,98 @@
+{
+  "id": "COMMUNITY-READY-001",
+  "title": "Community Readiness Checklist",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-02-23",
+  "domain": "system",
+  "name": "Community Readiness Checklist",
+  "description": "Post-creation review checklist for community hubs. Admin reviews welcome flow and first prompt before inviting members. Checks are spec-driven — add, remove, reorder, or tune without code changes.",
+  "specType": "SYSTEM",
+  "specRole": "ORCHESTRATE",
+  "outputType": "SUPERVISE",
+  "isDeletable": false,
+
+  "story": {
+    "asA": "community administrator",
+    "iWant": "to review the welcome flow and first conversation before inviting members",
+    "soThat": "I'm confident the community experience is welcoming and aligned with our purpose"
+  },
+
+  "context": {
+    "applies": "After Quick Launch community creation, before the first member conversation",
+    "dependsOn": ["QUICK-LAUNCH-001", "COMP-001"],
+    "assumptions": [
+      "Quick Launch has created domain, identity, playbook, and test caller",
+      "Communities have no content upload or curriculum — only onboarding and prompt",
+      "Critical checks gate 'Invite Members'. Recommended checks are advisory.",
+      "Action hrefs use ${variable} templates resolved at runtime from context"
+    ]
+  },
+
+  "parameters": [
+    {
+      "id": "readiness_checks",
+      "name": "Community Readiness Checks",
+      "description": "Ordered list of readiness checks for community hubs. Fewer than course readiness — communities have no content or curriculum.",
+      "config": {
+        "checks": [
+          {
+            "id": "onboarding_configured",
+            "name": "Configure Welcome",
+            "description": "Set the welcome message and flow for the member's first conversation",
+            "severity": "recommended",
+            "query": "onboarding",
+            "fixAction": { "label": "Configure", "hrefTemplate": "/x/domains?id=${domainId}&tab=onboarding" }
+          },
+          {
+            "id": "prompt_composed",
+            "name": "Preview First Message",
+            "description": "Preview what the community guide will say in the first conversation",
+            "severity": "critical",
+            "query": "prompt_composed",
+            "fixAction": { "label": "Preview", "hrefTemplate": "/x/callers/${callerId}?tab=prompt" }
+          }
+        ]
+      }
+    }
+  ],
+
+  "acceptanceCriteria": [
+    {
+      "id": "AC-1",
+      "title": "Critical checks gate Invite Members",
+      "given": "A community with a failing critical check (e.g. no prompt composed)",
+      "when": "The admin views the community readiness checklist",
+      "then": "The 'Invite Members' button is disabled and the fix action is shown"
+    },
+    {
+      "id": "AC-2",
+      "title": "Recommended checks are advisory",
+      "given": "A community with all critical checks passing but some recommended failing",
+      "when": "The admin views the community readiness checklist",
+      "then": "The 'Invite Members' button is enabled, but warnings highlight unreviewed items"
+    },
+    {
+      "id": "AC-3",
+      "title": "All checks pass shows fully ready",
+      "given": "A community with all checks passing",
+      "when": "The admin views the community readiness checklist",
+      "then": "All items show green and 'Invite Members' is prominently available"
+    }
+  ],
+
+  "constraints": [
+    {
+      "id": "C-1",
+      "type": "performance",
+      "description": "Readiness check should complete in under 200ms (only 2 checks)",
+      "severity": "warning"
+    }
+  ],
+
+  "related": [
+    { "id": "QUICK-LAUNCH-001", "title": "Quick Launch Orchestrator", "relationship": "Runs before this — creates the community to be reviewed" },
+    { "id": "COURSE-READY-001", "title": "Course Readiness Checklist", "relationship": "Parallel readiness spec for institutional courses — more checks (content + curriculum)" },
+    { "id": "COMP-001", "title": "Prompt Composition", "relationship": "Prompt composition check verifies COMP-001 has produced a prompt" }
+  ]
+}

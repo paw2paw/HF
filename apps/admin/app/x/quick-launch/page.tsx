@@ -162,13 +162,15 @@ export default function QuickLaunchPage() {
       .then((data) => {
         if (data.ok && data.personas?.length > 0) {
           setPersonas(data.personas);
-          setPersona(data.defaultPersona || data.personas[0].slug);
+          // Community pages default to "guide" persona if available
+          const communityDefault = data.personas.some((p: any) => p.slug === "guide") ? "guide" : undefined;
+          setPersona(communityDefault || data.defaultPersona || data.personas[0].slug);
         }
       })
       .catch((e) => {
         console.warn("[QuickLaunch] Failed to load personas, using fallback:", e);
-        setPersonas([{ slug: "tutor", name: "Tutor", description: "Patient teaching expert" }]);
-        setPersona("tutor");
+        setPersonas([{ slug: "guide", name: "Guide", description: "Community facilitator" }]);
+        setPersona("guide");
       })
       .finally(() => setPersonasLoading(false));
 
@@ -1076,7 +1078,7 @@ export default function QuickLaunchPage() {
               )}
             </button>
             <div className="ql-accordion-hint">
-              Drag the dots to adjust your companion&apos;s voice and personality.
+              Drag the dots to adjust your guide&apos;s voice and personality.
             </div>
             {tunePersonaExpanded && (
               <div className="ql-accordion-content">
@@ -1298,7 +1300,7 @@ export default function QuickLaunchPage() {
                 Teaching style
               </div>
               <div className="hf-text-xs hf-text-muted hf-mb-md">
-                Place the dots to set your companion&apos;s personality. Click a preset to start from a known style.
+                Place the dots to set your guide&apos;s personality. Click a preset to start from a known style.
               </div>
               <AgentTuningPanel
                 onChange={handleMatrixChange}
@@ -1472,7 +1474,7 @@ export default function QuickLaunchPage() {
             </div>
 
             <p className="ql-form-footer">
-              Creates a community, configures the companion persona, and sets up a test caller.
+              Creates a community, configures the guide persona, and sets up a test member.
             </p>
           </div>
         </>

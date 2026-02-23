@@ -3,9 +3,21 @@
     "id": "start",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Community", "icon": "Users", "highlighted": true, "wizard": true },
+      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Community", "icon": "Users", "highlighted": true, "wizard": true, "terminologyLabel": "cohort" },
       { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "GraduationCap", "wizard": true, "terminologyLabel": "teach_action" },
       { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" }
+    ]
+  },
+  {
+    "id": "manage",
+    "title": "Manage",
+    "requiredRole": "OPERATOR",
+    "defaultHiddenFor": ["EDUCATOR"],
+    "items": [
+      { "id": "cohorts", "href": "/x/cohorts", "label": "Cohorts", "icon": "School", "terminologyLabel": "cohort_plural" },
+      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "wizard": true, "terminologyLabel": "playbook_plural" },
+      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural" },
+      { "id": "jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog" }
     ]
   },
   {
@@ -28,23 +40,11 @@
     "terminologySectionTitle": "learning_noun",
     "defaultHiddenFor": ["TESTER", "SUPER_TESTER", "DEMO", "EDUCATOR"],
     "items": [
-      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "My Stuff", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-files", "href": "/x/student/files", "label": "My Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-progress", "href": "/x/student/progress", "label": "My Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-calls", "href": "/x/student/calls", "label": "My Calls", "icon": "Phone", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "My Teacher", "icon": "GraduationCap", "terminologyLabel": "supervisor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
-    ]
-  },
-  {
-    "id": "manage",
-    "title": "Manage",
-    "requiredRole": "OPERATOR",
-    "defaultHiddenFor": ["EDUCATOR"],
-    "items": [
-      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users", "wizard": true },
-      { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "wizard": true, "terminologyLabel": "playbook_plural" },
-      { "id": "callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural" },
-      { "id": "jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog" }
+      { "id": "stu-stuff", "href": "/x/student/stuff", "label": "Dashboard", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-files", "href": "/x/student/files", "label": "Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-progress", "href": "/x/student/progress", "label": "Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-calls", "href": "/x/student/calls", "label": "Sessions", "icon": "Phone", "terminologyLabel": "session_short_plural", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-teacher", "href": "/x/student/teacher", "label": "Mentor", "icon": "GraduationCap", "terminologyLabel": "mentor", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {

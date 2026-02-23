@@ -19,11 +19,11 @@ Options:
 
 ## Environment Map
 
-| Env | Domain | Service | Seed Job | Migrate Job | DB Secret | Seed Profile |
-|-----|--------|---------|----------|-------------|-----------|--------------|
-| DEV | dev.humanfirstfoundation.com | `hf-admin-dev` | `hf-seed-dev` | `hf-migrate-dev` | `DATABASE_URL_DEV` | `full` |
-| TEST | test.humanfirstfoundation.com | `hf-admin-test` | `hf-seed-test` | `hf-migrate-test` | `DATABASE_URL_TEST` | `test` |
-| PROD | lab.humanfirstfoundation.com | `hf-admin` | `hf-seed` | `hf-migrate` | `DATABASE_URL` | `core` |
+| Env | Domain | Service | Seed Job | Migrate Job | DB Secret | Seed Profile | `_APP_ENV` |
+|-----|--------|---------|----------|-------------|-----------|--------------|------------|
+| DEV | dev.humanfirstfoundation.com | `hf-admin-dev` | `hf-seed-dev` | `hf-migrate-dev` | `DATABASE_URL_DEV` | `full` | `DEV` |
+| TEST | test.humanfirstfoundation.com | `hf-admin-test` | `hf-seed-test` | `hf-migrate-test` | `DATABASE_URL_TEST` | `test` | `TEST` |
+| PROD | lab.humanfirstfoundation.com | `hf-admin` | `hf-seed` | `hf-migrate` | `DATABASE_URL` | `core` | `LIVE` |
 
 All environments:
 - **GCP Project**: `hf-admin-prod`
@@ -48,14 +48,13 @@ Based on the user's choice, walk them through the exact commands step by step. A
 
 ## IMPORTANT: No local Docker
 
-Docker is NOT available locally or on the VM. ALL image builds MUST use **Cloud Build**:
+Docker is NOT available locally or on the VM. ALL image builds MUST use **Cloud Build** with the permanent configs in `apps/admin/`:
 
-```bash
-cd apps/admin
-gcloud builds submit --config <config-file> --project hf-admin-prod --region europe-west2 .
-```
+- `cloudbuild-runner.yaml` — runner (production server) image
+- `cloudbuild-seed.yaml` — seed (database seeding) image
+- `cloudbuild-migrate.yaml` — migrate (schema migration) image
 
-Always use `--no-cache` in Docker build args to avoid stale layer issues.
+All configs use **Kaniko layer caching** — the `deps` layer (npm ci) is cached for 30 days. Code-only changes skip npm ci entirely (~5 min saved per build).
 
 ## Pre-flight Check Steps (option 1)
 
@@ -103,20 +102,14 @@ Stage and commit the version bump, then push.
 
 ### 2. Build runner image via Cloud Build
 
-Write a temp cloudbuild config, then submit:
-
 ```bash
-cat > /tmp/cloudbuild-runner.yaml <<'EOF'
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '--target', 'runner', '-t', 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest', '-f', 'Dockerfile', '.']
-images:
-  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest'
-EOF
-
 cd apps/admin
-gcloud builds submit --config /tmp/cloudbuild-runner.yaml --project hf-admin-prod --region europe-west2 .
+gcloud builds submit --config cloudbuild-runner.yaml \
+  --project hf-admin-prod --region europe-west2 \
+  --substitutions=_TAG=latest,_APP_ENV=$APP_ENV .
 ```
+
+Set `$APP_ENV` from the `_APP_ENV` column in the Environment Map (DEV→`DEV`, TEST→`TEST`, PROD→`LIVE`).
 
 ### 3. Deploy to target environment
 ```bash
@@ -131,16 +124,10 @@ For DEV quick deploys, always rebuild the seed image and run the seed job to ens
 
 ```bash
 # Build seed image
-cat > /tmp/cloudbuild-seed.yaml <<'EOF'
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '--target', 'seed', '-t', 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest', '-f', 'Dockerfile', '.']
-images:
-  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest'
-EOF
-
 cd apps/admin
-gcloud builds submit --config /tmp/cloudbuild-seed.yaml --project hf-admin-prod --region europe-west2 .
+gcloud builds submit --config cloudbuild-seed.yaml \
+  --project hf-admin-prod --region europe-west2 \
+  --substitutions=_TAG=latest .
 
 # Execute seed job (SEED_PROFILE=full includes demo logins)
 gcloud run jobs update hf-seed-dev \
@@ -155,16 +142,10 @@ gcloud run jobs execute hf-seed-dev --region=europe-west2 --project=hf-admin-pro
 
 Build + push migrate image via Cloud Build:
 ```bash
-cat > /tmp/cloudbuild-migrate.yaml <<'EOF'
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '--target', 'migrate', '-t', 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:latest', '-f', 'Dockerfile', '.']
-images:
-  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:latest'
-EOF
-
 cd apps/admin
-gcloud builds submit --config /tmp/cloudbuild-migrate.yaml --project hf-admin-prod --region europe-west2 .
+gcloud builds submit --config cloudbuild-migrate.yaml \
+  --project hf-admin-prod --region europe-west2 \
+  --substitutions=_TAG=latest .
 ```
 
 Run the environment-specific migrate job:
@@ -176,16 +157,10 @@ gcloud run jobs execute $MIGRATE_JOB --region=europe-west2 --project=hf-admin-pr
 
 Build + push seed image via Cloud Build:
 ```bash
-cat > /tmp/cloudbuild-seed.yaml <<'EOF'
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '--target', 'seed', '-t', 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest', '-f', 'Dockerfile', '.']
-images:
-  - 'europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:latest'
-EOF
-
 cd apps/admin
-gcloud builds submit --config /tmp/cloudbuild-seed.yaml --project hf-admin-prod --region europe-west2 .
+gcloud builds submit --config cloudbuild-seed.yaml \
+  --project hf-admin-prod --region europe-west2 \
+  --substitutions=_TAG=latest .
 ```
 
 Run the environment-specific seed job (set SEED_PROFILE from the Environment Map above):
@@ -270,10 +245,10 @@ git push origin deploy-$ENV-$(date +%Y%m%d-%H%M%S)
 - ALWAYS run `git pull origin main` FIRST before any deploy step
 - ALWAYS check for uncommitted changes (`git status`) — warn if dirty
 - ALWAYS confirm with the user before running any command
-- ALWAYS use `--no-cache` in Cloud Build docker args
 - ALWAYS purge Cloudflare cache after deploy
 - NEVER run `prisma migrate reset` or `prisma db push --force-reset` against any environment
 - After every deploy, run smoke tests automatically
 - After every successful deploy, run deploy tagging
 - If any step fails, stop and diagnose — don't continue
 - For PROD deploys, add an extra confirmation: "You are deploying to PRODUCTION (lab.humanfirstfoundation.com). Are you sure?"
+- Cloud Build uses Kaniko layer caching (30-day TTL). First build after a cache miss is slow; subsequent code-only builds skip npm ci. If a deploy uses stale cached layers, clear the cache repos in Artifact Registry.

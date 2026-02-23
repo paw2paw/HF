@@ -1,9 +1,9 @@
-# Cloud Build config for the seed (database seeding) image.
+# Cloud Build config for the migrate (schema migration) image.
 # Uses Kaniko layer caching — deps layer cached when package.json unchanged.
 #
 # Usage:
 #   cd apps/admin
-#   gcloud builds submit --config cloudbuild-seed.yaml \
+#   gcloud builds submit --config cloudbuild-migrate.yaml \
 #     --project hf-admin-prod --region europe-west2 \
 #     --substitutions=_TAG=latest .
 
@@ -15,10 +15,10 @@ steps:
     args:
       - '--dockerfile=Dockerfile'
       - '--context=.'
-      - '--target=seed'
-      - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:${_TAG}'
+      - '--target=migrate'
+      - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:${_TAG}'
       - '--cache=true'
-      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed/cache'
+      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate/cache'
       - '--cache-ttl=720h'
 
 options:

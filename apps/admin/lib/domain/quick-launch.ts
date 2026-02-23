@@ -1302,17 +1302,19 @@ export async function quickLaunchCommit(
   const effectiveCallerName = overrides.callerName || `Test Caller — ${effectiveDomainName}`;
 
   const steps = await loadLaunchSteps();
-  // Community mode skips curriculum generation — no content, no modules
+  // Community mode skips curriculum generation — no content, no modules.
+  // compose_prompt runs AFTER the transaction — it uses the default prisma
+  // client which can't see uncommitted data inside $transaction().
   const isCommunity = input.kind === "COMMUNITY";
   const commitOps = isCommunity
-    ? ["scaffold_domain", "create_caller", "compose_prompt"]
-    : ["scaffold_domain", "generate_curriculum", "create_caller", "compose_prompt"];
+    ? ["scaffold_domain", "create_caller"]
+    : ["scaffold_domain", "generate_curriculum", "create_caller"];
   const commitSteps = steps.filter((s) => commitOps.includes(s.operation));
 
   onProgress({
     phase: "init",
-    message: `Creating tutor (${commitSteps.length} steps)...`,
-    totalSteps: commitSteps.length,
+    message: `Setting up ${isCommunity ? "community" : "course"} (${commitSteps.length + 1} steps)...`,
+    totalSteps: commitSteps.length + 1,
   });
 
   // Run all commit steps inside a single transaction — all-or-nothing.
@@ -1434,6 +1436,39 @@ export async function quickLaunchCommit(
         if (taskId) result.enrichmentTaskId = taskId;
       })
       .catch((err) => console.warn("[quick-launch] Deferred enrichment failed:", err.message));
+  }
+
+  // Compose prompt AFTER transaction — executeComposition uses default prisma
+  // client, so it needs committed data (caller, identity spec, etc.).
+  // Non-fatal: matches QUICK-LAUNCH-001 spec ("onError": "continue").
+  if (result.callerId) {
+    try {
+      onProgress({
+        phase: "compose_prompt",
+        message: "Composing first prompt...",
+        stepIndex: commitSteps.length,
+        totalSteps: commitSteps.length + 1,
+      });
+      const { fullSpecConfig, sections, specSlug } = await loadComposeConfig();
+      const composition = await executeComposition(result.callerId, sections, fullSpecConfig);
+      const promptSummary = renderPromptSummary(composition.llmPrompt);
+      await persistComposedPrompt(composition, promptSummary, {
+        callerId: result.callerId,
+        triggerType: "quick-launch",
+        composeSpecSlug: specSlug,
+        specConfig: fullSpecConfig,
+      });
+      onProgress({
+        phase: "compose_prompt",
+        message: "Compose First Prompt \u2713",
+        stepIndex: commitSteps.length,
+        totalSteps: commitSteps.length + 1,
+      });
+    } catch (err: any) {
+      console.error("[quick-launch] Post-tx prompt composition failed:", err.message);
+      result.warnings = result.warnings || [];
+      result.warnings.push(`Compose First Prompt: ${err.message}`);
+    }
   }
 
   onProgress({

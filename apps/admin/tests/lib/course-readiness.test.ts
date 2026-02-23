@@ -40,6 +40,15 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
 }));
 
+vi.mock("@/lib/config", () => ({
+  config: {
+    specs: {
+      courseReady: "COURSE-READY-001",
+      communityReady: "COMMUNITY-READY-001",
+    },
+  },
+}));
+
 // =====================================================
 // IMPORT AFTER MOCKING
 // =====================================================
@@ -200,7 +209,7 @@ describe("checkCourseReadiness", () => {
 
     const assertionCheck = result.checks.find((c) => c.id === "assertions_reviewed");
     expect(assertionCheck?.passed).toBe(true);
-    expect(assertionCheck?.detail).toContain("No teaching points to review");
+    expect(assertionCheck?.detail).toContain("No content to review");
   });
 
   it("falls back to domain-wide assertion check when no sourceId", async () => {

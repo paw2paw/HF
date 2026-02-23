@@ -308,6 +308,24 @@ export const config = {
     },
 
     /**
+     * Course Readiness Spec (default: COURSE-READY-001)
+     * Defines post-creation review checks for institutional courses.
+     * Can be overridden via COURSE_READY_SPEC_SLUG env var.
+     */
+    get courseReady(): string {
+      return optional("COURSE_READY_SPEC_SLUG", "COURSE-READY-001");
+    },
+
+    /**
+     * Community Readiness Spec (default: COMMUNITY-READY-001)
+     * Defines post-creation review checks for community hubs.
+     * Can be overridden via COMMUNITY_READY_SPEC_SLUG env var.
+     */
+    get communityReady(): string {
+      return optional("COMMUNITY_READY_SPEC_SLUG", "COMMUNITY-READY-001");
+    },
+
+    /**
      * Classroom Setup Wizard Spec (default: CLASSROOM-SETUP-001)
      * Defines classroom creation wizard steps: name, courses, review, invite.
      * Can be overridden via CLASSROOM_SETUP_SPEC_SLUG env var.
