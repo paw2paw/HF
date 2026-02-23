@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * @desc List courses (playbooks) for the current user's domain(s)
  * @auth OPERATOR+
  * @param {string} q - Optional fuzzy search query for course name
- * @returns {object} { courses: Course[], existingCourse?: Course }
+ * @returns {object} { ok, courses: Course[], domains: Domain[], existingCourse?: Course }
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAuth('OPERATOR');
@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
     const query: any = {
       include: {
         domain: { select: { id: true, name: true } },
-        _count: { select: { enrollments: true } },
+        _count: { select: { enrollments: true, items: true } },
       },
+      orderBy: { name: 'asc' },
     };
 
     if (q) {
-      // Fuzzy search by name
       query.where = {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
@@ -34,14 +34,24 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const playbooks = await prisma.playbook.findMany(query);
+    const [playbooks, domains] = await Promise.all([
+      prisma.playbook.findMany(query),
+      prisma.domain.findMany({
+        select: { id: true, name: true },
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
 
-    const courses = playbooks.map((pb) => ({
+    const courses = playbooks.map((pb: any) => ({
       id: pb.id,
       name: pb.name,
+      description: pb.description,
       domain: pb.domain,
       studentCount: pb._count.enrollments,
+      specCount: pb._count.items,
       status: pb.status.toLowerCase(),
+      version: pb.version,
       createdAt: pb.createdAt.toISOString(),
     }));
 
@@ -52,7 +62,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
+      ok: true,
       courses,
+      domains,
       existingCourse: existingCourse || null,
     });
   } catch (err) {
