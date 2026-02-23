@@ -243,6 +243,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [teachingPointsLoading, setTeachingPointsLoading] = useState(false);
   const [tunePersonaExpanded, setTunePersonaExpanded] = useState(false);
   const [promptPreviewExpanded, setPromptPreviewExpanded] = useState(false);
+  const [lessonPlanExpanded, setLessonPlanExpanded] = useState(false);
   const [savingPersona, setSavingPersona] = useState(false);
 
   // Launch-time caller creation (when requireCallerUpfront === false)
@@ -284,6 +285,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setTeachingPointsExpanded(false);
     setTunePersonaExpanded(false);
     setPromptPreviewExpanded(false);
+    setLessonPlanExpanded(false);
     setDomainDetail(null);
     setTeachingPoints([]);
     setLaunching(false);
@@ -2028,7 +2030,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             )}
           </div>
 
-          {/* ── 3. Review Teaching Points (expandable) ── */}
+          {/* ── 3. Review Teaching Points (raw assertions) ── */}
           <div className="dtw-accordion-card">
             <button onClick={handleToggleTeachingPoints} className="dtw-accordion-toggle">
               {teachingPointsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -2068,7 +2070,57 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             )}
           </div>
 
-          {/* ── 4. Preview First Prompt (lazy-load accordion) ── */}
+          {/* ── 4. Review Lesson Plan (Teach flow only, when modules exist) ── */}
+          {isTeachFlow && (() => {
+            const modules = getData<Array<{ id: string; title: string; description: string; learningOutcomes: string[]; assessmentCriteria?: string[]; keyTerms?: string[]; estimatedDurationMinutes?: number | null; sortOrder: number }>>("curriculumModules");
+            const moduleCount = getData<number>("moduleCount") ?? 0;
+            if (!modules || modules.length === 0) return null;
+            return (
+              <div className="dtw-accordion-card">
+                <button onClick={() => setLessonPlanExpanded((v) => !v)} className="dtw-accordion-toggle">
+                  {lessonPlanExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <span>Review Lesson Plan</span>
+                  {moduleCount > 0 && (
+                    <span className="dtw-accordion-badge">{moduleCount} module{moduleCount !== 1 ? "s" : ""}</span>
+                  )}
+                </button>
+                {lessonPlanExpanded && (
+                  <div className="dtw-accordion-content">
+                    <div className="dtw-lesson-plan-modules">
+                      {modules.map((mod, idx) => (
+                        <div key={mod.id} className="dtw-lp-module">
+                          <div className="dtw-lp-module-header">
+                            <span className="dtw-lp-module-number">{idx + 1}</span>
+                            <div className="dtw-lp-module-title">{mod.title}</div>
+                            {mod.estimatedDurationMinutes != null && (
+                              <span className="dtw-lp-module-duration">{mod.estimatedDurationMinutes}m</span>
+                            )}
+                          </div>
+                          <div className="dtw-lp-module-desc">{mod.description}</div>
+                          {mod.learningOutcomes.length > 0 && (
+                            <ul className="dtw-lp-outcomes">
+                              {mod.learningOutcomes.map((lo, i) => (
+                                <li key={i}>{lo}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {mod.keyTerms && mod.keyTerms.length > 0 && (
+                            <div className="dtw-lp-key-terms">
+                              {mod.keyTerms.map((term, i) => (
+                                <span key={i} className="dtw-lp-term-chip">{term}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── 5. Preview First Prompt (lazy-load accordion) ── */}
           <div className="dtw-accordion-card">
             <button
               onClick={() => setPromptPreviewExpanded((v) => !v)}
