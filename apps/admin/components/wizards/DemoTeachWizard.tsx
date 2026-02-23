@@ -1079,8 +1079,6 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     clearWizardError();
 
     try {
-      const domainName = selectedDomain?.name || "Unknown";
-
       // Step 1: Scaffold domain (ensure playbook exists — idempotent)
       setLaunchPhase("scaffolding");
       await fetch(`/api/domains/${selectedDomainId}/scaffold`, { method: "POST" });
@@ -1091,13 +1089,13 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: `Test Learner — ${domainName}`,
+          autoName: true,
           domainId: selectedDomainId,
         }),
       });
       const callerData = await callerRes.json();
       if (!callerData.ok || !callerData.caller?.id) {
-        throw new Error(callerData.error || "Failed to create test learner");
+        throw new Error(callerData.error || "Failed to create test caller");
       }
       const newCallerId = callerData.caller.id;
 
@@ -1954,7 +1952,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                 ? ({
                     idle: "Preparing...",
                     scaffolding: "Setting up course infrastructure...",
-                    "creating-caller": "Creating test learner...",
+                    "creating-caller": "Creating test caller...",
                     "creating-goals": "Setting learning goals...",
                     "composing-prompt": "Preparing your tutor...",
                     redirecting: "Opening simulator...",
@@ -1963,7 +1961,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                   ? `All checks passed. Start your ${t.session.toLowerCase()}.`
                   : needsCallerUpfront
                     ? `${levelLabel} — ${score}% readiness`
-                    : `Start your ${t.session.toLowerCase()} — a test learner will be created automatically.`
+                    : `Start your ${t.session.toLowerCase()} — a test caller will be created automatically.`
             }
             intent={{
               items: [
@@ -1980,8 +1978,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                     }]
                   : [{
                       icon: <User className="w-4 h-4" />,
-                      label: "Test Learner",
-                      value: "Created automatically at launch",
+                      label: "Test Caller",
+                      value: "Auto-named at launch (e.g. Test L0000001)",
                     }]),
                 ...(goalText
                   ? [
@@ -2134,37 +2132,6 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         </div>
       )}
 
-      {/* ── Quick actions (visible on all steps) ── */}
-      {selectedDomainId && (
-        <div className="dtw-quick-actions">
-          <button
-            onClick={() => {
-              router.push(`/x/domains?id=${selectedDomainId}`);
-            }}
-            className="dtw-btn-quick"
-          >
-            View {t.domain}
-          </button>
-          {selectedCallerId && (
-            <button
-              onClick={() => {
-                router.push(`/x/callers/${selectedCallerId}`);
-              }}
-              className="dtw-btn-quick"
-            >
-              View {t.caller}
-            </button>
-          )}
-          <button
-            onClick={() => {
-              router.push("/x/quick-launch");
-            }}
-            className="dtw-btn-quick"
-          >
-            Quick Launch
-          </button>
-        </div>
-      )}
     </div>
   );
 }

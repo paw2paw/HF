@@ -167,8 +167,9 @@ export async function GET(req: Request) {
  * @scope callers:write
  * @auth session
  * @tags callers
- * @description Create a new caller. Auto-assigns the default domain if none specified. Generates a playground externalId.
- * @body name string - Caller name (required)
+ * @description Create a new caller. Auto-assigns the default domain if none specified. Generates a playground externalId. Pass autoName=true to auto-generate a sequential name (Test L0000001, Test L0000002, etc.).
+ * @body name string - Caller name (required unless autoName is true)
+ * @body autoName boolean - Auto-generate sequential name "Test L0000001" (optional, overrides name)
  * @body email string - Caller email (optional)
  * @body phone string - Caller phone number (optional)
  * @body domainId string - Domain ID to assign (optional, defaults to system default domain)
@@ -183,7 +184,22 @@ export async function POST(req: Request) {
     if (isEntityAuthError(authResult)) return authResult.error;
 
     const body = await req.json();
-    let { name, email, phone, domainId, role, cohortGroupId } = body;
+    let { name, email, phone, domainId, role, cohortGroupId, autoName } = body;
+
+    // Auto-generate sequential name: "Test L0000001", "Test L0000002", etc.
+    if (autoName && !name) {
+      const lastCaller = await prisma.caller.findFirst({
+        where: { name: { startsWith: "Test L" } },
+        orderBy: { name: "desc" },
+        select: { name: true },
+      });
+      let nextNum = 1;
+      if (lastCaller?.name) {
+        const match = lastCaller.name.match(/^Test L(\d+)$/);
+        if (match) nextNum = parseInt(match[1], 10) + 1;
+      }
+      name = `Test L${String(nextNum).padStart(7, "0")}`;
+    }
 
     if (!name) {
       return NextResponse.json(

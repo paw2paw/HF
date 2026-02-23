@@ -2020,13 +2020,14 @@ List all callers with optional memory/call counts. Returns paginated results ord
 
 ### `POST` /api/callers
 
-Create a new caller. Auto-assigns the default domain if none specified. Generates a playground externalId.
+Create a new caller. Auto-assigns the default domain if none specified. Generates a playground externalId. Pass autoName=true to auto-generate a sequential name (Test L0000001, Test L0000002, etc.).
 
 **Auth**: Session · **Scope**: `callers:write`
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
-| name | body | string | No | Caller name (required) |
+| name | body | string | No | Caller name (required unless autoName is true) |
+| autoName | body | boolean | No | Auto-generate sequential name "Test L0000001" (optional, overrides name) |
 | email | body | string | No | Caller email (optional) |
 | phone | body | string | No | Caller phone number (optional) |
 | domainId | body | string | No | Domain ID to assign (optional, defaults to system default domain) |
