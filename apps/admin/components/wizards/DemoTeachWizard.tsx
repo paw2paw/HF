@@ -658,13 +658,6 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
   // (Existing curriculum loaded by TeachPlanStep on step 3 mount)
 
-  // Fetch domain detail eagerly when entering the Launch step
-  useEffect(() => {
-    if (currentStep === STEP_LAUNCH && selectedDomainId && !domainDetail && !domainDetailLoading) {
-      fetchDomainDetail();
-    }
-  }, [currentStep, STEP_LAUNCH, selectedDomainId, domainDetail, domainDetailLoading, fetchDomainDetail]);
-
   // ── Content upload step logic ─────────────────────
 
   // Detect content on step 2 mount
@@ -1162,6 +1155,13 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       setDomainDetailLoading(false);
     }
   }, [selectedDomainId]);
+
+  // Fetch domain detail eagerly when entering the Launch step
+  useEffect(() => {
+    if (currentStep === STEP_LAUNCH && selectedDomainId && !domainDetail && !domainDetailLoading) {
+      fetchDomainDetail();
+    }
+  }, [currentStep, STEP_LAUNCH, selectedDomainId, domainDetail, domainDetailLoading, fetchDomainDetail]);
 
   // Fetch teaching points for selected domain (direct query through subject chain)
   const fetchTeachingPoints = useCallback(async () => {
