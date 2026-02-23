@@ -43,7 +43,6 @@ import {
   Library,
   RotateCcw,
 } from "lucide-react";
-import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
 import { PromptPreviewContent } from "@/app/x/domains/components/PromptPreviewModal";
 import type { DomainDetail } from "@/app/x/domains/components/types";
 import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
@@ -651,6 +650,13 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   }, [currentStep, STEP_LAUNCH, selectedDomainId, selectedCallerId, fetchReadiness]);
 
   // (Existing curriculum loaded by TeachPlanStep on step 3 mount)
+
+  // Fetch domain detail eagerly when entering the Launch step
+  useEffect(() => {
+    if (currentStep === STEP_LAUNCH && selectedDomainId && !domainDetail && !domainDetailLoading) {
+      fetchDomainDetail();
+    }
+  }, [currentStep, STEP_LAUNCH, selectedDomainId, domainDetail, domainDetailLoading, fetchDomainDetail]);
 
   // ── Content upload step logic ─────────────────────
 
@@ -2008,7 +2014,21 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                 : []),
             ]}
             onBack={handlePrev}
-          />
+          >
+            {/* Compact onboarding config */}
+            {domainDetail ? (
+              <div className="dtw-config-strip">
+                <div className="dtw-config-chip">{"\uD83D\uDC64"} {domainDetail.onboardingIdentitySpec?.name || "Default persona"}</div>
+                <div className="dtw-config-chip">{"\uD83D\uDCAC"} {domainDetail.onboardingWelcome ? "Custom welcome" : "Default welcome"}</div>
+                <div className="dtw-config-chip">{"\uD83D\uDD04"} {(domainDetail.onboardingFlowPhases as any)?.phases?.length ? `${(domainDetail.onboardingFlowPhases as any).phases.length} phases` : "Default flow"}</div>
+                <div className="dtw-config-chip">{"\u2699\uFE0F"} {domainDetail.onboardingDefaultTargets ? `${Object.keys(domainDetail.onboardingDefaultTargets as object).filter(k => !k.startsWith("_")).length} params` : "Default targets"}</div>
+              </div>
+            ) : domainDetailLoading ? (
+              <div className="dtw-config-strip">
+                <div className="hf-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+              </div>
+            ) : null}
+          </WizardSummary>
 
           {/* ── 1. Tune Persona (Boston Matrix) ── */}
           <div className="dtw-accordion-card">
@@ -2048,33 +2068,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             )}
           </div>
 
-          {/* ── 2. Customise Onboarding (expandable) ── */}
-          <div className="dtw-accordion-card">
-            <button onClick={handleToggleOnboarding} className="dtw-accordion-toggle">
-              {onboardingExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              <span>Customise Onboarding</span>
-              {domainDetailLoading && !domainDetail && (
-                <div className="hf-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-              )}
-            </button>
-            {onboardingExpanded && (
-              <div className="dtw-accordion-content">
-                {domainDetailLoading && !domainDetail ? (
-                  <div className="hf-flex hf-gap-sm" style={{ justifyContent: "center", padding: 24 }}>
-                    <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
-                    <span className="hf-text-sm hf-text-muted">Loading configuration...</span>
-                  </div>
-                ) : domainDetail ? (
-                  <OnboardingTabContent
-                    domain={domainDetail}
-                    onDomainRefresh={fetchDomainDetail}
-                  />
-                ) : null}
-              </div>
-            )}
-          </div>
-
-          {/* ── 3. Preview First Prompt (lazy-load accordion) ── */}
+          {/* ── 2. Preview First Prompt (lazy-load accordion) ── */}
           <div className="dtw-accordion-card">
             <button
               onClick={() => setPromptPreviewExpanded((v) => !v)}
