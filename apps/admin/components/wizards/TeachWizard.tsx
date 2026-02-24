@@ -341,11 +341,8 @@ export default function TeachWizard() {
       const id = ++suggestFetchId.current;
       setLoadingSuggestions(true);
       try {
-        const res = await fetch(`/api/domains/${selectedDomainId}/goal-suggestions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
+        const params = new URLSearchParams({ domainId: selectedDomainId, currentGoal: text });
+        const res = await fetch(`/api/demonstrate/suggest?${params}`);
         const data = await res.json();
         if (id === suggestFetchId.current && data.ok && data.suggestions) {
           setSuggestions(data.suggestions);
@@ -652,21 +649,13 @@ export default function TeachWizard() {
       // 5. Create goal
       if (goalText.trim()) {
         setLaunchPhase("Saving goal...");
-        await fetch(`/api/callers/${callerId}/goals`, {
+        await fetch("/api/goals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            callerId,
             name: goalText.trim(),
             type: "LEARN",
-          }),
-        }).catch(() => {}); // non-critical
-
-        // Write teaching_mode as BehaviorTarget
-        await fetch(`/api/callers/${callerId}/behavior-targets`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targets: { teaching_mode: teachingMode },
           }),
         }).catch(() => {}); // non-critical
       }
