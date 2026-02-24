@@ -5156,3 +5156,25 @@ html.light {
 .hf-faded {
   opacity: 0.6;
 }
+
+/* ══════════════════════════════════════════════════════
+   Wizard Intent Framing — Teach/Demonstrate flow
+   ══════════════════════════════════════════════════════ */
+
+.wiz-step-intro {
+  margin-bottom: 20px;
+}
+
+.wiz-question {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+
+.wiz-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}

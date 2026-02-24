@@ -790,3 +790,194 @@ export function getLeafLabel(extractionConfig: ExtractionConfig): string {
   if (levels.length === 0) return "detail";
   return levels[levels.length - 1].label;
 }
+
+// ── Teaching Mode ────────────────────────────────────────────────────────────
+
+/**
+ * The teacher's macro intent for a course. Drives extraction weights and
+ * lesson plan shape. Stored in Playbook.config.teachingMode.
+ */
+export type TeachingMode = "recall" | "comprehension" | "practice" | "syllabus";
+
+export const TEACHING_MODE_LABELS: Record<
+  TeachingMode,
+  { label: string; icon: string; examples: string }
+> = {
+  recall: {
+    label: "Learn and remember facts",
+    icon: "📚",
+    examples: "History · Biology · Geography",
+  },
+  comprehension: {
+    label: "Read, analyse & discuss",
+    icon: "📖",
+    examples: "English · French · Literature",
+  },
+  practice: {
+    label: "Work through problems",
+    icon: "✏️",
+    examples: "Maths · Physics · Accounting",
+  },
+  syllabus: {
+    label: "Cover the syllabus",
+    icon: "📋",
+    examples: "Food Safety · BTEC · Apprenticeships",
+  },
+};
+
+export const TEACHING_MODE_ORDER: TeachingMode[] = [
+  "recall",
+  "comprehension",
+  "practice",
+  "syllabus",
+];
+
+// ── Teach Method ─────────────────────────────────────────────────────────────
+
+/**
+ * The micro-level activity type assigned to a group of teaching points.
+ * Stored in ContentAssertion.teachMethod.
+ */
+export type TeachMethod =
+  | "recall_quiz"
+  | "definition_matching"
+  | "close_reading"
+  | "true_false"
+  | "matching_task"
+  | "guided_discussion"
+  | "problem_solving"
+  | "worked_example";
+
+export const TEACH_METHOD_CONFIG: Record<
+  TeachMethod,
+  { label: string; icon: string; categories: string[] }
+> = {
+  recall_quiz: {
+    label: "Recall quiz",
+    icon: "🧠",
+    categories: ["fact", "concept"],
+  },
+  definition_matching: {
+    label: "Definition matching",
+    icon: "🔤",
+    categories: ["vocabulary", "key_term"],
+  },
+  close_reading: {
+    label: "Close reading",
+    icon: "📄",
+    categories: ["reading_passage"],
+  },
+  true_false: {
+    label: "True / False",
+    icon: "✔️",
+    categories: ["comprehension_task"],
+  },
+  matching_task: {
+    label: "Matching task",
+    icon: "🔗",
+    categories: ["comprehension_task"],
+  },
+  guided_discussion: {
+    label: "Guided discussion",
+    icon: "💬",
+    categories: ["open_task"],
+  },
+  problem_solving: {
+    label: "Problem solving",
+    icon: "🔢",
+    categories: ["activity", "worksheet"],
+  },
+  worked_example: {
+    label: "Worked example",
+    icon: "📝",
+    categories: ["worked_example"],
+  },
+};
+
+/**
+ * Category → intent → weight (1=low, 2=medium, 3=high).
+ * Higher weight = extracted more / checked by default in the content review step.
+ */
+export const intentCategoryWeights: Record<
+  TeachingMode,
+  Record<string, number>
+> = {
+  recall: {
+    fact: 3,
+    concept: 3,
+    key_term: 3,
+    vocabulary: 2,
+    reading_passage: 1,
+    comprehension_task: 1,
+    open_task: 1,
+    activity: 1,
+    worksheet: 1,
+    worked_example: 1,
+  },
+  comprehension: {
+    fact: 1,
+    concept: 2,
+    key_term: 3,
+    vocabulary: 3,
+    reading_passage: 3,
+    comprehension_task: 3,
+    open_task: 3,
+    activity: 1,
+    worksheet: 1,
+    worked_example: 1,
+  },
+  practice: {
+    fact: 1,
+    concept: 2,
+    key_term: 1,
+    vocabulary: 1,
+    reading_passage: 1,
+    comprehension_task: 2,
+    open_task: 1,
+    activity: 3,
+    worksheet: 3,
+    worked_example: 3,
+  },
+  syllabus: {
+    fact: 2,
+    concept: 2,
+    key_term: 1,
+    vocabulary: 1,
+    reading_passage: 1,
+    comprehension_task: 2,
+    open_task: 1,
+    activity: 2,
+    worksheet: 2,
+    worked_example: 1,
+  },
+};
+
+/**
+ * Return the default TeachMethod for a given extraction category and intent.
+ * Falls back to the highest-weight method whose categories include the given category,
+ * or "recall_quiz" if no match found.
+ */
+export function categoryToTeachMethod(
+  category: string,
+  intent: TeachingMode
+): TeachMethod {
+  // Find all methods whose categories list includes this category
+  const candidates = (
+    Object.entries(TEACH_METHOD_CONFIG) as [
+      TeachMethod,
+      (typeof TEACH_METHOD_CONFIG)[TeachMethod],
+    ][]
+  ).filter(([, cfg]) => cfg.categories.includes(category));
+
+  if (candidates.length === 0) return "recall_quiz";
+  if (candidates.length === 1) return candidates[0][0];
+
+  // Among candidates, pick the one with the highest intent weight for this category
+  const weights = intentCategoryWeights[intent];
+  return candidates.reduce((best, [method]) => {
+    const bestWeight = weights[category] ?? 1;
+    const candidateWeight = weights[category] ?? 1;
+    // If same weight, prefer the first (stable sort by TEACH_METHOD_CONFIG order)
+    return candidateWeight > bestWeight ? method : best;
+  }, candidates[0][0]);
+}

@@ -1,0 +1,31 @@
+/* WizardProgress — thin bar + step counter */
+
+.wp-wrap {
+  margin-bottom: 24px;
+}
+
+.wp-counter {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.wp-counter strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.wp-bar-track {
+  height: 3px;
+  background: var(--border-default);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.wp-bar-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}

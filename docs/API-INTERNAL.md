@@ -4974,6 +4974,29 @@ Auto-create a classroom (cohort + join link) for a domain.
 
 ---
 
+### `GET` /api/domains/:domainId/content-categories
+
+Returns assertion counts grouped by category for a domain's content.
+
+**Auth**: VIEWER · **Scope**: `domains:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | path | string | Yes | Domain UUID |
+| subjectIds | query | string | No | Comma-separated subject IDs to scope results |
+
+**Response** `200`
+```json
+{ ok, categories: Array<{ category, count }>, total }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Domain not found" }
+```
+
+---
+
 ### `GET` /api/domains/:domainId/content-stats
 
 Lightweight stats for a domain's content sources — assertion count
@@ -11495,8 +11518,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 316 |
-| Files with annotations | 315 |
+| Route files found | 317 |
+| Files with annotations | 316 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

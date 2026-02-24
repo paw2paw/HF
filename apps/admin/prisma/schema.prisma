@@ -3389,6 +3389,7 @@ model ContentAssertion {
   children   ContentAssertion[] @relation("AssertionHierarchy")
   orderIndex Int                @default(0) // Sort order among siblings
   topicSlug  String? // Stable topic identifier (e.g., "temperature-control")
+  teachMethod String? // Wizard-assigned teach method (e.g., "recall_quiz", "definition_matching")
 
   // Vector embedding for semantic search (pgvector)
   embedding Unsupported("vector(1536)")?

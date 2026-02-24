@@ -1,0 +1,131 @@
+/* WizardSection — locked / active / done accordion section */
+
+.ws-wrap {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-primary);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
+}
+
+.ws-wrap[data-status="active"] {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.ws-wrap[data-status="locked"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── Done row ──────────────────────────────────────────── */
+
+.ws-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: default;
+}
+
+.ws-done-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--status-success-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 12px;
+}
+
+.ws-summary-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.ws-summary-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-edit-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 500;
+  transition: background 0.1s;
+}
+
+.ws-edit-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+/* ── Active / Locked header ───────────────────────────── */
+
+.ws-header {
+  padding: 18px 20px 0;
+}
+
+.ws-step-number {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.ws-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.ws-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+/* ── Locked header (slim) ─────────────────────────────── */
+
+.ws-locked-header {
+  padding: 16px 20px;
+}
+
+.ws-locked-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Body ─────────────────────────────────────────────── */
+
+.ws-body {
+  padding: 0 20px 20px;
+}
+
+/* ── Continue row ─────────────────────────────────────── */
+
+.ws-continue-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
