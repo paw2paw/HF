@@ -18,7 +18,8 @@ export async function enrollCaller(
   source: string,
   tx?: TxClient
 ): Promise<CallerPlaybook> {
-  return db(tx).callerPlaybook.upsert({
+  const p = db(tx);
+  const enrollment = await p.callerPlaybook.upsert({
     where: { callerId_playbookId: { callerId, playbookId } },
     create: {
       callerId,
@@ -33,6 +34,20 @@ export async function enrollCaller(
       droppedAt: null,
     },
   });
+
+  // Auto-set isDefault if this is the only active enrollment
+  const activeCount = await p.callerPlaybook.count({
+    where: { callerId, status: "ACTIVE" },
+  });
+  if (activeCount === 1) {
+    await p.callerPlaybook.update({
+      where: { id: enrollment.id },
+      data: { isDefault: true },
+    });
+    enrollment.isDefault = true;
+  }
+
+  return enrollment;
 }
 
 /**
@@ -318,4 +333,28 @@ export async function enrollCohortMembersInPlaybook(
   }
 
   return { enrolled, errors };
+}
+
+/**
+ * Set a specific enrollment as the default for a caller.
+ * Unsets any existing default first (only one default per caller).
+ */
+export async function setDefaultEnrollment(
+  callerId: string,
+  playbookId: string,
+  tx?: TxClient
+): Promise<CallerPlaybook> {
+  const p = db(tx);
+
+  // Unset existing defaults for this caller
+  await p.callerPlaybook.updateMany({
+    where: { callerId, isDefault: true },
+    data: { isDefault: false },
+  });
+
+  // Set the new default
+  return p.callerPlaybook.update({
+    where: { callerId_playbookId: { callerId, playbookId } },
+    data: { isDefault: true },
+  });
 }

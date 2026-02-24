@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
 import { getVoiceCallSettings } from "@/lib/system-settings";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 
 export const runtime = "nodejs";
 
@@ -121,6 +122,9 @@ async function handleEndOfCallReport(message: any) {
     usedPromptId = activePrompt?.id || null;
   }
 
+  // Resolve default playbook for course-scoped calls
+  const playbookId = callerId ? await resolvePlaybookId(callerId) : null;
+
   // Create the Call record
   const newCall = await prisma.call.create({
     data: {
@@ -129,6 +133,7 @@ async function handleEndOfCallReport(message: any) {
       transcript: transcript || "(no transcript)",
       callerId: callerId,
       usedPromptId: usedPromptId,
+      ...(playbookId ? { playbookId } : {}),
     },
   });
 

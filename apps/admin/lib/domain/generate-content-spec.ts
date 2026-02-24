@@ -27,6 +27,8 @@ export interface ContentSpecResult {
 export interface GenerateContentSpecOptions {
   intents?: CurriculumIntents;
   regenerate?: boolean;
+  /** Scope to specific subjects (by ID). When provided, only assertions from these subjects are loaded. */
+  subjectIds?: string[];
 }
 
 // ── Load domain assertions (shared between skeleton + full generation) ──
@@ -42,8 +44,11 @@ export interface DomainAssertionData {
 /**
  * Load assertions from a domain's content sources.
  * Shared data-loading step used by both skeleton extraction and full generation.
+ *
+ * When `subjectIds` is provided, only assertions from those specific subjects
+ * are loaded (course-scoped). Otherwise loads all subjects for the domain.
  */
-export async function loadDomainAssertions(domainId: string, tx?: TxClient): Promise<DomainAssertionData> {
+export async function loadDomainAssertions(domainId: string, tx?: TxClient, subjectIds?: string[]): Promise<DomainAssertionData> {
   const p = db(tx);
 
   const domain = await p.domain.findUnique({
@@ -53,8 +58,13 @@ export async function loadDomainAssertions(domainId: string, tx?: TxClient): Pro
 
   if (!domain) throw new Error(`Domain not found: ${domainId}`);
 
+  // When subjectIds provided, scope to those subjects (must still belong to this domain)
+  const subjectFilter = subjectIds?.length
+    ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
+    : { subject: { domains: { some: { domainId } } } };
+
   const subjectSources = await p.subjectSource.findMany({
-    where: { subject: { domains: { some: { domainId } } } },
+    where: subjectFilter,
     select: {
       sourceId: true,
       tags: true,
@@ -94,8 +104,8 @@ export async function generateContentSpec(domainId: string, options?: GenerateCo
   const skipped: string[] = [];
   const p = db(tx);
 
-  // 1. Load domain + assertions via shared loader
-  const { domain, assertions, subjectName, qualificationRef, sourceCount } = await loadDomainAssertions(domainId, tx);
+  // 1. Load domain + assertions via shared loader (optionally scoped to specific subjects)
+  const { domain, assertions, subjectName, qualificationRef, sourceCount } = await loadDomainAssertions(domainId, tx, options?.subjectIds);
 
   // 2. Check if content spec already exists
   const contentSlug = `${domain.slug}-content`;

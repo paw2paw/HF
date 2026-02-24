@@ -4,6 +4,7 @@ import { config } from "@/lib/config";
 import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
 import { getVoiceCallSettings } from "@/lib/system-settings";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { VAPI_TOOL_DEFINITIONS, TOOL_SETTING_KEYS } from "../tools/route";
 
 export const runtime = "nodejs";
@@ -83,11 +84,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Load the active ComposedPrompt for this caller
+    // Resolve default playbook for course-scoped prompt lookup
+    const defaultPlaybookId = await resolvePlaybookId(caller.id);
+
+    // Load the active ComposedPrompt for this caller (scoped to default playbook if set)
     const composedPrompt = await prisma.composedPrompt.findFirst({
       where: {
         callerId: caller.id,
         status: "active",
+        ...(defaultPlaybookId ? { playbookId: defaultPlaybookId } : {}),
       },
       orderBy: { composedAt: "desc" },
       select: {

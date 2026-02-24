@@ -429,7 +429,11 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
     if (ctx.input.selectedCallerIds && ctx.input.selectedCallerIds.length > 0) {
       for (const callerId of ctx.input.selectedCallerIds) {
         try {
-          await enrollCallerInDomainPlaybooks(callerId, domainId);
+          if (playbookId) {
+            await enrollCaller(callerId, playbookId, "course-setup");
+          } else {
+            await enrollCallerInDomainPlaybooks(callerId, domainId);
+          }
           invitationCount++;
         } catch (err) {
           ctx.results.warnings!.push(`Failed to enroll caller ${callerId}: ${err}`);
@@ -451,8 +455,11 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
                 email,
                 domainId,
                 role: "STUDENT",
+                callerRole: "LEARNER",
                 createdBy: ctx.userId,
                 expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                ...(playbookId ? { playbookId } : {}),
+                ...(ctx.input.cohortGroupIds?.[0] ? { cohortGroupId: ctx.input.cohortGroupIds[0] } : {}),
               },
             });
             invitationCount++;

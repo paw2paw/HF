@@ -2348,6 +2348,9 @@ model Playbook {
   // Cohort assignments — which classrooms use this playbook (course)
   cohortAssignments CohortPlaybook[]
 
+  // Subject links — which subjects this playbook teaches (course → content scoping)
+  subjects PlaybookSubject[]
+
   // Inverse relations for course scoping
   calls           Call[]           @relation("PlaybookCalls")
   composedPrompts ComposedPrompt[] @relation("PlaybookPrompts")
@@ -3540,6 +3543,7 @@ model Subject {
   domains   SubjectDomain[]
   curricula Curriculum[]
   media     SubjectMedia[]
+  playbooks PlaybookSubject[]
 
   @@index([slug])
   @@index([isActive])
@@ -3580,6 +3584,21 @@ model SubjectDomain {
   @@unique([subjectId, domainId])
   @@index([subjectId])
   @@index([domainId])
+}
+
+// Many-to-many: which playbooks (courses) teach which subjects
+// Scopes content retrieval — a playbook only sees TPs from its linked subjects
+model PlaybookSubject {
+  id         String   @id @default(uuid())
+  playbookId String
+  subjectId  String
+  playbook   Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([playbookId, subjectId])
+  @@index([playbookId])
+  @@index([subjectId])
 }
 
 // =============================================================================

@@ -74,6 +74,9 @@ export function TeachPlanStep({
   const extractionInProgress = getData<boolean>("extractionInProgress") ?? false;
   const packSourceCount = getData<number>("packSourceCount") ?? 0;
 
+  // Subject scoping (Teach flow — set by content step)
+  const subjectIds = getData<string[]>("subjectIds");
+
   // Restore state from data bag
   const restoredTaskId = getData<string>("contentSpecTaskId") || null;
   const restoredModules = getData<CurriculumModule[]>("curriculumModules");
@@ -146,7 +149,10 @@ export function TeachPlanStep({
 
     const checkPoints = async () => {
       try {
-        const res = await fetch(`/api/domains/${domainId}/content-stats`);
+        const statsParams = new URLSearchParams();
+        if (subjectIds?.length) statsParams.set("subjectIds", subjectIds.join(","));
+        const statsQs = statsParams.toString();
+        const res = await fetch(`/api/domains/${domainId}/content-stats${statsQs ? `?${statsQs}` : ""}`);
         if (!res.ok) return;
         const data = await res.json();
         const count = data.assertionCount ?? 0;
@@ -178,7 +184,7 @@ export function TeachPlanStep({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [extractionInProgress, domainId, setData]);
+  }, [extractionInProgress, domainId, subjectIds, setData]);
 
   // ── Task Polling ──────────────────────────────────
 
@@ -298,6 +304,7 @@ export function TeachPlanStep({
         body: JSON.stringify({
           async: true,
           regenerate: true,
+          subjectIds: subjectIds?.length ? subjectIds : undefined,
           intents: {
             sessionCount: sessionCount || undefined,
             durationMins,
@@ -314,7 +321,7 @@ export function TeachPlanStep({
       setError(err instanceof Error ? err.message : "Generation failed");
       setPhase("intents");
     }
-  }, [taskId, phase, domainId, sessionCount, durationMins, emphasis, assessments, saveIntents, setData]);
+  }, [taskId, phase, domainId, sessionCount, durationMins, emphasis, assessments, subjectIds, saveIntents, setData]);
 
   const handleAccept = useCallback(() => {
     saveIntents();

@@ -19,6 +19,7 @@ import { startTaskTracking, updateTaskProgress, completeTask, failTask } from "@
  * @bodyParam intents? { sessionCount?: number, durationMins?: number, emphasis?: string, assessments?: string } - Curriculum intent hints
  * @bodyParam regenerate? boolean - Update existing spec instead of skipping
  * @bodyParam async? boolean - Return taskId for polling instead of blocking
+ * @bodyParam subjectIds? string[] - Scope to specific subjects (course-scoped content)
  * @response 200 { ok: true, result: ContentSpecResult }
  * @response 202 { ok: true, taskId: string } (async mode)
  * @response 404 { ok: false, error: "Domain not found: ..." }
@@ -36,7 +37,7 @@ export async function POST(
     const { domainId } = await params;
 
     // Parse optional body (existing callers send no body)
-    let body: { intents?: any; regenerate?: boolean; async?: boolean } = {};
+    let body: { intents?: any; regenerate?: boolean; async?: boolean; subjectIds?: string[] } = {};
     try {
       body = await req.json();
     } catch {
@@ -46,6 +47,7 @@ export async function POST(
     const options: GenerateContentSpecOptions = {
       intents: body.intents,
       regenerate: body.regenerate,
+      subjectIds: Array.isArray(body.subjectIds) ? body.subjectIds : undefined,
     };
 
     // Async mode: return taskId for polling
@@ -97,7 +99,7 @@ async function runTwoPhaseGeneration(
   // ── Phase 1: Skeleton (~3-5s via Haiku) ──────────────
   let skeletonShown = false;
   try {
-    const { domain, assertions, subjectName, qualificationRef } = await loadDomainAssertions(domainId);
+    const { domain, assertions, subjectName, qualificationRef } = await loadDomainAssertions(domainId, undefined, options.subjectIds);
 
     if (assertions.length === 0) {
       await failTask(taskId, "No assertions extracted from content sources yet");

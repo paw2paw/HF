@@ -1707,7 +1707,7 @@ async function advanceLessonPlanSession(
 interface PipelineContext {
   callId: string;
   callerId: string;
-  call: { id: string; transcript: string | null };
+  call: { id: string; transcript: string | null; playbookId: string | null };
   engine: AIEngine;
   guardrails: GuardrailsConfig;
   pipelineStages: PipelineStage[];
@@ -1957,12 +1957,14 @@ const stageExecutors: Record<string, StageExecutor> = {
     ctx.log.info(`Stage ${stage.name}: ${stage.description}`);
 
     // Direct function call — no HTTP self-call
-    const { fullSpecConfig, sections, specSlug } = await loadComposeConfig();
+    const playbookIds = ctx.call.playbookId ? [ctx.call.playbookId] : undefined;
+    const { fullSpecConfig, sections, specSlug } = await loadComposeConfig({ playbookIds });
     const composition = await executeComposition(ctx.callerId, sections, fullSpecConfig);
     const promptSummary = renderPromptSummary(composition.llmPrompt);
 
     const persisted = await persistComposedPrompt(composition, promptSummary, {
       callerId: ctx.callerId,
+      playbookId: ctx.call.playbookId,
       triggerType: "pipeline",
       triggerCallId: ctx.callId,
       composeSpecSlug: specSlug,
@@ -2143,7 +2145,7 @@ export async function POST(
     // Load call
     const call = await prisma.call.findUnique({
       where: { id: callId },
-      select: { id: true, transcript: true },
+      select: { id: true, transcript: true, playbookId: true },
     });
 
     if (!call) {

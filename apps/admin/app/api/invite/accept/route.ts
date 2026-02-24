@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { encode } from "next-auth/jwt";
 import { validateBody, inviteAcceptSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
-import { enrollCallerInCohortPlaybooks, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
+import { enrollCaller, enrollCallerInCohortPlaybooks, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 
 /**
  * @api POST /api/invite/accept
@@ -89,8 +89,10 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Auto-enroll in cohort playbooks (or domain-wide fallback)
-        if (invite.cohortGroupId && invite.domainId) {
+        // Auto-enroll: specific playbook > cohort playbooks > domain-wide fallback
+        if (invite.playbookId) {
+          await enrollCaller(newCaller.id, invite.playbookId, "invite", tx);
+        } else if (invite.cohortGroupId && invite.domainId) {
           await enrollCallerInCohortPlaybooks(newCaller.id, invite.cohortGroupId, invite.domainId, "invite", tx);
         } else if (invite.domainId) {
           await enrollCallerInDomainPlaybooks(newCaller.id, invite.domainId, "invite", tx);

@@ -93,6 +93,12 @@ type CallerGoal = {
   priority: number;
 };
 
+type PersonaInfo = {
+  slug: string;
+  name: string;
+  description: string | null;
+};
+
 type AvailableSource = {
   id: string;
   name: string;
@@ -109,7 +115,7 @@ type ApiWizardStep = { id: string; label: string; activeLabel?: string };
 type ApiCaller = { id: string; name?: string; email?: string; domainId: string };
 type ApiPlaybook = { id: string; name: string; status: string };
 type ApiSubjectSource = { source?: { _count?: { assertions?: number } } };
-type ApiSubjectDomain = { subject?: { sources?: ApiSubjectSource[] } };
+type ApiSubjectDomain = { subject?: { id?: string; name?: string; sources?: ApiSubjectSource[] } };
 
 const GOAL_TYPE_EMOJI: Record<string, string> = {
   LEARN: "\uD83D\uDCDA",
@@ -119,6 +125,12 @@ const GOAL_TYPE_EMOJI: Record<string, string> = {
   SUPPORT: "\uD83D\uDCAA",
   CREATE: "\uD83C\uDFA8",
 };
+
+const FALLBACK_PERSONAS: PersonaInfo[] = [
+  { slug: "tutor", name: "Tutor", description: "Patient, structured teaching" },
+  { slug: "coach", name: "Coach", description: "Goal-driven, motivational" },
+  { slug: "socratic", name: "Socratic", description: "Questioning and discovery" },
+];
 
 // ── Config ─────────────────────────────────────────
 
@@ -194,6 +206,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   // Goal text
   const [goalText, setGoalText] = useState("");
 
+  // Persona selector (Teach flow only)
+  const [personas, setPersonas] = useState<PersonaInfo[]>([]);
+  const [personasLoading, setPersonasLoading] = useState(true);
+  const [selectedPersona, setSelectedPersona] = useState("");
+
   // Course readiness
   const [checks, setChecks] = useState<CourseCheck[]>([]);
   const [ready, setReady] = useState(false);
@@ -248,6 +265,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   type ExistingCourseInfo = { id: string; name: string; status: string; subjectCount: number; assertionCount: number };
   const [existingCourses, setExistingCourses] = useState<ExistingCourseInfo[]>([]);
 
+  // Subject picker — subjects with content for the selected domain (Teach flow)
+  type ExistingSubjectInfo = { id: string; name: string; sourceCount: number; assertionCount: number };
+  const [existingSubjects, setExistingSubjects] = useState<ExistingSubjectInfo[]>([]);
+
   // Post-extraction auto-wiring results
   const [autoWireResult, setAutoWireResult] = useState<{
     moduleCount: number;
@@ -295,6 +316,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setSuggestions([]);
     setSuggestionsError(false);
     setCallerGoals([]);
+    setSelectedPersona(personas.length > 0 ? personas[0].slug : "");
     setContentPhase("loading");
     setContentCount(0);
     setUploadFile(null);
@@ -370,6 +392,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         if (savedReady !== undefined) setReady(savedReady);
         if (savedScore !== undefined) setScore(savedScore);
         if (savedLevel) setLevel(savedLevel);
+        const savedPersona = getData<string>("persona");
+        if (savedPersona) setSelectedPersona(savedPersona);
         // (Curriculum task state restored by TeachPlanStep on step 3 mount)
       }
     };
@@ -440,6 +464,45 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       }
     })();
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load personas on mount (Teach flow only) ──────
+  useEffect(() => {
+    if (!isTeachFlow) {
+      setPersonasLoading(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/onboarding/personas")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.ok && data.personas?.length > 0) {
+          const list: PersonaInfo[] = data.personas.map(
+            (p: { slug: string; name: string; description?: string | null }) => ({
+              slug: p.slug,
+              name: p.name,
+              description: p.description ?? null,
+            }),
+          );
+          setPersonas(list);
+          setSelectedPersona(data.defaultPersona || list[0].slug);
+        } else {
+          // API returned no personas — use fallback
+          setPersonas(FALLBACK_PERSONAS);
+          setSelectedPersona(FALLBACK_PERSONAS[0].slug);
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        console.warn("[Teach] Failed to load personas:", e);
+        setPersonas(FALLBACK_PERSONAS);
+        setSelectedPersona(FALLBACK_PERSONAS[0].slug);
+      })
+      .finally(() => {
+        if (!cancelled) setPersonasLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load callers when domain changes ──────────────
 
@@ -753,7 +816,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       }
     })();
 
-    // Also fetch existing courses (playbooks) for this domain
+    // Also fetch existing courses (playbooks) + subjects for this domain
     if (selectedDomainId) {
       (async () => {
         try {
@@ -778,8 +841,27 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
               };
             });
           if (!cancelled) setExistingCourses(playbooks);
+
+          // For Teach flow: build subject list with content counts
+          if (isTeachFlow) {
+            const subjectsWithContent = (domain.subjects || [])
+              .map((sd: ApiSubjectDomain) => {
+                const subj = sd.subject;
+                if (!subj?.id || !subj.name) return null;
+                const sourceCount = (subj.sources || []).length;
+                const assertionCount = (subj.sources || []).reduce(
+                  (sum: number, ss: ApiSubjectSource) => sum + (ss.source?._count?.assertions || 0), 0
+                );
+                return { id: subj.id, name: subj.name, sourceCount, assertionCount };
+              })
+              .filter((s: ExistingSubjectInfo | null): s is ExistingSubjectInfo => s !== null && s.assertionCount > 0);
+            if (!cancelled) setExistingSubjects(subjectsWithContent);
+          }
         } catch {
-          if (!cancelled) setExistingCourses([]);
+          if (!cancelled) {
+            setExistingCourses([]);
+            setExistingSubjects([]);
+          }
         }
       })();
     }
@@ -896,6 +978,17 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       return;
     }
 
+    if (result.mode === "existing-subject") {
+      // User picked an existing subject with content — scope to that subject
+      if (result.subjectId) {
+        setData("subjectIds", [result.subjectId]);
+        if (result.subjectName) setData("subjectNames", [result.subjectName]);
+        setData("contentAvailable", true);
+      }
+      setContentPhase("has-content");
+      return;
+    }
+
     if (result.mode === "pack-upload") {
       // Fire-and-forget: extraction runs in background on the server.
       // The extract endpoint auto-triggers scaffolding + content spec when done.
@@ -907,6 +1000,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       // Persist content availability for downstream steps (mirrors handleNext step 2)
       setData("contentAvailable", true);
       setData("contentCount", result.sourceCount || 0);
+      // Persist subject IDs for course-scoped content (Teach flow)
+      if (result.subjects?.length) {
+        setData("subjectIds", result.subjects.map((s) => s.id));
+        setData("subjectNames", result.subjects.map((s) => s.name));
+      }
       // Advance past content step (step 2 → step 3)
       setStep(currentStep + 1);
     }
@@ -949,6 +1047,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         });
       }
       setCreatedSubjectId(subjectId);
+      // Persist subject ID for course-scoped content (Teach flow)
+      if (isTeachFlow) {
+        setData("subjectIds", [subjectId]);
+      }
 
       // 2. Upload file to subject → creates ContentSource
       const uploadFormData = new FormData();
@@ -1025,7 +1127,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       setUploadError(e instanceof Error ? e.message : "Upload failed");
       setContentPhase("error");
     }
-  }, [uploadFile, selectedDomainId, runPostExtractionWiring]);
+  }, [uploadFile, selectedDomainId, runPostExtractionWiring, isTeachFlow, setData]);
 
   // ── Select existing content source ─────────────────
 
@@ -1069,6 +1171,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
       setCreatedSubjectId(subjectId);
       setCreatedSourceId(sourceId);
+      // Persist subject ID for course-scoped content (Teach flow)
+      if (isTeachFlow) {
+        setData("subjectIds", [subjectId]);
+      }
 
       // 2. Attach the existing source to this subject (409 = already attached, OK)
       const attachRes = await fetch(`/api/subjects/${subjectId}/sources`, {
@@ -1094,7 +1200,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       setContentPhase("error");
       setSelectedSourceId(null);
     }
-  }, [selectedDomainId, availableSources, runPostExtractionWiring]);
+  }, [selectedDomainId, availableSources, runPostExtractionWiring, isTeachFlow, setData]);
 
   // ── Helpers ───────────────────────────────────────
 
@@ -1119,6 +1225,12 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       }
     } else if (currentStep === 1) {
       setData("goal", goalText.trim());
+      if (isTeachFlow && selectedPersona) {
+        const sel = personas.find((p) => p.slug === selectedPersona);
+        setData("persona", selectedPersona);
+        setData("personaName", sel?.name || selectedPersona);
+        setData("teachingStyle", selectedPersona);
+      }
     } else if (currentStep === 2) {
       // Persist content availability for downstream steps (e.g. Plan Sessions)
       const hasContent = contentPhase === "has-content" || contentPhase === "done";
@@ -1133,6 +1245,9 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     // Save context before navigating back
     if (currentStep === 1) {
       setData("goal", goalText.trim());
+      if (isTeachFlow && selectedPersona) {
+        setData("persona", selectedPersona);
+      }
     } else if (currentStep >= 1) {
       setData("domainId", selectedDomainId);
       setData("callerId", selectedCallerId);
@@ -1149,6 +1264,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       const params = new URLSearchParams();
       if (selectedDomainId) params.set("domainId", selectedDomainId);
       if (goal) params.set("goal", goal);
+      if (selectedPersona) params.set("persona", selectedPersona);
       const qs = params.toString();
       endFlow();
       router.push(`/x/sim/${selectedCallerId}${qs ? `?${qs}` : ""}`);
@@ -1167,6 +1283,20 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       const scaffoldRes = await fetch(`/api/domains/${selectedDomainId}/scaffold`, { method: "POST" });
       const scaffoldData = await scaffoldRes.json().catch(() => null);
       const scaffoldPlaybookId = scaffoldData?.result?.playbook?.id || null;
+
+      // Step 1b: Link subjects to playbook (course-scoped content)
+      const subjectIds = getData<string[]>("subjectIds");
+      if (scaffoldPlaybookId && subjectIds?.length) {
+        try {
+          await fetch(`/api/playbooks/${scaffoldPlaybookId}/subjects`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subjectIds }),
+          });
+        } catch (e) {
+          console.warn("[Teach] PlaybookSubject link failed (non-critical):", e);
+        }
+      }
 
       // Step 2: Create test caller (auto-enrolls in domain playbooks via API)
       setLaunchPhase("creating-caller");
@@ -1213,6 +1343,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       if (selectedDomainId) params.set("domainId", selectedDomainId);
       if (goal) params.set("goal", goal);
       if (scaffoldPlaybookId) params.set("playbookId", scaffoldPlaybookId);
+      if (selectedPersona) params.set("persona", selectedPersona);
       const qs = params.toString();
       endFlow();
       router.push(`/x/sim/${newCallerId}${qs ? `?${qs}` : ""}`);
@@ -1222,7 +1353,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       setLaunching(false);
       setLaunchPhase("idle");
     }
-  }, [needsCallerUpfront, selectedDomainId, selectedCallerId, selectedDomain, goalText, ready, launching, endFlow, router, clearWizardError, setWizardError]);
+  }, [needsCallerUpfront, selectedDomainId, selectedCallerId, selectedDomain, goalText, selectedPersona, ready, launching, endFlow, router, clearWizardError, setWizardError, getData]);
 
   // Fetch full domain detail for onboarding accordion
   const fetchDomainDetail = useCallback(async () => {
@@ -1249,11 +1380,17 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   }, [currentStep, STEP_LAUNCH, selectedDomainId, domainDetail, domainDetailLoading, fetchDomainDetail]);
 
   // Fetch teaching points for selected domain (direct query through subject chain)
+  // Teach flow: scoped to course subjects. Demonstrate flow: domain-wide.
   const fetchTeachingPoints = useCallback(async () => {
     if (!selectedDomainId) return;
     setTeachingPointsLoading(true);
     try {
-      const res = await fetch(`/api/domains/${selectedDomainId}/teaching-points?limit=50`);
+      const params = new URLSearchParams({ limit: "50" });
+      const subjectIds = isTeachFlow ? getData<string[]>("subjectIds") : undefined;
+      if (subjectIds?.length) {
+        params.set("subjectIds", subjectIds.join(","));
+      }
+      const res = await fetch(`/api/domains/${selectedDomainId}/teaching-points?${params}`);
       const data = await res.json();
       if (data.ok) {
         setTeachingPoints(
@@ -1271,7 +1408,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     } finally {
       setTeachingPointsLoading(false);
     }
-  }, [selectedDomainId]);
+  }, [selectedDomainId, isTeachFlow, getData]);
 
   // Fetch teaching points when content becomes available on step 2
   useEffect(() => {
@@ -1575,6 +1712,27 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             </div>
           )}
 
+          {/* Persona selector (Teach flow only) */}
+          {isTeachFlow && !personasLoading && personas.length > 1 && (
+            <div className="dtw-persona-section">
+              <div className="dtw-section-label">Teaching Style</div>
+              <div className="dtw-persona-chips">
+                {personas.map((p) => (
+                  <button
+                    key={p.slug}
+                    onClick={() => setSelectedPersona(p.slug)}
+                    className={`dtw-persona-chip ${selectedPersona === p.slug ? "dtw-persona-chip-selected" : ""}`}
+                  >
+                    <span className="dtw-persona-chip-name">{p.name}</span>
+                    {p.description && (
+                      <span className="dtw-persona-chip-desc">{p.description}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Save as Goal button (only when caller exists upfront) */}
           {needsCallerUpfront && goalText.trim() && (
             <div className="dtw-save-goal-row">
@@ -1755,6 +1913,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                   domainId={selectedDomainId}
                   courseName={goalText}
                   existingCourses={existingCourses}
+                  existingSubjects={existingSubjects}
                   onResult={handlePackResult}
                   onBack={handlePrev}
                 />

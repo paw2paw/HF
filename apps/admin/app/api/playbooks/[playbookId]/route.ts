@@ -7,14 +7,18 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * Stored in config.systemSpecToggles as { [specId]: { isEnabled, configOverride } }
  * Stored in config.configSettings as { memoryMinConfidence, learningRate, etc. }
  */
-function withSystemSpecs(playbook: any) {
+function withSystemSpecs(playbook: any, resolvedSpecs?: Array<{ id: string; slug: string; name: string; description: string | null; specRole: string | null; outputType: string }>) {
   const config = (playbook.config as Record<string, any>) || {};
   const toggles = config.systemSpecToggles || {};
-  const systemSpecs = Object.entries(toggles).map(([specId, data]: [string, any]) => ({
-    specId,
-    isEnabled: data.isEnabled ?? true,
-    configOverride: data.configOverride || null,
-  }));
+  const systemSpecs = Object.entries(toggles).map(([specId, data]: [string, any]) => {
+    const resolved = resolvedSpecs?.find(s => s.id === specId);
+    return {
+      specId,
+      isEnabled: data.isEnabled ?? true,
+      configOverride: data.configOverride || null,
+      ...(resolved && { spec: resolved }),
+    };
+  });
   const configSettings = config.configSettings || null;
   return { ...playbook, systemSpecs, configSettings };
 }
@@ -70,6 +74,7 @@ export async function GET(
                 domain: true,
                 priority: true,
                 isActive: true,
+                extendsAgent: true,
                 _count: {
                   select: { triggers: true },
                 },
@@ -107,9 +112,20 @@ export async function GET(
       );
     }
 
+    // Resolve system spec details for holographic course view
+    const pbConfig = (playbook.config as Record<string, any>) || {};
+    const sysToggles = pbConfig.systemSpecToggles || {};
+    const systemSpecIds = Object.keys(sysToggles);
+    const resolvedSystemSpecs = systemSpecIds.length > 0
+      ? await prisma.analysisSpec.findMany({
+          where: { id: { in: systemSpecIds } },
+          select: { id: true, slug: true, name: true, description: true, specRole: true, outputType: true },
+        })
+      : [];
+
     return NextResponse.json({
       ok: true,
-      playbook: withSystemSpecs(playbook),
+      playbook: withSystemSpecs(playbook, resolvedSystemSpecs),
     });
   } catch (error: any) {
     console.error("Error fetching playbook:", error);

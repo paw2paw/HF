@@ -964,7 +964,7 @@ export default function QuickLaunchPage() {
             primaryAction={{
               label: "Try It",
               icon: <PlayCircle className="w-5 h-5" />,
-              href: `/x/sim/${result.callerId}`,
+              href: `/x/sim/${result.callerId}${result.playbookId ? `?playbookId=${result.playbookId}` : ''}`,
             }}
             secondaryActions={[
               { label: "View Community", href: `/x/domains?id=${result.domainId}` },
@@ -1140,7 +1140,7 @@ export default function QuickLaunchPage() {
               Try a conversation with your AI companion to see how it responds.
             </div>
             <button
-              onClick={() => router.push(`/x/sim/${result.callerId}`)}
+              onClick={() => router.push(`/x/sim/${result.callerId}${result.playbookId ? `?playbookId=${result.playbookId}` : ''}`)}
               className="ql-classroom-btn ql-classroom-btn-active"
               style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
             >

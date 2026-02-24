@@ -11,11 +11,12 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @description Lightweight stats for a domain's content sources — assertion count
  *   and extraction status. Used by the Plan Sessions step to poll for extraction progress.
  * @pathParam domainId string - Domain UUID
+ * @query subjectIds string - Comma-separated subject IDs to scope results (course-scoped)
  * @response 200 { ok, assertionCount, sourceCount, extractedSourceCount, allExtracted }
  * @response 404 { ok: false, error: "Domain not found" }
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
@@ -23,6 +24,9 @@ export async function GET(
     if (isAuthError(authResult)) return authResult.error;
 
     const { domainId } = await params;
+    const { searchParams } = new URL(req.url);
+    const subjectIdsParam = searchParams.get("subjectIds");
+    const subjectIds = subjectIdsParam ? subjectIdsParam.split(",").filter(Boolean) : undefined;
 
     // Verify domain exists
     const domain = await prisma.domain.findUnique({
@@ -33,11 +37,16 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
     }
 
+    // When subjectIds provided, scope to those subjects only (must still belong to domain)
+    const subjectFilter = subjectIds?.length
+      ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
+      : { subject: { domains: { some: { domainId } } } };
+
     // Get all content sources linked to this domain through subjects
     const sources = await prisma.contentSource.findMany({
       where: {
         subjects: {
-          some: { subject: { domains: { some: { domainId } } } },
+          some: subjectFilter,
         },
       },
       select: {

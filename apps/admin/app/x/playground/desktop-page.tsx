@@ -554,6 +554,10 @@ export default function PlaygroundPage() {
       if (Object.keys(previewOverrides).length > 0) {
         requestBody.targetOverrides = previewOverrides;
       }
+      // Scope composition to selected playbook (course)
+      if (selectedPlaybookId) {
+        requestBody.playbookIds = [selectedPlaybookId];
+      }
 
       const res = await fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
         method: "POST",
@@ -571,7 +575,7 @@ export default function PlaygroundPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedCallerId, generatedPrompt, parsedDraftSpec, previewOverrides]);
+  }, [selectedCallerId, selectedPlaybookId, generatedPrompt, parsedDraftSpec, previewOverrides]);
 
   const triggerDebouncedRegenerate = useCallback(() => {
     if (!selectedCallerId || !generatedPrompt) return;

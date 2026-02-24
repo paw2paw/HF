@@ -11,6 +11,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @description Get teaching points (assertions) for a domain through the subject→source chain.
  * @pathParam domainId string - Domain UUID
  * @query limit number - Max results (default 50, max 200)
+ * @query subjectIds string - Comma-separated subject IDs to scope results (course-scoped)
  * @response 200 { ok: true, teachingPoints: [...], total: number }
  * @response 404 { ok: false, error: "Domain not found" }
  */
@@ -25,6 +26,8 @@ export async function GET(
     const { domainId } = await params;
     const { searchParams } = new URL(req.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
+    const subjectIdsParam = searchParams.get("subjectIds");
+    const subjectIds = subjectIdsParam ? subjectIdsParam.split(",").filter(Boolean) : undefined;
 
     // Verify domain exists
     const domain = await prisma.domain.findUnique({
@@ -35,16 +38,23 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
     }
 
+    // When subjectIds provided, scope to those subjects only (must still belong to domain)
+    const subjectFilter = subjectIds?.length
+      ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
+      : { subject: { domains: { some: { domainId } } } };
+
     // Query assertions directly through the subject chain (same pattern as course-readiness)
+    const whereClause = {
+      source: {
+        subjects: {
+          some: subjectFilter,
+        },
+      },
+    };
+
     const [assertions, total] = await Promise.all([
       prisma.contentAssertion.findMany({
-        where: {
-          source: {
-            subjects: {
-              some: { subject: { domains: { some: { domainId } } } },
-            },
-          },
-        },
+        where: whereClause,
         orderBy: [{ chapter: "asc" }, { createdAt: "asc" }],
         take: limit,
         select: {
@@ -57,13 +67,7 @@ export async function GET(
         },
       }),
       prisma.contentAssertion.count({
-        where: {
-          source: {
-            subjects: {
-              some: { subject: { domains: { some: { domainId } } } },
-            },
-          },
-        },
+        where: whereClause,
       }),
     ]);
 

@@ -13,7 +13,6 @@ import { CourseSetupWizard } from './_components/CourseSetupWizard';
 import { StatusBadge, DomainPill } from '@/src/components/shared/EntityPill';
 import { FancySelect } from '@/components/shared/FancySelect';
 import { AdvancedBanner } from '@/components/shared/AdvancedBanner';
-import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 
 type Domain = { id: string; name: string };
 
@@ -190,7 +189,7 @@ export default function CoursesPage() {
 
   // Redirect in progress
   if (legacyId) return (
-    <div className="hf-text-center hf-text-muted" style={{ padding: 80 }}>
+    <div className="hf-empty-compact">
       <div className="hf-spinner" />
     </div>
   );
@@ -198,8 +197,8 @@ export default function CoursesPage() {
   // Resume banner (shown before wizard or list)
   if (!showWizard && !resumeLoading && pendingTask) {
     return (
-      <div style={{ padding: 24 }}>
-        <div style={{ paddingTop: 64 }}>
+      <div className="hf-page-container">
+        <div className="hf-mt-md">
           <WizardResumeBanner
             task={pendingTask}
             onResume={handleResumeCourse}
@@ -243,13 +242,8 @@ export default function CoursesPage() {
   );
 
   return (
-    <div className="hf-page-container" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+    <div className="hf-page-container hf-page-scroll hf-flex hf-flex-col">
       <AdvancedBanner />
-
-      {/* Breadcrumb */}
-      <HierarchyBreadcrumb
-        segments={[{ label: plural('playbook'), href: '/x/courses' }]}
-      />
 
       {/* Header + Filters */}
       <div className="hf-flex hf-flex-between hf-mb-lg hf-items-center">
@@ -327,21 +321,21 @@ export default function CoursesPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="hf-banner hf-banner-error hf-mb-md" style={{ borderRadius: 8 }}>
+        <div className="hf-banner hf-banner-error hf-mb-md">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="hf-text-xs" style={{ marginLeft: 'auto', textDecoration: 'underline', color: 'inherit' }}>Dismiss</button>
+          <button onClick={() => setError(null)} className="hf-text-xs hf-ml-auto" style={{ textDecoration: 'underline', color: 'inherit' }}>Dismiss</button>
         </div>
       )}
 
       {/* Course Cards Grid */}
       {loading ? (
-        <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>
+        <div className="hf-empty-compact">
           <div className="hf-spinner" />
         </div>
       ) : filteredCourses.length === 0 ? (
-        <div className="hf-empty-compact" style={{ border: '1px solid var(--border-default)', borderRadius: 12 }}>
-          <div style={{ fontSize: 48 }} className="hf-mb-md">
-            <BookOpen size={48} style={{ color: 'var(--text-tertiary)' }} />
+        <div className="hf-empty-compact">
+          <div className="hf-mb-md">
+            <BookOpen size={48} className="hf-text-tertiary" />
           </div>
           <div className="hf-heading-lg hf-text-secondary hf-mb-md">
             {search || selectedStatuses.size > 0 || selectedDomain
@@ -361,30 +355,21 @@ export default function CoursesPage() {
             <Link
               key={course.id}
               href={`/x/courses/${course.id}`}
-              className="hf-card-compact"
-              style={{
-                textDecoration: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                transition: 'border-color 0.15s, box-shadow 0.15s',
-                opacity: course.status === 'archived' ? 0.6 : 1,
-              }}
+              className={`hf-card-compact hf-card-link${course.status === 'archived' ? ' hf-faded' : ''}`}
             >
               <div className="hf-flex hf-flex-between hf-items-start hf-mb-sm">
-                <h3 className="hf-heading-sm hf-mb-0" style={{ flex: 1 }}>{course.name}</h3>
+                <h3 className="hf-heading-sm hf-mb-0 hf-flex-1">{course.name}</h3>
                 <StatusBadge status={statusMap[course.status] || 'draft'} size="compact" />
               </div>
               <div className="hf-mb-sm">
                 <DomainPill label={course.domain.name} size="compact" />
               </div>
               {course.description && (
-                <p className="hf-text-xs hf-text-muted hf-mb-sm" style={{ lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {course.description}
-                </p>
+                <p className="hf-text-xs hf-text-muted hf-mb-sm hf-line-clamp-2">{course.description}</p>
               )}
               <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted hf-items-center">
-                <span><Users size={12} style={{ marginRight: 2, verticalAlign: -1 }} /><strong>{course.studentCount}</strong> {plural('caller').toLowerCase()}</span>
-                <span><strong>{course.specCount}</strong> specs</span>
+                <span><Users size={12} className="hf-icon-inline" /><strong>{course.studentCount}</strong> {plural('caller').toLowerCase()}</span>
+                <span><strong>{course.specCount}</strong> content</span>
                 <span className="hf-text-placeholder">v{course.version}</span>
               </div>
             </Link>

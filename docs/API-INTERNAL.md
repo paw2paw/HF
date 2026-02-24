@@ -4983,6 +4983,7 @@ Lightweight stats for a domain's content sources — assertion count
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
 | domainId | path | string | Yes | Domain UUID |
+| subjectIds | query | string | No | Comma-separated subject IDs to scope results (course-scoped) |
 
 **Response** `200`
 ```json
@@ -5268,6 +5269,7 @@ Get teaching points (assertions) for a domain through the subject→source chain
 |-----------|-----|------|----------|-------------|
 | domainId | path | string | Yes | Domain UUID |
 | limit | query | number | No | Max results (default 50, max 200) |
+| subjectIds | query | string | No | Comma-separated subject IDs to scope results (course-scoped) |
 
 **Response** `200`
 ```json
@@ -8602,6 +8604,45 @@ Returns a structured tree of all template variables/slugs available in this
 
 ---
 
+### `GET` /api/playbooks/:playbookId/subjects
+
+Get subjects linked to a playbook via PlaybookSubject.
+
+**Auth**: session (VIEWER) · **Scope**: `playbooks:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| playbookId | path | string | Yes | Playbook UUID |
+
+**Response** `200`
+```json
+{ ok: true, subjects: [...], scoped: boolean }
+```
+
+---
+
+### `POST` /api/playbooks/:playbookId/subjects
+
+Link subjects to a playbook (course-scoped content).
+
+**Auth**: session (OPERATOR) · **Scope**: `playbooks:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| playbookId | path | string | Yes | Playbook UUID |
+
+**Response** `200`
+```json
+{ ok: true, linked: number }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Playbook not found" }
+```
+
+---
+
 ### `GET` /api/playbooks/:playbookId/targets
 
 Returns all adjustable BEHAVIOR parameters with their cascade of targets
@@ -11454,8 +11495,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 315 |
-| Files with annotations | 314 |
+| Route files found | 316 |
+| Files with annotations | 315 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 
