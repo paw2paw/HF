@@ -51,7 +51,9 @@ import { WizardSummary } from "@/components/shared/WizardSummary";
 import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { TeachPlanStep } from "@/components/wizards/TeachPlanStep";
+import { CreateInstitutionModal } from "./CreateInstitutionModal";
 import { POLL_TIMEOUT_MS } from "@/lib/tasks/constants";
+import { useSession } from "next-auth/react";
 import "./demo-teach-wizard.css";
 
 // ── Types ──────────────────────────────────────────
@@ -142,6 +144,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const { pushEntity } = useEntityContext();
   const { terms } = useTerminology();
   const { error: wizardError, setError: setWizardError, clearError: clearWizardError } = useWizardError();
+  const { data: sessionData } = useSession();
   const flowInitialized = useRef(false);
 
   // Resolve labels: terminology-aware or hardcoded
@@ -169,6 +172,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [domainOptions, setDomainOptions] = useState<FancySelectOption[]>([]);
   const [selectedDomainId, setSelectedDomainId] = useState("");
   const [loadingDomains, setLoadingDomains] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const canCreateInstitution = ["OPERATOR", "ADMIN", "SUPERADMIN"].includes(
+    (sessionData?.user as any)?.role || "",
+  );
 
   // Caller for selected domain
   const [callers, setCallers] = useState<CallerInfo[]>([]);
@@ -293,6 +300,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setTeachingPoints([]);
     setLaunching(false);
     setLaunchPhase("idle");
+    setShowCreateModal(false);
     clearWizardError();
     domainsFetchedRef.current = false; // Allow domain refetch on restart
     setLoadingDomains(true);
@@ -1309,24 +1317,61 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           ) : domainOptions.length === 0 ? (
             <div className="dtw-muted-text">
               No {t.domain.toLowerCase()}s found.{" "}
-              <span
-                className="dtw-inline-link"
-                onClick={() => router.push("/x/quick-launch")}
-              >
-                Create one with Quick Launch
-              </span>
+              {canCreateInstitution ? (
+                <span
+                  className="dtw-inline-link"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  Create one now
+                </span>
+              ) : (
+                <span
+                  className="dtw-inline-link"
+                  onClick={() => router.push("/x/quick-launch")}
+                >
+                  Create one with Quick Launch
+                </span>
+              )}
             </div>
           ) : (
-            <FancySelect
-              value={selectedDomainId}
-              onChange={setSelectedDomainId}
-              options={domainOptions}
-              placeholder={`Select ${
-                t.domain.match(/^[aeiou]/i) ? "an" : "a"
-              } ${t.domain.toLowerCase()}...`}
-              searchable={domainOptions.length > 5}
-            />
+            <div className="dtw-domain-row">
+              <FancySelect
+                value={selectedDomainId}
+                onChange={setSelectedDomainId}
+                options={domainOptions}
+                placeholder={`Select ${
+                  t.domain.match(/^[aeiou]/i) ? "an" : "a"
+                } ${t.domain.toLowerCase()}...`}
+                searchable={domainOptions.length > 5}
+                style={{ flex: 1 }}
+              />
+              {canCreateInstitution && (
+                <button
+                  className="dtw-btn-create-new"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  <Plus size={14} /> New
+                </button>
+              )}
+            </div>
           )}
+
+          <CreateInstitutionModal
+            open={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onCreated={(newDomain) => {
+              setDomains((prev) => [...prev, {
+                id: newDomain.id, slug: newDomain.slug, name: newDomain.name,
+                isDefault: false, callerCount: 0,
+              }]);
+              setDomainOptions((prev) => [
+                { value: newDomain.id, label: newDomain.name, subtitle: newDomain.slug },
+                ...prev,
+              ]);
+              setSelectedDomainId(newDomain.id);
+              setShowCreateModal(false);
+            }}
+          />
 
           {/* Caller selector (only when caller required upfront) */}
           {needsCallerUpfront && selectedDomainId && callerOptions.length > 0 && (

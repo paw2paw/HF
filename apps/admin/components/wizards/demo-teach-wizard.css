@@ -263,3 +263,23 @@
 /* ── Compact config strip (Launch step header) ── */
 .dtw-config-strip { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0 4px; }
 .dtw-config-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; background: var(--surface-secondary); font-size: 12px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; }
+
+/* ── Domain row (selector + New button) ── */
+.dtw-domain-row { display: flex; gap: 8px; align-items: center; }
+.dtw-btn-create-new { display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border-default); background: transparent; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+.dtw-btn-create-new:hover { border-color: var(--accent-primary); color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 5%, transparent); }
+
+/* ── Create Institution Modal ── */
+.dtw-modal-card { background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: 16px; width: 440px; max-width: 90vw; box-shadow: 0 16px 48px rgba(0,0,0,0.2); overflow: hidden; }
+.dtw-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; border-bottom: 1px solid var(--border-default); }
+.dtw-modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.dtw-modal-close { width: 28px; height: 28px; border: none; background: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.dtw-modal-close:hover { background: var(--surface-secondary); }
+.dtw-modal-close:disabled { opacity: 0.4; cursor: not-allowed; }
+.dtw-modal-body { padding: 16px 20px; }
+.dtw-modal-input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-default); background: var(--surface-secondary); color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; }
+.dtw-modal-input:focus { border-color: var(--accent-primary); }
+.dtw-modal-input:disabled { opacity: 0.6; cursor: not-allowed; }
+.dtw-modal-slug { font-size: 12px; color: var(--text-muted); font-family: monospace; margin-top: 6px; padding-left: 2px; }
+.dtw-modal-error { padding: 8px 12px; border-radius: 8px; background: var(--status-error-bg); border: 1px solid var(--status-error-border); color: var(--status-error-text); font-size: 13px; margin-top: 10px; }
+.dtw-modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
