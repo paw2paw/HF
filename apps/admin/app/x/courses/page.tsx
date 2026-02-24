@@ -53,6 +53,7 @@ export default function CoursesPage() {
 
   // Redirect ?id=xxx to /x/courses/xxx for backwards compat
   const legacyId = searchParams.get('id');
+  const actionParam = searchParams.get('action');
   useEffect(() => {
     if (legacyId) {
       router.replace(`/x/courses/${legacyId}`);
@@ -70,6 +71,15 @@ export default function CoursesPage() {
 
   // Wizard
   const showWizard = isSetupFlowActive && state?.flowId === 'create-course';
+
+  // Auto-launch wizard when arriving with ?action=setup (from detail page CTA)
+  useEffect(() => {
+    if (actionParam === 'setup' && !showWizard && !loading && !pendingTask && !resumeLoading) {
+      handleNewCourse();
+      router.replace('/x/courses');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionParam, loading, resumeLoading]);
 
   const loadCourses = async () => {
     try {

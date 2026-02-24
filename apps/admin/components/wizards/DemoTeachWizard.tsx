@@ -47,6 +47,9 @@ import { PromptPreviewContent } from "@/app/x/domains/components/PromptPreviewMo
 import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
 import type { DomainDetail } from "@/app/x/domains/components/types";
 import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
+import { AgentTuner } from "@/components/shared/AgentTuner";
+import type { AgentTunerOutput, AgentTunerPill } from "@/lib/agent-tuner/types";
+import type { MatrixPosition } from "@/lib/domain/agent-tuning";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
@@ -288,6 +291,13 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [promptPreviewExpanded, setPromptPreviewExpanded] = useState(false);
   const [savingPersona, setSavingPersona] = useState(false);
 
+  // Agent tuning (Boston Matrix + behavior pills)
+  const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>([]);
+  const [behaviorTargets, setBehaviorTargets] = useState<Record<string, number>>({});
+  const [matrixTargets, setMatrixTargets] = useState<Record<string, number>>({});
+  const [matrixTraits, setMatrixTraits] = useState<string[]>([]);
+  const [matrixPositions, setMatrixPositions] = useState<Record<string, MatrixPosition>>({});
+
   // Launch-time caller creation (when requireCallerUpfront === false)
   type LaunchPhase = "idle" | "scaffolding" | "creating-caller" | "creating-goals" | "composing-prompt" | "redirecting";
   const [launching, setLaunching] = useState(false);
@@ -336,6 +346,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setLaunching(false);
     setLaunchPhase("idle");
     setShowCreateModal(false);
+    setTunerPills([]);
+    setBehaviorTargets({});
+    setMatrixTargets({});
+    setMatrixTraits([]);
+    setMatrixPositions({});
     clearWizardError();
     domainsFetchedRef.current = false; // Allow domain refetch on restart
     setLoadingDomains(true);
@@ -394,6 +409,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         if (savedLevel) setLevel(savedLevel);
         const savedPersona = getData<string>("persona");
         if (savedPersona) setSelectedPersona(savedPersona);
+        const savedPills = getData<AgentTunerPill[]>("tunerPills");
+        if (savedPills) setTunerPills(savedPills);
         // (Curriculum task state restored by TeachPlanStep on step 3 mount)
       }
     };
@@ -695,6 +712,19 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       setWizardError("Failed to delete goal. Please try again.");
     }
   };
+
+  // ── Agent tuning handlers ────────────────────────
+
+  const handleTunerChange = useCallback(({ pills, parameterMap }: AgentTunerOutput) => {
+    setTunerPills(pills);
+    setBehaviorTargets(parameterMap);
+  }, []);
+
+  const handleMatrixChange = useCallback(({ parameterMap, traits, matrixPositions: mp }: AgentTuningPanelOutput) => {
+    setMatrixTargets(parameterMap);
+    setMatrixTraits(traits);
+    setMatrixPositions(mp);
+  }, []);
 
   // ── Fetch course readiness ────────────────────────
 
@@ -1231,6 +1261,19 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
         setData("personaName", sel?.name || selectedPersona);
         setData("teachingStyle", selectedPersona);
       }
+      // Persist agent tuning data
+      if (isTeachFlow) {
+        const mergedTargets = { ...matrixTargets, ...behaviorTargets };
+        if (Object.keys(mergedTargets).length > 0) {
+          setData("behaviorTargets", mergedTargets);
+        }
+        if (Object.keys(matrixPositions).length > 0) {
+          setData("matrixPositions", matrixPositions);
+        }
+        if (tunerPills.length > 0) {
+          setData("tunerPills", tunerPills);
+        }
+      }
     } else if (currentStep === 2) {
       // Persist content availability for downstream steps (e.g. Plan Sessions)
       const hasContent = contentPhase === "has-content" || contentPhase === "done";
@@ -1247,6 +1290,13 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       setData("goal", goalText.trim());
       if (isTeachFlow && selectedPersona) {
         setData("persona", selectedPersona);
+      }
+      // Save tuning data on back-navigate too
+      if (isTeachFlow) {
+        const mergedTargets = { ...matrixTargets, ...behaviorTargets };
+        if (Object.keys(mergedTargets).length > 0) setData("behaviorTargets", mergedTargets);
+        if (Object.keys(matrixPositions).length > 0) setData("matrixPositions", matrixPositions);
+        if (tunerPills.length > 0) setData("tunerPills", tunerPills);
       }
     } else if (currentStep >= 1) {
       setData("domainId", selectedDomainId);
@@ -1295,6 +1345,24 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           });
         } catch (e) {
           console.warn("[Teach] PlaybookSubject link failed (non-critical):", e);
+        }
+      }
+
+      // Step 1c: Apply behavior targets to playbook (from matrix + pills)
+      const mergedBehavior = getData<Record<string, number>>("behaviorTargets");
+      if (scaffoldPlaybookId && mergedBehavior && Object.keys(mergedBehavior).length > 0) {
+        try {
+          const targets = Object.entries(mergedBehavior).map(([parameterId, targetValue]) => ({
+            parameterId,
+            targetValue,
+          }));
+          await fetch(`/api/playbooks/${scaffoldPlaybookId}/targets`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ targets }),
+          });
+        } catch (e) {
+          console.warn("[Teach] Behavior target application failed (non-critical):", e);
         }
       }
 
@@ -1715,7 +1783,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           {/* Persona selector (Teach flow only) */}
           {isTeachFlow && !personasLoading && personas.length > 1 && (
             <div className="dtw-persona-section">
-              <div className="dtw-section-label">Teaching Style</div>
+              <div className="dtw-section-label">Guide Persona</div>
               <div className="dtw-persona-chips">
                 {personas.map((p) => (
                   <button
@@ -1729,6 +1797,31 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                     )}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Agent tuning — Boston Matrix + behavior pills (Teach flow only) */}
+          {isTeachFlow && (
+            <div className="dtw-tuning-section">
+              <div className="dtw-section-label">Teaching Style</div>
+              <div className="dtw-tuning-hint">
+                Place the dots to set your guide&apos;s personality. Click a preset to start from a known style.
+              </div>
+              <AgentTuningPanel
+                onChange={handleMatrixChange}
+                compact
+              />
+              <div className="dtw-tuner-wrapper">
+                <AgentTuner
+                  initialPills={tunerPills}
+                  context={{
+                    personaSlug: selectedPersona || undefined,
+                    domainName: selectedDomain?.name || undefined,
+                  }}
+                  onChange={handleTunerChange}
+                  label="Advanced: Fine-tune behavior"
+                />
               </div>
             </div>
           )}

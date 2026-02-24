@@ -2490,6 +2490,12 @@ html.light {
   overflow: auto;
 }
 
+.hf-wizard-stepper {
+  padding: 16px 32px 0;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
 /* ── Card grid (auto-fill responsive) ── */
 .hf-card-grid {
   display: grid;

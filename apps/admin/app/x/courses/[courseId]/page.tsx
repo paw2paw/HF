@@ -466,7 +466,7 @@ export default function CourseDetailPage() {
           <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No subjects yet</div>
           <p className="hf-text-xs hf-text-muted hf-mb-md">Subjects are created when you upload content or use the Course Setup wizard.</p>
           {isOperator && (
-            <Link href="/x/courses" className="hf-btn hf-btn-primary">
+            <Link href="/x/courses?action=setup" className="hf-btn hf-btn-primary">
               <Plus size={14} />
               Set Up Course
             </Link>

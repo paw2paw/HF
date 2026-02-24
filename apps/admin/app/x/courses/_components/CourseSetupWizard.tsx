@@ -73,8 +73,8 @@ export function CourseSetupWizard({ onComplete }: CourseSetupWizardProps) {
   }));
 
   return (
-    <div className="min-h-screen bg-[var(--surface-primary)]">
-      <div style={{ padding: "16px 32px 0", maxWidth: 720, margin: "0 auto" }}>
+    <div className="hf-page-container hf-page-scroll">
+      <div className="hf-wizard-stepper">
         <ProgressStepper steps={progressSteps} />
       </div>
       <StepComponent
