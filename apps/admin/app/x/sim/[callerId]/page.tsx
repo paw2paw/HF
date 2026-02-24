@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useResponsive } from '@/hooks/useResponsive';
 import { WhatsAppHeader } from '@/components/sim/WhatsAppHeader';
 import { SimChat } from '@/components/sim/SimChat';
+import { deriveParameterMap } from '@/lib/agent-tuner/derive';
+import type { AgentTunerPill } from '@/lib/agent-tuner/types';
 
 interface PastCall {
   transcript: string;
@@ -25,6 +27,20 @@ export default function SimConversationPage() {
   const sessionGoal = searchParams.get('goal') || undefined;
   const expectedDomainId = searchParams.get('domainId') || undefined;
   const playbookId = searchParams.get('playbookId') || undefined;
+
+  // Tuner pills from Teach/Demonstrate wizard — derive target overrides for prompt composition
+  const targetOverrides = useMemo(() => {
+    const raw = searchParams.get('tunerPills');
+    if (!raw) return undefined;
+    try {
+      const pills: AgentTunerPill[] = JSON.parse(raw);
+      if (!Array.isArray(pills) || pills.length === 0) return undefined;
+      const map = deriveParameterMap(pills);
+      return Object.keys(map).length > 0 ? map : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [searchParams]);
 
   const [caller, setCaller] = useState<CallerInfo | null>(null);
   const [playbookName, setPlaybookName] = useState<string | undefined>(undefined);
@@ -114,6 +130,7 @@ export default function SimConversationPage() {
       pastCalls={caller.pastCalls}
       mode="standalone"
       sessionGoal={sessionGoal}
+      targetOverrides={targetOverrides}
       onBack={isDesktop ? undefined : () => router.push('/x/sim')}
     />
   );

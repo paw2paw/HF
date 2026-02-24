@@ -12,7 +12,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  *   and extraction status. Used by the Plan Sessions step to poll for extraction progress.
  * @pathParam domainId string - Domain UUID
  * @query subjectIds string - Comma-separated subject IDs to scope results (course-scoped)
- * @response 200 { ok, assertionCount, sourceCount, extractedSourceCount, allExtracted }
+ * @response 200 { ok, assertionCount, sourceCount, extractedSourceCount, allExtracted, questionCount, vocabularyCount }
  * @response 404 { ok: false, error: "Domain not found" }
  */
 export async function GET(
@@ -60,17 +60,26 @@ export async function GET(
     const extractedSourceCount = sources.filter((s) => s._count.assertions > 0).length;
     const assertionCount = sources.reduce((sum, s) => sum + s._count.assertions, 0);
 
-    // Check for any in-progress extraction tasks on these sources
+    // Check for recent in-progress extraction tasks (30-min staleness guard)
     let hasActiveJobs = false;
     if (sourceIds.length > 0) {
       const activeTasks = await prisma.userTask.count({
         where: {
           taskType: { in: ["extraction", "content_extraction", "course_pack_ingest"] },
           status: "in_progress",
+          createdAt: { gte: new Date(Date.now() - 30 * 60_000) },
         },
       });
       hasActiveJobs = activeTasks > 0;
     }
+
+    // Question + vocabulary counts (for enriched wizard display)
+    const questionCount = sourceIds.length > 0
+      ? await prisma.contentQuestion.count({ where: { sourceId: { in: sourceIds } } })
+      : 0;
+    const vocabularyCount = sourceIds.length > 0
+      ? await prisma.contentVocabulary.count({ where: { sourceId: { in: sourceIds } } })
+      : 0;
 
     const allExtracted = sourceCount > 0 && extractedSourceCount === sourceCount && !hasActiveJobs;
 
@@ -80,6 +89,8 @@ export async function GET(
       sourceCount,
       extractedSourceCount,
       allExtracted,
+      questionCount,
+      vocabularyCount,
     });
   } catch (error: unknown) {
     console.error("[domains/:id/content-stats] GET error:", error);

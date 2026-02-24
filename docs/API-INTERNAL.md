@@ -51,6 +51,7 @@
   - [Invites](#invites)
   - [Lab](#lab)
   - [Layers](#layers)
+  - [Lesson Plan](#lesson-plan)
   - [Logs](#logs)
   - [Media](#media)
   - [Memories](#memories)
@@ -4442,6 +4443,41 @@ Create a course via the setup wizard. Returns a task ID immediately; actual setu
 
 ## Curricula
 
+### `GET` /api/curricula
+
+List curricula, optionally filtered by subjectId.
+
+**Auth**: VIEWER · **Scope**: `curricula:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| subjectId | query | string | No | Filter to curricula linked to this subject |
+
+**Response** `200`
+```json
+{ ok, curricula: Curriculum[] }
+```
+
+---
+
+### `POST` /api/curricula
+
+Create a new curriculum, optionally linked to a subject.
+
+**Auth**: OPERATOR · **Scope**: `curricula:write`
+
+**Response** `200`
+```json
+{ ok, curriculum: { id, slug, name } }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ### `GET` /api/curricula/:curriculumId/lesson-plan
 
 Get the lesson plan for a curriculum. Returns null if no plan exists.
@@ -4976,7 +5012,7 @@ Auto-create a classroom (cohort + join link) for a domain.
 
 ### `GET` /api/domains/:domainId/content-categories
 
-Returns assertion counts grouped by category for a domain's content.
+Returns assertion counts grouped by category, plus question and vocabulary
 
 **Auth**: VIEWER · **Scope**: `domains:read`
 
@@ -4987,7 +5023,38 @@ Returns assertion counts grouped by category for a domain's content.
 
 **Response** `200`
 ```json
-{ ok, categories: Array<{ category, count }>, total }
+{ ok, categories: Array<{ category, count }>, total, questions: Array<{ questionType, count }>, vocabularyCount }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Domain not found" }
+```
+
+---
+
+### `GET` /api/domains/:domainId/content-detail
+
+Lazy-load individual content items for a group type + category.
+
+**Auth**: VIEWER · **Scope**: `domains:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | path | string | Yes | Domain UUID |
+| subjectIds | query | string | No | Comma-separated subject IDs to scope results |
+| groupType | query | string | No | "assertion" | "question" | "vocabulary" |
+| category | query | string | No | Category filter (e.g., "FACT", "MCQ", or ignored for vocabulary) |
+| limit | query | number | No | Max items to return (default 100) |
+
+**Response** `200`
+```json
+{ ok, items: Array<{ id, text, ... }> }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
 ```
 
 **Response** `404`
@@ -5010,7 +5077,7 @@ Lightweight stats for a domain's content sources — assertion count
 
 **Response** `200`
 ```json
-{ ok, assertionCount, sourceCount, extractedSourceCount, allExtracted }
+{ ok, assertionCount, sourceCount, extractedSourceCount, allExtracted, questionCount, vocabularyCount }
 ```
 
 **Response** `404`
@@ -6313,6 +6380,26 @@ List all overlay identity specs grouped by their base archetype
 ```
 
 **Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
+## Lesson Plan
+
+### `POST` /api/lesson-plan/generate
+
+Generate a multi-subject lesson plan using the content trust lesson planner.
+
+**Auth**: OPERATOR · **Scope**: `lesson-plan:write`
+
+**Response** `200`
+```json
+{ ok, plan: LessonPlan }
+```
+
+**Response** `400`
 ```json
 { ok: false, error: "..." }
 ```
@@ -11564,8 +11651,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 319 |
-| Files with annotations | 318 |
+| Route files found | 322 |
+| Files with annotations | 321 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

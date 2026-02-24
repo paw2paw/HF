@@ -72,19 +72,34 @@ type PlaybookInfo = {
   teachingMode?: TeachingMode;
 };
 
+type ContentItem = {
+  id: string;
+  text: string;
+  excluded: boolean;
+  meta?: string;
+};
+
 type ContentGroup = {
   category: string;
   count: number;
+  originalCount: number;
   teachMethod: TeachMethod;
   included: boolean;
+  groupType: "assertion" | "question" | "vocabulary";
+  expanded: boolean;
+  items: ContentItem[] | null; // null = not loaded, [] = loaded but empty
+  loadingItems: boolean;
+  itemError: string | null;
 };
 
-type LessonPlan = {
+type LessonPlanItem = {
   id: string;
+  sessionNumber: number;
   title: string;
-  method: TeachMethod;
+  sessionType: "introduce" | "deepen" | "review" | "assess" | "consolidate";
   tpCount: number;
   durationMins: number;
+  objectives: string[];
   editing: boolean;
 };
 
@@ -122,9 +137,43 @@ function categoryIcon(category: string): string {
     process: "🔄",
     rule: "📏",
     threshold: "⚠️",
+    // Question types
+    mcq: "🔘",
+    true_false: "✔️",
+    matching: "🔗",
+    short_answer: "✍️",
+    open: "💬",
+    tutor_question: "🎯",
+    information: "ℹ️",
   };
   return map[category] ?? "📌";
 }
+
+function countLabel(g: ContentGroup): string {
+  if (g.groupType === "vocabulary") return g.count === 1 ? "term" : "terms";
+  if (g.groupType === "question") return g.count === 1 ? "Q" : "Qs";
+  return g.count === 1 ? "TP" : "TPs";
+}
+
+function questionTypeToTeachMethod(qt: string): TeachMethod {
+  const map: Record<string, TeachMethod> = {
+    TRUE_FALSE: "true_false",
+    MCQ: "recall_quiz",
+    MATCHING: "matching_task",
+    SHORT_ANSWER: "guided_discussion",
+    OPEN: "guided_discussion",
+    TUTOR_QUESTION: "guided_discussion",
+  };
+  return map[qt] ?? "recall_quiz";
+}
+
+const SESSION_TYPE_STYLES: Record<string, { label: string; className: string }> = {
+  introduce: { label: "Introduce", className: "tw-badge-introduce" },
+  deepen: { label: "Deepen", className: "tw-badge-deepen" },
+  review: { label: "Review", className: "tw-badge-review" },
+  assess: { label: "Assess", className: "tw-badge-assess" },
+  consolidate: { label: "Consolidate", className: "tw-badge-consolidate" },
+};
 
 function categoryLabel(category: string): string {
   return category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -365,18 +414,32 @@ export default function TeachWizard() {
   const [contentDone, setContentDone] = useState(false);
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [extractionInProgress, setExtractionInProgress] = useState(false);
+  const [extractionTimedOut, setExtractionTimedOut] = useState(false);
   const [contentGroups, setContentGroups] = useState<ContentGroup[]>([]);
   const [contentTotal, setContentTotal] = useState(0);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [contentError, setContentError] = useState<string | null>(null);
   const extractPollRef = useRef<NodeJS.Timeout | null>(null);
+  const extractionStartRef = useRef<number>(0);
 
   // Poll for extraction completion then load categories (Bug Fix B: every 5s)
   const startExtractionPoll = useCallback(
     (domainId: string, sIds: string[]) => {
       if (extractPollRef.current) clearInterval(extractPollRef.current);
+      extractionStartRef.current = Date.now();
+      setExtractionTimedOut(false);
 
       const checkExtraction = async () => {
+        // Client-side timeout: 3 minutes max poll
+        const elapsed = Date.now() - extractionStartRef.current;
+        if (elapsed > 3 * 60_000) {
+          clearInterval(extractPollRef.current!);
+          extractPollRef.current = null;
+          setExtractionTimedOut(true);
+          // Don't clear extractionInProgress — UI shows timeout escape
+          return;
+        }
+
         try {
           const qs = sIds.length ? `?subjectIds=${sIds.join(",")}` : "";
           const res = await fetch(`/api/domains/${domainId}/content-stats${qs}`);
@@ -418,17 +481,60 @@ export default function TeachWizard() {
               return {
                 category: c.category,
                 count: c.count,
+                originalCount: c.count,
                 teachMethod: method,
-                included: weight >= 2, // checked by default if weight ≥ medium
+                included: weight >= 2,
+                groupType: "assertion" as const,
+                expanded: false,
+                items: null,
+                loadingItems: false,
+                itemError: null,
               };
             });
+
+          // Add question groups (one per questionType)
+          if (data.questions?.length) {
+            for (const q of data.questions as Array<{ questionType: string; count: number }>) {
+              if (q.count > 0) {
+                groups.push({
+                  category: q.questionType.toLowerCase(),
+                  count: q.count,
+                  originalCount: q.count,
+                  teachMethod: questionTypeToTeachMethod(q.questionType),
+                  included: true,
+                  groupType: "question",
+                  expanded: false,
+                  items: null,
+                  loadingItems: false,
+                  itemError: null,
+                });
+              }
+            }
+          }
+
+          // Add vocabulary group
+          if (data.vocabularyCount > 0) {
+            groups.push({
+              category: "vocabulary",
+              count: data.vocabularyCount,
+              originalCount: data.vocabularyCount,
+              teachMethod: "definition_matching" as TeachMethod,
+              included: true,
+              groupType: "vocabulary",
+              expanded: false,
+              items: null,
+              loadingItems: false,
+              itemError: null,
+            });
+          }
+
           // Sort: included first, then by count desc
           groups.sort((a, b) => {
             if (a.included !== b.included) return a.included ? -1 : 1;
             return b.count - a.count;
           });
           setContentGroups(groups);
-          setContentTotal(data.total);
+          setContentTotal(data.total + (data.vocabularyCount ?? 0));
         }
       } catch {
         setContentError("Could not load content categories — try refreshing");
@@ -494,6 +600,93 @@ export default function TeachWizard() {
     );
   }, []);
 
+  // Expandable row handlers
+  const fetchGroupItems = useCallback(
+    async (category: string, groupType: string) => {
+      setContentGroups((prev) =>
+        prev.map((g) =>
+          g.category === category ? { ...g, loadingItems: true, itemError: null } : g
+        )
+      );
+      try {
+        const qs = new URLSearchParams({
+          ...(subjectIds.length ? { subjectIds: subjectIds.join(",") } : {}),
+          groupType,
+          category: category.toUpperCase(),
+          limit: "100",
+        });
+        const res = await fetch(`/api/domains/${selectedDomainId}/content-detail?${qs}`);
+        const data = await res.json();
+        if (data.ok) {
+          setContentGroups((prev) =>
+            prev.map((g) =>
+              g.category === category
+                ? {
+                    ...g,
+                    items: (data.items as Array<{ id: string; term?: string; definition?: string; text?: string; questionType?: string; partOfSpeech?: string }>).map(
+                      (item) => ({
+                        id: item.id,
+                        text:
+                          groupType === "vocabulary"
+                            ? `${item.term} — ${item.definition || ""}`
+                            : item.text || "",
+                        excluded: false,
+                        meta: item.questionType || item.partOfSpeech || undefined,
+                      })
+                    ),
+                    loadingItems: false,
+                  }
+                : g
+            )
+          );
+        } else {
+          throw new Error(data.error || "Failed to load");
+        }
+      } catch {
+        setContentGroups((prev) =>
+          prev.map((g) =>
+            g.category === category
+              ? { ...g, loadingItems: false, itemError: "Couldn't load items" }
+              : g
+          )
+        );
+      }
+    },
+    [subjectIds, selectedDomainId]
+  );
+
+  const toggleExpand = useCallback(
+    (category: string) => {
+      setContentGroups((prev) =>
+        prev.map((g) => {
+          if (g.category !== category) return g;
+          if (g.expanded) return { ...g, expanded: false };
+          // Fetch items if not loaded
+          if (g.items === null) fetchGroupItems(g.category, g.groupType);
+          return { ...g, expanded: true };
+        })
+      );
+    },
+    [fetchGroupItems]
+  );
+
+  const toggleItemExclude = useCallback((category: string, itemId: string) => {
+    setContentGroups((prev) =>
+      prev.map((g) => {
+        if (g.category !== category || !g.items) return g;
+        const updatedItems = g.items.map((item) =>
+          item.id === itemId ? { ...item, excluded: !item.excluded } : item
+        );
+        const excludedCount = updatedItems.filter((i) => i.excluded).length;
+        return {
+          ...g,
+          items: updatedItems,
+          count: g.originalCount - excludedCount,
+        };
+      })
+    );
+  }, []);
+
   const includedGroups = contentGroups.filter((g) => g.included);
   const canContinueContent = includedGroups.length > 0;
 
@@ -506,13 +699,13 @@ export default function TeachWizard() {
 
   // ── Section 5 — Lesson Plan ────────────────────────
 
-  const [lessonPlan, setLessonPlan] = useState<LessonPlan[]>([]);
+  const [lessonPlan, setLessonPlan] = useState<LessonPlanItem[]>([]);
+  const [lessonPlanLoading, setLessonPlanLoading] = useState(false);
+  const [lessonPlanError, setLessonPlanError] = useState<string | null>(null);
 
-  // Generate lesson plan from included groups
-  const generateLessonPlan = useCallback(() => {
+  // Fallback: naive generation from included groups (escape route)
+  const fallbackGenerateLessonPlan = useCallback(() => {
     const included = contentGroups.filter((g) => g.included);
-
-    // Group by teachMethod for each lesson
     const methodGroups: Record<TeachMethod, ContentGroup[]> = {} as Record<
       TeachMethod,
       ContentGroup[]
@@ -521,31 +714,86 @@ export default function TeachWizard() {
       if (!methodGroups[g.teachMethod]) methodGroups[g.teachMethod] = [];
       methodGroups[g.teachMethod].push(g);
     }
-
-    const lessons: LessonPlan[] = Object.entries(methodGroups).map(
+    const lessons: LessonPlanItem[] = Object.entries(methodGroups).map(
       ([method, groups], i) => {
         const tpCount = groups.reduce((s, g) => s + g.count, 0);
         const methodCfg = TEACH_METHOD_CONFIG[method as TeachMethod];
         return {
           id: `lesson-${i + 1}`,
+          sessionNumber: i + 1,
           title: methodCfg?.label ?? method,
-          method: method as TeachMethod,
+          sessionType: "introduce" as const,
           tpCount,
           durationMins: estimateDuration(tpCount),
+          objectives: [],
           editing: false,
         };
       }
     );
-
     setLessonPlan(lessons);
   }, [contentGroups]);
 
-  // Auto-generate when section 5 becomes active (Bug Fix D: don't block on extraction)
-  useEffect(() => {
-    if (sectionStatus["lesson-plan"] === "active" && lessonPlan.length === 0) {
-      generateLessonPlan();
+  // API-backed lesson plan generation
+  const fetchLessonPlan = useCallback(async () => {
+    if (!subjectIds.length) {
+      fallbackGenerateLessonPlan();
+      return;
     }
-  }, [sectionStatus, generateLessonPlan, lessonPlan.length]);
+    setLessonPlanLoading(true);
+    setLessonPlanError(null);
+    try {
+      const res = await fetch("/api/lesson-plan/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subjectIds, sessionLength: 30 }),
+      });
+      const data = await res.json();
+      if (
+        data.ok &&
+        data.plan?.sessions?.length
+      ) {
+        setLessonPlan(
+          data.plan.sessions.map(
+            (s: { sessionNumber: number; title: string; sessionType: string; assertionIds?: string[]; questionIds?: string[]; estimatedMinutes: number; objectives?: string[] }, i: number) => ({
+              id: `lesson-${i + 1}`,
+              sessionNumber: s.sessionNumber,
+              title: s.title,
+              sessionType:
+                s.sessionType === "practice"
+                  ? "deepen"
+                  : (s.sessionType as LessonPlanItem["sessionType"]),
+              tpCount:
+                (s.assertionIds?.length ?? 0) + (s.questionIds?.length ?? 0),
+              durationMins: s.estimatedMinutes,
+              objectives: s.objectives ?? [],
+              editing: false,
+            })
+          )
+        );
+      } else {
+        // API returned no sessions — fall back to naive
+        fallbackGenerateLessonPlan();
+      }
+    } catch {
+      setLessonPlanError(
+        "Couldn't generate lesson plan — using simple grouping"
+      );
+      fallbackGenerateLessonPlan();
+    } finally {
+      setLessonPlanLoading(false);
+    }
+  }, [subjectIds, fallbackGenerateLessonPlan]);
+
+  // Auto-generate when section 5 becomes active
+  useEffect(() => {
+    if (
+      sectionStatus["lesson-plan"] === "active" &&
+      lessonPlan.length === 0 &&
+      !lessonPlanLoading
+    ) {
+      fetchLessonPlan();
+    }
+  }, [sectionStatus, fetchLessonPlan, lessonPlan.length, lessonPlanLoading]);
 
   const updateLessonTitle = useCallback(
     (id: string, title: string) => {
@@ -564,6 +812,22 @@ export default function TeachWizard() {
 
   const removeLesson = useCallback((id: string) => {
     setLessonPlan((prev) => prev.filter((l) => l.id !== id));
+  }, []);
+
+  const addLesson = useCallback(() => {
+    setLessonPlan((prev) => [
+      ...prev,
+      {
+        id: `lesson-new-${Date.now()}`,
+        sessionNumber: prev.length + 1,
+        title: "New lesson",
+        sessionType: "introduce" as const,
+        tpCount: 0,
+        durationMins: 30,
+        objectives: [],
+        editing: true,
+      },
+    ]);
   }, []);
 
   const lessonSummary =
@@ -629,6 +893,51 @@ export default function TeachWizard() {
         }).catch(() => {});
       }
 
+      // 3b. Persist lesson plan to curriculum (non-blocking, non-fatal)
+      if (subjectIds.length > 0 && lessonPlan.length > 0) {
+        try {
+          setLaunchPhase("Saving curriculum...");
+          const currRes = await fetch(`/api/curricula?subjectId=${subjectIds[0]}`);
+          const currData = await currRes.json();
+          let curriculumId = currData.curricula?.[0]?.id;
+
+          if (!curriculumId) {
+            const createRes = await fetch("/api/curricula", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: `${newCourseName || selectedPlaybook?.name || "Course"} Curriculum`,
+                subjectId: subjectIds[0],
+                domainId: selectedDomainId,
+              }),
+            });
+            const createData = await createRes.json();
+            curriculumId = createData.curriculum?.id;
+          }
+
+          if (curriculumId) {
+            await fetch(`/api/curricula/${curriculumId}/lesson-plan`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                entries: lessonPlan.map((l, i) => ({
+                  session: i + 1,
+                  type: l.sessionType,
+                  moduleId: null,
+                  moduleLabel: l.title,
+                  label: l.title,
+                  estimatedDurationMins: l.durationMins,
+                  assertionCount: l.tpCount,
+                })),
+              }),
+            });
+          }
+        } catch {
+          // Curriculum save failed — not fatal, sim still works
+          console.warn("[TeachWizard] Failed to persist curriculum — continuing");
+        }
+      }
+
       // 4. Create caller
       setLaunchPhase("Creating learner profile...");
       const callerRes = await fetch(`/api/callers`, {
@@ -678,9 +987,11 @@ export default function TeachWizard() {
   }, [
     selectedDomainId,
     selectedPlaybookId,
+    selectedPlaybook,
     newCourseName,
     teachingMode,
     subjectIds,
+    lessonPlan,
     learnerName,
     learnerEmail,
     goalText,
@@ -695,7 +1006,7 @@ export default function TeachWizard() {
     institution: "Where are you teaching?",
     course: "What are you teaching?",
     goal: "What do students need to achieve?",
-    content: "What are you teaching from?",
+    content: "Add your source materials",
     "lesson-plan": "How should lessons be structured?",
     launch: "Ready to teach",
   };
@@ -1000,14 +1311,14 @@ export default function TeachWizard() {
         </WizardSection>
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 4 — What are you teaching from?   */}
+        {/* SECTION 4 — Add your source materials     */}
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="content"
           stepNumber={4}
           status={sectionStatus.content}
-          title="What are you teaching from?"
-          hint="Upload or select your teaching materials. We'll extract teaching points and organise them by type."
+          title="Add your source materials"
+          hint="Upload a textbook chapter, worksheet, or lesson notes — the AI tutor will use them to teach your students. You can skip this and add materials later."
           summaryLabel="Content"
           summary={contentSummary}
           onEdit={() => editSection("content")}
@@ -1027,7 +1338,7 @@ export default function TeachWizard() {
           )}
 
           {/* Extraction in progress (Bug Fix B: 5s poll already running) */}
-          {contentDone && extractionInProgress && (
+          {contentDone && extractionInProgress && !extractionTimedOut && (
             <div className="tw-banner-info" style={{ marginBottom: 12 }}>
               <span className="tw-spinner" style={{ marginTop: 1 }} />
               <span>
@@ -1038,6 +1349,44 @@ export default function TeachWizard() {
                   </strong>
                 )}
               </span>
+            </div>
+          )}
+
+          {/* Extraction timeout escape */}
+          {contentDone && extractionTimedOut && (
+            <div className="tw-banner-warning" style={{ marginBottom: 12 }}>
+              <div>
+                Extraction is taking longer than expected.
+                {contentGroups.length > 0 && (
+                  <span> We found {contentTotal} teaching points so far.</span>
+                )}
+              </div>
+              <div className="tw-timeout-actions">
+                <button
+                  className="tw-btn-continue"
+                  style={{ fontSize: 12, padding: "6px 12px" }}
+                  onClick={() => {
+                    setExtractionInProgress(false);
+                    setExtractionTimedOut(false);
+                  }}
+                  type="button"
+                >
+                  Continue with what we have
+                </button>
+                <button
+                  className="tw-btn-back"
+                  style={{ fontSize: 12 }}
+                  onClick={() => {
+                    setExtractionTimedOut(false);
+                    if (selectedDomainId) {
+                      startExtractionPoll(selectedDomainId, subjectIds);
+                    }
+                  }}
+                  type="button"
+                >
+                  Keep waiting
+                </button>
+              </div>
             </div>
           )}
 
@@ -1056,25 +1405,26 @@ export default function TeachWizard() {
               </p>
 
               <div className="tw-group-list">
-                {contentGroups.map((g) => {
-                  const methodCfg = TEACH_METHOD_CONFIG[g.teachMethod];
-                  return (
+                {contentGroups.map((g) => (
+                  <div key={g.category}>
                     <div
-                      key={g.category}
                       className={`tw-group-row ${!g.included ? "tw-group-row-unchecked" : ""}`}
+                      onClick={() => toggleExpand(g.category)}
+                      style={{ cursor: "pointer" }}
                     >
                       <input
                         type="checkbox"
                         className="tw-group-check"
                         checked={g.included}
-                        onChange={() => toggleGroup(g.category)}
+                        onChange={(e) => { e.stopPropagation(); toggleGroup(g.category); }}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <span className="tw-group-icon">{categoryIcon(g.category)}</span>
                       <span className="tw-group-name">{categoryLabel(g.category)}</span>
                       <span className="tw-group-count">
-                        {g.count} TP{g.count !== 1 ? "s" : ""}
+                        {g.count} {countLabel(g)}
                       </span>
-                      <div className="tw-group-method">
+                      <div className="tw-group-method" onClick={(e) => e.stopPropagation()}>
                         <select
                           className="tw-method-select"
                           value={g.teachMethod}
@@ -1095,9 +1445,53 @@ export default function TeachWizard() {
                           ))}
                         </select>
                       </div>
+                      <ChevronRight
+                        size={14}
+                        className={`tw-group-chevron ${g.expanded ? "tw-group-chevron-open" : ""}`}
+                      />
                     </div>
-                  );
-                })}
+
+                    {/* Expanded items */}
+                    {g.expanded && (
+                      <div className="tw-group-items">
+                        {g.loadingItems && (
+                          <div className="tw-group-items-loading">
+                            <span className="tw-spinner" /> Loading...
+                          </div>
+                        )}
+                        {g.itemError && (
+                          <div className="tw-banner-error tw-group-items-error">
+                            {g.itemError}
+                          </div>
+                        )}
+                        {g.items && g.items.length === 0 && (
+                          <div className="tw-group-items-empty">No items found</div>
+                        )}
+                        {g.items && g.items.length > 0 && (
+                          <div className="tw-group-items-scroll">
+                            {g.items.map((item) => (
+                              <div
+                                key={item.id}
+                                className={`tw-group-item ${item.excluded ? "tw-group-item-excluded" : ""}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={!item.excluded}
+                                  onChange={() => toggleItemExclude(g.category, item.id)}
+                                  className="tw-group-item-check"
+                                />
+                                <span className="tw-group-item-text">{item.text}</span>
+                                {item.meta && (
+                                  <span className="tw-group-item-meta">{item.meta}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
               {!canContinueContent && (
@@ -1187,70 +1581,95 @@ export default function TeachWizard() {
           summary={lessonSummary}
           onEdit={() => editSection("lesson-plan")}
         >
-          {lessonPlan.length === 0 ? (
+          {lessonPlanLoading ? (
             <div className="tw-loading">
-              <span className="tw-spinner" /> Generating lesson plan...
+              <span className="tw-spinner" /> Generating lesson plan from your content...
+            </div>
+          ) : lessonPlan.length === 0 ? (
+            <div className="tw-banner-warning" style={{ marginTop: 8 }}>
+              No content to build lessons from.{" "}
+              <button
+                style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer" }}
+                onClick={() => editSection("content")}
+                type="button"
+              >
+                Back to content
+              </button>
             </div>
           ) : (
             <>
-              <div className="tw-lesson-list">
-                {lessonPlan.map((lesson, i) => (
-                  <div key={lesson.id} className="tw-lesson-row">
-                    <div className="tw-lesson-number">{i + 1}</div>
-                    <div className="tw-lesson-title-wrap">
-                      {lesson.editing ? (
-                        <input
-                          className="tw-lesson-title-input"
-                          value={lesson.title}
-                          onChange={(e) =>
-                            updateLessonTitle(lesson.id, e.target.value)
-                          }
-                          onBlur={() => toggleLessonEdit(lesson.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === "Escape")
-                              toggleLessonEdit(lesson.id);
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <div className="tw-lesson-title">{lesson.title}</div>
-                      )}
-                      <div className="tw-lesson-meta">
-                        {lesson.durationMins} min · {lesson.tpCount} teaching point{lesson.tpCount !== 1 ? "s" : ""}
-                      </div>
-                    </div>
-                    <button
-                      className="tw-lesson-edit-btn"
-                      onClick={() => toggleLessonEdit(lesson.id)}
-                      title="Rename"
-                      type="button"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      className="tw-lesson-remove-btn"
-                      onClick={() => removeLesson(lesson.id)}
-                      title="Remove lesson"
-                      type="button"
-                    >
-                      <XIcon size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {lessonPlan.length === 0 && (
-                <div className="tw-banner-warning" style={{ marginTop: 8 }}>
-                  No lessons generated.{" "}
-                  <button
-                    style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer" }}
-                    onClick={() => editSection("content")}
-                    type="button"
-                  >
-                    ← Back to content
-                  </button>
+              {lessonPlanError && (
+                <div className="tw-banner-warning" style={{ marginBottom: 8 }}>
+                  {lessonPlanError}
                 </div>
               )}
+
+              <div className="tw-lesson-list">
+                {lessonPlan.map((lesson, i) => {
+                  const badge = SESSION_TYPE_STYLES[lesson.sessionType];
+                  return (
+                    <div key={lesson.id} className="tw-lesson-row">
+                      <div className="tw-lesson-number">{i + 1}</div>
+                      <div className="tw-lesson-title-wrap">
+                        {lesson.editing ? (
+                          <input
+                            className="tw-lesson-title-input"
+                            value={lesson.title}
+                            onChange={(e) =>
+                              updateLessonTitle(lesson.id, e.target.value)
+                            }
+                            onBlur={() => toggleLessonEdit(lesson.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === "Escape")
+                                toggleLessonEdit(lesson.id);
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="tw-lesson-title">{lesson.title}</div>
+                        )}
+                        <div className="tw-lesson-meta">
+                          {lesson.durationMins} min · {lesson.tpCount} teaching point{lesson.tpCount !== 1 ? "s" : ""}
+                        </div>
+                        {lesson.objectives.length > 0 && (
+                          <div className="tw-lesson-objectives">
+                            {lesson.objectives.slice(0, 2).join("; ")}
+                          </div>
+                        )}
+                      </div>
+                      {badge && (
+                        <span className={`tw-session-badge ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                      <button
+                        className="tw-lesson-edit-btn"
+                        onClick={() => toggleLessonEdit(lesson.id)}
+                        title="Rename"
+                        type="button"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        className="tw-lesson-remove-btn"
+                        onClick={() => removeLesson(lesson.id)}
+                        title="Remove lesson"
+                        type="button"
+                      >
+                        <XIcon size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                className="tw-add-lesson-btn"
+                onClick={addLesson}
+                type="button"
+              >
+                <Plus size={14} /> Add lesson
+              </button>
 
               <div className="ws-continue-row">
                 <button

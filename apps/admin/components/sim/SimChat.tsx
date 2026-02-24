@@ -32,6 +32,7 @@ export interface SimChatProps {
   pastCalls?: { transcript: string; createdAt: string }[];
   mode: 'standalone' | 'embedded';
   sessionGoal?: string;
+  targetOverrides?: Record<string, number>;
   onCallEnd?: () => void;
   onNewCall?: () => void;
   onBack?: () => void;
@@ -97,6 +98,7 @@ export function SimChat({
   pastCalls,
   mode,
   sessionGoal,
+  targetOverrides,
   onCallEnd,
   onNewCall,
   onBack,
@@ -287,7 +289,7 @@ export function SimChat({
         const composeRes = await fetch(`/api/callers/${callerId}/compose-prompt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ triggerType: 'sim', ...(playbookId ? { playbookIds: [playbookId] } : {}) }),
+          body: JSON.stringify({ triggerType: 'sim', ...(playbookId ? { playbookIds: [playbookId] } : {}), ...(targetOverrides ? { targetOverrides } : {}) }),
         });
         if (composeRes.ok) {
           const composeData = await composeRes.json();
@@ -559,7 +561,7 @@ export function SimChat({
                 fetch(`/api/callers/${callerId}/compose-prompt`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ triggerType: 'post-call', ...(playbookId ? { playbookIds: [playbookId] } : {}) }),
+                  body: JSON.stringify({ triggerType: 'post-call', ...(playbookId ? { playbookIds: [playbookId] } : {}), ...(targetOverrides ? { targetOverrides } : {}) }),
                 }).then(r => r.json()).catch(() => null),
               ]).then(([artData, actData, promptData]) => {
                 const artCount = artData?.ok && artData.artifacts?.length > 0 ? artData.artifacts.length : 0;

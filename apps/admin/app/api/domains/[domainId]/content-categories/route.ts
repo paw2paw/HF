@@ -8,11 +8,11 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @scope domains:read
  * @auth VIEWER
  * @tags domains, content-trust
- * @description Returns assertion counts grouped by category for a domain's content.
- *   Used by the Teach wizard to show teachMethod group review after extraction.
+ * @description Returns assertion counts grouped by category, plus question and vocabulary
+ *   counts for a domain's content. Used by the Teach wizard to show content group review.
  * @pathParam domainId string - Domain UUID
  * @query subjectIds string - Comma-separated subject IDs to scope results
- * @response 200 { ok, categories: Array<{ category, count }>, total }
+ * @response 200 { ok, categories: Array<{ category, count }>, total, questions: Array<{ questionType, count }>, vocabularyCount }
  * @response 404 { ok: false, error: "Domain not found" }
  */
 export async function GET(
@@ -50,7 +50,7 @@ export async function GET(
     const sourceIds = sources.map((s) => s.id);
 
     if (sourceIds.length === 0) {
-      return NextResponse.json({ ok: true, categories: [], total: 0 });
+      return NextResponse.json({ ok: true, categories: [], total: 0, questions: [], vocabularyCount: 0 });
     }
 
     // Group assertions by category
@@ -68,7 +68,25 @@ export async function GET(
 
     const total = categories.reduce((sum, c) => sum + c.count, 0);
 
-    return NextResponse.json({ ok: true, categories, total });
+    // Question counts grouped by questionType
+    const questionGrouped = await prisma.contentQuestion.groupBy({
+      by: ["questionType"],
+      where: { sourceId: { in: sourceIds } },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+    });
+
+    const questions = questionGrouped.map((g) => ({
+      questionType: g.questionType,
+      count: g._count.id,
+    }));
+
+    // Total vocabulary count
+    const vocabularyCount = await prisma.contentVocabulary.count({
+      where: { sourceId: { in: sourceIds } },
+    });
+
+    return NextResponse.json({ ok: true, categories, total, questions, vocabularyCount });
   } catch (error: unknown) {
     console.error("[domains/:id/content-categories] GET error:", error);
     return NextResponse.json(

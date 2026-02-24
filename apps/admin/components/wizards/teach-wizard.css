@@ -289,6 +289,179 @@
   opacity: 0.55;
 }
 
+/* ── Expandable row chevron ──────────────────────── */
+
+.tw-group-chevron {
+  transition: transform 0.2s;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tw-group-chevron-open {
+  transform: rotate(90deg);
+}
+
+.tw-group-row:hover {
+  background: var(--surface-secondary);
+}
+
+/* ── Expanded items container ────────────────────── */
+
+.tw-group-items {
+  margin: 0 0 8px 36px;
+  border-left: 2px solid var(--border-default);
+  padding-left: 12px;
+}
+
+.tw-group-items-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tw-group-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.tw-group-item:hover {
+  background: var(--surface-secondary);
+}
+
+.tw-group-item-excluded {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.tw-group-item-check {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.tw-group-item-text {
+  flex: 1;
+}
+
+.tw-group-item-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-secondary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tw-group-items-loading {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tw-group-items-empty {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.tw-group-items-error {
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+/* ── Timeout escape ──────────────────────────────── */
+
+.tw-timeout-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ── Session type badges ─────────────────────────── */
+
+.tw-session-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tw-badge-introduce {
+  color: var(--status-info-text);
+  background: color-mix(in srgb, var(--status-info-text) 8%, transparent);
+}
+
+.tw-badge-deepen {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.tw-badge-review {
+  color: var(--status-success-text);
+  background: color-mix(in srgb, var(--status-success-text) 8%, transparent);
+}
+
+.tw-badge-assess {
+  color: var(--status-warning-text);
+  background: color-mix(in srgb, var(--status-warning-text) 8%, transparent);
+}
+
+.tw-badge-consolidate {
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+/* ── Lesson objectives ───────────────────────────── */
+
+.tw-lesson-objectives {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* ── Add lesson button ───────────────────────────── */
+
+.tw-add-lesson-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border: 1.5px dashed var(--border-default);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.tw-add-lesson-btn:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-secondary);
+  color: var(--accent-primary);
+}
+
 /* ── Lesson plan list ─────────────────────────────── */
 
 .tw-lesson-list {
