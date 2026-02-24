@@ -702,12 +702,17 @@ export default function TeachWizard() {
 
   // ── Render ─────────────────────────────────────────
 
+  const STEP_QUESTIONS: Record<SectionId, string> = {
+    institution: "Where are you teaching?",
+    course: "What are you teaching?",
+    goal: "What do students need to achieve?",
+    content: "What are you teaching from?",
+    "lesson-plan": "How should lessons be structured?",
+    launch: "Ready to teach",
+  };
+
   const activeStepLabel =
-    activeStep > 0
-      ? SECTION_ORDER[activeStep - 1]
-          .replace(/-/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase())
-      : "";
+    activeStep > 0 ? STEP_QUESTIONS[SECTION_ORDER[activeStep - 1]] : "";
 
   return (
     <div className="tw-page">
@@ -938,7 +943,7 @@ export default function TeachWizard() {
           stepNumber={3}
           status={sectionStatus.goal}
           title="What do students need to achieve?"
-          hint="Describe the learning objective. AI will suggest refinements."
+          hint="What should students be able to do or understand by the end? We'll suggest goals based on your content."
           summaryLabel="Goal"
           summary={goalText || undefined}
           onEdit={() => editSection("goal")}
@@ -946,7 +951,7 @@ export default function TeachWizard() {
           <textarea
             className="tw-textarea"
             rows={3}
-            placeholder="e.g. Understand and recall the key concepts of cell biology, including organelles and their functions"
+            placeholder="e.g. Students can recall the key facts and vocabulary from this topic"
             value={goalText}
             onChange={(e) => setGoalText(e.target.value)}
             onBlur={() => {
