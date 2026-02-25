@@ -27,6 +27,7 @@ export default function SimConversationPage() {
   const sessionGoal = searchParams.get('goal') || undefined;
   const expectedDomainId = searchParams.get('domainId') || undefined;
   const playbookId = searchParams.get('playbookId') || undefined;
+  const communityName = searchParams.get('communityName') || undefined;
 
   // Tuner pills from Teach/Demonstrate wizard — derive target overrides for prompt composition
   const targetOverrides = useMemo(() => {
@@ -126,7 +127,7 @@ export default function SimConversationPage() {
       callerName={caller.name}
       domainName={caller.domain?.name}
       playbookId={playbookId}
-      playbookName={playbookName}
+      playbookName={communityName ?? playbookName}
       pastCalls={caller.pastCalls}
       mode="standalone"
       sessionGoal={sessionGoal}

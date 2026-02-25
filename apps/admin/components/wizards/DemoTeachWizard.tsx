@@ -2491,7 +2491,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                   : [{
                       icon: <User className="w-4 h-4" />,
                       label: "Test Caller",
-                      value: "Auto-named at launch (e.g. Test L0000001)",
+                      value: "Auto-named at launch (e.g. Elise Moreau)",
                     }]),
                 ...(goalText
                   ? [
