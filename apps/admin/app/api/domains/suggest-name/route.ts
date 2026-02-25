@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
+import { getSuggestSettings } from "@/lib/system-settings";
 
 /**
  * @api POST /api/domains/suggest-name
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest) {
   }
 
   const personaSlugs = body.personaSlugs ?? [];
+  const { timeoutMs, maxInputLength } = await getSuggestSettings();
+  const truncatedBrief = brief.slice(0, maxInputLength);
 
   try {
     const personaClause = personaSlugs.length > 0
@@ -70,11 +73,12 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
           },
           {
             role: "user",
-            content: brief,
+            content: truncatedBrief,
           },
         ],
         temperature: 0.3,
         maxTokens: 300,
+        timeoutMs,
       },
       { sourceOp: "quick-launch:suggest-name" }
     );

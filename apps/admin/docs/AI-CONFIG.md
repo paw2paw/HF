@@ -226,3 +226,7 @@ This ensures:
 - The new call point appears in the AI Config admin page
 - Admins can configure the provider/model
 - Usage is tracked separately in the Metering dashboard
+- The call automatically appears in the **Logs panel** (status bar popup) with stage, tokens, and duration
+- When deep logging is enabled, full prompt + response are captured for diagnostics
+
+**Important:** Do NOT manually call `logAI()` after `getConfiguredMeteredAICompletion()` — logging is handled centrally. Adding a manual `logAI()` call will create duplicate entries in the Logs panel.

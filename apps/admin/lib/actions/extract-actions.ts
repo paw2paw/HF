@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { CallActionType, CallActionAssignee, CallActionPriority } from "@prisma/client";
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
-import { logAI } from "@/lib/logger";
+
 import { getActionSettings, ACTIONS_DEFAULTS } from "@/lib/system-settings";
 
 // =====================================================
@@ -130,11 +130,6 @@ export async function extractActions(
       { callId: call.id, callerId, sourceOp: "pipeline:extract_actions" }
     );
 
-    logAI("pipeline:extract_actions", prompt, aiResult.content, {
-      usage: aiResult.usage,
-      callId: call.id,
-      callerId,
-    });
     log.debug("AI action extraction response", { model: aiResult.model, tokens: aiResult.usage });
 
     // 5. Parse response

@@ -4542,6 +4542,19 @@ Create a course via the setup wizard. Returns a task ID immediately; actual setu
 
 ---
 
+### `POST` /api/courses/suggest-type
+
+AI-suggests the best TeachingMode for a given course name.
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+{ ok, mode, confidence }
+```
+
+---
+
 ## Curricula
 
 ### `GET` /api/curricula
@@ -11811,8 +11824,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 331 |
-| Files with annotations | 330 |
+| Route files found | 332 |
+| Files with annotations | 331 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

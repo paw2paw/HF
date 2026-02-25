@@ -15,7 +15,7 @@ import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import {
   Building2, BookOpen, User, PlayCircle, Target,
-  ChevronDown, ChevronRight, Link2, Copy, Check,
+  ChevronDown, ChevronRight, Link2, Copy, Check, Sparkles,
 } from "lucide-react";
 import { OnboardingTabContent } from "@/app/x/domains/components/OnboardingTab";
 import type { DomainDetail } from "@/app/x/domains/components/types";
@@ -1206,6 +1206,12 @@ export default function QuickLaunchPage() {
 
             <div className="ql-form-hint">
               Tell us what you&apos;re creating &mdash; a tutor, coach, support agent, or anything else.
+              <span
+                className={`hf-field-hint-ai${nameLoading ? " hf-field-hint-ai--loading" : ""}`}
+                title="AI-enhanced — we'll suggest a name, persona, and goals when you leave this field"
+              >
+                <Sparkles size={12} />
+              </span>
             </div>
             <textarea
               id="brief"

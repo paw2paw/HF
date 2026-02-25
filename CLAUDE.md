@@ -157,6 +157,43 @@ If servers fail:
 
 ---
 
+## Plan Guards (MANDATORY — Every Coding Plan)
+
+**Before writing any code** (pre-plan) AND **before declaring done** (post-plan), walk through every guard below. Flag violations explicitly. Do not skip guards because "it's a small change."
+
+### The 13 Guards
+
+| # | Guard | PRE-PLAN check | POST-PLAN check |
+|---|-------|----------------|-----------------|
+| 1 | **Dead-ends** | Will every computed value surface in UI or API? Trace the data path. | Trace every new value from creation → storage → retrieval → display. If it dead-ends, flag it. |
+| 2 | **Forever spinners** | Does the plan include loading, error, AND empty states for every async op? | Every `useState` loading flag, every `useTaskPoll`, every fetch has: timeout, error fallback, empty state. No unbounded waits. |
+| 3 | **API dead ends** | Every planned API route has at least one caller. Every planned fetch targets an existing route. | Verify: new routes are called somewhere. New fetch calls target routes that exist. No orphan endpoints. |
+| 4 | **Routes good** | Every new `route.ts` has `requireAuth()` or is documented as public/webhook-secret. | Check every new/modified `route.ts` — auth present, correct role level, correct HTTP methods. |
+| 5 | **Escape routes** | Can the user cancel, go back, or dismiss every new modal/wizard/dialog/loading state? | Every modal has close/X. Every wizard has back + cancel. Every loading state has abort or timeout. User is never trapped. |
+| 6 | **Gold UI** | Plan uses `hf-*` CSS classes, not inline styles. Colors reference CSS vars. | No new inline `style={{}}` for anything with a CSS class. No hardcoded hex. `FieldHint` on wizard intent fields. |
+| 7 | **Missing await** | — | Every async call (`ContractRegistry`, `prisma`, `fetch`, DB queries) has `await`. |
+| 8 | **Hardcoded slugs** | — | No string literals for spec slugs — all through `config.specs.*`. |
+| 9 | **TDZ shadows** | — | No `const config = ...` when `config` is imported. Use `specConfig` or another name. |
+| 10 | **Pipeline integrity** | Does the change affect data flow through the adaptive loop? If yes, plan accounts for all stages (EXTRACT → AGGREGATE → REWARD → ADAPT → COMPOSE). | New data flows through the complete loop. No stage skipped. |
+| 11 | **Seed / Migration** | Does the plan need schema changes? Flag `/vm-cpp` requirement early. New enum values, new models, new fields = migration. | Migration created if needed. Seed scripts updated if new reference data. State which deploy command is needed. |
+| 12 | **API docs** | — | If any `route.ts` was created or modified, `@api` JSDoc annotations are updated. Note to run generator. |
+| 13 | **Orphan cleanup** | — | No unused imports, dead components, orphan CSS classes, or leftover code from removed features. |
+
+### How to apply
+
+- **Pre-plan:** After designing the plan but before writing code, scan guards 1-6 and 10-11. These catch architectural mistakes that are expensive to fix later.
+- **Post-plan:** After all code is written, scan ALL 13 guards. Report findings as a checklist with pass/flag status.
+- **Format:** End every completed plan with a guard report:
+  ```
+  ## Plan Guards
+  1. Dead-ends: PASS — all values surface in [component]
+  2. Forever spinners: PASS — loading/error/empty states in [files]
+  ...
+  13. Orphan cleanup: PASS — no dead imports
+  ```
+
+---
+
 ## UI Design System (Zero Tolerance)
 
 No inline `style={{}}` for anything that has a CSS class. No hardcoded hex. No one-off styling.

@@ -6,13 +6,17 @@
  * Renders a label with an inline (?) icon. On hover/tap, shows a structured
  * popover with Why? / Effect / Examples. CSS lives in globals.css (hf-field-hint-*).
  *
+ * Optional `aiEnhanced` prop adds a sparkles icon to indicate the field has
+ * AI auto-suggest (e.g. on blur). Pass `aiLoading` to animate it during fetch.
+ *
  * Usage:
  *   <FieldHint label="Session Goal" hint={WIZARD_HINTS["teach.goal"]} />
+ *   <FieldHint label="Session Goal" hint={WIZARD_HINTS["teach.goal"]} aiEnhanced aiLoading={loading} />
  *   <FieldHint label="Join Link" hint={hint} labelClass="wiz-section-label" />
  */
 
 import { useState, useCallback } from "react";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Sparkles } from "lucide-react";
 
 export interface FieldHintContent {
   /** What is this for? */
@@ -28,9 +32,13 @@ interface FieldHintProps {
   hint: FieldHintContent;
   /** CSS class for the outer label div. Defaults to "dtw-section-label". */
   labelClass?: string;
+  /** Show sparkles icon to indicate AI auto-suggest on this field. */
+  aiEnhanced?: boolean;
+  /** Animate the sparkles icon while AI is fetching suggestions. */
+  aiLoading?: boolean;
 }
 
-export function FieldHint({ label, hint, labelClass = "dtw-section-label" }: FieldHintProps) {
+export function FieldHint({ label, hint, labelClass = "dtw-section-label", aiEnhanced, aiLoading }: FieldHintProps) {
   const [tapped, setTapped] = useState(false);
 
   const handleTap = useCallback((e: React.MouseEvent) => {
@@ -45,6 +53,14 @@ export function FieldHint({ label, hint, labelClass = "dtw-section-label" }: Fie
     <div className={labelClass}>
       <span className="hf-field-hint-wrap">
         {label}
+        {aiEnhanced && (
+          <span
+            className={`hf-field-hint-ai${aiLoading ? " hf-field-hint-ai--loading" : ""}`}
+            title="AI-enhanced — suggestions appear when you leave this field"
+          >
+            <Sparkles size={13} />
+          </span>
+        )}
         <button
           type="button"
           className={`hf-field-hint-trigger${tapped ? " hf-field-hint-trigger--active" : ""}`}

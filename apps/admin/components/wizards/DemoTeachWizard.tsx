@@ -669,6 +669,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
 
   // ── Fetch AI goal suggestions ─────────────────────
 
+  const suggestAbortRef = useRef<AbortController | null>(null);
+
   const fetchSuggestions = useCallback(
     async (forceText?: string) => {
       if (!selectedDomainId) return;
@@ -677,13 +679,20 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       if (text === lastSuggestText.current && suggestions.length > 0) return;
       lastSuggestText.current = text;
       const thisId = ++suggestFetchId.current;
+
+      // Abort any in-flight request
+      suggestAbortRef.current?.abort();
+      const controller = new AbortController();
+      suggestAbortRef.current = controller;
+      const timeout = setTimeout(() => controller.abort(), 12_000); // 12s client safety net (server: 10s)
+
       setLoadingSuggestions(true);
       setSuggestionsError(false);
       try {
         const params = new URLSearchParams({ domainId: selectedDomainId });
         if (selectedCallerId) params.set("callerId", selectedCallerId);
         if (text) params.set("currentGoal", text);
-        const res = await fetch(`/api/demonstrate/suggest?${params}`);
+        const res = await fetch(`/api/demonstrate/suggest?${params}`, { signal: controller.signal });
         const data = await res.json();
         // Only update state from the most recent request (prevents race conditions)
         if (suggestFetchId.current !== thisId) return;
@@ -694,10 +703,13 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           setSuggestionsError(true);
         }
       } catch (e) {
-        console.warn("[Teach] Suggest API failed:", e);
         if (suggestFetchId.current !== thisId) return;
+        if ((e as Error).name !== "AbortError") {
+          console.warn("[Teach] Suggest API failed:", e);
+        }
         setSuggestionsError(true);
       } finally {
+        clearTimeout(timeout);
         // Only clear loading if this is still the latest request
         if (suggestFetchId.current === thisId) {
           setLoadingSuggestions(false);
@@ -1770,7 +1782,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       {/* ═══════════════════════════════════════════════ */}
       {currentStep === 1 && (
         <div className="dtw-section">
-          <FieldHint label="Session Goal" hint={WIZARD_HINTS["teach.goal"]} />
+          <FieldHint label="Session Goal" hint={WIZARD_HINTS["teach.goal"]} aiEnhanced aiLoading={loadingSuggestions} />
           <textarea
             className="dtw-textarea"
             value={goalText}

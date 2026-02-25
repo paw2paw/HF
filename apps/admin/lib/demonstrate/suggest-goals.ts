@@ -14,10 +14,12 @@ interface SuggestGoalsParams {
   domainId: string;
   callerId?: string;
   currentGoal?: string;
+  /** Server-side AI timeout (ms). Loaded from SuggestSettings by caller. */
+  timeoutMs?: number;
 }
 
 export async function suggestGoals(params: SuggestGoalsParams): Promise<string[]> {
-  const { domainId, callerId, currentGoal } = params;
+  const { domainId, callerId, currentGoal, timeoutMs } = params;
 
   // Load domain + caller context in parallel (caller queries skipped when no callerId)
   const [domain, caller, recentCalls, memorySummary] = await Promise.all([
@@ -115,6 +117,7 @@ export async function suggestGoals(params: SuggestGoalsParams): Promise<string[]
         ],
         temperature: 0.7,
         maxTokens: 300,
+        ...(timeoutMs ? { timeoutMs } : {}),
       },
       { sourceOp: "demonstrate.suggest" },
     );

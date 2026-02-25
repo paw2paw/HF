@@ -832,6 +832,62 @@ export const TEACHING_MODE_ORDER: TeachingMode[] = [
   "syllabus",
 ];
 
+// ── Course Type Suggestion ───────────────────────────────────────────────────
+
+/**
+ * Keyword → TeachingMode map for instant client-side suggestion.
+ * Multi-word keys are checked first (longest match wins).
+ */
+const TEACHING_MODE_KEYWORDS: Record<string, TeachingMode> = {
+  // recall — fact-heavy subjects
+  history: "recall", biology: "recall", geography: "recall",
+  science: "recall", chemistry: "recall",
+  anatomy: "recall", psychology: "recall", sociology: "recall",
+  economics: "recall", politics: "recall", law: "recall",
+  medicine: "recall", nursing: "recall", pharmacology: "recall",
+  gcse: "recall", "a-level": "recall", "a level": "recall",
+  revision: "recall", quiz: "recall", flashcard: "recall",
+  // comprehension — reading / analysis / discussion
+  english: "comprehension", literature: "comprehension",
+  french: "comprehension", spanish: "comprehension", german: "comprehension",
+  language: "comprehension", languages: "comprehension",
+  philosophy: "comprehension", ethics: "comprehension", theology: "comprehension",
+  negotiation: "comprehension", communication: "comprehension",
+  leadership: "comprehension", management: "comprehension",
+  marketing: "comprehension", sales: "comprehension",
+  debate: "comprehension", rhetoric: "comprehension", writing: "comprehension",
+  "creative writing": "comprehension", comprehension: "comprehension",
+  // practice — problem-solving
+  maths: "practice", math: "practice", mathematics: "practice",
+  accounting: "practice", statistics: "practice", calculus: "practice",
+  algebra: "practice", programming: "practice", coding: "practice",
+  engineering: "practice", finance: "practice", physics: "practice",
+  "problem solving": "practice",
+  // syllabus — structured coverage / compliance
+  "food safety": "syllabus", "health and safety": "syllabus",
+  btec: "syllabus", apprenticeship: "syllabus", apprenticeships: "syllabus",
+  compliance: "syllabus", certification: "syllabus",
+  induction: "syllabus", onboarding: "syllabus",
+  gdpr: "syllabus", safeguarding: "syllabus", "first aid": "syllabus",
+};
+
+/** Sorted entries — longest key first so multi-word keys match before substrings */
+const KEYWORD_ENTRIES = Object.entries(TEACHING_MODE_KEYWORDS)
+  .sort((a, b) => b[0].length - a[0].length);
+
+/**
+ * Suggest a TeachingMode from a course name using keyword matching.
+ * Returns null if no keyword matches — caller should fall back to AI.
+ */
+export function suggestTeachingMode(courseName: string): TeachingMode | null {
+  if (!courseName || courseName.trim().length < 3) return null;
+  const lower = courseName.toLowerCase();
+  for (const [keyword, mode] of KEYWORD_ENTRIES) {
+    if (lower.includes(keyword)) return mode;
+  }
+  return null;
+}
+
 // ── Teach Method ─────────────────────────────────────────────────────────────
 
 /**

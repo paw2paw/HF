@@ -2234,6 +2234,30 @@ html.light {
   position: relative;
 }
 
+.hf-field-hint-ai {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+.hf-field-hint-ai--loading {
+  opacity: 1;
+  animation: hf-sparkle-pulse 1.2s ease-in-out infinite;
+}
+@keyframes hf-sparkle-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hf-field-hint-ai--loading {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .hf-field-hint-trigger {
   display: inline-flex;
   align-items: center;

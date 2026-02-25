@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { suggestGoals } from "@/lib/demonstrate/suggest-goals";
+import { getSuggestSettings } from "@/lib/system-settings";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth("OPERATOR");
@@ -32,7 +33,21 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const suggestions = await suggestGoals({ domainId, callerId: callerId || undefined, currentGoal });
+  try {
+    const { timeoutMs } = await getSuggestSettings();
+    const suggestions = await suggestGoals({
+      domainId,
+      callerId: callerId || undefined,
+      currentGoal,
+      timeoutMs,
+    });
 
-  return NextResponse.json({ ok: true, suggestions });
+    return NextResponse.json({ ok: true, suggestions });
+  } catch (e) {
+    console.error("[demonstrate/suggest] Unhandled error:", e);
+    return NextResponse.json(
+      { ok: false, error: "Failed to generate suggestions" },
+      { status: 500 },
+    );
+  }
 }

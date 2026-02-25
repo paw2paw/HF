@@ -14,11 +14,12 @@ import { prisma } from "@/lib/prisma";
 const DEEP_LOGGING_KEY = "deep_logging_enabled";
 
 /**
- * Check if deep logging is enabled (default: false).
+ * Check if deep logging is enabled (default: true for market test).
  * Uses 30s TTL cache from system-settings — near-zero overhead per AI call.
+ * TODO(prod-launch): Reset default to false before production launch.
  */
 export async function isDeepLoggingEnabled(): Promise<boolean> {
-  return getSystemSetting(DEEP_LOGGING_KEY, false);
+  return getSystemSetting(DEEP_LOGGING_KEY, true);
 }
 
 /**

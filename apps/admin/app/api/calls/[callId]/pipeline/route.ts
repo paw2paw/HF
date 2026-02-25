@@ -34,7 +34,7 @@ import { config as appConfig } from "@/lib/config";
 import { updateCurriculumProgress, getCurriculumProgress, completeModule } from "@/lib/curriculum/track-progress";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
-import { logAI } from "@/lib/logger";
+
 import { TRAITS } from "@/lib/registry";
 import { recoverBrokenJson } from "@/lib/utils/json-recovery";
 import { executeComposition, persistComposedPrompt, loadComposeConfig } from "@/lib/prompt/composition";
@@ -424,7 +424,6 @@ async function runBatchedCallerAnalysis(
         ],
       }, { callId: call.id, callerId, sourceOp: "pipeline:extract" });
 
-      logAI("pipeline:extract", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
       log.debug("AI caller analysis response", { model: result.model, tokens: result.usage });
 
       // Parse response with recovery for truncated LLM output
@@ -667,7 +666,6 @@ async function runBatchedAgentAnalysis(
         maxTokens: estimatedTokens,
       }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent" });
 
-      logAI("pipeline:score_agent", prompt, result.content, { usage: result.usage, callId: call.id, callerId });
       log.debug("AI agent analysis response", { model: result.model, contentLength: result.content.length });
 
       // Parse response with recovery for truncated LLM output
@@ -1168,7 +1166,7 @@ async function runAdaptSpecs(
         temperature: aiSettings.temperature,
       }, { callId, callerId, sourceOp: "pipeline:adapt" });
 
-      logAI("pipeline:adapt", prompt, result.content, { usage: result.usage, callId, callerId });
+      // logAI now handled centrally by getConfiguredMeteredAICompletion
 
       // Parse response with recovery for truncated LLM output
       const { parsed, recovered: adaptRecovered, fixesApplied: adaptFixes } = recoverBrokenJson(result.content, "pipeline:adapt");

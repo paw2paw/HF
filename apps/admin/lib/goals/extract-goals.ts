@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { GoalType, GoalStatus, Goal } from "@prisma/client";
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
-import { logAI } from "@/lib/logger";
+
 import { getGoalSettings, type GoalSettings } from "@/lib/system-settings";
 
 // =====================================================
@@ -147,11 +147,6 @@ export async function extractGoals(
       { callId: call.id, callerId, sourceOp: "pipeline:extract_goals" }
     );
 
-    logAI("pipeline:extract_goals", prompt, aiResult.content, {
-      usage: aiResult.usage,
-      callId: call.id,
-      callerId,
-    });
     log.debug("AI goal extraction response", { model: aiResult.model, tokens: aiResult.usage });
 
     // 6. Parse response (handle markdown fences)

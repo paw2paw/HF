@@ -80,6 +80,22 @@
   background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
 }
 
+.tw-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--accent-primary);
+  transition: background 0.12s, color 0.12s;
+}
+
+.tw-chip-remove:hover {
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
 /* ── Intent badge ─────────────────────────────────── */
 
 .tw-intent-badge {
@@ -145,6 +161,23 @@
 .tw-intent-card-examples {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.tw-intent-card-suggested {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 3%, transparent);
+}
+
+.tw-suggested-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  border-radius: 4px;
+  vertical-align: middle;
 }
 
 /* ── Inline form ─────────────────────────────────── */
@@ -758,4 +791,123 @@
   font-size: 13px;
   color: var(--text-muted);
   margin-top: 8px;
+}
+
+/* ── Two-phase extraction progress ─────────────────── */
+
+.tw-extraction-progress {
+  margin-bottom: 16px;
+}
+
+.tw-extract-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tw-extract-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tw-extract-elapsed {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.tw-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-secondary);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.tw-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent-primary);
+  transition: width 0.5s ease-out;
+}
+
+.tw-progress-fill--indeterminate {
+  width: 30%;
+  animation: tw-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes tw-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.tw-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Quick preview ─────────────────────────────────── */
+
+.tw-quick-preview-wrap {
+  margin-bottom: 12px;
+}
+
+.tw-quick-preview-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-success-text);
+  flex-shrink: 0;
+}
+
+.tw-quick-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.tw-quick-preview-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--surface-secondary);
+  font-size: 13px;
+}
+
+.tw-quick-preview-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tw-quick-preview-text {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.tw-quick-preview-cat {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-primary);
+  flex-shrink: 0;
+  white-space: nowrap;
 }

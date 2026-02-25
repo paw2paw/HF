@@ -3,14 +3,14 @@
 /**
  * TeachWizard — single-page progressive accordion for the Teach flow.
  *
- * 6 sections: institution → course (+ intent) → goal → content → lesson-plan → launch
+ * 7 sections: institution → course (+ intent) → goal → upload → review → lesson-plan → launch
  *
  * Design principles:
  * - SectionStatus state machine: locked / active / done
  * - CASCADE constant drives which sections re-lock when a prior section is edited
  * - All enum labels come from resolve-config.ts (no hardcodes in JSX)
- * - Bug fixes: A (no auto-advance after upload), B (5s poll during extraction),
- *   C (contentCount from assertions not sources), D (don't block lesson plan on extraction)
+ * - Upload (step 4) auto-advances to Review (step 5) — teacher never blocked
+ * - Review shows two-phase extraction progress (quick preview + enrichment)
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -30,12 +30,14 @@ import WizardProgress from "@/components/shared/WizardProgress";
 import { PackUploadStep } from "./PackUploadStep";
 import type { PackUploadResult } from "./PackUploadStep";
 import { CreateInstitutionModal } from "./CreateInstitutionModal";
+import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
 import {
   TEACHING_MODE_LABELS,
   TEACHING_MODE_ORDER,
   TEACH_METHOD_CONFIG,
   categoryToTeachMethod,
   intentCategoryWeights,
+  suggestTeachingMode,
   type TeachingMode,
   type TeachMethod,
 } from "@/lib/content-trust/resolve-config";
@@ -47,7 +49,8 @@ const SECTION_ORDER = [
   "institution",
   "course",
   "goal",
-  "content",
+  "upload",
+  "review",
   "lesson-plan",
   "launch",
 ] as const;
@@ -55,10 +58,11 @@ const SECTION_ORDER = [
 type SectionId = (typeof SECTION_ORDER)[number];
 
 const CASCADE: Record<SectionId, SectionId[]> = {
-  institution: ["course", "goal", "content", "lesson-plan", "launch"],
-  course: ["content", "lesson-plan"],
+  institution: ["course", "goal", "upload", "review", "lesson-plan", "launch"],
+  course: ["upload", "review", "lesson-plan"],
   goal: [],
-  content: ["lesson-plan"],
+  upload: ["review", "lesson-plan"],
+  review: ["lesson-plan"],
   "lesson-plan": [],
   launch: [],
 };
@@ -199,7 +203,8 @@ export default function TeachWizard() {
     institution: "active",
     course: "locked",
     goal: "locked",
-    content: "locked",
+    upload: "locked",
+    review: "locked",
     "lesson-plan": "locked",
     launch: "locked",
   });
@@ -224,6 +229,25 @@ export default function TeachWizard() {
       }
       return next;
     });
+
+    // Reset review state when re-editing upload
+    if (id === "upload") {
+      setContentDone(false);
+      setContentGroups([]);
+      setContentTotal(0);
+      setExtractionInProgress(false);
+      setExtractionTaskId(null);
+      setExtractionTimedOut(false);
+      setQuickPreview([]);
+      setExtractProgress({ current: 0, total: 0, extracted: 0 });
+      setExtractElapsed(0);
+      setContentError(null);
+      setUploadSourceCount(0);
+      if (extractPollRef.current) {
+        clearInterval(extractPollRef.current);
+        extractPollRef.current = null;
+      }
+    }
   }, []);
 
   // Derive the current active step number (1-indexed) for WizardProgress
@@ -267,6 +291,8 @@ export default function TeachWizard() {
   const [showNewCourseForm, setShowNewCourseForm] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [teachingMode, setTeachingMode] = useState<TeachingMode>("recall");
+  const [suggestedMode, setSuggestedMode] = useState<TeachingMode | null>(null);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [existingCourses, setExistingCourses] = useState<ExistingCourseInfo[]>([]);
   const [existingSubjects, setExistingSubjects] = useState<ExistingSubjectInfo[]>([]);
 
@@ -347,6 +373,38 @@ export default function TeachWizard() {
       .finally(() => setLoadingPlaybooks(false));
   }, [selectedDomainId, sectionStatus.course]);
 
+  // ── Course type suggestion from name ──────────────────
+  useEffect(() => {
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    const name = newCourseName.trim();
+    if (name.length < 3) { setSuggestedMode(null); return; }
+
+    // Instant keyword match
+    const keywordHit = suggestTeachingMode(name);
+    if (keywordHit) { setSuggestedMode(keywordHit); return; }
+
+    // AI fallback — debounce 600ms, only for longer names
+    if (name.length < 10) { setSuggestedMode(null); return; }
+    suggestTimerRef.current = setTimeout(() => {
+      fetch("/api/courses/suggest-type", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseName: name }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok && data.mode && data.confidence >= 0.5) {
+            setSuggestedMode(data.mode);
+          } else {
+            setSuggestedMode(null);
+          }
+        })
+        .catch(() => setSuggestedMode(null));
+    }, 600);
+
+    return () => { if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current); };
+  }, [newCourseName]);
+
   const selectedDomain = domains.find((d) => d.id === selectedDomainId);
 
   const handleSelectPlaybook = useCallback(
@@ -354,10 +412,14 @@ export default function TeachWizard() {
       setSelectedPlaybookId(pb.id);
       if (pb.teachingMode) setTeachingMode(pb.teachingMode);
       setShowNewCourseForm(false);
-      completeSection("course");
     },
-    [completeSection]
+    []
   );
+
+  const handleDeselectPlaybook = useCallback(() => {
+    setSelectedPlaybookId(null);
+    setShowNewCourseForm(false);
+  }, []);
 
   const handleNewCourseConfirm = useCallback(() => {
     if (!newCourseName.trim()) return;
@@ -378,38 +440,56 @@ export default function TeachWizard() {
   const [goalText, setGoalText] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState(false);
   const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>([]);
   const lastSuggestText = useRef("");
   const suggestFetchId = useRef(0);
+  const suggestAbortRef = useRef<AbortController | null>(null);
 
   const fetchSuggestions = useCallback(
     async (text: string) => {
       if (!selectedDomainId || text.length < 10) return;
-      if (text === lastSuggestText.current) return;
+      if (text === lastSuggestText.current && suggestions.length > 0) return;
       lastSuggestText.current = text;
       const id = ++suggestFetchId.current;
+
+      // Abort any in-flight request
+      suggestAbortRef.current?.abort();
+      const controller = new AbortController();
+      suggestAbortRef.current = controller;
+      const timeout = setTimeout(() => controller.abort(), 12_000); // 12s client safety net (server: 10s)
+
       setLoadingSuggestions(true);
+      setSuggestionsError(false);
       try {
         const params = new URLSearchParams({ domainId: selectedDomainId, currentGoal: text });
-        const res = await fetch(`/api/demonstrate/suggest?${params}`);
+        const res = await fetch(`/api/demonstrate/suggest?${params}`, { signal: controller.signal });
         const data = await res.json();
-        if (id === suggestFetchId.current && data.ok && data.suggestions) {
+        if (id !== suggestFetchId.current) return;
+        if (data.ok && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
           setSuggestions(data.suggestions);
+        } else {
+          setSuggestionsError(true);
         }
-      } catch {
-        // silent
+      } catch (e) {
+        if (id !== suggestFetchId.current) return;
+        if ((e as Error).name !== "AbortError") {
+          console.warn("[TeachWizard] Suggest API failed:", e);
+        }
+        setSuggestionsError(true);
       } finally {
+        clearTimeout(timeout);
         if (id === suggestFetchId.current) setLoadingSuggestions(false);
       }
     },
-    [selectedDomainId]
+    [selectedDomainId, suggestions.length]
   );
 
   const handleTunerChange = useCallback((output: AgentTunerOutput) => {
     setTunerPills(output.pills);
   }, []);
 
-  // ── Section 4 — Content ────────────────────────────
+  // ── Section 4 (Upload) + Section 5 (Review) ───────
 
   const [contentDone, setContentDone] = useState(false);
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
@@ -421,6 +501,13 @@ export default function TeachWizard() {
   const [contentError, setContentError] = useState<string | null>(null);
   const extractPollRef = useRef<NodeJS.Timeout | null>(null);
   const extractionStartRef = useRef<number>(0);
+
+  // Two-phase extraction (task-based polling, like DemoTeachWizard)
+  const [extractionTaskId, setExtractionTaskId] = useState<string | null>(null);
+  const [extractProgress, setExtractProgress] = useState({ current: 0, total: 0, extracted: 0 });
+  const [extractElapsed, setExtractElapsed] = useState(0);
+  const [quickPreview, setQuickPreview] = useState<Array<{ text: string; category: string }>>([]);
+  const [uploadSourceCount, setUploadSourceCount] = useState(0);
 
   // Poll for extraction completion then load categories (Bug Fix B: every 5s)
   const startExtractionPoll = useCallback(
@@ -552,10 +639,57 @@ export default function TeachWizard() {
     };
   }, []);
 
+  // ── Extraction polling via useTaskPoll (two-phase, like DemoTeachWizard) ──
+  useTaskPoll({
+    taskId: extractionTaskId,
+    intervalMs: 2000,
+    onProgress: useCallback((task: PollableTask) => {
+      const ctx = task.context || {};
+      setExtractProgress({
+        current: ctx.currentChunk || 0,
+        total: ctx.totalChunks || 0,
+        extracted: ctx.extractedCount || 0,
+      });
+      if (ctx.quickPreview?.length > 0) {
+        setQuickPreview((prev) => prev.length === 0 ? ctx.quickPreview : prev);
+      }
+    }, []),
+    onComplete: useCallback((task: PollableTask) => {
+      const ctx = task.context || {};
+      setExtractionTaskId(null);
+      setExtractionInProgress(false);
+      setQuickPreview([]);
+      const count = ctx.importedCount || ctx.extractedCount || 0;
+      setContentTotal(count);
+      if (selectedDomainId) {
+        loadCategoryGroups(selectedDomainId, subjectIds);
+      }
+    }, [selectedDomainId, subjectIds, loadCategoryGroups]),
+    onError: useCallback((msg: string) => {
+      setExtractionTaskId(null);
+      setExtractionInProgress(false);
+      setContentError(msg);
+    }, []),
+  });
+
+  // Elapsed time counter while extraction task is running
+  useEffect(() => {
+    if (!extractionTaskId) { setExtractElapsed(0); return; }
+    const interval = setInterval(() => setExtractElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, [extractionTaskId]);
+
+  // ── handlePackResult — auto-advances from Upload to Review ──
   const handlePackResult = useCallback(
     (result: PackUploadResult) => {
       if (result.mode === "skip") {
-        completeSection("content");
+        // Skip both upload AND review — go straight to lesson-plan
+        setSectionStatus((prev) => ({
+          ...prev,
+          upload: "done" as SectionStatus,
+          review: "done" as SectionStatus,
+          "lesson-plan": "active" as SectionStatus,
+        }));
         return;
       }
 
@@ -568,12 +702,15 @@ export default function TeachWizard() {
       }
       setSubjectIds(newSubjectIds);
       setContentDone(true);
+      setUploadSourceCount(result.sourceCount ?? 0);
 
       if (result.mode === "pack-upload") {
-        // Bug Fix A: do NOT auto-advance. Stay on Section 4.
-        // Bug Fix B: start polling for extraction
+        // Start extraction: prefer task-based polling (two-phase UI)
         setExtractionInProgress(true);
-        if (selectedDomainId) {
+        if (result.taskId) {
+          setExtractionTaskId(result.taskId);
+        } else if (selectedDomainId) {
+          // Fallback: no taskId, use content-stats polling
           startExtractionPoll(selectedDomainId, newSubjectIds);
         }
       } else {
@@ -582,6 +719,9 @@ export default function TeachWizard() {
           loadCategoryGroups(selectedDomainId, newSubjectIds);
         }
       }
+
+      // Auto-advance: complete upload, open review
+      completeSection("upload");
     },
     [selectedDomainId, completeSection, startExtractionPoll, loadCategoryGroups]
   );
@@ -1006,7 +1146,8 @@ export default function TeachWizard() {
     institution: "Where are you teaching?",
     course: "What are you teaching?",
     goal: "What do students need to achieve?",
-    content: "Add your source materials",
+    upload: "Add your source materials",
+    review: "Review your content",
     "lesson-plan": "How should lessons be structured?",
     launch: "Ready to teach",
   };
@@ -1135,17 +1276,30 @@ export default function TeachWizard() {
                   {playbooks.map((pb) => {
                     const mode = pb.teachingMode ?? "recall";
                     const modeLabel = TEACHING_MODE_LABELS[mode];
+                    const isSelected = selectedPlaybookId === pb.id && !showNewCourseForm;
                     return (
                       <button
                         key={pb.id}
-                        className={`tw-chip ${selectedPlaybookId === pb.id && !showNewCourseForm ? "tw-chip-selected" : ""}`}
-                        onClick={() => handleSelectPlaybook(pb)}
+                        className={`tw-chip ${isSelected ? "tw-chip-selected" : ""}`}
+                        onClick={() => isSelected ? handleDeselectPlaybook() : handleSelectPlaybook(pb)}
                         type="button"
                       >
                         {pb.name}
                         <span className="tw-intent-badge">
                           {modeLabel.icon} {modeLabel.label}
                         </span>
+                        {isSelected && (
+                          <span
+                            className="tw-chip-remove"
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); handleDeselectPlaybook(); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); handleDeselectPlaybook(); } }}
+                            aria-label="Remove course selection"
+                          >
+                            <XIcon size={14} />
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -1181,15 +1335,19 @@ export default function TeachWizard() {
                     <div className="tw-intent-picker">
                       {TEACHING_MODE_ORDER.map((mode) => {
                         const cfg = TEACHING_MODE_LABELS[mode];
+                        const isSuggested = suggestedMode === mode && teachingMode !== mode;
                         return (
                           <button
                             key={mode}
-                            className={`tw-intent-card ${teachingMode === mode ? "tw-intent-card-selected" : ""}`}
+                            className={`tw-intent-card ${teachingMode === mode ? "tw-intent-card-selected" : ""} ${isSuggested ? "tw-intent-card-suggested" : ""}`}
                             onClick={() => setTeachingMode(mode)}
                             type="button"
                           >
                             <div className="tw-intent-card-icon">{cfg.icon}</div>
-                            <div className="tw-intent-card-label">{cfg.label}</div>
+                            <div className="tw-intent-card-label">
+                              {cfg.label}
+                              {suggestedMode === mode && <span className="tw-suggested-badge">Suggested</span>}
+                            </div>
                             <div className="tw-intent-card-examples">{cfg.examples}</div>
                           </button>
                         );
@@ -1259,6 +1417,8 @@ export default function TeachWizard() {
           summaryLabel="Goal"
           summary={goalText || undefined}
           onEdit={() => editSection("goal")}
+          aiEnhanced
+          aiLoading={loadingSuggestions}
         >
           <textarea
             className="tw-textarea"
@@ -1272,7 +1432,7 @@ export default function TeachWizard() {
           />
 
           {/* AI suggestions */}
-          {(loadingSuggestions || suggestions.length > 0) && (
+          {(loadingSuggestions || suggestions.length > 0 || suggestionsError) && (
             <div>
               <p className="tw-hint" style={{ marginBottom: 6 }}>
                 Suggestions:
@@ -1281,7 +1441,7 @@ export default function TeachWizard() {
                 <div className="tw-loading">
                   <span className="tw-spinner" /> Generating suggestions...
                 </div>
-              ) : (
+              ) : suggestions.length > 0 ? (
                 <div className="tw-suggestions">
                   {suggestions.slice(0, 4).map((s, i) => (
                     <button
@@ -1294,7 +1454,17 @@ export default function TeachWizard() {
                     </button>
                   ))}
                 </div>
-              )}
+              ) : suggestionsError ? (
+                <div className="tw-suggestions">
+                  <button
+                    className="tw-suggestion-chip"
+                    onClick={() => { lastSuggestText.current = ""; fetchSuggestions(goalText.trim()); }}
+                    type="button"
+                  >
+                    Retry suggestions
+                  </button>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -1323,20 +1493,25 @@ export default function TeachWizard() {
         </WizardSection>
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 4 — Add your source materials     */}
+        {/* SECTION 4 — Upload source materials        */}
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
-          id="content"
+          id="upload"
           stepNumber={4}
-          status={sectionStatus.content}
+          status={sectionStatus.upload}
           title="Add your source materials"
-          hint="Upload a textbook chapter, worksheet, or lesson notes — the AI tutor will use them to teach your students. You can skip this and add materials later."
-          summaryLabel="Content"
-          summary={contentSummary}
-          onEdit={() => editSection("content")}
+          hint="Upload a textbook chapter, worksheet, or lesson notes. You can skip this and add materials later."
+          summaryLabel="Upload"
+          summary={
+            uploadSourceCount > 0
+              ? `${uploadSourceCount} file${uploadSourceCount !== 1 ? "s" : ""} uploaded`
+              : subjectIds.length > 0
+                ? "Content selected"
+                : undefined
+          }
+          onEdit={() => editSection("upload")}
         >
-          {/* PackUploadStep handles file selection + upload */}
-          {!contentDone && selectedDomainId && (
+          {selectedDomainId && (
             <PackUploadStep
               domainId={selectedDomainId}
               domainSlug={selectedDomain?.slug}
@@ -1348,24 +1523,95 @@ export default function TeachWizard() {
               onResult={handlePackResult}
             />
           )}
+        </WizardSection>
 
-          {/* Extraction in progress (Bug Fix B: 5s poll already running) */}
-          {contentDone && extractionInProgress && !extractionTimedOut && (
+        {/* ═══════════════════════════════════════════ */}
+        {/* SECTION 5 — Review your content            */}
+        {/* ═══════════════════════════════════════════ */}
+        <WizardSection
+          id="review"
+          stepNumber={5}
+          status={sectionStatus.review}
+          title="Review your content"
+          hint="Check what we found in your materials. Toggle groups on/off and choose how each should be taught."
+          summaryLabel="Content"
+          summary={contentSummary}
+          onEdit={() => editSection("review")}
+        >
+          {/* Two-phase extraction progress (task-based, pack-upload path) */}
+          {extractionInProgress && extractionTaskId && !extractionTimedOut && (
+            <div className="tw-extraction-progress">
+              {quickPreview.length > 0 ? (
+                <div className="tw-quick-preview-wrap">
+                  <div className="tw-extract-status">
+                    <div className="tw-quick-preview-dot" />
+                    <span className="tw-extract-label">
+                      Quick scan — {quickPreview.length} key points found
+                    </span>
+                  </div>
+                  <div className="tw-quick-preview-list">
+                    {quickPreview.map((item, i) => (
+                      <div key={i} className="tw-quick-preview-item">
+                        <span className="tw-quick-preview-num">{i + 1}</span>
+                        <span className="tw-quick-preview-text">{item.text}</span>
+                        <span className="tw-quick-preview-cat">{item.category}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="tw-extract-status">
+                  <span className="tw-spinner" />
+                  <span className="tw-extract-label">Scanning document...</span>
+                  <span className="tw-extract-elapsed">{extractElapsed}s</span>
+                </div>
+              )}
+
+              {quickPreview.length > 0 && (
+                <div className="tw-extract-status" style={{ marginTop: 8 }}>
+                  <span className="tw-spinner" />
+                  <span className="tw-extract-label">Enriching with full details...</span>
+                  <span className="tw-extract-elapsed">{extractElapsed}s</span>
+                </div>
+              )}
+              <div className="tw-progress-track">
+                <div
+                  className={`tw-progress-fill${
+                    extractProgress.total === 0 && quickPreview.length === 0
+                      ? " tw-progress-fill--indeterminate"
+                      : ""
+                  }`}
+                  style={{
+                    width: extractProgress.total > 0
+                      ? `${Math.round((extractProgress.current / extractProgress.total) * 100)}%`
+                      : undefined,
+                  }}
+                />
+              </div>
+              <div className="tw-progress-labels">
+                <span>{extractProgress.extracted} teaching points extracted</span>
+                {extractProgress.total > 0 && (
+                  <span>Chunk {extractProgress.current}/{extractProgress.total}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Fallback extraction progress (content-stats polling, no taskId) */}
+          {extractionInProgress && !extractionTaskId && !extractionTimedOut && (
             <div className="tw-banner-info" style={{ marginBottom: 12 }}>
               <span className="tw-spinner" style={{ marginTop: 1 }} />
               <span>
                 Extracting teaching points from your materials...{" "}
-                {contentGroups.length > 0 && (
-                  <strong>
-                    {contentTotal} found so far
-                  </strong>
+                {contentTotal > 0 && (
+                  <strong>{contentTotal} found so far</strong>
                 )}
               </span>
             </div>
           )}
 
           {/* Extraction timeout escape */}
-          {contentDone && extractionTimedOut && (
+          {extractionTimedOut && (
             <div className="tw-banner-warning" style={{ marginBottom: 12 }}>
               <div>
                 Extraction is taking longer than expected.
@@ -1402,8 +1648,8 @@ export default function TeachWizard() {
             </div>
           )}
 
-          {/* Category group review (after extraction has started) */}
-          {contentDone && contentGroups.length > 0 && (
+          {/* Category group review */}
+          {contentGroups.length > 0 && (
             <>
               {contentError && (
                 <div className="tw-banner-error" style={{ marginBottom: 8 }}>
@@ -1552,24 +1798,13 @@ export default function TeachWizard() {
                   );
                 })}
               </p>
-
-              <div className="ws-continue-row">
-                <button
-                  className="tw-btn-continue"
-                  disabled={!canContinueContent}
-                  onClick={() => completeSection("content")}
-                  type="button"
-                >
-                  Continue <ChevronRight size={16} />
-                </button>
-              </div>
             </>
           )}
 
-          {/* Content done, no categories yet + not extracting */}
-          {contentDone && !extractionInProgress && contentGroups.length === 0 && !loadingCategories && (
+          {/* No categories yet + not extracting */}
+          {!extractionInProgress && contentGroups.length === 0 && !loadingCategories && (
             <div className="tw-banner-warning" style={{ marginTop: 8 }}>
-              No teaching points found in this content. Try a different file.
+              No teaching points found yet. Try a different file or wait for extraction.
             </div>
           )}
 
@@ -1578,14 +1813,33 @@ export default function TeachWizard() {
               <span className="tw-spinner" /> Loading content breakdown...
             </div>
           )}
+
+          {/* Continue — always available, even during extraction */}
+          <div className="ws-continue-row">
+            {extractionInProgress && contentGroups.length > 0 && (
+              <span className="tw-hint" style={{ marginRight: "auto" }}>
+                You can continue now — extraction will finish in the background.
+              </span>
+            )}
+            <button
+              className="tw-btn-continue"
+              disabled={!canContinueContent && !extractionInProgress}
+              onClick={() => completeSection("review")}
+              type="button"
+            >
+              {extractionInProgress && contentGroups.length > 0
+                ? <>Continue with what we have <ChevronRight size={16} /></>
+                : <>Continue <ChevronRight size={16} /></>}
+            </button>
+          </div>
         </WizardSection>
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 5 — How should lessons be structured? */}
+        {/* SECTION 6 — How should lessons be structured? */}
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="lesson-plan"
-          stepNumber={5}
+          stepNumber={6}
           status={sectionStatus["lesson-plan"]}
           title="How should lessons be structured?"
           hint="Here's a suggested lesson plan based on your content. Rename or remove lessons as needed."
@@ -1602,7 +1856,7 @@ export default function TeachWizard() {
               No content to build lessons from.{" "}
               <button
                 style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer" }}
-                onClick={() => editSection("content")}
+                onClick={() => editSection("upload")}
                 type="button"
               >
                 Back to content
@@ -1698,11 +1952,11 @@ export default function TeachWizard() {
         </WizardSection>
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 6 — Ready to teach                */}
+        {/* SECTION 7 — Ready to teach                */}
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="launch"
-          stepNumber={6}
+          stepNumber={7}
           status={sectionStatus.launch}
           title="Ready to teach"
           hint="Review your choices and launch. Add an optional learner name to personalise the session."
@@ -1724,6 +1978,14 @@ export default function TeachWizard() {
             <div className="tw-summary-row">
               <span className="tw-summary-key">Goal</span>
               <span className="tw-summary-val">{goalText || "—"}</span>
+            </div>
+            <div className="tw-summary-row">
+              <span className="tw-summary-key">Upload</span>
+              <span className="tw-summary-val">
+                {uploadSourceCount > 0
+                  ? `${uploadSourceCount} file${uploadSourceCount !== 1 ? "s" : ""}`
+                  : subjectIds.length > 0 ? "Existing content" : "Skipped"}
+              </span>
             </div>
             <div className="tw-summary-row">
               <span className="tw-summary-key">Content</span>

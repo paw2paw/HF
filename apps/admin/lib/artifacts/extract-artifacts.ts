@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { ConversationArtifactType, ArtifactTrustLevel } from "@prisma/client";
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
-import { logAI } from "@/lib/logger";
+
 import { getArtifactSettings, type ArtifactSettings } from "@/lib/system-settings";
 
 // =====================================================
@@ -169,11 +169,6 @@ export async function extractArtifacts(
       { callId: call.id, callerId, sourceOp: "pipeline:extract_artifacts" }
     );
 
-    logAI("pipeline:extract_artifacts", prompt, aiResult.content, {
-      usage: aiResult.usage,
-      callId: call.id,
-      callerId,
-    });
     log.debug("AI artifact extraction response", { model: aiResult.model, tokens: aiResult.usage });
 
     // 6. Parse response

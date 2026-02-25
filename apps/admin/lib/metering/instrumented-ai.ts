@@ -293,8 +293,27 @@ export async function getConfiguredMeteredAICompletion(
         });
       }
 
+      const durationMs = Date.now() - startTime;
+
+      // Always log to Logs panel (fire-and-forget)
+      const promptSummary = options.messages
+        .filter((m) => m.role === "user")
+        .map((m) => getTextContent(m))
+        .join(" ")
+        .slice(0, 200);
+      logAI(options.callPoint, promptSummary, result.content.slice(0, 500), {
+        usage: result.usage,
+        durationMs,
+        model: result.model,
+        engine: result.engine,
+        callId: context?.callId,
+        callerId: context?.callerId,
+        userId: context?.userId,
+        sourceOp: context?.sourceOp || options.callPoint,
+      });
+
       // Deep logging (fire-and-forget)
-      maybeDeepLog(options, result, Date.now() - startTime, context);
+      maybeDeepLog(options, result, durationMs, context);
 
       return result;
     } catch (err) {

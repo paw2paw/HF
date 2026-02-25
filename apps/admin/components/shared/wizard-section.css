@@ -37,7 +37,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--text-on-dark);
   font-size: 12px;
 }
 
@@ -90,6 +90,9 @@
 }
 
 .ws-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);

@@ -573,7 +573,32 @@ export async function getActionSettings(): Promise<ActionSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
-// 10. DEFAULTS (Archetype, etc.)
+// 10. AI SUGGESTIONS (wizard suggest timeouts & limits)
+// ═══════════════════════════════════════════════════════
+
+export interface SuggestSettings {
+  /** Server-side AI call timeout for suggestion endpoints (ms) */
+  timeoutMs: number;
+  /** Maximum input length (chars) before truncation */
+  maxInputLength: number;
+}
+
+export const SUGGEST_DEFAULTS: SuggestSettings = {
+  timeoutMs: 10_000,
+  maxInputLength: 2000,
+};
+
+const SUGGEST_KEYS: Record<keyof SuggestSettings, string> = {
+  timeoutMs: "suggest.timeout_ms",
+  maxInputLength: "suggest.max_input_length",
+};
+
+export async function getSuggestSettings(): Promise<SuggestSettings> {
+  return loadGroup(SUGGEST_KEYS, SUGGEST_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
+// 11. DEFAULTS (Archetype, etc.)
 // ═══════════════════════════════════════════════════════
 
 export interface DefaultsSettings {
@@ -877,6 +902,16 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "actions.min_transcript_length", label: "Min transcript length", description: "Transcripts shorter than this (chars) are skipped entirely", type: "int" as const, default: 100, min: 10, max: 1000, step: 10 },
       { key: "actions.confidence_threshold", label: "Confidence threshold", description: "Actions below this confidence score are discarded (0–1)", type: "float" as const, default: 0.6, min: 0, max: 1, step: 0.05 },
       { key: "actions.similarity_threshold", label: "Similarity threshold", description: "Actions with title similarity above this are treated as duplicates (0–1)", type: "float" as const, default: 0.8, min: 0, max: 1, step: 0.05 },
+    ],
+  },
+  {
+    id: "suggest",
+    label: "AI Suggestions",
+    icon: "Sparkles",
+    description: "Timeout and limits for wizard AI suggestion endpoints (goal suggest, name suggest, course type)",
+    settings: [
+      { key: "suggest.timeout_ms", label: "AI timeout (ms)", description: "How long to wait for AI suggestions before giving up. Applies to goal, name, and course-type suggestion endpoints", type: "int" as const, default: 10000, min: 3000, max: 30000, step: 1000 },
+      { key: "suggest.max_input_length", label: "Max input length", description: "Maximum characters accepted from user input before truncation (defends against excessive token usage)", type: "int" as const, default: 2000, min: 100, max: 10000, step: 100 },
     ],
   },
   {
