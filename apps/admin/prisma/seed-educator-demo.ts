@@ -922,6 +922,9 @@ async function cleanupExistingData() {
   });
   const demoPlaybookIds = demoPlaybooks.map((p) => p.id);
   if (demoPlaybookIds.length > 0) {
+    await prisma.callerPlaybook.deleteMany({
+      where: { playbookId: { in: demoPlaybookIds } },
+    });
     await prisma.playbookItem.deleteMany({
       where: { playbookId: { in: demoPlaybookIds } },
     });
