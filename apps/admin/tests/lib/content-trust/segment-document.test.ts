@@ -23,6 +23,21 @@ vi.mock("@/lib/ai/assistant-wrapper", () => ({
   logAssistantCall: mocks.logAssistantCall,
 }));
 
+vi.mock("@/lib/system-settings", () => ({
+  getAITimeoutSettings: vi.fn().mockResolvedValue({
+    pipelineTimeoutMs: 60000,
+    extractionTimeoutMs: 120000,
+    classificationTimeoutMs: 15000,
+    postPipelineTimeoutMs: 30000,
+    quickExtractTimeoutMs: 15000,
+    curriculumTimeoutMs: 90000,
+  }),
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logAI: vi.fn(),
+}));
+
 import { segmentDocument } from "@/lib/content-trust/segment-document";
 
 describe("segmentDocument", () => {

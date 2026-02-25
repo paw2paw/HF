@@ -39,7 +39,8 @@ import { TRAITS } from "@/lib/registry";
 import { recoverBrokenJson } from "@/lib/utils/json-recovery";
 import { executeComposition, persistComposedPrompt, loadComposeConfig } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
-import { getPipelineGates } from "@/lib/system-settings";
+import { getPipelineGates, getAITimeoutSettings } from "@/lib/system-settings";
+import { logAI } from "@/lib/logger";
 import { createLogger, type PipelineLogger } from "@/lib/pipeline/logger";
 import { mapToMemoryCategory } from "@/lib/pipeline/memory";
 import { loadGuardrails, type GuardrailsConfig } from "@/lib/pipeline/guardrails";
@@ -411,6 +412,7 @@ async function runBatchedCallerAnalysis(
   } else {
     // @ai-call pipeline.measure — Score caller parameters from transcript | config: /x/ai-config
     const transcriptLimit = await getTranscriptLimit("pipeline.measure");
+    const timeouts = await getAITimeoutSettings();
     const assessPromptInstructions = assessmentSpec ? (assessmentSpec.config as SpecConfig)?.promptInstructions : null;
     const prompt = buildBatchedCallerPrompt(transcript, measureParams, learnActions, transcriptLimit, moduleContext, assessPromptInstructions);
 
@@ -422,6 +424,8 @@ async function runBatchedCallerAnalysis(
           { role: "system", content: "You are an expert behavioral analyst. Always respond with valid JSON." },
           { role: "user", content: prompt },
         ],
+        maxTokens: Math.max(2048, (measureParams.length + learnActions.length) * 120),
+        timeoutMs: timeouts.pipelineTimeoutMs,
       }, { callId: call.id, callerId, sourceOp: "pipeline:extract" });
 
       log.debug("AI caller analysis response", { model: result.model, tokens: result.usage });
@@ -526,6 +530,9 @@ async function runBatchedCallerAnalysis(
       log.info(`AI caller analysis complete`, { scoresCreated, memoriesCreated, hasLearning: !!learningAssessment });
     } catch (error: any) {
       log.error("AI caller analysis failed", { error: error.message });
+      logAI("pipeline.measure:error", `Caller analysis for call ${call.id}`, error.message, {
+        callId: call.id, callerId, sourceOp: "pipeline:extract",
+      });
       throw error;
     }
   }
@@ -656,6 +663,7 @@ async function runBatchedAgentAnalysis(
       // Add 25% buffer to prevent truncation
       const estimatedTokens = Math.max(2048, Math.ceil(agentParams.length * 150));
 
+      const agentTimeouts = await getAITimeoutSettings();
       const result = await getConfiguredMeteredAICompletion({
         callPoint: "pipeline.score_agent",
         engineOverride: engine,
@@ -664,6 +672,7 @@ async function runBatchedAgentAnalysis(
           { role: "user", content: prompt },
         ],
         maxTokens: estimatedTokens,
+        timeoutMs: agentTimeouts.pipelineTimeoutMs,
       }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent" });
 
       log.debug("AI agent analysis response", { model: result.model, contentLength: result.content.length });
@@ -703,6 +712,9 @@ async function runBatchedAgentAnalysis(
       log.info(`AI agent analysis complete`, { measurementsCreated });
     } catch (error: any) {
       log.error("AI agent analysis failed", { error: error.message });
+      logAI("pipeline.score_agent:error", `Agent analysis for call ${call.id}`, error.message, {
+        callId: call.id, callerId, sourceOp: "pipeline:score_agent",
+      });
       throw error;
     }
   }
@@ -1052,12 +1064,13 @@ Return compact JSON:
  * These specs compute what target values the agent should aim for based on caller profile
  */
 async function runAdaptSpecs(
-  callId: string,
+  call: { id: string; transcript: string | null },
   callerId: string,
   engine: AIEngine,
   guardrails: GuardrailsConfig,
   log: PipelineLogger
 ): Promise<{ targetsCreated: number }> {
+  const callId = call.id;
   // Load ADAPT specs (by outputType, not specType)
   const adaptSpecs = await getSpecsByOutputType("ADAPT", log);
 
@@ -1096,12 +1109,6 @@ async function runAdaptSpecs(
   }
 
   let targetsCreated = 0;
-
-  // Get call transcript
-  const call = await prisma.call.findUnique({
-    where: { id: callId },
-    select: { transcript: true },
-  });
 
   const { mockBehavior, confidenceBounds, aiSettings } = guardrails;
 
@@ -1146,8 +1153,9 @@ async function runAdaptSpecs(
   } else {
     // @ai-call pipeline.adapt — Compute personalized behavior targets | config: /x/ai-config
     const transcriptLimit = await getTranscriptLimit("pipeline.adapt");
+    const adaptTimeouts = await getAITimeoutSettings();
     const prompt = buildAdaptPrompt(
-      call?.transcript || "",
+      call.transcript || "",
       callScores,
       callerProfile?.parameterValues as Record<string, any> | null,
       targetParams,
@@ -1164,6 +1172,7 @@ async function runAdaptSpecs(
         ],
         maxTokens: 1024,
         temperature: aiSettings.temperature,
+        timeoutMs: adaptTimeouts.pipelineTimeoutMs,
       }, { callId, callerId, sourceOp: "pipeline:adapt" });
 
       // logAI now handled centrally by getConfiguredMeteredAICompletion
@@ -1204,6 +1213,9 @@ async function runAdaptSpecs(
       log.info(`ADAPT specs complete`, { targetsCreated });
     } catch (error: any) {
       log.error("ADAPT specs failed", { error: error.message });
+      logAI("pipeline.adapt:error", `Adapt specs for call ${callId}`, error.message, {
+        callId, callerId, sourceOp: "pipeline:adapt",
+      });
       throw error;
     }
   }
@@ -1743,72 +1755,71 @@ const stageExecutors: Record<string, StageExecutor> = {
     const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
     const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
 
-    // Update curriculum progress (non-blocking — errors logged but don't fail the stage)
-    let curriculumUpdated = false;
-    try {
-      curriculumUpdated = await trackCurriculumAfterCall(ctx.callerId, ctx.log, callerResult.learningAssessment);
-    } catch (err: any) {
-      ctx.log.warn(`Curriculum progress tracking failed (non-blocking): ${err.message}`);
+    // Run all 5 non-blocking post-analysis ops in parallel
+    const [currSettled, onboardSettled, lessonSettled, artifactSettled, actionSettled] =
+      await Promise.allSettled([
+        // 1. Curriculum progress + CurriculumModule FK write
+        trackCurriculumAfterCall(ctx.callerId, ctx.log, callerResult.learningAssessment)
+          .then(async (updated) => {
+            if (callerResult.learningAssessment?.moduleId) {
+              const mod = await prisma.curriculumModule.findFirst({
+                where: { slug: callerResult.learningAssessment.moduleId },
+                select: { id: true },
+              });
+              if (mod) {
+                await prisma.call.update({
+                  where: { id: ctx.callId },
+                  data: { curriculumModuleId: mod.id },
+                });
+              }
+            }
+            return updated;
+          }),
+        // 2. Onboarding completion
+        trackOnboardingAfterCall(ctx.callerId, ctx.callId, ctx.log),
+        // 3. Lesson plan session advancement
+        advanceLessonPlanSession(ctx.callerId, ctx.log, callerResult.learningAssessment),
+        // 4. Artifact extraction + delivery
+        appConfig.artifacts.enabled
+          ? extractArtifacts(ctx.call, ctx.callerId, ctx.engine, ctx.log)
+              .then(async (r) => {
+                if (r.artifactsCreated > 0) {
+                  const deliveryResult = await deliverArtifacts(ctx.callId, ctx.callerId, ctx.log);
+                  ctx.log.info("Artifact delivery result", deliveryResult);
+                }
+                return r;
+              })
+          : Promise.resolve({ artifactsCreated: 0, artifactsSkipped: 0, errors: [] as string[] }),
+        // 5. Action extraction
+        appConfig.actions.enabled
+          ? extractActions(ctx.call, ctx.callerId, ctx.engine, ctx.log)
+          : Promise.resolve({ actionsCreated: 0, actionsSkipped: 0, errors: [] as string[] }),
+      ]);
+
+    // Extract results from settled promises, log rejections
+    const curriculumUpdated = currSettled.status === "fulfilled" ? currSettled.value : false;
+    if (currSettled.status === "rejected") {
+      ctx.log.warn(`Curriculum tracking failed (non-blocking): ${currSettled.reason?.message || String(currSettled.reason)}`);
     }
 
-    // Write CurriculumModule FK on Call (non-blocking)
-    if (callerResult.learningAssessment?.moduleId) {
-      try {
-        const mod = await prisma.curriculumModule.findFirst({
-          where: { slug: callerResult.learningAssessment.moduleId },
-          select: { id: true },
-        });
-        if (mod) {
-          await prisma.call.update({
-            where: { id: ctx.callId },
-            data: { curriculumModuleId: mod.id },
-          });
-        }
-      } catch (err: any) {
-        ctx.log.warn(`Call moduleId write failed (non-blocking): ${err.message}`);
-      }
+    const onboardingCompleted = onboardSettled.status === "fulfilled" ? onboardSettled.value : false;
+    if (onboardSettled.status === "rejected") {
+      ctx.log.warn(`Onboarding tracking failed (non-blocking): ${onboardSettled.reason?.message || String(onboardSettled.reason)}`);
     }
 
-    // Track onboarding completion on first call (non-blocking)
-    let onboardingCompleted = false;
-    try {
-      onboardingCompleted = await trackOnboardingAfterCall(ctx.callerId, ctx.callId, ctx.log);
-    } catch (err: any) {
-      ctx.log.warn(`Onboarding tracking failed (non-blocking): ${err.message}`);
+    const sessionAdvanced = lessonSettled.status === "fulfilled" ? lessonSettled.value : false;
+    if (lessonSettled.status === "rejected") {
+      ctx.log.warn(`Lesson plan advancement failed (non-blocking): ${lessonSettled.reason?.message || String(lessonSettled.reason)}`);
     }
 
-    // Advance lesson plan session if applicable (non-blocking)
-    let sessionAdvanced = false;
-    try {
-      sessionAdvanced = await advanceLessonPlanSession(ctx.callerId, ctx.log, callerResult.learningAssessment);
-    } catch (err: any) {
-      ctx.log.warn(`Lesson plan session advancement failed (non-blocking): ${err.message}`);
+    const artifactsExtracted = artifactSettled.status === "fulfilled" ? artifactSettled.value.artifactsCreated : 0;
+    if (artifactSettled.status === "rejected") {
+      ctx.log.warn(`Artifact extraction failed (non-blocking): ${artifactSettled.reason?.message || String(artifactSettled.reason)}`);
     }
 
-    // Extract conversation artifacts (non-blocking — errors logged but don't fail the stage)
-    let artifactsExtracted = 0;
-    try {
-      if (appConfig.artifacts.enabled) {
-        const artifactResult = await extractArtifacts(ctx.call, ctx.callerId, ctx.engine, ctx.log);
-        artifactsExtracted = artifactResult.artifactsCreated;
-        if (artifactsExtracted > 0) {
-          const deliveryResult = await deliverArtifacts(ctx.callId, ctx.callerId, ctx.log);
-          ctx.log.info("Artifact delivery result", deliveryResult);
-        }
-      }
-    } catch (err: any) {
-      ctx.log.warn(`Artifact extraction failed (non-blocking): ${err.message}`);
-    }
-
-    // Extract call actions (non-blocking — errors logged but don't fail the stage)
-    let actionsExtracted = 0;
-    try {
-      if (appConfig.actions.enabled) {
-        const actionResult = await extractActions(ctx.call, ctx.callerId, ctx.engine, ctx.log);
-        actionsExtracted = actionResult.actionsCreated;
-      }
-    } catch (err: any) {
-      ctx.log.warn(`Action extraction failed (non-blocking): ${err.message}`);
+    const actionsExtracted = actionSettled.status === "fulfilled" ? actionSettled.value.actionsCreated : 0;
+    if (actionSettled.status === "rejected") {
+      ctx.log.warn(`Action extraction failed (non-blocking): ${actionSettled.reason?.message || String(actionSettled.reason)}`);
     }
 
     return {
@@ -1899,7 +1910,7 @@ const stageExecutors: Record<string, StageExecutor> = {
     // Run AI adapt, rule-based adapt, and goal extraction in parallel
     const [adaptSettled, ruleSettled, goalSettled] = await Promise.allSettled([
       // 1. AI-based adapt specs (creates CallTarget entries)
-      runAdaptSpecs(ctx.callId, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log),
+      runAdaptSpecs(ctx.call, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log),
       // 2. Rule-based adapt specs (creates/updates CallerTarget entries)
       runRuleBasedAdapt(ctx.callerId),
       // 3. Extract goals from transcript (GOAL-001)

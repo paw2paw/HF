@@ -715,6 +715,41 @@ export async function getContentLinkingSettings(): Promise<ContentLinkingSetting
 }
 
 // ═══════════════════════════════════════════════════════
+// 14. AI CALL TIMEOUTS
+// ═══════════════════════════════════════════════════════
+
+export interface AITimeoutSettings {
+  pipelineTimeoutMs: number;
+  extractionTimeoutMs: number;
+  classificationTimeoutMs: number;
+  postPipelineTimeoutMs: number;
+  quickExtractTimeoutMs: number;
+  curriculumTimeoutMs: number;
+}
+
+export const AI_TIMEOUT_DEFAULTS: AITimeoutSettings = {
+  pipelineTimeoutMs: 60000,
+  extractionTimeoutMs: 120000,
+  classificationTimeoutMs: 15000,
+  postPipelineTimeoutMs: 30000,
+  quickExtractTimeoutMs: 15000,
+  curriculumTimeoutMs: 90000,
+};
+
+const AI_TIMEOUT_KEYS: Record<keyof AITimeoutSettings, string> = {
+  pipelineTimeoutMs: "ai_timeout.pipeline_ms",
+  extractionTimeoutMs: "ai_timeout.extraction_ms",
+  classificationTimeoutMs: "ai_timeout.classification_ms",
+  postPipelineTimeoutMs: "ai_timeout.post_pipeline_ms",
+  quickExtractTimeoutMs: "ai_timeout.quick_extract_ms",
+  curriculumTimeoutMs: "ai_timeout.curriculum_ms",
+};
+
+export async function getAITimeoutSettings(): Promise<AITimeoutSettings> {
+  return loadGroup(AI_TIMEOUT_KEYS, AI_TIMEOUT_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -902,6 +937,20 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "actions.min_transcript_length", label: "Min transcript length", description: "Transcripts shorter than this (chars) are skipped entirely", type: "int" as const, default: 100, min: 10, max: 1000, step: 10 },
       { key: "actions.confidence_threshold", label: "Confidence threshold", description: "Actions below this confidence score are discarded (0–1)", type: "float" as const, default: 0.6, min: 0, max: 1, step: 0.05 },
       { key: "actions.similarity_threshold", label: "Similarity threshold", description: "Actions with title similarity above this are treated as duplicates (0–1)", type: "float" as const, default: 0.8, min: 0, max: 1, step: 0.05 },
+    ],
+  },
+  {
+    id: "ai_timeout",
+    label: "AI Call Timeouts",
+    icon: "Clock",
+    description: "Timeout limits for AI calls across pipeline, extraction, and classification operations",
+    settings: [
+      { key: "ai_timeout.pipeline_ms", label: "Pipeline timeout (ms)", description: "Timeout for core pipeline AI calls: measure, score_agent, adapt, extract_goals (Sonnet model, large prompts)", type: "int" as const, default: 60000, min: 10000, max: 300000, step: 5000 },
+      { key: "ai_timeout.extraction_ms", label: "Extraction timeout (ms)", description: "Timeout for content extraction AI calls: structured JSON output, multi-chunk documents", type: "int" as const, default: 120000, min: 30000, max: 600000, step: 10000 },
+      { key: "ai_timeout.classification_ms", label: "Classification timeout (ms)", description: "Timeout for fast classification and segmentation AI calls (Haiku model, small prompts)", type: "int" as const, default: 15000, min: 5000, max: 60000, step: 1000 },
+      { key: "ai_timeout.post_pipeline_ms", label: "Post-pipeline timeout (ms)", description: "Timeout for artifact and action extraction after pipeline completes", type: "int" as const, default: 30000, min: 10000, max: 120000, step: 5000 },
+      { key: "ai_timeout.quick_extract_ms", label: "Quick extract timeout (ms)", description: "Timeout for fast preview extraction (Haiku model)", type: "int" as const, default: 15000, min: 5000, max: 60000, step: 1000 },
+      { key: "ai_timeout.curriculum_ms", label: "Curriculum timeout (ms)", description: "Timeout for curriculum generation and goal-based curriculum AI calls (large assertion sets)", type: "int" as const, default: 90000, min: 30000, max: 300000, step: 10000 },
     ],
   },
   {

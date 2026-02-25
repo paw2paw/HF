@@ -13,7 +13,7 @@ import { GoalType, GoalStatus, Goal } from "@prisma/client";
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 
-import { getGoalSettings, type GoalSettings } from "@/lib/system-settings";
+import { getGoalSettings, getAITimeoutSettings, type GoalSettings } from "@/lib/system-settings";
 
 // =====================================================
 // TYPES
@@ -130,6 +130,7 @@ export async function extractGoals(
     }
 
     // @ai-call pipeline.extract_goals — Extract learner goals from transcript | config: /x/ai-config
+    const timeouts = await getAITimeoutSettings();
     const aiResult = await getConfiguredMeteredAICompletion(
       {
         callPoint: "pipeline.extract_goals",
@@ -143,6 +144,7 @@ export async function extractGoals(
         ],
         maxTokens: 1024,
         temperature: 0.3,
+        timeoutMs: timeouts.pipelineTimeoutMs,
       },
       { callId: call.id, callerId, sourceOp: "pipeline:extract_goals" }
     );

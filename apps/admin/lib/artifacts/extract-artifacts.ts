@@ -13,7 +13,7 @@ import { ConversationArtifactType, ArtifactTrustLevel } from "@prisma/client";
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 
-import { getArtifactSettings, type ArtifactSettings } from "@/lib/system-settings";
+import { getArtifactSettings, getAITimeoutSettings, type ArtifactSettings } from "@/lib/system-settings";
 
 // =====================================================
 // TYPES
@@ -151,6 +151,7 @@ export async function extractArtifacts(
     }
 
     // @ai-call pipeline.artifacts — Extract conversation artifacts from transcript | config: /x/ai-config
+    const timeouts = await getAITimeoutSettings();
     const aiResult = await getConfiguredMeteredAICompletion(
       {
         callPoint: "pipeline.artifacts",
@@ -165,6 +166,7 @@ export async function extractArtifacts(
         ],
         maxTokens: 2048,
         temperature: 0.3,
+        timeoutMs: timeouts.postPipelineTimeoutMs,
       },
       { callId: call.id, callerId, sourceOp: "pipeline:extract_artifacts" }
     );

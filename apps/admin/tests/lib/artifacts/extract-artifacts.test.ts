@@ -45,6 +45,23 @@ vi.mock("@/lib/logger", () => ({
   logAI: vi.fn(),
 }));
 
+vi.mock("@/lib/system-settings", () => ({
+  getArtifactSettings: vi.fn().mockResolvedValue({
+    confidenceThreshold: 0.6,
+    similarityThreshold: 0.8,
+    transcriptMinChars: 100,
+    transcriptLimitChars: 4000,
+  }),
+  getAITimeoutSettings: vi.fn().mockResolvedValue({
+    pipelineTimeoutMs: 60000,
+    extractionTimeoutMs: 120000,
+    classificationTimeoutMs: 15000,
+    postPipelineTimeoutMs: 30000,
+    quickExtractTimeoutMs: 15000,
+    curriculumTimeoutMs: 90000,
+  }),
+}));
+
 // =====================================================
 // HELPERS
 // =====================================================

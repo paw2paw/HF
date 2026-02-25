@@ -16,6 +16,7 @@ import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { logAI } from "@/lib/logger";
 import { resolveExtractionConfig, type ExtractionConfig, type DocumentType, categoryToTeachMethod } from "./resolve-config";
+import { parseJsonResponse } from "./extractors/base-extractor";
 import type { DocumentSection } from "./segment-document";
 import { filterSections, detectFigureRefs } from "./filter-sections";
 import crypto from "crypto";
@@ -255,9 +256,10 @@ async function extractFromChunk(
   ].filter(Boolean).join("\n");
 
   for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
+    let result: { content: string; stopReason?: string } | undefined;
     try {
       // @ai-call content-trust.extract — Extract assertions from training material | config: /x/ai-config
-      const result = await getConfiguredMeteredAICompletion(
+      result = await getConfiguredMeteredAICompletion(
         {
           callPoint: "content-trust.extract",
           messages: [
@@ -287,15 +289,9 @@ async function extractFromChunk(
         console.warn(`[extract-assertions] Chunk ${chunkIndex} response truncated (max_tokens=${extraction.llmConfig.maxTokens}). Consider increasing llmConfig.maxTokens.`);
       }
 
-      // Parse JSON response (with repair for common AI mistakes)
-      const text = result.content.trim();
-      // Handle potential markdown code fences
-      let jsonStr = text.startsWith("[") || text.startsWith("{") ? text : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-      // Remove trailing commas before ] or }
-      jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
-      // Fix missing commas between }{ patterns
-      jsonStr = jsonStr.replace(/\}(\s*)\{/g, "},$1{");
-      const raw = JSON.parse(jsonStr);
+      // Parse JSON response (shared repair handles truncation, unquoted keys, etc.)
+      const responseText = result.content.trim();
+      const raw = parseJsonResponse(responseText);
 
       if (!Array.isArray(raw)) return [];
 
@@ -321,6 +317,8 @@ async function extractFromChunk(
     } catch (err: any) {
       const isLastAttempt = attempt === MAX_CHUNK_RETRIES - 1;
       const errorMsg = err.message || String(err);
+      // Capture raw AI response for debugging parse failures
+      const rawResponse = result?.content ?? "(no response captured)";
 
       // Structured log so failures appear in AI Logs panel
       logAI(`content-trust.extract:error`, `Chunk ${chunkIndex} attempt ${attempt + 1}/${MAX_CHUNK_RETRIES} for ${options.sourceSlug}`, errorMsg, {
@@ -329,6 +327,10 @@ async function extractFromChunk(
         maxAttempts: MAX_CHUNK_RETRIES,
         final: isLastAttempt,
         sourceOp: "content-trust:extract",
+        stopReason: result?.stopReason,
+        rawResponseLength: rawResponse.length,
+        rawResponseTail: rawResponse.slice(-500),
+        deep: true,
       });
 
       if (isLastAttempt) {
@@ -591,14 +593,8 @@ export async function quickExtract(
   );
 
   // Parse JSON array from response
-  const text_ = result.content.trim();
-  let jsonStr = text_.startsWith("[") ? text_ : text_.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-  jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
-  const match = jsonStr.match(/\[[\s\S]*\]/);
-  if (!match) return [];
-
   try {
-    const parsed: unknown = JSON.parse(match[0]);
+    const parsed: unknown = parseJsonResponse(result.content.trim());
     if (!Array.isArray(parsed)) return [];
     return (parsed as any[])
       .filter((item) => item?.text && typeof item.text === "string")

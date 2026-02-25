@@ -57,11 +57,11 @@ export interface AIConfigResult {
 // All env-overridable via config.ai.*. Operators can override per-call-point via /x/ai-config.
 // These match the definitions in /api/ai-config/route.ts
 const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; temperature?: number; maxTokens?: number }> = {
-  "pipeline.measure": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2048 },
+  "pipeline.measure": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 4096 },
   "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
-  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model, temperature: 0.3 },
-  "pipeline.adapt": { provider: "claude", model: config.ai.claude.lightModel },
-  "pipeline.extract_goals": { provider: "claude", model: config.ai.claude.lightModel },
+  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 4096 },
+  "pipeline.adapt": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 1024 },
+  "pipeline.extract_goals": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 1024 },
   "compose.prompt": { provider: "claude", model: config.ai.claude.model },
   "analysis.measure": { provider: "claude", model: config.ai.claude.lightModel },
   "analysis.learn": { provider: "claude", model: config.ai.claude.lightModel },

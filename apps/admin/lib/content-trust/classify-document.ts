@@ -16,6 +16,8 @@
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { prisma } from "@/lib/prisma";
+import { getAITimeoutSettings } from "@/lib/system-settings";
+import { logAI } from "@/lib/logger";
 import type { ExtractionConfig, DocumentType } from "./resolve-config";
 
 // ------------------------------------------------------------------
@@ -249,6 +251,7 @@ export async function classifyDocument(
 
   try {
     // @ai-call content-trust.classify — Classify document type for extraction | config: /x/ai-config
+    const timeouts = await getAITimeoutSettings();
     const result = await getConfiguredMeteredAICompletion(
       {
         callPoint: "content-trust.classify",
@@ -256,6 +259,7 @@ export async function classifyDocument(
           { role: "system", content: classification.systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        timeoutMs: timeouts.classificationTimeoutMs,
       },
       { sourceOp: "content-trust:classify" },
     );
@@ -292,6 +296,9 @@ export async function classifyDocument(
     };
   } catch (error: any) {
     console.error("[classify-document] Classification failed, defaulting to TEXTBOOK:", error?.message);
+    logAI("content-trust.classify:error", `Classify ${fileName}`, error?.message || "unknown error", {
+      fileName, sourceOp: "content-trust:classify",
+    });
     return {
       documentType: "TEXTBOOK",
       confidence: 0.0,

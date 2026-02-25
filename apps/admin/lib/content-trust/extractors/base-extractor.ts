@@ -18,6 +18,7 @@ import { logAI } from "@/lib/logger";
 import type { ExtractionConfig, DocumentType } from "../resolve-config";
 import type { ExtractedAssertion, ExtractionOptions, ExtractionResult, ChunkCompleteData } from "../extract-assertions";
 import crypto from "crypto";
+import { jsonrepair } from "jsonrepair";
 
 // ------------------------------------------------------------------
 // Extended result types for specialist extractors
@@ -211,6 +212,7 @@ export abstract class DocumentExtractor {
           const errorMsg = err.message || String(err);
 
           // Structured log so failures appear in AI Logs panel
+          // deep: true ensures full error context is captured (not truncated to 500 chars)
           logAI(`content-trust.extract:error`, `Chunk ${i} attempt ${attempt + 1}/${MAX_CHUNK_RETRIES} for ${options.sourceSlug}`, errorMsg, {
             chunkIndex: i,
             attempt: attempt + 1,
@@ -218,6 +220,7 @@ export abstract class DocumentExtractor {
             documentType: this.documentType,
             final: isLastAttempt,
             sourceOp: "content-trust:extract",
+            deep: true,
           });
 
           if (isLastAttempt) {
@@ -351,12 +354,38 @@ export async function callAI(
 }
 
 export function parseJsonResponse(text: string): any {
+  // Strip markdown code fences that LLMs commonly wrap JSON in
   let jsonStr = text.startsWith("[") || text.startsWith("{")
     ? text
     : text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
-  jsonStr = jsonStr.replace(/,\s*([\]}])/g, "$1");
-  jsonStr = jsonStr.replace(/\}(\s*)\{/g, "},$1{");
-  return JSON.parse(jsonStr);
+
+  // Strip trailing AI commentary (e.g. "I extracted 5 items.") by finding
+  // where the top-level JSON structure closes. Only strips if brackets balance;
+  // leaves truncated JSON intact for jsonrepair to handle.
+  if (jsonStr.startsWith("[") || jsonStr.startsWith("{")) {
+    const close = jsonStr[0] === "[" ? "]" : "}";
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let i = 0; i < jsonStr.length; i++) {
+      const ch = jsonStr[i];
+      if (esc) { esc = false; continue; }
+      if (ch === "\\") { esc = true; continue; }
+      if (ch === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (ch === jsonStr[0]) depth++;
+      if (ch === close) depth--;
+      if (depth === 0) {
+        jsonStr = jsonStr.substring(0, i + 1);
+        break;
+      }
+    }
+  }
+
+  // jsonrepair handles: truncated JSON, trailing commas, single quotes,
+  // unquoted keys, missing commas, comments, Python booleans, and more.
+  // See https://github.com/josdejong/jsonrepair
+  return JSON.parse(jsonrepair(jsonStr));
 }
 
 function sleep(ms: number): Promise<void> {

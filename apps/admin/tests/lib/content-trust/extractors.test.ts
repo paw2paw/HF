@@ -165,4 +165,30 @@ describe("parseJsonResponse", () => {
     const result = parseJsonResponse('{"key": "value"}');
     expect(result).toEqual({ key: "value" });
   });
+
+  it("handles trailing AI commentary after JSON array", () => {
+    const result = parseJsonResponse('[{"a": 1}]\n\nI extracted 1 assertion from the text.');
+    expect(result).toEqual([{ a: 1 }]);
+  });
+
+  it("handles unquoted property names", () => {
+    const result = parseJsonResponse('[{assertion: "test", category: "fact"}]');
+    expect(result).toEqual([{ assertion: "test", category: "fact" }]);
+  });
+
+  it("recovers from truncated JSON (unclosed array)", () => {
+    const truncated = '[{"a": 1}, {"b": 2}, {"c": 3';
+    const result = parseJsonResponse(truncated);
+    // jsonrepair recovers all objects including closing the truncated one
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([{ a: 1 }, { b: 2 }, { c: 3 }]);
+  });
+
+  it("recovers from truncated JSON (unclosed object mid-value)", () => {
+    const truncated = '[{"assertion": "complete"}, {"assertion": "incompl';
+    const result = parseJsonResponse(truncated);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result[0]).toEqual({ assertion: "complete" });
+  });
 });

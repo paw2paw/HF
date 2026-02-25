@@ -16,7 +16,7 @@ import { CallActionType, CallActionAssignee, CallActionPriority } from "@prisma/
 import { AIEngine } from "@/lib/ai/client";
 import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering";
 
-import { getActionSettings, ACTIONS_DEFAULTS } from "@/lib/system-settings";
+import { getActionSettings, getAITimeoutSettings, ACTIONS_DEFAULTS } from "@/lib/system-settings";
 
 // =====================================================
 // TYPES
@@ -112,6 +112,7 @@ export async function extractActions(
     }
 
     // @ai-call pipeline.actions — Extract actionable items from transcript | config: /x/ai-config
+    const timeouts = await getAITimeoutSettings();
     const aiResult = await getConfiguredMeteredAICompletion(
       {
         callPoint: "pipeline.actions",
@@ -126,6 +127,7 @@ export async function extractActions(
         ],
         maxTokens: 1024,
         temperature: 0.3,
+        timeoutMs: timeouts.postPipelineTimeoutMs,
       },
       { callId: call.id, callerId, sourceOp: "pipeline:extract_actions" }
     );

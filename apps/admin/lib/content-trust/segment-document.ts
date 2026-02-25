@@ -15,6 +15,8 @@
 
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
+import { getAITimeoutSettings } from "@/lib/system-settings";
+import { logAI } from "@/lib/logger";
 import { buildMultiPointSample } from "./classify-document";
 import type { DocumentType } from "./resolve-config";
 
@@ -192,6 +194,7 @@ export async function segmentDocument(
     ].join("\n");
 
     // @ai-call content-trust.segment — Identify pedagogical sections in document | config: /x/ai-config
+    const timeouts = await getAITimeoutSettings();
     const result = await getConfiguredMeteredAICompletion(
       {
         callPoint: "content-trust.segment",
@@ -199,6 +202,7 @@ export async function segmentDocument(
           { role: "system", content: SEGMENTATION_SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
+        timeoutMs: timeouts.classificationTimeoutMs,
       },
       { sourceOp: "content-trust:segment" },
     );
@@ -239,6 +243,9 @@ export async function segmentDocument(
     return { isComposite, sections };
   } catch (error: any) {
     console.error("[segment-document] Segmentation failed, falling back:", error?.message);
+    logAI("content-trust.segment:error", `Segment "${fileName}"`, error?.message || "unknown error", {
+      fileName, textLength: text.length, sourceOp: "content-trust:segment",
+    });
     return fallbackSingleSection(text, fileName);
   }
 }

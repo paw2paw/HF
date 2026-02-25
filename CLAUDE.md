@@ -159,6 +159,25 @@ If servers fail:
 
 ---
 
+## Libraries First (MANDATORY)
+
+**Before writing utility code, search npm for a battle-tested package.** Hand-rolled parsing, retry logic, formatting, and validation are bugs waiting to happen. A maintained library with thousands of dependents is always preferable to 50 lines of custom code.
+
+| Pattern | Use this | NOT hand-rolled |
+|---------|----------|-----------------|
+| JSON repair (LLM output) | `jsonrepair` | Custom regex repair cascades |
+| Retry with backoff | `p-retry` | Manual for-loop + sleep |
+| Concurrency limiting | `p-limit` | Custom queue/semaphore |
+| Slug generation | `slugify` | Custom regex replace chains |
+| Duration formatting | `ms` / `pretty-ms` | Manual ms-to-string |
+| CSV parsing | `papaparse` | Custom split/regex |
+| Fuzzy search | `fuse.js` / `fuzzysort` | Custom Levenshtein |
+| Cron parsing | `croner` | Custom cron regex |
+
+**Workflow:** (1) Identify the pattern, (2) `npm search` or ask for a library, (3) check weekly downloads + maintenance, (4) install and use. If no good library exists, write custom code with a `// No suitable npm package as of YYYY-MM` comment.
+
+---
+
 ## Plan Guards (MANDATORY — Every Coding Plan)
 
 **Before writing any code** (pre-plan) AND **before declaring done** (post-plan), walk through every guard below. Flag violations explicitly. Do not skip guards because "it's a small change."
