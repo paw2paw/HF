@@ -43,7 +43,7 @@ interface PackManifest {
   pedagogyFiles: PackFile[];
 }
 
-/** Maximum characters extracted from each file for AI analysis */
+/** @system-constant content-processing — Max characters extracted per file for AI analysis */
 const TEXT_SAMPLE_LIMIT = 2000;
 
 const VALID_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".markdown", ".json"];

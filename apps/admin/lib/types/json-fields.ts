@@ -73,12 +73,31 @@ export interface AIConfigExtended {
 }
 
 // ---------------------------------------------------------------------------
-// ContentSource.notableInfo — curriculum modules
+// Curriculum modules — canonical types
 // ---------------------------------------------------------------------------
 
-export interface CurriculumModule {
-  id: string;
+import type {
+  CurriculumModule as PrismaCurriculumModule,
+  LearningObjective,
+} from "@prisma/client";
+
+/** DB model + eager-loaded LOs — the standard shape from API responses */
+export type CurriculumModuleWithLOs = PrismaCurriculumModule & {
+  learningObjectives: LearningObjective[];
+};
+
+/**
+ * Legacy JSON shape — used when parsing AI-generated curriculum output
+ * and for backward-compat reads from Curriculum.notableInfo.modules[].
+ * New code should use Prisma types directly.
+ */
+export interface LegacyCurriculumModuleJSON {
+  id: string; // "MOD-1", "MOD-2" — maps to CurriculumModule.slug
   title: string;
   description?: string;
-  [key: string]: unknown;
+  learningOutcomes?: string[];
+  assessmentCriteria?: string[];
+  keyTerms?: string[];
+  estimatedDurationMinutes?: number;
+  sortOrder: number;
 }

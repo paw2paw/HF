@@ -24,7 +24,6 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
   const domainId = getData<string>('domainId');
   const hasDomain = !!domainId;
 
-  // If no domainId, only individual/email modes are available (groups need a domain)
   const [mode, setMode] = useState<EnrollMode>(hasDomain ? 'group' : 'email');
 
   // Group mode state
@@ -53,7 +52,6 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
     if (savedEmails && savedEmails.length > 0) setEmails(savedEmails);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch cohorts — used by useEffect + Retry button
   const fetchCohorts = useCallback(async (signal?: AbortSignal) => {
     if (!domainId) return;
     setCohortsLoading(true);
@@ -65,22 +63,19 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
       if (!signal?.aborted && data.ok) {
         setCohorts(
           (data.cohorts || []).map((c: any) => ({
-            id: c.id,
-            name: c.name,
+            id: c.id, name: c.name,
             memberCount: c._count?.members ?? c.memberCount ?? 0,
           }))
         );
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      console.error('[StudentsStep] Failed to load cohorts:', err);
       setCohortsError(err.message || 'Failed to load groups');
     } finally {
       if (!signal?.aborted) setCohortsLoading(false);
     }
   }, [domainId]);
 
-  // Fetch callers — used by useEffect + Retry button
   const fetchCallers = useCallback(async (signal?: AbortSignal) => {
     setCallersLoading(true);
     setCallersError(null);
@@ -91,22 +86,18 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
       if (!signal?.aborted && data.ok) {
         setCallers(
           (data.callers || []).map((c: any) => ({
-            id: c.id,
-            name: c.name || c.email || 'Unknown',
-            email: c.email || null,
+            id: c.id, name: c.name || c.email || 'Unknown', email: c.email || null,
           }))
         );
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      console.error('[StudentsStep] Failed to load callers:', err);
       setCallersError(err.message || 'Failed to load learners');
     } finally {
       if (!signal?.aborted) setCallersLoading(false);
     }
   }, []);
 
-  // Load cohorts when group mode is selected
   useEffect(() => {
     if (mode !== 'group' || !domainId) return;
     const ac = new AbortController();
@@ -114,7 +105,6 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
     return () => ac.abort();
   }, [mode, domainId, fetchCohorts]);
 
-  // Load callers when individual mode is selected
   useEffect(() => {
     if (mode !== 'individual') return;
     const ac = new AbortController();
@@ -122,7 +112,6 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
     return () => ac.abort();
   }, [mode, fetchCallers]);
 
-  // Email helpers
   const handleAddEmail = () => setEmails([...emails, '']);
   const handleEmailChange = (index: number, value: string) => {
     const next = [...emails];
@@ -131,21 +120,18 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
   };
   const handleRemoveEmail = (index: number) => setEmails(emails.filter((_, i) => i !== index));
 
-  // Cohort toggle
   const toggleCohort = (id: string) => {
     setSelectedCohortIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  // Caller toggle
   const toggleCaller = (id: string) => {
     setSelectedCallerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
-  // Filtered callers for search
   const filteredCallers = callerSearch.trim()
     ? callers.filter(
         (c) =>
@@ -154,7 +140,6 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
       )
     : callers;
 
-  // Save and advance
   const handleNext = () => {
     setData('cohortGroupIds', selectedCohortIds.length > 0 ? selectedCohortIds : undefined);
     setData('selectedCallerIds', selectedCallerIds.length > 0 ? selectedCallerIds : undefined);
@@ -162,7 +147,6 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
     onNext();
   };
 
-  // Skip
   const handleSkip = () => {
     setData('cohortGroupIds', undefined);
     setData('selectedCallerIds', undefined);
@@ -170,32 +154,29 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
     onNext();
   };
 
-  // Count total selections across all modes
   const totalSelected =
     selectedCohortIds.length + selectedCallerIds.length + emails.filter((e) => e.trim()).length;
 
   const MODE_TABS: { id: EnrollMode; label: string; icon: React.ReactNode; requiresDomain: boolean }[] = [
-    { id: 'group', label: 'Add a Group', icon: <Users className="w-4 h-4" />, requiresDomain: true },
-    { id: 'individual', label: 'Pick Individuals', icon: <User className="w-4 h-4" />, requiresDomain: false },
-    { id: 'email', label: 'Invite by Email', icon: <Mail className="w-4 h-4" />, requiresDomain: false },
+    { id: 'group', label: 'Add a Group', icon: <Users className="hf-icon-sm" />, requiresDomain: true },
+    { id: 'individual', label: 'Pick Individuals', icon: <User className="hf-icon-sm" />, requiresDomain: false },
+    { id: 'email', label: 'Invite by Email', icon: <Mail className="hf-icon-sm" />, requiresDomain: false },
   ];
 
   const availableTabs = hasDomain ? MODE_TABS : MODE_TABS.filter((t) => !t.requiresDomain);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
-        <div className="mb-6">
-          <FieldHint label="Add Students" hint={WIZARD_HINTS["course.students"]} labelClass="text-3xl font-bold text-[var(--text-primary)] mb-2" />
-          <p className="text-[var(--text-secondary)]">
-            Enroll students now, or skip and add them later
-          </p>
-          <div className="hf-banner hf-banner-info" style={{ marginTop: 12 }}>
+    <div className="hf-wizard-page">
+      <div className="hf-wizard-step">
+        <div className="hf-mb-md">
+          <FieldHint label="Add Students" hint={WIZARD_HINTS["course.students"]} labelClass="hf-page-title hf-mb-xs" />
+          <p className="hf-page-subtitle">Enroll students now, or skip and add them later</p>
+          <div className="hf-banner hf-banner-info hf-mt-sm">
             <strong>WhatsApp Follow-ups:</strong> After each lesson, students receive a message on WhatsApp.
             Make sure students have provided phone numbers during enrollment.
           </div>
           {!hasDomain && (
-            <p className="text-xs text-[var(--text-muted)] mt-2">
+            <p className="hf-hint hf-mt-xs">
               Group enrollment will be available after the course is created.
             </p>
           )}
@@ -203,16 +184,12 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
 
         {/* Mode tabs */}
         {availableTabs.length > 1 && (
-          <div className="flex gap-2 mb-6">
+          <div className="hf-flex hf-gap-sm hf-mb-md">
             {availableTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setMode(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  mode === tab.id
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
+                className={`hf-mode-tab${mode === tab.id ? ' hf-mode-tab-active' : ''}`}
               >
                 {tab.icon}
                 {tab.label}
@@ -225,61 +202,44 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
         {mode === 'group' && (
           <div>
             {cohortsError && (
-              <div className="hf-banner hf-banner-error" style={{ marginBottom: 12 }}>
+              <div className="hf-banner hf-banner-error hf-mb-sm">
                 {cohortsError}
-                <button
-                  onClick={() => fetchCohorts()}
-                  className="ml-2 underline text-sm"
-                >
+                <button onClick={() => fetchCohorts()} className="hf-link-subtle hf-text-sm" style={{ marginLeft: 8 }}>
                   Retry
                 </button>
               </div>
             )}
             {cohortsLoading ? (
-              <div className="flex items-center gap-2 text-[var(--text-muted)] py-8">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Loading groups...</span>
+              <div className="hf-loading-row" style={{ padding: '32px 0' }}>
+                <Loader2 className="hf-spinner hf-icon-sm" />
+                <span className="hf-text-sm">Loading groups...</span>
               </div>
             ) : cohorts.length === 0 && !cohortsError ? (
-              <div className="text-center py-8">
-                <Users className="w-10 h-10 mx-auto mb-3 text-[var(--text-tertiary)]" />
-                <p className="text-[var(--text-secondary)] text-sm">
-                  No groups found for this institution.
-                </p>
-                <p className="text-[var(--text-muted)] text-xs mt-1">
-                  Create a classroom first, or use another enrollment method.
-                </p>
+              <div className="hf-empty-compact">
+                <Users className="hf-icon-xl hf-text-tertiary hf-mb-sm" style={{ display: 'block', margin: '0 auto 12px' }} />
+                <p className="hf-text-sm hf-text-secondary">No groups found for this institution.</p>
+                <p className="hf-text-xs hf-text-muted hf-mt-xs">Create a classroom first, or use another enrollment method.</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="hf-flex hf-flex-col hf-gap-sm">
                 {cohorts.map((cohort) => {
                   const selected = selectedCohortIds.includes(cohort.id);
                   return (
                     <button
                       key={cohort.id}
                       onClick={() => toggleCohort(cohort.id)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
-                        selected
-                          ? 'border-[var(--accent)] bg-[var(--accent)] bg-opacity-5'
-                          : 'border-[var(--border-default)] hover:border-[var(--border-subtle)]'
-                      }`}
+                      className={`hf-select-item${selected ? ' hf-select-item-selected' : ''}`}
                     >
-                      <div
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          selected
-                            ? 'border-[var(--accent)] bg-[var(--accent)]'
-                            : 'border-[var(--border-default)]'
-                        }`}
-                      >
+                      <div className={`hf-checkbox${selected ? ' hf-checkbox-checked' : ''}`}>
                         {selected && (
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="hf-icon-xs" fill="none" stroke="white" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-[var(--text-primary)]">{cohort.name}</p>
-                        <p className="text-xs text-[var(--text-muted)]">
+                      <div className="hf-flex-1">
+                        <p className="hf-text-sm hf-text-bold">{cohort.name}</p>
+                        <p className="hf-text-xs hf-text-muted">
                           {cohort.memberCount} member{cohort.memberCount !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -295,90 +255,71 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
         {mode === 'individual' && (
           <div>
             {callersError && (
-              <div className="hf-banner hf-banner-error" style={{ marginBottom: 12 }}>
+              <div className="hf-banner hf-banner-error hf-mb-sm">
                 {callersError}
-                <button
-                  onClick={() => fetchCallers()}
-                  className="ml-2 underline text-sm"
-                >
+                <button onClick={() => fetchCallers()} className="hf-link-subtle hf-text-sm" style={{ marginLeft: 8 }}>
                   Retry
                 </button>
               </div>
             )}
             {/* Search */}
-            <div className="relative mb-4">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
-              />
+            <div className="hf-search-wrap">
+              <Search className="hf-search-icon hf-icon-sm" />
               <input
                 type="text"
                 value={callerSearch}
                 onChange={(e) => setCallerSearch(e.target.value)}
                 placeholder="Search by name or email..."
-                className="w-full pl-10 pr-8 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                className="hf-input"
               />
               {callerSearch && (
-                <button
-                  onClick={() => setCallerSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                >
-                  <X className="w-4 h-4 text-[var(--text-muted)]" />
+                <button onClick={() => setCallerSearch('')} className="hf-search-clear">
+                  <X className="hf-icon-sm" />
                 </button>
               )}
             </div>
 
-            {/* Selected count */}
             {selectedCallerIds.length > 0 && (
-              <div className="mb-3 text-sm text-[var(--text-secondary)]">
-                {selectedCallerIds.length} selected
-              </div>
+              <p className="hf-text-sm hf-text-secondary hf-mb-sm">{selectedCallerIds.length} selected</p>
             )}
 
             {callersLoading ? (
-              <div className="flex items-center gap-2 text-[var(--text-muted)] py-8">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Loading learners...</span>
+              <div className="hf-loading-row" style={{ padding: '32px 0' }}>
+                <Loader2 className="hf-spinner hf-icon-sm" />
+                <span className="hf-text-sm">Loading learners...</span>
               </div>
             ) : filteredCallers.length === 0 ? (
-              <div className="text-center py-8">
-                <User className="w-10 h-10 mx-auto mb-3 text-[var(--text-tertiary)]" />
-                <p className="text-[var(--text-secondary)] text-sm">
+              <div className="hf-empty-compact">
+                <User className="hf-icon-xl hf-text-tertiary" style={{ display: 'block', margin: '0 auto 12px' }} />
+                <p className="hf-text-sm hf-text-secondary">
                   {callerSearch ? 'No learners match your search.' : 'No learners found.'}
                 </p>
               </div>
             ) : (
-              <div className="space-y-1 max-h-[360px] overflow-y-auto">
+              <div className="hf-list-scroll hf-flex hf-flex-col hf-gap-xs">
                 {filteredCallers.map((caller) => {
                   const selected = selectedCallerIds.includes(caller.id);
                   return (
                     <button
                       key={caller.id}
                       onClick={() => toggleCaller(caller.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all ${
-                        selected
-                          ? 'bg-[var(--accent)] bg-opacity-10'
-                          : 'hover:bg-[var(--surface-secondary)]'
-                      }`}
+                      className={`hf-select-item hf-select-item-compact${selected ? ' hf-select-item-selected' : ''}`}
                     >
-                      <div
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          selected
-                            ? 'border-[var(--accent)] bg-[var(--accent)]'
-                            : 'border-[var(--border-default)]'
-                        }`}
-                      >
+                      <div className={`hf-checkbox hf-checkbox-sm${selected ? ' hf-checkbox-checked' : ''}`}>
                         {selected && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="hf-icon-xs" fill="none" stroke="white" viewBox="0 0 24 24" style={{ width: 10, height: 10 }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                           </svg>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                      <div className="hf-flex-1" style={{ minWidth: 0 }}>
+                        <p className="hf-text-sm hf-text-bold" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {caller.name}
                         </p>
                         {caller.email && (
-                          <p className="text-xs text-[var(--text-muted)] truncate">{caller.email}</p>
+                          <p className="hf-text-xs hf-text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {caller.email}
+                          </p>
                         )}
                       </div>
                     </button>
@@ -392,35 +333,28 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
         {/* ── Email Mode ─────────────────────────────── */}
         {mode === 'email' && (
           <div>
-            <div className="space-y-3 mb-4">
+            <div className="hf-flex hf-flex-col hf-gap-sm hf-mb-md">
               {emails.map((email, i) => (
-                <div key={i} className="flex gap-2">
+                <div key={i} className="hf-flex hf-gap-sm">
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => handleEmailChange(i, e.target.value)}
                     placeholder="student@school.edu"
-                    className="flex-1 px-4 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--surface-primary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                    className="hf-input hf-flex-1"
                   />
                   {emails.length > 1 && (
-                    <button
-                      onClick={() => handleRemoveEmail(i)}
-                      className="p-2 rounded-lg"
-                      style={{ color: "var(--status-error-text)" }}
-                    >
-                      <Trash2 className="w-4 h-4" />
+                    <button onClick={() => handleRemoveEmail(i)} className="hf-btn-icon-error">
+                      <Trash2 className="hf-icon-sm" />
                     </button>
                   )}
                 </div>
               ))}
             </div>
-            <button
-              onClick={handleAddEmail}
-              className="flex items-center gap-2 text-sm text-[var(--accent)] hover:underline"
-            >
-              <Plus className="w-4 h-4" /> Add another email
+            <button onClick={handleAddEmail} className="hf-link-accent hf-text-sm">
+              <Plus className="hf-icon-sm" /> Add another email
             </button>
-            <p className="text-xs text-[var(--text-tertiary)] mt-4">
+            <p className="hf-hint hf-mt-md">
               Invitations will be sent to these addresses. Students will create accounts when they join.
             </p>
           </div>
@@ -428,25 +362,12 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
       </div>
 
       {/* Footer */}
-      <div className="p-6 border-t border-[var(--border-default)] bg-[var(--surface-secondary)] flex justify-between items-center">
-        <button
-          onClick={onPrev}
-          className="px-6 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        >
-          Back
-        </button>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSkip}
-            className="px-6 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            Skip
-          </button>
-          <button
-            onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-2 bg-[var(--accent)] text-white rounded-lg hover:opacity-90"
-          >
-            {totalSelected > 0 ? `Next (${totalSelected})` : 'Next'} <ArrowRight className="w-4 h-4" />
+      <div className="hf-step-footer">
+        <button onClick={onPrev} className="hf-btn hf-btn-ghost">Back</button>
+        <div className="hf-flex hf-items-center hf-gap-sm">
+          <button onClick={handleSkip} className="hf-btn hf-btn-ghost">Skip</button>
+          <button onClick={handleNext} className="hf-btn hf-btn-primary">
+            {totalSelected > 0 ? `Next (${totalSelected})` : 'Next'} <ArrowRight className="hf-icon-sm" />
           </button>
         </div>
       </div>

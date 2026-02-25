@@ -128,7 +128,7 @@ export default function CoursesPage() {
     { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
     { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
     { id: 'lesson-plan', label: 'Lesson Plan', activeLabel: 'Planning Lessons' },
-    { id: 'course-config', label: 'Configure AI', activeLabel: 'Configuring AI' },
+    { id: 'course-config', label: 'First Call', activeLabel: 'Setting Up First Call' },
     { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
     { id: 'done', label: 'Launch', activeLabel: 'Creating Course' },
   ];
@@ -252,16 +252,19 @@ export default function CoursesPage() {
   );
 
   return (
-    <div className="hf-page-container hf-page-scroll hf-flex hf-flex-col">
+    <div className="hf-page-container hf-page-wide hf-page-scroll hf-flex hf-flex-col">
       <AdvancedBanner />
 
       {/* Header + Filters */}
-      <div className="hf-flex hf-flex-between hf-mb-lg hf-items-center">
-        <h1 className="hf-page-title">{plural('playbook')}</h1>
+      <div className="hf-flex hf-flex-between hf-mb-lg hf-items-start">
+        <div>
+          <h1 className="hf-page-title hf-mb-xs">Courses</h1>
+          <p className="hf-page-subtitle">Manage your courses and track student progress</p>
+        </div>
         {isOperator && (
           <button onClick={handleNewCourse} className="hf-btn hf-btn-primary">
             <Plus size={16} />
-            New {terms.playbook}
+            New Course
           </button>
         )}
       </div>
@@ -271,11 +274,10 @@ export default function CoursesPage() {
           {/* Search */}
           <input
             type="text"
-            placeholder={`Search ${plural('playbook').toLowerCase()}...`}
+            placeholder="Search courses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="hf-input"
-            style={{ padding: '6px 10px', borderRadius: 6, width: 180, fontSize: 12, borderColor: 'var(--border-strong)' }}
+            className="hf-input hf-input-sm"
           />
 
           <div className="hf-divider-v" />
@@ -333,7 +335,7 @@ export default function CoursesPage() {
       {error && (
         <div className="hf-banner hf-banner-error hf-mb-md">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="hf-text-xs hf-ml-auto" style={{ textDecoration: 'underline', color: 'inherit' }}>Dismiss</button>
+          <button onClick={() => setError(null)} className="hf-text-xs hf-ml-auto hf-link-subtle">Dismiss</button>
         </div>
       )}
 
@@ -349,13 +351,13 @@ export default function CoursesPage() {
           </div>
           <div className="hf-heading-lg hf-text-secondary hf-mb-md">
             {search || selectedStatuses.size > 0 || selectedDomain
-              ? `No ${plural('playbook').toLowerCase()} match filters`
-              : `No ${plural('playbook').toLowerCase()} yet`}
+              ? 'No courses match filters'
+              : 'No courses yet'}
           </div>
           {isOperator && !search && selectedStatuses.size === 0 && !selectedDomain && (
             <button onClick={handleNewCourse} className="hf-btn hf-btn-primary">
               <Plus size={14} />
-              Create First {terms.playbook}
+              Create First Course
             </button>
           )}
         </div>

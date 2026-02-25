@@ -84,24 +84,18 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
   const displayWelcome = welcomeMessage || defaultWelcome || 'Your AI will introduce itself...';
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
+    <div className="hf-wizard-page">
+      <div className="hf-wizard-step">
 
         {/* ── Header ── */}
-        <div style={{ marginBottom: 32 }}>
+        <div className="hf-mb-lg">
           <h1 className="hf-page-title">First Call Setup</h1>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>
-            Preview how your AI will greet and teach
-          </p>
+          <p className="hf-page-subtitle">Preview how your AI will greet and teach</p>
         </div>
 
         {/* ── Greeting Preview Card ── */}
-        <div className="hf-greeting-card" style={{ marginBottom: 28 }}>
-          <FieldHint
-            label="Greeting"
-            hint={WIZARD_HINTS["course.welcome"]}
-            labelClass="hf-section-title"
-          />
+        <div className="hf-greeting-card hf-mb-lg">
+          <FieldHint label="Greeting" hint={WIZARD_HINTS["course.welcome"]} labelClass="hf-section-title" />
 
           {/* Persona badge */}
           {personaName && (
@@ -112,8 +106,8 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
               <span>{personaName}</span>
               {courseName && (
                 <>
-                  <span style={{ color: 'var(--text-muted)' }}>·</span>
-                  <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{courseName}</span>
+                  <span className="hf-text-muted">·</span>
+                  <span className="hf-text-muted" style={{ fontWeight: 400 }}>{courseName}</span>
                 </>
               )}
             </div>
@@ -121,19 +115,16 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
 
           {/* Welcome text */}
           {loadingWelcome ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
-              <Loader2 className="hf-spinner" style={{ width: 16, height: 16 }} />
-              <span style={{ fontSize: 13 }}>Loading greeting...</span>
+            <div className="hf-loading-row">
+              <Loader2 className="hf-spinner hf-icon-sm" />
+              <span className="hf-text-sm">Loading greeting...</span>
             </div>
           ) : (
             <p className="hf-greeting-text">&ldquo;{displayWelcome}&rdquo;</p>
           )}
 
           {/* Collapse toggle for custom textarea */}
-          <button
-            className="hf-greeting-toggle"
-            onClick={() => setGreetingOpen(!greetingOpen)}
-          >
+          <button className="hf-greeting-toggle" onClick={() => setGreetingOpen(!greetingOpen)}>
             <ChevronRight
               size={14}
               style={{
@@ -145,7 +136,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
           </button>
 
           {greetingOpen && (
-            <div style={{ marginTop: 10 }}>
+            <div className="hf-mt-sm">
               <textarea
                 value={welcomeMessage}
                 onChange={(e) => setWelcomeMessage(e.target.value)}
@@ -154,21 +145,15 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
                 className="hf-input"
                 style={{ resize: 'vertical', minHeight: 80 }}
               />
-              <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 6 }}>
-                Leave blank to use the default above
-              </p>
+              <p className="hf-hint hf-mt-xs">Leave blank to use the default above</p>
             </div>
           )}
         </div>
 
         {/* ── Call Flow Phases ── */}
-        <div style={{ marginBottom: 28 }}>
-          <FieldHint
-            label="Call Flow"
-            hint={WIZARD_HINTS["course.callFlow"]}
-            labelClass="hf-section-title"
-          />
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+        <div className="hf-mb-lg">
+          <FieldHint label="Call Flow" hint={WIZARD_HINTS["course.callFlow"]} labelClass="hf-section-title" />
+          <p className="hf-text-xs hf-text-muted hf-mb-sm">
             How the first lesson is structured — loaded from your {personaName || 'persona'} defaults
           </p>
 
@@ -189,11 +174,9 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
                         <span className="hf-flow-phase-name">{phase.phase}</span>
                         <span className="hf-flow-phase-dur">{phase.duration}</span>
                       </div>
-
                       {!isExpanded && (
                         <div className="hf-flow-phase-goals">{goalsSummary}</div>
                       )}
-
                       {isExpanded && (
                         <div className="hf-flow-phase-detail">
                           <div className="hf-flow-phase-detail-section">
@@ -215,9 +198,9 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
                     </div>
                     <ChevronRight
                       size={14}
+                      className="hf-text-muted"
                       style={{
                         flexShrink: 0,
-                        color: 'var(--text-muted)',
                         transition: 'transform 0.15s ease',
                         transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
                         marginTop: 2,
@@ -228,32 +211,21 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
               })}
             </div>
           ) : loadingWelcome ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', padding: '20px 0' }}>
-              <Loader2 className="hf-spinner" style={{ width: 16, height: 16 }} />
-              <span style={{ fontSize: 13 }}>Loading call flow...</span>
+            <div className="hf-loading-row">
+              <Loader2 className="hf-spinner hf-icon-sm" />
+              <span className="hf-text-sm">Loading call flow...</span>
             </div>
           ) : (
-            <div style={{
-              padding: '20px 16px',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-              borderRadius: 10,
-              border: '1px dashed var(--border-default)',
-            }}>
+            <div className="hf-empty-dashed">
               No flow phases defined — the AI will use its default onboarding sequence.
             </div>
           )}
         </div>
 
-        {/* ── Behavior Tuning (promoted — no AdvancedSection wrapper) ── */}
+        {/* ── Behavior Tuning ── */}
         <div>
-          <FieldHint
-            label="Behaviour"
-            hint={WIZARD_HINTS["course.behavior"]}
-            labelClass="hf-section-title"
-          />
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          <FieldHint label="Behaviour" hint={WIZARD_HINTS["course.behavior"]} labelClass="hf-section-title" />
+          <p className="hf-text-xs hf-text-muted hf-mb-sm">
             Fine-tune how your AI communicates — describe the style you want
           </p>
           <AgentTuner
@@ -267,11 +239,9 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
 
       {/* ── Footer ── */}
       <div className="hf-step-footer">
-        <button onClick={onPrev} className="hf-btn hf-btn-ghost">
-          Back
-        </button>
+        <button onClick={onPrev} className="hf-btn hf-btn-ghost">Back</button>
         <button onClick={handleNext} className="hf-btn hf-btn-primary">
-          Next <ArrowRight style={{ width: 16, height: 16 }} />
+          Next <ArrowRight className="hf-icon-sm" />
         </button>
       </div>
     </div>

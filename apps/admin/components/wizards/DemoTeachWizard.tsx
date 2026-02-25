@@ -55,9 +55,10 @@ import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { TeachPlanStep } from "@/components/wizards/TeachPlanStep";
 import { CreateInstitutionModal } from "./CreateInstitutionModal";
+import { archetypeToTeachingStyle } from "@/lib/institution-types/sector-config";
 import { PackUploadStep } from "./PackUploadStep";
 import type { PackUploadResult } from "./PackUploadStep";
-import { POLL_TIMEOUT_MS } from "@/lib/tasks/constants";
+import { POLL_TIMEOUT_MS, WIRING_FETCH_TIMEOUT_MS } from "@/lib/tasks/constants";
 import { useTaskPoll } from "@/hooks/useTaskPoll";
 import { useSession } from "next-auth/react";
 import { FieldHint } from "@/components/shared/FieldHint";
@@ -82,6 +83,9 @@ type DomainInfo = {
   name: string;
   isDefault: boolean;
   callerCount: number;
+  institution?: {
+    type?: { slug: string; name: string; defaultArchetypeSlug?: string | null } | null;
+  } | null;
 };
 
 type CallerInfo = {
@@ -293,6 +297,15 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [tunePersonaExpanded, setTunePersonaExpanded] = useState(false);
   const [promptPreviewExpanded, setPromptPreviewExpanded] = useState(false);
   const [savingPersona, setSavingPersona] = useState(false);
+
+  // Greeting preview + call flow phases (fetched from /api/onboarding)
+  const [welcomeTemplate, setWelcomeTemplate] = useState("");
+  const [customWelcome, setCustomWelcome] = useState("");
+  const [greetingOpen, setGreetingOpen] = useState(false);
+  const [loadingGreeting, setLoadingGreeting] = useState(false);
+  type FlowPhase = { phase: string; duration: string; priority?: string; goals: string[]; avoid?: string[] };
+  const [flowPhases, setFlowPhases] = useState<FlowPhase[]>([]);
+  const [expandedPhase, setExpandedPhase] = useState<number | null>(null);
 
   // Agent tuning (Boston Matrix + behavior pills)
   const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>([]);
@@ -522,7 +535,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
               value: d.id,
               label: d.name,
               subtitle: d.slug,
-              badge: d.isDefault ? "Default" : undefined,
+              badge: d.institution?.type?.name || (d.isDefault ? "Default" : undefined),
             })),
           );
           // Auto-select: URL param > context data > default domain > only domain
@@ -585,6 +598,19 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
       });
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Pre-fill persona from institution type when domain changes ──
+  useEffect(() => {
+    if (!isTeachFlow || !selectedDomainId || personas.length === 0) return;
+    const dom = domains.find((d) => d.id === selectedDomainId);
+    const archetype = dom?.institution?.type?.defaultArchetypeSlug;
+    if (archetype) {
+      const style = archetypeToTeachingStyle(archetype);
+      // Only pre-fill if the matching persona exists in the loaded list
+      const match = personas.find((p) => p.slug === style);
+      if (match) setSelectedPersona(match.slug);
+    }
+  }, [selectedDomainId, domains, personas.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load callers when domain changes ──────────────
 
@@ -992,8 +1018,8 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     let moduleCount = 0;
     let contentSpecGenerated = false;
     let promptComposed = false;
-    // 60s timeout per step — prevents forever spinners on hanging fetches
-    const timeout = () => AbortSignal.timeout(60_000);
+    // Per-step timeout — prevents forever spinners on hanging fetches
+    const timeout = () => AbortSignal.timeout(WIRING_FETCH_TIMEOUT_MS);
 
     // Phase 0: Ensure domain has a published playbook (idempotent scaffold)
     // Without this, generateContentSpec can't link the content spec to a playbook
@@ -1418,6 +1444,34 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     }
   }, [currentStep, STEP_LAUNCH, selectedDomainId, domainDetail, domainDetailLoading, fetchDomainDetail]);
 
+  // Fetch greeting + call flow phases when entering Launch step
+  useEffect(() => {
+    if (currentStep !== STEP_LAUNCH || !selectedPersona) return;
+    // Restore saved custom welcome from data bag
+    const saved = getData<string>("welcomeMessage");
+    if (saved) setCustomWelcome(saved);
+    let cancelled = false;
+    setLoadingGreeting(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/onboarding?persona=${encodeURIComponent(selectedPersona)}`);
+        if (!res.ok) throw new Error("Failed to fetch persona config");
+        const data = await res.json();
+        if (!cancelled && data.ok) {
+          setWelcomeTemplate(data.welcomeTemplate || "");
+          if (data.firstCallFlow?.phases) {
+            setFlowPhases(data.firstCallFlow.phases);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) console.warn("[Teach] Failed to load greeting/flow:", e);
+      } finally {
+        if (!cancelled) setLoadingGreeting(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentStep, STEP_LAUNCH, selectedPersona]);
+
   // Fetch teaching points for selected domain (direct query through subject chain)
   // Teach flow: scoped to course subjects. Demonstrate flow: domain-wide.
   const fetchTeachingPoints = useCallback(async () => {
@@ -1614,17 +1668,37 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
           <CreateInstitutionModal
             open={showCreateModal}
             onClose={() => setShowCreateModal(false)}
-            onCreated={(newDomain) => {
-              setDomains((prev) => [...prev, {
-                id: newDomain.id, slug: newDomain.slug, name: newDomain.name,
-                isDefault: false, callerCount: 0,
-              }]);
-              setDomainOptions((prev) => [
-                { value: newDomain.id, label: newDomain.name, subtitle: newDomain.slug },
-                ...prev,
-              ]);
-              setSelectedDomainId(newDomain.id);
+            onCreated={async (newDomain) => {
               setShowCreateModal(false);
+              setSelectedDomainId(newDomain.id);
+              // Refetch domains from API to get full institution.type data (needed for persona pre-fill)
+              try {
+                const filter = config.domainApiFilter || "";
+                const res = await fetch(`/api/domains${filter}`);
+                const data = await res.json();
+                if (data.ok) {
+                  const list: DomainInfo[] = data.domains || [];
+                  setDomains(list);
+                  setDomainOptions(
+                    list.map((d) => ({
+                      value: d.id,
+                      label: d.name,
+                      subtitle: d.slug,
+                      badge: d.institution?.type?.name || (d.isDefault ? "Default" : undefined),
+                    })),
+                  );
+                }
+              } catch {
+                // Fallback: add partial entry so domain is at least selectable
+                setDomains((prev) => [...prev, {
+                  id: newDomain.id, slug: newDomain.slug, name: newDomain.name,
+                  isDefault: false, callerCount: 0,
+                }]);
+                setDomainOptions((prev) => [
+                  { value: newDomain.id, label: newDomain.name, subtitle: newDomain.slug },
+                  ...prev,
+                ]);
+              }
             }}
           />
 
@@ -2449,20 +2523,171 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             ]}
             onBack={handlePrev}
           >
-            {/* Compact onboarding config */}
-            {domainDetail ? (
+            {/* Compact config chips (Demonstrate flow only — Teach has full greeting card below) */}
+            {!isTeachFlow && domainDetail ? (
               <div className="dtw-config-strip">
                 <div className="dtw-config-chip">{"\uD83D\uDC64"} {domainDetail.onboardingIdentitySpec?.name || "Default persona"}</div>
                 <div className="dtw-config-chip">{"\uD83D\uDCAC"} {domainDetail.onboardingWelcome ? "Custom welcome" : "Default welcome"}</div>
                 <div className="dtw-config-chip">{"\uD83D\uDD04"} {(domainDetail.onboardingFlowPhases as { phases?: unknown[] })?.phases?.length ? `${(domainDetail.onboardingFlowPhases as { phases: unknown[] }).phases.length} phases` : "Default flow"}</div>
                 <div className="dtw-config-chip">{"\u2699\uFE0F"} {domainDetail.onboardingDefaultTargets ? `${Object.keys(domainDetail.onboardingDefaultTargets as object).filter(k => !k.startsWith("_")).length} params` : "Default targets"}</div>
               </div>
-            ) : domainDetailLoading ? (
+            ) : !isTeachFlow && domainDetailLoading ? (
               <div className="dtw-config-strip">
                 <div className="hf-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
               </div>
             ) : null}
           </WizardSummary>
+
+          {/* ── Greeting Preview Card (Teach flow only — needs persona) ── */}
+          {isTeachFlow && <div className="hf-greeting-card" style={{ marginBottom: 20 }}>
+            <FieldHint
+              label="Greeting"
+              hint={WIZARD_HINTS["course.welcome"]}
+              labelClass="hf-section-title"
+            />
+
+            {/* Persona badge */}
+            {selectedPersona && (
+              <div className="hf-greeting-persona">
+                <span className="hf-greeting-persona-icon">
+                  {selectedPersona === "tutor" ? "\uD83E\uDDD1\u200D\uD83C\uDFEB" : selectedPersona === "coach" ? "\uD83D\uDCAA" : selectedPersona === "mentor" ? "\uD83E\uDD1D" : selectedPersona === "socratic" ? "\uD83E\uDD14" : "\uD83C\uDFAD"}
+                </span>
+                <span>{personas.find(p => p.slug === selectedPersona)?.name || selectedPersona}</span>
+                {goalText && (
+                  <>
+                    <span style={{ color: "var(--text-muted)" }}>&middot;</span>
+                    <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>{goalText.length > 40 ? goalText.slice(0, 40) + "..." : goalText}</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Welcome text */}
+            {loadingGreeting ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)" }}>
+                <div className="hf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                <span style={{ fontSize: 13 }}>Loading greeting...</span>
+              </div>
+            ) : (
+              <p className="hf-greeting-text">&ldquo;{customWelcome || welcomeTemplate || "Your AI will introduce itself..."}&rdquo;</p>
+            )}
+
+            {/* Collapse toggle for custom textarea */}
+            <button
+              className="hf-greeting-toggle"
+              onClick={() => setGreetingOpen(!greetingOpen)}
+            >
+              <ChevronRight
+                size={14}
+                style={{
+                  transition: "transform 0.15s ease",
+                  transform: greetingOpen ? "rotate(90deg)" : "rotate(0deg)",
+                }}
+              />
+              Customize greeting
+            </button>
+
+            {greetingOpen && (
+              <div style={{ marginTop: 10 }}>
+                <textarea
+                  value={customWelcome}
+                  onChange={(e) => { setCustomWelcome(e.target.value); setData("welcomeMessage", e.target.value); }}
+                  placeholder={welcomeTemplate || "Enter a custom welcome message..."}
+                  rows={3}
+                  className="hf-input"
+                  style={{ resize: "vertical", minHeight: 80 }}
+                />
+                <p style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 6 }}>
+                  Leave blank to use the default above
+                </p>
+              </div>
+            )}
+          </div>}
+
+          {/* ── Call Flow Phases (Teach flow only) ── */}
+          {isTeachFlow && <div style={{ marginBottom: 20 }}>
+            <FieldHint
+              label="Call Flow"
+              hint={WIZARD_HINTS["course.callFlow"]}
+              labelClass="hf-section-title"
+            />
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+              How the first {t.session.toLowerCase()} is structured &mdash; loaded from your {personas.find(p => p.slug === selectedPersona)?.name || "persona"} defaults
+            </p>
+
+            {flowPhases.length > 0 ? (
+              <div className="hf-flow-card">
+                {flowPhases.map((phase, i) => {
+                  const isExpanded = expandedPhase === i;
+                  const goalsSummary = phase.goals.slice(0, 2).join(" \u00B7 ");
+                  return (
+                    <div
+                      key={`${phase.phase}-${i}`}
+                      className="hf-flow-phase"
+                      onClick={() => setExpandedPhase(isExpanded ? null : i)}
+                    >
+                      <span className="hf-flow-phase-num">{i + 1}</span>
+                      <div className="hf-flow-phase-body">
+                        <div className="hf-flow-phase-header">
+                          <span className="hf-flow-phase-name">{phase.phase}</span>
+                          <span className="hf-flow-phase-dur">{phase.duration}</span>
+                        </div>
+
+                        {!isExpanded && (
+                          <div className="hf-flow-phase-goals">{goalsSummary}</div>
+                        )}
+
+                        {isExpanded && (
+                          <div className="hf-flow-phase-detail">
+                            <div className="hf-flow-phase-detail-section">
+                              <div className="hf-flow-phase-detail-label">Goals</div>
+                              <ul className="hf-flow-phase-detail-list">
+                                {phase.goals.map((g, gi) => <li key={gi}>{g}</li>)}
+                              </ul>
+                            </div>
+                            {phase.avoid && phase.avoid.length > 0 && (
+                              <div className="hf-flow-phase-detail-section">
+                                <div className="hf-flow-phase-detail-label">Avoid</div>
+                                <ul className="hf-flow-phase-detail-list hf-flow-phase-avoid">
+                                  {phase.avoid.map((a, ai) => <li key={ai}>{a}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <ChevronRight
+                        size={14}
+                        style={{
+                          flexShrink: 0,
+                          color: "var(--text-muted)",
+                          transition: "transform 0.15s ease",
+                          transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                          marginTop: 2,
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : loadingGreeting ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", padding: "20px 0" }}>
+                <div className="hf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                <span style={{ fontSize: 13 }}>Loading call flow...</span>
+              </div>
+            ) : (
+              <div style={{
+                padding: "20px 16px",
+                textAlign: "center",
+                color: "var(--text-muted)",
+                fontSize: 13,
+                borderRadius: 10,
+                border: "1px dashed var(--border-default)",
+              }}>
+                No flow phases defined &mdash; the AI will use its default onboarding sequence.
+              </div>
+            )}
+          </div>}
 
           {/* ── 1. Tune Persona (Boston Matrix) ── */}
           <div className="dtw-accordion-card">
@@ -2475,6 +2700,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             </button>
             {tunePersonaExpanded && (
               <div className="dtw-accordion-content">
+                <FieldHint label="Persona Matrix" hint={WIZARD_HINTS["teach.persona"]} labelClass="hf-section-title" />
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                  Drag to position your AI along key behavioural dimensions
+                </p>
                 {domainDetailLoading && !domainDetail ? (
                   <div className="dtw-centered-loader">
                     <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
@@ -2514,6 +2743,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             </button>
             {onboardingExpanded && (
               <div className="dtw-accordion-content">
+                <FieldHint label="Onboarding" hint={WIZARD_HINTS["teach.onboarding"]} labelClass="hf-section-title" />
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                  Configure how the AI introduces itself and gathers context from the student
+                </p>
                 {domainDetailLoading && !domainDetail ? (
                   <div className="dtw-centered-loader">
                     <div className="hf-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
@@ -2540,6 +2773,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             </button>
             {promptPreviewExpanded && (
               <div className="dtw-accordion-content">
+                <FieldHint label="System Prompt" hint={WIZARD_HINTS["teach.promptPreview"]} labelClass="hf-section-title" />
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+                  The full prompt the AI will receive &mdash; read-only
+                </p>
                 <PromptPreviewContent
                   domainId={selectedDomainId}
                   domainName={selectedDomain?.name}

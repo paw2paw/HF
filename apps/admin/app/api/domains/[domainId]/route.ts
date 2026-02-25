@@ -83,6 +83,19 @@ export async function GET(
             },
           },
         },
+        institution: {
+          select: {
+            id: true,
+            name: true,
+            type: {
+              select: {
+                slug: true,
+                name: true,
+                defaultArchetypeSlug: true,
+              },
+            },
+          },
+        },
         onboardingIdentitySpec: {
           select: {
             id: true,

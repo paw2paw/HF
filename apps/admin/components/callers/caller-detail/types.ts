@@ -103,7 +103,8 @@ export type CallScore = {
   call: { createdAt: string };
 };
 
-export type CurriculumModule = {
+/** Progress-oriented view of a module — will be replaced by CallerModuleProgress from DB */
+export type CallerModuleProgressView = {
   id: string;
   name: string;
   description: string;
@@ -115,7 +116,7 @@ export type CurriculumModule = {
 export type CurriculumProgress = {
   name: string | null;
   hasData: boolean;
-  modules: CurriculumModule[];
+  modules: CallerModuleProgressView[];
   nextModule: string | null;
   totalModules: number;
   completedCount: number;

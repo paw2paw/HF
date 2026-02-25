@@ -12,6 +12,9 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+
+/** @system-constant polling — Poll interval for teach plan readiness checks */
+const TEACH_PLAN_POLL_MS = 10_000;
 import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
 import { SortableList } from "@/components/shared/SortableList";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
@@ -42,16 +45,7 @@ interface TeachPlanStepProps {
   onPrev: () => void;
 }
 
-interface CurriculumModule {
-  id: string;
-  title: string;
-  description: string;
-  learningOutcomes: string[];
-  assessmentCriteria?: string[];
-  keyTerms?: string[];
-  estimatedDurationMinutes?: number | null;
-  sortOrder: number;
-}
+import type { LegacyCurriculumModuleJSON as CurriculumModule } from "@/lib/types/json-fields";
 
 type Phase = "intents" | "generating" | "review";
 type Emphasis = "breadth" | "balanced" | "depth";
@@ -179,8 +173,7 @@ export function TeachPlanStep({
     // Initial check
     checkPoints();
 
-    // Poll every 10 seconds
-    const interval = setInterval(checkPoints, 10_000);
+    const interval = setInterval(checkPoints, TEACH_PLAN_POLL_MS);
 
     return () => {
       cancelled = true;

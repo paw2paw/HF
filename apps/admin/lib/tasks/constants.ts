@@ -32,8 +32,11 @@ export function isFailure(status: string): boolean {
   return status === TASK_STATUS.ABANDONED;
 }
 
-/** Default polling interval (ms). */
+/** @system-constant polling — Default client-side task polling interval */
 export const POLL_INTERVAL_MS = 3_000;
 
-/** Default polling timeout (ms). After this, client-side marks as timed out. */
+/** @system-constant polling — Client-side polling timeout before marking timed out */
 export const POLL_TIMEOUT_MS = 3 * 60 * 1_000;
+
+/** @system-constant wiring — Per-fetch timeout for post-extraction wiring calls (scaffold, content-spec, compose-prompt). */
+export const WIRING_FETCH_TIMEOUT_MS = 60_000;

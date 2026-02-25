@@ -147,19 +147,56 @@ export async function POST(request: NextRequest) {
 
     // Auto-create Institution from type slug if provided and no explicit institutionId
     let resolvedInstitutionId = institutionId || session?.user?.institutionId || undefined;
-    if (!resolvedInstitutionId && institutionTypeSlug) {
-      const instType = await prisma.institutionType.findUnique({
-        where: { slug: institutionTypeSlug },
+    const needsAutoInstitution = !resolvedInstitutionId && !!institutionTypeSlug;
+
+    if (needsAutoInstitution) {
+      // Check institution slug uniqueness before creating
+      const existingInst = await prisma.institution.findUnique({
+        where: { slug },
         select: { id: true },
       });
-      if (instType) {
-        const institution = await prisma.institution.create({
-          data: { name, slug, typeId: instType.id },
-        });
-        resolvedInstitutionId = institution.id;
+      if (existingInst) {
+        return NextResponse.json(
+          { ok: false, error: `An institution with slug "${slug}" already exists` },
+          { status: 409 }
+        );
       }
     }
 
+    // Use transaction when auto-creating institution + domain together
+    if (needsAutoInstitution) {
+      const result = await prisma.$transaction(async (tx) => {
+        const instType = await tx.institutionType.findUnique({
+          where: { slug: institutionTypeSlug },
+          select: { id: true },
+        });
+
+        let instId: string | undefined;
+        if (instType) {
+          const institution = await tx.institution.create({
+            data: { name, slug, typeId: instType.id },
+          });
+          instId = institution.id;
+        }
+
+        const domain = await tx.domain.create({
+          data: {
+            slug,
+            name,
+            description: description || null,
+            isDefault: isDefault || false,
+            isActive: true,
+            institutionId: instId,
+          },
+        });
+
+        return domain;
+      });
+
+      return NextResponse.json({ ok: true, domain: result });
+    }
+
+    // Simple case: no auto-institution creation
     const domain = await prisma.domain.create({
       data: {
         slug,

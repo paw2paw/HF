@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   if (isAuthError(auth)) return auth.error;
 
   const body = await req.json();
-  const { name, slug, description, terminology, setupSpecSlug, defaultDomainKind } = body;
+  const { name, slug, description, terminology, setupSpecSlug, defaultDomainKind, defaultArchetypeSlug } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ ok: false, error: "Name is required" }, { status: 400 });
@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
       terminology,
       setupSpecSlug: setupSpecSlug?.trim() || null,
       defaultDomainKind: defaultDomainKind === "COMMUNITY" ? "COMMUNITY" : "INSTITUTION",
+      defaultArchetypeSlug: defaultArchetypeSlug?.trim() || null,
     },
   });
 

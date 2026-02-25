@@ -32,6 +32,8 @@ export function PanelLayoutPanel({ values, updateSetting }: PanelProps) {
     { id: "channels", label: "Delivery Channels", category: "communications", fixed: true },
     { id: "security", label: "Access Matrix", category: "security", fixed: true },
     { id: "fallbacks", label: "Fallback Defaults", category: "developer", fixed: true },
+    { id: "panel_layout", label: "Panel Layout", category: "developer", fixed: true },
+    { id: "constants_reference", label: "System Constants", category: "developer", fixed: true },
     { id: "institution_types", label: "Institution Types", category: "system", fixed: true },
   ];
 

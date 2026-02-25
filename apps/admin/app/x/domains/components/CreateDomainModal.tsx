@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import { TypePicker } from "@/components/shared/TypePicker";
 
 interface CreateDomainModalProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface CreateDomainModalProps {
 export function CreateDomainModal({ open, onClose, onCreated, onError }: CreateDomainModalProps) {
   const { terms } = useTerminology();
   const [newDomain, setNewDomain] = useState({ slug: "", name: "", description: "" });
+  const [selectedTypeSlug, setSelectedTypeSlug] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   if (!open) return null;
@@ -21,14 +23,18 @@ export function CreateDomainModal({ open, onClose, onCreated, onError }: CreateD
     if (!newDomain.slug || !newDomain.name) return;
     setCreating(true);
     try {
+      const body: Record<string, any> = { ...newDomain };
+      if (selectedTypeSlug) body.institutionTypeSlug = selectedTypeSlug;
+
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDomain),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.ok) {
         setNewDomain({ slug: "", name: "", description: "" });
+        setSelectedTypeSlug(null);
         onCreated(data.domain.id);
       } else {
         onError(data.error);
@@ -54,10 +60,19 @@ export function CreateDomainModal({ open, onClose, onCreated, onError }: CreateD
       onClick={onClose}
     >
       <div
-        style={{ background: "var(--surface-primary)", borderRadius: 12, padding: 24, width: 400 }}
+        style={{ background: "var(--surface-primary)", borderRadius: 12, padding: 24, width: 520 }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 style={{ margin: "0 0 20px 0", fontSize: 18 }}>New {terms.domain}</h2>
+
+        {/* Type picker */}
+        <div style={{ marginBottom: 16 }}>
+          <TypePicker
+            value={selectedTypeSlug}
+            onChange={(slug) => setSelectedTypeSlug(slug)}
+          />
+        </div>
+
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 500, marginBottom: 4 }}>Slug</label>
           <input

@@ -46,13 +46,15 @@ export async function GET() {
  * @body primaryColor string (optional) — hex color
  * @body secondaryColor string (optional) — hex color
  * @body welcomeMessage string (optional)
+ * @body typeId string (optional) — InstitutionType ID to link this institution to
+ * @body typeSlug string (optional) — InstitutionType slug (resolved to typeId if typeId not provided)
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAuth("OPERATOR");
   if (isAuthError(auth)) return auth.error;
 
   const body = await request.json();
-  const { name, slug, logoUrl, primaryColor, secondaryColor, welcomeMessage } = body;
+  const { name, slug, logoUrl, primaryColor, secondaryColor, welcomeMessage, typeId, typeSlug } = body;
 
   if (!name?.trim() || !slug?.trim()) {
     return NextResponse.json(
@@ -79,6 +81,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Resolve institution type: explicit typeId, or look up by slug
+  let resolvedTypeId = typeId || null;
+  if (!resolvedTypeId && typeSlug) {
+    const instType = await prisma.institutionType.findUnique({
+      where: { slug: typeSlug },
+      select: { id: true },
+    });
+    resolvedTypeId = instType?.id || null;
+  }
+
   const institution = await prisma.institution.create({
     data: {
       name: name.trim(),
@@ -87,6 +99,7 @@ export async function POST(request: NextRequest) {
       primaryColor: primaryColor?.trim() || null,
       secondaryColor: secondaryColor?.trim() || null,
       welcomeMessage: welcomeMessage?.trim() || null,
+      typeId: resolvedTypeId,
     },
   });
 

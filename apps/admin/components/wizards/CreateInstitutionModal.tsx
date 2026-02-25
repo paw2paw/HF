@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X } from "lucide-react";
+import { TypePicker } from "@/components/shared/TypePicker";
 
 interface CreateInstitutionModalProps {
   open: boolean;
@@ -18,6 +19,8 @@ function toSlug(name: string): string {
 
 export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInstitutionModalProps) {
   const [name, setName] = useState("");
+  const [selectedTypeSlug, setSelectedTypeSlug] = useState<string | null>(null);
+  const [selectedTypeId, setSelectedTypeId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -29,6 +32,8 @@ export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInsti
   useEffect(() => {
     if (open) {
       setName("");
+      setSelectedTypeSlug(null);
+      setSelectedTypeId(undefined);
       setError(null);
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -59,11 +64,15 @@ export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInsti
     setError(null);
 
     try {
-      // Step 1: Create institution
+      // Step 1: Create institution (with type if selected)
+      const instBody: Record<string, any> = { name: trimmed, slug: s };
+      if (selectedTypeId) instBody.typeId = selectedTypeId;
+      else if (selectedTypeSlug) instBody.typeSlug = selectedTypeSlug;
+
       const instRes = await fetch("/api/institutions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmed, slug: s }),
+        body: JSON.stringify(instBody),
       });
       const instData = await instRes.json();
       if (!instData.ok) {
@@ -89,7 +98,7 @@ export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInsti
         return;
       }
 
-      // Step 3: Scaffold domain (fire-and-forget)
+      // Step 3: Scaffold domain (fire-and-forget — archetype resolved from type chain)
       fetch(`/api/domains/${domData.domain.id}/scaffold`, { method: "POST" }).catch(() => {});
 
       // Success
@@ -102,7 +111,7 @@ export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInsti
       setError("Network error. Please try again.");
       setLoading(false);
     }
-  }, [name, onCreated]);
+  }, [name, selectedTypeSlug, selectedTypeId, onCreated]);
 
   if (!open) return null;
 
@@ -122,7 +131,7 @@ export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInsti
         zIndex: 200,
       }}
     >
-      <div className="dtw-modal-card">
+      <div className="dtw-modal-card" style={{ maxWidth: 520 }}>
         {/* Header */}
         <div className="dtw-modal-header">
           <span className="dtw-modal-title">Create Institution</span>
@@ -137,6 +146,18 @@ export function CreateInstitutionModal({ open, onClose, onCreated }: CreateInsti
 
         {/* Body */}
         <div className="dtw-modal-body">
+          {/* Type picker */}
+          <div style={{ marginBottom: 16 }}>
+            <TypePicker
+              value={selectedTypeSlug}
+              onChange={(typeSlug, typeId) => {
+                setSelectedTypeSlug(typeSlug);
+                setSelectedTypeId(typeId);
+              }}
+            />
+          </div>
+
+          {/* Name field */}
           <label className="dtw-section-label">Name</label>
           <input
             ref={inputRef}

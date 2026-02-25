@@ -7,6 +7,7 @@ import { useTerminology } from '@/contexts/TerminologyContext';
 import { useEntityContext } from '@/contexts/EntityContext';
 import SubjectDetail from '@/app/x/subjects/_components/SubjectDetail';
 import { HierarchyBreadcrumb, type BreadcrumbSegment } from '@/components/shared/HierarchyBreadcrumb';
+import { CourseContextBanner } from '@/components/shared/CourseContextBanner';
 
 export default function CourseSubjectDetailPage() {
   const { courseId, subjectId } = useParams<{ courseId: string; subjectId: string }>();
@@ -24,9 +25,9 @@ export default function CourseSubjectDetailPage() {
     fetch(`/api/playbooks/${courseId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.ok) setCourseName(data.playbook.name);
+        setCourseName(data.ok ? data.playbook.name : 'Course');
       })
-      .catch(() => {});
+      .catch(() => setCourseName('Course'));
   }, [courseId]);
 
   // Fetch subject name for breadcrumb + entity context
@@ -44,9 +45,11 @@ export default function CourseSubjectDetailPage() {
             label: name,
             href: `/x/courses/${courseId}/subjects/${subjectId}`,
           });
+        } else {
+          setSubjectName('Subject');
         }
       })
-      .catch(() => {});
+      .catch(() => setSubjectName('Subject'));
   }, [subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const segments: BreadcrumbSegment[] = [
@@ -58,6 +61,7 @@ export default function CourseSubjectDetailPage() {
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24 }}>
       <HierarchyBreadcrumb segments={segments} />
+      <CourseContextBanner courseId={courseId} />
       <SubjectDetail
         subjectId={subjectId}
         onSubjectUpdated={() => {

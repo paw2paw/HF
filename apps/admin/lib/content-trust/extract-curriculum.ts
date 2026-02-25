@@ -13,16 +13,8 @@ import type { ExtractedAssertion } from "./extract-assertions";
 // Types
 // ------------------------------------------------------------------
 
-export interface CurriculumModule {
-  id: string; // "MOD-1", "MOD-2", etc.
-  title: string;
-  description: string;
-  learningOutcomes: string[];
-  assessmentCriteria?: string[];
-  keyTerms?: string[];
-  estimatedDurationMinutes?: number;
-  sortOrder: number;
-}
+// Re-export canonical legacy JSON type (AI output shape)
+export type { LegacyCurriculumModuleJSON as CurriculumModule } from "@/lib/types/json-fields";
 
 export interface CurriculumIntents {
   sessionCount?: number;    // target number of sessions

@@ -22,6 +22,7 @@ import { config } from "@/lib/config";
 
 // ── Cache ──────────────────────────────────────────────
 
+/** @system-constant cache — In-memory system settings cache TTL */
 const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { value: unknown; expiry: number }>();
 

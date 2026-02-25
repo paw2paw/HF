@@ -99,16 +99,7 @@ type Subject = {
   curricula: any[];
 };
 
-type CurriculumModule = {
-  id: string;
-  title: string;
-  description: string;
-  learningOutcomes: string[];
-  assessmentCriteria?: string[];
-  keyTerms?: string[];
-  estimatedDurationMinutes?: number;
-  sortOrder: number;
-};
+import type { LegacyCurriculumModuleJSON as CurriculumModule } from "@/lib/types/json-fields";
 
 // ------------------------------------------------------------------
 // Small badge components

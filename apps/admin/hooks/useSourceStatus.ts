@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SourceStatusData } from '@/components/shared/SourceStatusDots';
 
-/** Max sources per batch request — must match server limit in /api/content-sources/status */
+/** @system-constant api-limits — Max content sources per batch status request (client) */
 const MAX_STATUS_BATCH = 50;
+
+/** @system-constant polling — Default source status poll interval for content sources */
+export const SOURCE_STATUS_POLL_MS = 15_000;
 
 /**
  * useSourceStatus — fetches batch processing status for a list of content source IDs.
@@ -16,7 +19,7 @@ export function useSourceStatus(
   sourceIds: string[],
   options?: { pollInterval?: number; enabled?: boolean }
 ): Record<string, SourceStatusData> {
-  const { pollInterval = 15_000, enabled = true } = options ?? {};
+  const { pollInterval = SOURCE_STATUS_POLL_MS, enabled = true } = options ?? {};
   const [statusMap, setStatusMap] = useState<Record<string, SourceStatusData>>({});
   const prevIdsRef = useRef<string>('');
 

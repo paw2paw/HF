@@ -26,6 +26,7 @@ import { SecurityPanel } from "@/components/settings/SecurityPanel";
 import { FallbacksPanel } from "@/components/settings/FallbacksPanel";
 import { PanelLayoutPanel } from "@/components/settings/PanelLayoutPanel";
 import { InstitutionTypesPanel } from "@/components/settings/InstitutionTypesPanel";
+import { ConstantsReferencePanel } from "@/components/settings/ConstantsReferencePanel";
 
 // ── Build the unified panel registry ────────────────
 
@@ -71,6 +72,12 @@ const CUSTOM_PANELS: SettingsPanel[] = [
     "Assign settings panels to sidebar categories",
     "developer", PanelLayoutPanel,
     ["panel layout", "category", "sidebar", "organize", "reassign"],
+  ),
+  registerCustomPanel(
+    "constants_reference", "System Constants", "Braces",
+    "Read-only reference of operational constants across the codebase",
+    "developer", ConstantsReferencePanel,
+    ["constants", "timeout", "limit", "threshold", "batch", "poll", "cache", "interval"],
   ),
 ];
 

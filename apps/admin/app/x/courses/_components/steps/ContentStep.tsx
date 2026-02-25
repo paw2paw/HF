@@ -18,13 +18,12 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
   const [uploadedSourceId, setUploadedSourceId] = useState<string | null>(null);
   const [packComplete, setPackComplete] = useState(false);
   const [packSummary, setPackSummary] = useState<string | null>(null);
+  const [packTimedOut, setPackTimedOut] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const packTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Get domain/course info from flow context
   const domainId = getData<string>('domainId') || '';
   const courseName = getData<string>('courseName') || '';
-
-  // Restore saved file name indicator from context
   const savedFileName = getData<string>('contentFileName');
 
   // Load saved data
@@ -38,6 +37,16 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
     const savedPackComplete = getData<boolean>('packComplete');
     if (savedPackComplete) setPackComplete(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pack mode safety timeout — if PackUploadStep doesn't call back within 5 min, show nav buttons
+  useEffect(() => {
+    if (uploadMode === 'pack' && !packComplete && !packTimedOut) {
+      packTimeoutRef.current = setTimeout(() => setPackTimedOut(true), 5 * 60 * 1000);
+    }
+    return () => {
+      if (packTimeoutRef.current) clearTimeout(packTimeoutRef.current);
+    };
+  }, [uploadMode, packComplete, packTimedOut]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -64,15 +73,8 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
     setData('contentMode', uploadMode);
 
     if (uploadMode === 'file' && (file || uploadedSourceId)) {
-      if (uploadedSourceId && !file) {
-        onNext();
-        return;
-      }
-      if (uploadedSourceId) {
-        onNext();
-        return;
-      }
-
+      if (uploadedSourceId && !file) { onNext(); return; }
+      if (uploadedSourceId) { onNext(); return; }
       if (!file) return;
 
       setUploading(true);
@@ -84,12 +86,7 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
         const createRes = await fetch('/api/content-sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slug,
-            name,
-            description: 'Uploaded via Course Setup Wizard',
-            trustLevel: 'UNVERIFIED',
-          }),
+          body: JSON.stringify({ slug, name, description: 'Uploaded via Course Setup Wizard', trustLevel: 'UNVERIFIED' }),
         });
         const createData = await createRes.json();
         if (!createRes.ok) throw new Error(createData.error || 'Failed to create content source');
@@ -98,10 +95,7 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('mode', 'classify');
-        const importRes = await fetch(`/api/content-sources/${sourceId}/import`, {
-          method: 'POST',
-          body: formData,
-        });
+        const importRes = await fetch(`/api/content-sources/${sourceId}/import`, { method: 'POST', body: formData });
         const importData = await importRes.json();
         if (!importRes.ok) throw new Error(importData.error || 'File upload failed');
 
@@ -122,16 +116,15 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
     }
   };
 
-  // ── Pack upload result handler ──
   const handlePackResult = useCallback((result: PackUploadResult) => {
+    if (packTimeoutRef.current) clearTimeout(packTimeoutRef.current);
+
     if (result.mode === 'skip') {
       setData('contentMode', 'skip');
       onNext();
       return;
     }
-
     if (result.mode === 'pack-upload') {
-      // Pack ingestion complete
       setData('packTaskId', result.taskId);
       setData('packSubjects', result.subjects);
       setData('packSourceCount', result.sourceCount);
@@ -142,7 +135,6 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
       setPackSummary(`${result.subjects?.length || 0} subject${(result.subjects?.length || 0) !== 1 ? 's' : ''} · ${result.sourceCount || 0} files uploaded (${subjectNames})`);
       onNext();
     }
-
     if (result.mode === 'existing-course') {
       setData('existingCourseId', result.courseId);
       setData('contentMode', 'existing-course');
@@ -150,6 +142,13 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
       onNext();
     }
   }, [setData, onNext]);
+
+  const handleSkip = () => {
+    setData('contentMode', 'skip');
+    setData('contentFileName', undefined);
+    setData('sourceId', undefined);
+    onNext();
+  };
 
   const hasFile = !!file;
   const isValid =
@@ -159,35 +158,26 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
     false;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
-        <div className="mb-8">
+    <div className="hf-wizard-page">
+      <div className="hf-wizard-step">
+        <div className="hf-mb-lg">
           <FieldHint label="Add Content" hint={WIZARD_HINTS["course.content"]} labelClass="hf-page-title hf-mb-sm" />
           <p className="hf-page-subtitle">Upload your course files, or describe your topics</p>
         </div>
 
-        {/* Mode Toggle — 3 options */}
+        {/* Mode Toggle */}
         <div className="hf-chip-card-row">
-          <button
-            onClick={() => setUploadMode('pack')}
-            className={`hf-chip-card${uploadMode === 'pack' ? ' hf-chip-card-selected' : ''}`}
-          >
+          <button onClick={() => setUploadMode('pack')} className={`hf-chip-card${uploadMode === 'pack' ? ' hf-chip-card-selected' : ''}`}>
             <FolderUp className="hf-chip-card-icon" />
             <h3 className="hf-chip-card-title">Course Pack</h3>
             <p className="hf-chip-card-desc">Multiple files</p>
           </button>
-          <button
-            onClick={() => setUploadMode('file')}
-            className={`hf-chip-card${uploadMode === 'file' ? ' hf-chip-card-selected' : ''}`}
-          >
+          <button onClick={() => setUploadMode('file')} className={`hf-chip-card${uploadMode === 'file' ? ' hf-chip-card-selected' : ''}`}>
             <Upload className="hf-chip-card-icon" />
             <h3 className="hf-chip-card-title">Single File</h3>
             <p className="hf-chip-card-desc">PDF, DOCX, TXT, MD</p>
           </button>
-          <button
-            onClick={() => setUploadMode('describe')}
-            className={`hf-chip-card${uploadMode === 'describe' ? ' hf-chip-card-selected' : ''}`}
-          >
+          <button onClick={() => setUploadMode('describe')} className={`hf-chip-card${uploadMode === 'describe' ? ' hf-chip-card-selected' : ''}`}>
             <span className="hf-chip-card-emoji">{'\u270D\uFE0F'}</span>
             <h3 className="hf-chip-card-title">Describe</h3>
             <p className="hf-chip-card-desc">Write topics in text</p>
@@ -196,77 +186,63 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
 
         {/* Pack Upload */}
         {uploadMode === 'pack' && (
-          <div className="mb-8">
+          <div className="hf-mb-lg">
             {packComplete && packSummary ? (
               <div className="hf-banner hf-banner-success">
-                <CheckCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
+                <CheckCircle className="hf-icon-sm" style={{ flexShrink: 0 }} />
                 <span>{packSummary}</span>
               </div>
             ) : (
-              <PackUploadStep
-                domainId={domainId}
-                courseName={courseName}
-                onResult={handlePackResult}
-                onBack={onPrev}
-              />
+              <PackUploadStep domainId={domainId} courseName={courseName} onResult={handlePackResult} onBack={onPrev} />
             )}
           </div>
         )}
 
         {/* Single File Upload */}
         {uploadMode === 'file' && (
-          <div className="mb-8">
+          <div className="hf-mb-lg">
             <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => !uploading && fileInputRef.current?.click()}
-              className={`p-8 rounded-lg border-2 border-dashed text-center cursor-pointer transition-all ${
-                dragOver ? 'border-[var(--accent)] bg-[var(--accent)] bg-opacity-5' : 'border-[var(--border-default)]'
-              } ${uploading ? 'pointer-events-none opacity-60' : ''}`}
+              className={`hf-drop-zone${dragOver ? ' hf-drop-zone-active' : ''}${uploading ? ' hf-drop-zone-disabled' : ''}`}
             >
               {uploadedSourceId && !file ? (
                 <div>
-                  <CheckCircle className="w-5 h-5 text-[var(--status-success-text)] mx-auto mb-2" />
-                  <p className="font-semibold text-[var(--text-primary)]">{savedFileName || 'File uploaded'}</p>
-                  <p className="text-sm text-[var(--status-success-text)]">Uploaded and ready</p>
+                  <CheckCircle className="hf-icon-md hf-text-success" style={{ margin: '0 auto 8px' }} />
+                  <p className="hf-text-sm hf-text-bold">{savedFileName || 'File uploaded'}</p>
+                  <p className="hf-text-sm hf-text-success">Uploaded and ready</p>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadedSourceId(null);
-                      setData('sourceId', undefined);
-                    }}
-                    className="text-xs text-[var(--accent)] hover:underline mt-2"
+                    onClick={(e) => { e.stopPropagation(); setUploadedSourceId(null); setData('sourceId', undefined); }}
+                    className="hf-link-accent hf-text-xs hf-mt-xs"
                   >
                     Choose different file
                   </button>
                 </div>
               ) : file ? (
                 <div>
-                  <p className="font-semibold text-[var(--text-primary)]">{file.name}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <p className="hf-text-sm hf-text-bold">{file.name}</p>
+                  <p className="hf-text-sm hf-text-secondary">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                   <button
                     onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                    className="text-xs text-[var(--accent)] hover:underline mt-2"
+                    className="hf-link-accent hf-text-xs hf-mt-xs"
                   >
                     Choose different file
                   </button>
                 </div>
               ) : savedFileName && !uploadedSourceId ? (
                 <div>
-                  <AlertCircle className="w-5 h-5 text-[var(--status-warning-text)] mx-auto mb-2" />
-                  <p className="font-semibold text-[var(--text-primary)]">{savedFileName}</p>
-                  <p className="text-sm text-[var(--status-warning-text)]">File needs to be re-selected after page refresh</p>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">Click to re-upload, or Skip this step</p>
+                  <AlertCircle className="hf-icon-md" style={{ margin: '0 auto 8px', color: 'var(--status-warning-text)' }} />
+                  <p className="hf-text-sm hf-text-bold">{savedFileName}</p>
+                  <p className="hf-text-sm" style={{ color: 'var(--status-warning-text)' }}>File needs to be re-selected after page refresh</p>
+                  <p className="hf-text-xs hf-text-secondary hf-mt-xs">Click to re-upload, or Skip this step</p>
                 </div>
               ) : (
                 <div>
-                  <Upload className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                  <p className="font-semibold text-[var(--text-primary)]">Drag your file here</p>
-                  <p className="text-sm text-[var(--text-secondary)] mt-1">or click to select</p>
+                  <Upload className="hf-icon-lg hf-text-tertiary" style={{ margin: '0 auto 8px' }} />
+                  <p className="hf-text-sm hf-text-bold">Drag your file here</p>
+                  <p className="hf-text-sm hf-text-secondary hf-mt-xs">or click to select</p>
                 </div>
               )}
               <input
@@ -279,14 +255,10 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
             </div>
 
             {uploadError && (
-              <div className="hf-banner hf-banner-error" style={{ marginTop: 12 }}>
-                <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
-                <span style={{ flex: 1 }}>{uploadError}</span>
-                <button
-                  onClick={() => setUploadError(null)}
-                  className="hf-btn-ghost"
-                  style={{ padding: 0, fontSize: 12, color: "inherit", textDecoration: "underline" }}
-                >
+              <div className="hf-banner hf-banner-error hf-mt-sm">
+                <AlertCircle className="hf-icon-sm" style={{ flexShrink: 0 }} />
+                <span className="hf-flex-1">{uploadError}</span>
+                <button onClick={() => setUploadError(null)} className="hf-link-subtle hf-text-xs">
                   Dismiss
                 </button>
               </div>
@@ -296,10 +268,8 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
 
         {/* Describe Topics */}
         {uploadMode === 'describe' && (
-          <div className="mb-8">
-            <label className="block text-sm font-semibold text-[var(--text-primary)] mb-2">
-              Describe your course topics
-            </label>
+          <div className="hf-mb-lg">
+            <label className="hf-label">Describe your course topics</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -311,38 +281,21 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
         )}
       </div>
 
-      {/* Footer — only show for non-pack modes (pack has its own buttons) */}
-      {uploadMode !== 'pack' && (
+      {/* Footer — show for non-pack modes, OR if pack timed out (safety net) */}
+      {(uploadMode !== 'pack' || packTimedOut) && (
         <div className="hf-step-footer">
-          <button
-            onClick={onPrev}
-            className="hf-btn hf-btn-ghost"
-            disabled={uploading}
-          >
+          <button onClick={onPrev} className="hf-btn hf-btn-ghost" disabled={uploading}>
             Back
           </button>
           <div className="hf-flex hf-gap-md hf-items-center">
-            <button
-              onClick={() => {
-                setData('contentMode', 'skip');
-                setData('contentFileName', undefined);
-                setData('sourceId', undefined);
-                onNext();
-              }}
-              className="hf-btn hf-btn-ghost"
-              disabled={uploading}
-            >
+            <button onClick={handleSkip} className="hf-btn hf-btn-ghost" disabled={uploading}>
               Skip
             </button>
-            <button
-              onClick={handleNext}
-              disabled={!isValid || uploading}
-              className="hf-btn hf-btn-primary"
-            >
+            <button onClick={handleNext} disabled={!isValid || uploading} className="hf-btn hf-btn-primary">
               {uploading ? (
-                <>Uploading<div className="hf-spinner" style={{ width: 16, height: 16 }} /></>
+                <>Uploading<div className="hf-spinner hf-icon-sm" /></>
               ) : (
-                <>Next <ArrowRight style={{ width: 16, height: 16 }} /></>
+                <>Next <ArrowRight className="hf-icon-sm" /></>
               )}
             </button>
           </div>

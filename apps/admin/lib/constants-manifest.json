@@ -1,0 +1,118 @@
+{
+  "generated": "2026-02-25T11:34:32.991Z",
+  "count": 14,
+  "constants": [
+    {
+      "name": "MAX_STATUS_BATCH",
+      "value": "50",
+      "group": "api-limits",
+      "description": "Max content sources per batch status request (server)",
+      "file": "app/api/content-sources/status/route.ts",
+      "line": 21
+    },
+    {
+      "name": "MAX_STATUS_BATCH",
+      "value": "50",
+      "group": "api-limits",
+      "description": "Max content sources per batch status request (client)",
+      "file": "hooks/useSourceStatus.ts",
+      "line": 7
+    },
+    {
+      "name": "SYNC_CALLER_LIMIT",
+      "value": "5",
+      "group": "bulk-delete",
+      "description": "Max callers for synchronous delete",
+      "file": "lib/admin/bulk-delete.ts",
+      "line": 19
+    },
+    {
+      "name": "SYNC_DOMAIN_LIMIT",
+      "value": "20",
+      "group": "bulk-delete",
+      "description": "Max domains for synchronous deactivate",
+      "file": "lib/admin/bulk-delete.ts",
+      "line": 25
+    },
+    {
+      "name": "SYNC_PLAYBOOK_LIMIT",
+      "value": "10",
+      "group": "bulk-delete",
+      "description": "Max playbooks for synchronous delete",
+      "file": "lib/admin/bulk-delete.ts",
+      "line": 21
+    },
+    {
+      "name": "SYNC_SUBJECT_LIMIT",
+      "value": "10",
+      "group": "bulk-delete",
+      "description": "Max subjects for synchronous delete",
+      "file": "lib/admin/bulk-delete.ts",
+      "line": 23
+    },
+    {
+      "name": "TOTAL_RECORDS_THRESHOLD",
+      "value": "500",
+      "group": "bulk-delete",
+      "description": "Total affected records threshold for background",
+      "file": "lib/admin/bulk-delete.ts",
+      "line": 27
+    },
+    {
+      "name": "CACHE_TTL_MS",
+      "value": "30_000",
+      "group": "cache",
+      "description": "In-memory system settings cache TTL",
+      "file": "lib/system-settings.ts",
+      "line": 26
+    },
+    {
+      "name": "TEXT_SAMPLE_LIMIT",
+      "value": "2000",
+      "group": "content-processing",
+      "description": "Max characters extracted per file for AI analysis",
+      "file": "app/api/course-pack/analyze/route.ts",
+      "line": 47
+    },
+    {
+      "name": "POLL_INTERVAL_MS",
+      "value": "3_000",
+      "group": "polling",
+      "description": "Default client-side task polling interval",
+      "file": "lib/tasks/constants.ts",
+      "line": 36
+    },
+    {
+      "name": "POLL_TIMEOUT_MS",
+      "value": "3 * 60 * 1_000",
+      "group": "polling",
+      "description": "Client-side polling timeout before marking timed out",
+      "file": "lib/tasks/constants.ts",
+      "line": 39
+    },
+    {
+      "name": "SOURCE_STATUS_POLL_MS",
+      "value": "15_000",
+      "group": "polling",
+      "description": "Default source status poll interval for content sources",
+      "file": "hooks/useSourceStatus.ts",
+      "line": 10
+    },
+    {
+      "name": "TEACH_PLAN_POLL_MS",
+      "value": "10_000",
+      "group": "polling",
+      "description": "Poll interval for teach plan readiness checks",
+      "file": "components/wizards/TeachPlanStep.tsx",
+      "line": 17
+    },
+    {
+      "name": "WIRING_FETCH_TIMEOUT_MS",
+      "value": "60_000",
+      "group": "wiring",
+      "description": "Per-fetch timeout for post-extraction wiring calls (scaffold, content-spec, compose-prompt).",
+      "file": "lib/tasks/constants.ts",
+      "line": 42
+    }
+  ]
+}

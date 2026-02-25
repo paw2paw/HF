@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { useTerminology } from '@/contexts/TerminologyContext';
 import { useEntityContext } from '@/contexts/EntityContext';
 import { HierarchyBreadcrumb, type BreadcrumbSegment } from '@/components/shared/HierarchyBreadcrumb';
+import { CourseContextBanner } from '@/components/shared/CourseContextBanner';
+import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { TrustBadge } from '@/app/x/content-sources/_components/shared/badges';
 import { FileText, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
@@ -35,6 +37,8 @@ export default function CourseSourceDetailPage() {
   const [courseName, setCourseName] = useState<string | null>(null);
   const [subjectName, setSubjectName] = useState<string | null>(null);
   const [source, setSource] = useState<SourceDetail | null>(null);
+  const [contentMethods, setContentMethods] = useState<{ teachMethod: string; count: number }[]>([]);
+  const [contentTotal, setContentTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,10 +50,15 @@ export default function CourseSourceDetailPage() {
       fetch(`/api/playbooks/${courseId}`).then((r) => r.json()),
       fetch(`/api/subjects/${subjectId}`).then((r) => r.json()),
       fetch(`/api/content-sources/${sourceId}`).then((r) => r.json()),
+      fetch(`/api/courses/${courseId}/content-breakdown?sourceId=${sourceId}`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([pbData, subData, srcData]) => {
-        if (pbData.ok) setCourseName(pbData.playbook.name);
-        if (subData.ok || subData.subject) setSubjectName(subData.subject?.name || subData.name);
+      .then(([pbData, subData, srcData, breakdownData]) => {
+        setCourseName(pbData.ok ? pbData.playbook.name : 'Course');
+        setSubjectName((subData.ok || subData.subject) ? (subData.subject?.name || subData.name) : 'Subject');
+        if (breakdownData?.ok) {
+          setContentMethods(breakdownData.methods || []);
+          setContentTotal(breakdownData.total || 0);
+        }
         if (srcData.ok || srcData.source) {
           const s = srcData.source || srcData;
           setSource({
@@ -118,6 +127,7 @@ export default function CourseSourceDetailPage() {
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24 }}>
       <HierarchyBreadcrumb segments={segments} />
+      <CourseContextBanner courseId={courseId} />
 
       {/* Header */}
       <div className="hf-flex hf-flex-between hf-items-start hf-mb-lg">
@@ -132,12 +142,19 @@ export default function CourseSourceDetailPage() {
         </div>
         <Link
           href={`/x/content-sources/${sourceId}`}
-          className="hf-btn hf-btn-secondary hf-nowrap"
+          className="hf-btn hf-btn-primary hf-nowrap"
         >
           <ExternalLink size={14} />
-          Full Detail
+          View All Teaching Points
         </Link>
       </div>
+
+      {/* Teaching Method Breakdown */}
+      {contentMethods.length > 0 && (
+        <div className="hf-mb-lg">
+          <TeachMethodStats methods={contentMethods} total={contentTotal} compact />
+        </div>
+      )}
 
       {/* Info Card */}
       <div className="hf-card">
@@ -145,7 +162,7 @@ export default function CourseSourceDetailPage() {
           <div>
             <div className="hf-text-xs hf-text-muted hf-mb-xs">File</div>
             <div className="hf-text-sm hf-flex hf-gap-sm hf-items-center">
-              <FileText size={14} style={{ color: 'var(--text-muted)' }} />
+              <FileText size={14} className="hf-text-muted" />
               {source.fileName || '—'}
             </div>
           </div>

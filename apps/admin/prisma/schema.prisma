@@ -822,6 +822,9 @@ model Caller {
   // Caller's goals (learn, achieve, connect, etc.)
   goals Goal[]
 
+  // Per-module mastery tracking
+  moduleProgress CallerModuleProgress[]
+
   // Playbook enrollments — explicit links to specific playbooks (class roster)
   enrollments CallerPlaybook[]
 
@@ -1192,6 +1195,10 @@ model Call {
   playbookId String?
   playbook   Playbook? @relation("PlaybookCalls", fields: [playbookId], references: [id])
 
+  // Which curriculum module this call was about (set by pipeline after learning assessment)
+  curriculumModuleId String?
+  curriculumModule   CurriculumModule? @relation(fields: [curriculumModuleId], references: [id], onDelete: SetNull)
+
   // Call sequencing for delta calculations
   // Links to the previous call for this caller (for computing ADAPT parameters)
   previousCallId String?
@@ -1240,6 +1247,7 @@ model Call {
   @@index([previousCallId])
   @@index([usedPromptId])
   @@index([playbookId])
+  @@index([curriculumModuleId])
 }
 
 model CallMessage {
@@ -2085,6 +2093,91 @@ model Curriculum {
   @@index([trustLevel])
   @@index([validUntil])
   @@index([subjectId])
+
+  // First-class modules (replaces JSON notableInfo.modules)
+  modules CurriculumModule[]
+}
+
+// =============================================================================
+// Curriculum Modules — first-class teaching units
+// =============================================================================
+
+// A self-contained teaching unit within a curriculum (e.g., "Cell Biology", "Mitosis")
+model CurriculumModule {
+  id           String     @id @default(uuid())
+  curriculumId String
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+
+  slug        String  // "MOD-1" — matches legacy module id field
+  title       String  // "Cell Biology"
+  description String? @db.Text
+  sortOrder   Int     @default(0)
+
+  // Teaching metadata
+  estimatedDurationMinutes Int?
+  masteryThreshold         Float?   // Override curriculum-level threshold (0-1)
+  prerequisites            String[] // Slugs of prerequisite modules
+  keyTerms                 String[]
+  assessmentCriteria       String[]
+
+  // Lifecycle
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  learningObjectives LearningObjective[]
+  callerProgress     CallerModuleProgress[]
+  calls              Call[]
+
+  @@unique([curriculumId, slug])
+  @@index([curriculumId, sortOrder])
+  @@index([isActive])
+}
+
+// A measurable learning outcome within a module (e.g., "LO1: Understand mitosis")
+model LearningObjective {
+  id       String           @id @default(uuid())
+  moduleId String
+  module   CurriculumModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  ref         String // "LO1", "R04-LO2-AC2.3" — matches ContentAssertion.learningOutcomeRef
+  description String   @db.Text // Full text: "Understand the process of mitosis"
+  sortOrder   Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Linked assertions
+  assertions ContentAssertion[]
+
+  @@unique([moduleId, ref])
+  @@index([moduleId, sortOrder])
+  @@index([ref])
+}
+
+// Per-caller mastery tracking for a specific module
+model CallerModuleProgress {
+  id       String           @id @default(uuid())
+  callerId String
+  caller   Caller           @relation(fields: [callerId], references: [id], onDelete: Cascade)
+  moduleId String
+  module   CurriculumModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  mastery     Float    @default(0) // 0.0-1.0
+  status      String   @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  lastCallId String? // Most recent call that updated this
+  callCount  Int     @default(0) // How many calls touched this module
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([callerId, moduleId])
+  @@index([callerId, status])
+  @@index([moduleId])
 }
 
 // Top-level spec: defines a category of analysis
@@ -3395,6 +3488,10 @@ model ContentAssertion {
   topicSlug  String? // Stable topic identifier (e.g., "temperature-control")
   teachMethod String? // Wizard-assigned teach method (e.g., "recall_quiz", "definition_matching")
 
+  // Link to first-class LearningObjective (set during backfill/extraction)
+  learningObjectiveId String?
+  learningObjective   LearningObjective? @relation(fields: [learningObjectiveId], references: [id], onDelete: SetNull)
+
   // Vector embedding for semantic search (pgvector)
   embedding Unsupported("vector(1536)")?
 
@@ -3418,6 +3515,7 @@ model ContentAssertion {
   @@index([parentId])
   @@index([depth])
   @@index([topicSlug])
+  @@index([learningObjectiveId])
 }
 
 // =========================

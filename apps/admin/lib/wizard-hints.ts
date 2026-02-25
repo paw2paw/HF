@@ -48,6 +48,24 @@ export const WIZARD_HINTS: Record<string, FieldHintContent> = {
     examples: ["3 sessions of 30 min", "5 sessions breadth-first", "1 deep-dive session"],
   },
 
+  "teach.persona": {
+    why: "The persona matrix lets you fine-tune how your AI behaves along key dimensions.",
+    effect: "Adjusts the AI's warmth, directiveness, and other traits — changes take effect on the next call.",
+    examples: ["Warmer + less directive for anxious students", "More structured for exam prep"],
+  },
+
+  "teach.onboarding": {
+    why: "Onboarding controls how the AI introduces itself and gathers initial context.",
+    effect: "Sets the welcome message, conversation phases, and what the AI asks in the first call.",
+    examples: ["Custom welcome message", "Skip discovery phase", "Add a learning-style check"],
+  },
+
+  "teach.promptPreview": {
+    why: "Shows the exact system prompt the AI will receive — useful for debugging.",
+    effect: "Read-only preview of the composed prompt including persona, content, and memory sections.",
+    examples: ["Check that teaching points appear", "Verify persona instructions", "Confirm goals are included"],
+  },
+
   // ── Course Setup wizard ───────────────────────────────
 
   "course.name": {

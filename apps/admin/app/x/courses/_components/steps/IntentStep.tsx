@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowRight, AlertCircle, ExternalLink } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
 import { FieldHint } from '@/components/shared/FieldHint';
 import { WIZARD_HINTS } from '@/lib/wizard-hints';
@@ -22,7 +22,7 @@ interface ExistingCourse {
 }
 
 export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepProps) {
-  const { terms, lower } = useTerminology();
+  const { lower } = useTerminology();
   const router = useRouter();
   const [courseName, setCourseName] = useState('');
   const [outcomes, setOutcomes] = useState<string[]>(['', '', '']);
@@ -30,7 +30,6 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
   const [personas, setPersonas] = useState<PersonaOption[]>([]);
   const [personasLoading, setPersonasLoading] = useState(true);
   const [existingCourse, setExistingCourse] = useState<ExistingCourse | null>(null);
-  const [checkingCourse, setCheckingCourse] = useState(false);
 
   // Load saved data
   useEffect(() => {
@@ -59,7 +58,6 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
             icon: p.icon || '🎭',
           })));
         } else if (!cancelled) {
-          // API returned ok:false or empty list — use fallback
           throw new Error(data.error || 'No personas returned');
         }
       } catch (e) {
@@ -84,7 +82,6 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     }
 
     const checkCourse = async () => {
-      setCheckingCourse(true);
       try {
         const res = await fetch(`/api/courses?q=${encodeURIComponent(courseName)}`);
         if (res.ok) {
@@ -99,10 +96,8 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
             setExistingCourse(null);
           }
         }
-      } catch (err) {
-        console.error('Error checking course:', err);
-      } finally {
-        setCheckingCourse(false);
+      } catch {
+        // Silent — course check is optional UX hint, not critical
       }
     };
 
@@ -122,7 +117,6 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     setData('learningOutcomes', outcomes.filter(o => o.trim()));
     setData('persona', persona);
     setData('personaName', selected?.name || persona);
-    // Keep teachingStyle for backwards compat with course-setup API
     setData('teachingStyle', persona);
     onNext();
   };
@@ -130,17 +124,16 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
   const isValid = courseName.trim().length > 0 && persona;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Content */}
-      <div className="flex-1 p-8 max-w-2xl mx-auto w-full">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Create Your Course</h1>
-          <p className="text-[var(--text-secondary)]">Tell us about your course and how you want to teach</p>
+    <div className="hf-wizard-page">
+      <div className="hf-wizard-step">
+        <div className="hf-mb-lg">
+          <h1 className="hf-page-title hf-mb-xs">Create Your Course</h1>
+          <p className="hf-page-subtitle">Tell us about your course and how you want to teach</p>
         </div>
 
         {/* Course Name */}
-        <div className="mb-8">
-          <FieldHint label="What's your course called?" hint={WIZARD_HINTS["course.name"]} labelClass="block text-sm font-semibold text-[var(--text-primary)] mb-2" />
+        <div className="hf-mb-lg">
+          <FieldHint label="What's your course called?" hint={WIZARD_HINTS["course.name"]} labelClass="hf-label" />
           <input
             type="text"
             value={courseName}
@@ -149,11 +142,11 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
             className="hf-input"
           />
           {existingCourse && (
-            <div className="hf-banner hf-banner-warning" style={{ marginTop: 8, flexWrap: "wrap" }}>
-              <AlertCircle style={{ width: 20, height: 20, flexShrink: 0 }} />
-              <div style={{ flex: 1, fontSize: 13 }}>
-                <p style={{ fontWeight: 600, margin: 0 }}>Course exists: &quot;{existingCourse.name}&quot;</p>
-                <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <div className="hf-banner hf-banner-warning hf-mt-xs hf-flex hf-flex-wrap hf-items-start hf-gap-sm">
+              <AlertCircle className="hf-icon-md" style={{ flexShrink: 0 }} />
+              <div className="hf-flex-1">
+                <p className="hf-text-sm hf-text-bold">Course exists: &quot;{existingCourse.name}&quot;</p>
+                <div className="hf-flex hf-gap-sm hf-mt-xs">
                   <button
                     type="button"
                     onClick={() => {
@@ -162,16 +155,14 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
                         ? `/x/teach?domainId=${existingCourse.domainId}`
                         : '/x/courses');
                     }}
-                    className="hf-btn hf-btn-secondary"
-                    style={{ padding: "4px 10px", fontSize: 12 }}
+                    className="hf-btn hf-btn-secondary hf-btn-sm"
                   >
-                    Go to existing <ExternalLink style={{ width: 12, height: 12 }} />
+                    Go to existing <ExternalLink className="hf-icon-xs" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setExistingCourse(null)}
-                    className="hf-btn hf-btn-ghost"
-                    style={{ padding: "4px 10px", fontSize: 12 }}
+                    className="hf-btn hf-btn-ghost hf-btn-sm"
                   >
                     Create new anyway
                   </button>
@@ -182,12 +173,12 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
         </div>
 
         {/* Learning Outcomes */}
-        <div className="mb-8">
-          <FieldHint label="What will students learn? (1-3 outcomes)" hint={WIZARD_HINTS["course.outcomes"]} labelClass="block text-sm font-semibold text-[var(--text-primary)] mb-2" />
-          <div className="space-y-2">
+        <div className="hf-mb-lg">
+          <FieldHint label="What will students learn? (1-3 outcomes)" hint={WIZARD_HINTS["course.outcomes"]} labelClass="hf-label" />
+          <div className="hf-flex hf-flex-col hf-gap-sm">
             {outcomes.map((outcome, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-sm text-[var(--text-tertiary)] w-6">•</span>
+              <div key={i} className="hf-flex hf-items-center hf-gap-sm">
+                <span className="hf-text-sm hf-text-tertiary" style={{ width: 24 }}>•</span>
                 <input
                   type="text"
                   value={outcome}
@@ -198,55 +189,48 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
               </div>
             ))}
           </div>
-          <p className="text-xs text-[var(--text-tertiary)] mt-2">
-            Examples: &quot;Understand photosynthesis&quot; • &quot;Explain cellular respiration&quot; • &quot;Design experiments&quot;
+          <p className="hf-hint hf-mt-xs">
+            Examples: &quot;Understand photosynthesis&quot; · &quot;Explain cellular respiration&quot; · &quot;Design experiments&quot;
           </p>
         </div>
 
         {/* Persona Selection */}
-        <div className="mb-8">
-          <FieldHint label={`Choose a ${lower('persona')}`} hint={WIZARD_HINTS["course.persona"]} labelClass="block text-sm font-semibold text-[var(--text-primary)] mb-3" />
+        <div className="hf-mb-lg">
+          <FieldHint label={`Choose a ${lower('persona')}`} hint={WIZARD_HINTS["course.persona"]} labelClass="hf-label" />
           {personasLoading ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 0", color: "var(--text-muted)" }}>
-              <div className="hf-spinner" style={{ width: 16, height: 16 }} />
-              <span style={{ fontSize: 14 }}>Loading {lower('persona')}s...</span>
+            <div className="hf-loading-row">
+              <div className="hf-spinner hf-icon-sm" />
+              <span className="hf-text-sm">Loading {lower('persona')}s...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="hf-chip-row">
               {personas.map((p) => (
                 <button
                   key={p.slug}
                   onClick={() => setPersona(p.slug)}
                   className={persona === p.slug ? "hf-chip hf-chip-selected" : "hf-chip"}
-                  style={{ padding: 16, textAlign: "left", display: "block", borderRadius: 10, borderWidth: 2 }}
                 >
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>{p.icon}</div>
-                  <h3 style={{ fontWeight: 600, color: "var(--text-primary)" }}>{p.name}</h3>
-                  {p.description && (
-                    <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{p.description}</p>
-                  )}
+                  <span>{p.icon}</span>
+                  <span>{p.name}</span>
                 </button>
               ))}
             </div>
+          )}
+          {persona && personas.find(p => p.slug === persona)?.description && (
+            <p className="hf-hint">
+              {personas.find(p => p.slug === persona)!.description}
+            </p>
           )}
         </div>
       </div>
 
       {/* Navigation */}
       <div className="hf-step-footer">
-        <button
-          onClick={onPrev}
-          disabled
-          className="hf-btn hf-btn-ghost"
-        >
+        <button onClick={onPrev} disabled className="hf-btn hf-btn-ghost">
           Back
         </button>
-        <button
-          onClick={handleNext}
-          disabled={!isValid}
-          className="hf-btn hf-btn-primary"
-        >
-          Next <ArrowRight style={{ width: 16, height: 16 }} />
+        <button onClick={handleNext} disabled={!isValid} className="hf-btn hf-btn-primary">
+          Next <ArrowRight className="hf-icon-sm" />
         </button>
       </div>
     </div>

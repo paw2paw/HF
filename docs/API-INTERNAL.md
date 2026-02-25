@@ -44,6 +44,7 @@
   - [Curricula](#curricula)
   - [Dashboard](#dashboard)
   - [Data Dictionary](#data-dictionary)
+  - [Dev](#dev)
   - [Dev Tools](#dev-tools)
   - [Domains](#domains)
   - [Educator](#educator)
@@ -4738,6 +4739,27 @@ Find cross-references for template variables and key prefixes across the system.
 
 ---
 
+## Dev
+
+### `POST` /api/wizard-lab
+
+Test endpoint for the wizard framework. Creates a task that
+
+**Auth**: ADMIN+ · **Scope**: `dev:wizard-lab`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| name | body | string | No | Topic name from intent step |
+| emphasis | body | string | No | Teaching emphasis |
+| duration | body | string | No | Session duration |
+
+**Response** `200`
+```json
+{ ok: true, taskId: "..." }
+```
+
+---
+
 ## Dev Tools
 
 ### `POST` /api/x/cleanup-callers
@@ -7615,6 +7637,18 @@ Toggle deep logging on/off
 ### `POST` /api/courses
 
 **Auth**: OPERATOR+
+
+---
+
+### `GET` /api/curricula/:curriculumId/modules
+
+**Auth**: session (OPERATOR+) · **Scope**: `curricula:write`
+
+---
+
+### `GET` /api/curricula/:curriculumId/modules/:moduleId
+
+**Auth**: session (OPERATOR+) · **Scope**: `curricula:write`
 
 ---
 
@@ -11771,8 +11805,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 327 |
-| Files with annotations | 326 |
+| Route files found | 330 |
+| Files with annotations | 329 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

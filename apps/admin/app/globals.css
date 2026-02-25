@@ -1218,6 +1218,14 @@ html.light {
 .hf-input::placeholder {
   color: var(--text-placeholder);
 }
+/* Compact input variant for filter bars */
+.hf-input.hf-input-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  width: 180px;
+  border-color: var(--border-strong);
+}
 
 /* Buttons */
 .hf-btn {
@@ -1479,6 +1487,9 @@ html.light {
 .hf-mt-xs { margin-top: 4px; }
 .hf-mb-xs { margin-bottom: 4px; }
 .hf-ml-auto { margin-left: auto; }
+/* Subtle link (underline, inherits color) */
+.hf-link-subtle { text-decoration: underline; color: inherit; cursor: pointer; }
+.hf-link-subtle:hover { opacity: 0.8; }
 
 /* Alignment utilities */
 .hf-items-center { align-items: center; }
@@ -2148,6 +2159,9 @@ html.light {
 
 /* Chip / pill selectors (e.g. duration, emphasis pickers) */
 .hf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 13px;
@@ -2158,11 +2172,13 @@ html.light {
   color: var(--text-secondary);
   transition: all 0.15s ease;
 }
+.hf-chip:hover { border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent); }
 .hf-chip-selected {
   border-color: var(--accent-primary);
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   color: var(--accent-primary);
 }
+.hf-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* Chip card variant — large selectable cards (e.g., content mode picker) */
 .hf-chip-card-row { display: flex; gap: 12px; margin-bottom: 32px; }
@@ -2253,12 +2269,11 @@ html.light {
   background: var(--surface-primary);
   border: 1px solid var(--border-default);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--text-primary) 10%, transparent);
-  display: flex;
   flex-direction: column;
+  display: none;
   opacity: 0;
-  visibility: hidden;
   transform: translateY(-4px);
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  transition: opacity 0.15s ease, transform 0.15s ease;
   pointer-events: none;
 }
 
@@ -2266,8 +2281,8 @@ html.light {
 .hf-field-hint-trigger:focus-visible + .hf-field-hint-popover,
 .hf-field-hint-popover:hover,
 .hf-field-hint-trigger--active + .hf-field-hint-popover {
+  display: flex;
   opacity: 1;
-  visibility: visible;
   transform: translateY(0);
   pointer-events: auto;
 }
@@ -2588,6 +2603,9 @@ html.light {
   max-width: 1400px;
   margin: 0 auto;
 }
+.hf-page-container.hf-page-wide {
+  max-width: none;
+}
 .hf-page-scroll {
   flex: 1;
   min-height: 0;
@@ -2607,6 +2625,266 @@ html.light {
   max-width: 720px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Wizard page outer wrapper (full-height flex column) */
+.hf-wizard-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Small button variant (inline edit, filter bar, compact actions) */
+.hf-btn-sm {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+}
+
+/* Icon sizing utilities */
+.hf-icon-xs { width: 12px; height: 12px; }
+.hf-icon-sm { width: 16px; height: 16px; }
+.hf-icon-md { width: 20px; height: 20px; }
+.hf-icon-lg { width: 32px; height: 32px; }
+.hf-icon-xl { width: 48px; height: 48px; }
+
+/* Loading state — inline flex row with muted text */
+.hf-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding: 16px 0;
+}
+
+/* Progress bar (container + fill) */
+.hf-progress-bar {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  background: var(--surface-secondary);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+.hf-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+/* Empty/placeholder dashed box */
+.hf-empty-dashed {
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-default);
+}
+
+/* Inline edit row (session editor, add form) */
+.hf-inline-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Add session form — dashed border box */
+.hf-add-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-default);
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+/* Session card display row (read mode) */
+.hf-session-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.hf-session-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
+}
+.hf-session-type {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.hf-session-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.hf-session-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact select/input for inline forms */
+.hf-input.hf-input-inline {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.hf-input.hf-input-inline-md {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+/* Selectable list item (checkbox + label pattern) */
+.hf-select-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 2px solid var(--border-default);
+  text-align: left;
+  transition: all 0.15s ease;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.hf-select-item:hover { border-color: var(--border-strong); }
+.hf-select-item-selected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+.hf-select-item-compact {
+  padding: 8px 12px;
+  gap: 12px;
+  border: none;
+  border-radius: 8px;
+}
+.hf-select-item-compact:hover { background: var(--surface-secondary); }
+.hf-select-item-compact.hf-select-item-selected {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+/* Checkbox indicator */
+.hf-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.hf-checkbox-sm { width: 16px; height: 16px; }
+.hf-checkbox-checked {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+}
+
+/* Mode tab buttons (Students step enroll modes, etc.) */
+.hf-mode-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.hf-mode-tab:hover { color: var(--text-primary); }
+.hf-mode-tab-active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+/* Scrollable list container */
+.hf-list-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* Search input with icon (relative wrapper) */
+.hf-search-wrap { position: relative; margin-bottom: 16px; }
+.hf-search-wrap .hf-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+.hf-search-wrap .hf-input { padding-left: 40px; padding-right: 32px; }
+.hf-search-wrap .hf-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+/* Accent link (inherits accent color, underline on hover) */
+.hf-link-accent {
+  color: var(--accent-primary);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.hf-link-accent:hover { text-decoration: underline; }
+
+/* File drop zone */
+.hf-drop-zone {
+  padding: 32px;
+  border-radius: 10px;
+  border: 2px dashed var(--border-default);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.hf-drop-zone-active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+.hf-drop-zone-disabled { pointer-events: none; opacity: 0.6; }
+
+/* Delete/error colored button */
+.hf-btn-icon-error {
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--status-error-text);
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 /* ── Card grid (auto-fill responsive) ── */

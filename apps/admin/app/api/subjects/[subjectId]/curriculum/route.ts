@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { startCurriculumGeneration } from "@/lib/jobs/curriculum-runner";
+import { syncModulesToDB } from "@/lib/curriculum/sync-modules";
 
 type Params = { params: Promise<{ subjectId: string }> };
 
@@ -192,6 +193,15 @@ export async function POST(req: NextRequest, { params }: Params) {
         },
       });
 
+      // Dual-write: sync modules to first-class DB models
+      if (result.modules?.length > 0) {
+        try {
+          await syncModulesToDB(curriculum.id, result.modules);
+        } catch (err: any) {
+          console.warn("[subjects/:id/curriculum] Module sync failed (non-fatal):", err.message);
+        }
+      }
+
       return NextResponse.json({
         ok: true,
         mode: "save",
@@ -242,6 +252,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       where: { id: curriculum.id },
       data,
     });
+
+    // Dual-write: sync modules to first-class DB models
+    if (body.modules?.length > 0) {
+      try {
+        await syncModulesToDB(curriculum.id, body.modules);
+      } catch (err: any) {
+        console.warn("[subjects/:id/curriculum] PATCH module sync failed (non-fatal):", err.message);
+      }
+    }
 
     return NextResponse.json({ curriculum: updated });
   } catch (error: any) {

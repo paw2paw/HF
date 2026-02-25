@@ -17,7 +17,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @response 200 { ok, sources: Record<string, SourceStatus> }
  */
 
-/** Max sources per batch request */
+/** @system-constant api-limits — Max content sources per batch status request (server) */
 const MAX_STATUS_BATCH = 50;
 
 export interface SourceStatus {

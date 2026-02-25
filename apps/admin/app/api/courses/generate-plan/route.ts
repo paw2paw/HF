@@ -9,6 +9,7 @@ import {
   completeTask,
   failTask,
 } from "@/lib/ai/task-guidance";
+import { syncModulesToDB } from "@/lib/curriculum/sync-modules";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -140,6 +141,13 @@ async function runGeneratePlan(
 
       return { subject, curriculumRecord };
     });
+
+    // 2b. Sync modules to first-class DB models
+    try {
+      await syncModulesToDB(curriculumRecord.id, curriculum.modules);
+    } catch (err: any) {
+      console.warn("[courses/generate-plan] Module sync failed (non-fatal):", err.message);
+    }
 
     // 3. Generate lesson plan from curriculum modules
     await updateTaskProgress(taskId, {

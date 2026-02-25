@@ -48,15 +48,32 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   const skipped: string[] = [];
   const p = db(tx);
 
-  // 1. Load domain
+  // 1. Load domain (including institution type chain for archetype resolution)
   const domain = await p.domain.findUnique({
     where: { id: domainId },
-    select: { id: true, slug: true, name: true, description: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      institution: {
+        select: {
+          type: {
+            select: { defaultArchetypeSlug: true },
+          },
+        },
+      },
+    },
   });
 
   if (!domain) {
     throw new Error(`Domain not found: ${domainId}`);
   }
+
+  // Resolve archetype: explicit option → institution type chain → global default
+  const resolvedArchetype = options?.extendsAgent
+    || domain.institution?.type?.defaultArchetypeSlug
+    || config.specs.defaultArchetype;
 
   // 2. Check for existing published playbook — already scaffolded
   //    Skip this check when forceNewPlaybook=true (new class in existing school)
@@ -68,7 +85,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
 
     if (existingPublished) {
       // Ensure identity spec exists (may be missing if domain was created manually)
-      const archetypeSlug = options?.extendsAgent || config.specs.defaultArchetype;
+      const archetypeSlug = resolvedArchetype;
       const archetypeLabel = archetypeSlug.replace(/-\d+$/, "").toLowerCase();
       const identitySlug = `${domain.slug}-identity`;
 
@@ -169,7 +186,7 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
   }
 
   // 3. Find or create Identity spec
-  const archetypeSlug = options?.extendsAgent || config.specs.defaultArchetype;
+  const archetypeSlug = resolvedArchetype;
   const archetypeLabel = archetypeSlug.replace(/-\d+$/, "").toLowerCase(); // "TUT-001" → "tut", "COMPANION-001" → "companion"
 
   const identitySlug = `${domain.slug}-identity`;
