@@ -10,47 +10,47 @@ import { config } from "@/lib/config";
  * @scope media:read
  * @auth session (VIEWER+)
  * @tags media
- * @description Serve a media file by ID. Generates a signed URL from the storage backend and redirects to it. For local storage, streams the file directly.
- * @response 302 Redirect to signed URL
+ * @description Serve a media file by ID. Streams the file directly with proper Content-Disposition.
+ *   Supports ?inline=1 to display in browser (Content-Disposition: inline) instead of downloading.
+ * @query inline? string - "1" to display inline instead of downloading
+ * @response 200 File stream with Content-Type and Content-Disposition headers
  * @response 404 { ok: false, error: "Media not found" }
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuth("VIEWER");
   if (isAuthError(auth)) return auth.error;
 
   const { id } = await params;
+  const inline = request.nextUrl.searchParams.get("inline") === "1";
 
   const media = await prisma.mediaAsset.findUnique({ where: { id } });
   if (!media) {
     return NextResponse.json({ ok: false, error: "Media not found" }, { status: 404 });
   }
 
-  const storage = getStorageAdapter();
+  const disposition = inline
+    ? `inline; filename="${media.fileName}"`
+    : `attachment; filename="${media.fileName}"`;
 
-  // For local storage, stream the file directly using a fresh local adapter instance
-  if (media.storageType === "local") {
-    try {
-      const { LocalStorageAdapter } = await import("@/lib/storage/local");
-      const localAdapter = new LocalStorageAdapter();
-      const buffer = await localAdapter.download(media.storageKey);
-      return new Response(new Uint8Array(buffer), {
-        headers: {
-          "Content-Type": media.mimeType,
-          "Content-Disposition": `attachment; filename="${media.fileName}"`,
-          "Cache-Control": "private, max-age=3600",
-        },
-      });
-    } catch {
-      return NextResponse.json({ ok: false, error: "File not found" }, { status: 404 });
-    }
+  try {
+    const storage = getStorageAdapter();
+    const buffer = await storage.download(media.storageKey);
+
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": media.mimeType,
+        "Content-Disposition": disposition,
+        "Content-Length": String(buffer.length),
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
+  } catch (err) {
+    console.error(`[media/${id}] Download failed:`, err);
+    return NextResponse.json({ ok: false, error: "File not found" }, { status: 404 });
   }
-
-  // For GCS (and fallback), redirect to signed URL with original filename in Content-Disposition
-  const signedUrl = await storage.getSignedUrl(media.storageKey, 3600, media.fileName);
-  return NextResponse.redirect(signedUrl);
 }
 
 /**

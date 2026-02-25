@@ -1,16 +1,17 @@
 'use client';
 
-import { Send } from 'lucide-react';
+import { Send, Mic } from 'lucide-react';
 import { useRef, useCallback } from 'react';
 
 interface MessageInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onVoiceToggle?: () => void;
   disabled?: boolean;
 }
 
-export function MessageInput({ value, onChange, onSend, disabled }: MessageInputProps) {
+export function MessageInput({ value, onChange, onSend, onVoiceToggle, disabled }: MessageInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleInput = useCallback(() => {
@@ -45,6 +46,9 @@ export function MessageInput({ value, onChange, onSend, disabled }: MessageInput
     }
   };
 
+  // WhatsApp pattern: mic when empty, send when typing
+  const showMic = !value.trim() && !!onVoiceToggle && !disabled;
+
   return (
     <div className="wa-input-bar">
       <textarea
@@ -59,11 +63,11 @@ export function MessageInput({ value, onChange, onSend, disabled }: MessageInput
       />
       <button
         className="wa-send-btn"
-        onClick={handleSend}
-        disabled={!value.trim() || disabled}
-        aria-label="Send message"
+        onClick={showMic ? onVoiceToggle : handleSend}
+        disabled={!showMic && (!value.trim() || disabled)}
+        aria-label={showMic ? 'Voice mode' : 'Send message'}
       >
-        <Send size={20} />
+        {showMic ? <Mic size={20} /> : <Send size={20} />}
       </button>
     </div>
   );

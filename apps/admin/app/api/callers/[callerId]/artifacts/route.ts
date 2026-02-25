@@ -54,6 +54,11 @@ export async function GET(
     where,
     orderBy: { createdAt: "desc" },
     take: limit,
+    include: {
+      media: {
+        select: { id: true, fileName: true, mimeType: true, title: true },
+      },
+    },
   });
 
   return NextResponse.json({ ok: true, artifacts });

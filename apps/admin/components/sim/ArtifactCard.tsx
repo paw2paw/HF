@@ -107,7 +107,8 @@ export function ArtifactCard({ artifact }: { artifact: Artifact }) {
         )}
         {mediaUrl && mediaMime === 'application/pdf' && (
           <a href={mediaUrl}
-            download={artifact.media?.fileName || 'document.pdf'}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', background: 'var(--surface-secondary)', borderRadius: 4, marginBottom: 8, textDecoration: 'none', color: 'var(--text-primary)', fontSize: 12 }}
             onClick={(e) => e.stopPropagation()}
           >

@@ -6780,13 +6780,13 @@ Delete a media file by ID. Removes from storage backend and database.
 
 ### `GET` /api/media/:id
 
-Serve a media file by ID. Generates a signed URL from the storage backend and redirects to it. For local storage, streams the file directly.
+Serve a media file by ID. Streams the file directly with proper Content-Disposition.
 
 **Auth**: session (VIEWER+) · **Scope**: `media:read`
 
-**Response** `302`
+**Response** `200`
 ```json
-Redirect to signed URL
+File stream with Content-Type and Content-Disposition headers
 ```
 
 **Response** `404`

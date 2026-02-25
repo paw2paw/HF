@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, PhoneOff, FolderOpen, Mic, MicOff } from 'lucide-react';
+import { ArrowLeft, PhoneOff, FolderOpen, Mic } from 'lucide-react';
 
 interface WhatsAppHeaderProps {
   title: string;
@@ -56,9 +56,10 @@ export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibr
           onClick={onVoiceToggle}
           aria-label={voiceActive ? 'Exit voice mode' : 'Enter voice mode'}
           title={voiceActive ? 'Exit voice mode' : 'Voice mode'}
-          style={{ color: voiceActive ? 'var(--wa-green-primary)' : undefined }}
+          style={{ position: 'relative', color: voiceActive ? 'var(--wa-green-primary)' : undefined }}
         >
-          {voiceActive ? <MicOff size={20} /> : <Mic size={20} />}
+          <Mic size={20} />
+          {voiceActive && <span className="wa-voice-dot" />}
         </button>
       )}
       {callActive && onEndCall && (

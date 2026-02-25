@@ -63,13 +63,23 @@
 /* Message bubbles */
 .wa-bubble {
   max-width: 75%;
-  padding: 6px 8px 4px;
+  padding: 7px 10px 8px;
   border-radius: 8px;
   position: relative;
   word-wrap: break-word;
   line-height: 1.35;
   font-size: 14.5px;
   color: var(--wa-text-primary);
+}
+
+/* Tighter spacing between consecutive same-direction bubbles, wider when direction changes */
+.wa-bubble-out + .wa-bubble-in,
+.wa-bubble-in + .wa-bubble-out,
+.wa-bubble-teacher + .wa-bubble-out,
+.wa-bubble-teacher + .wa-bubble-in,
+.wa-bubble-out + .wa-bubble-teacher,
+.wa-bubble-in + .wa-bubble-teacher {
+  margin-top: 6px;
 }
 
 .wa-bubble-out {
@@ -235,6 +245,24 @@
   margin: -8px;
   display: flex;
   align-items: center;
+}
+
+/* Voice-active dot indicator on header mic */
+.wa-voice-dot {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  background: var(--wa-green-primary);
+  border-radius: 50%;
+  border: 2px solid var(--wa-header-bg);
+  animation: wa-voice-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes wa-voice-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 /* Avatar */

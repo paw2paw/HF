@@ -633,7 +633,7 @@ export function SimChat({
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: 2,
+          gap: 4,
           padding: '8px 12px 12px',
         }}
       >
@@ -837,6 +837,7 @@ export function SimChat({
                 value={input}
                 onChange={setInput}
                 onSend={handleSend}
+                onVoiceToggle={voiceMode.toggle}
                 disabled={isStreaming}
               />
             </div>

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         readAt: true,
         createdBy: true,
         call: { select: { createdAt: true } },
+        media: { select: { id: true, fileName: true, mimeType: true, title: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
