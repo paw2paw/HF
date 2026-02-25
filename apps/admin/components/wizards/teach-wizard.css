@@ -322,18 +322,6 @@
   opacity: 0.55;
 }
 
-/* ── Expandable row chevron ──────────────────────── */
-
-.tw-group-chevron {
-  transition: transform 0.2s;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.tw-group-chevron-open {
-  transform: rotate(90deg);
-}
-
 .tw-group-row:hover {
   background: var(--surface-secondary);
 }
@@ -571,15 +559,6 @@
 
 .tw-lesson-meta-expandable:hover {
   color: var(--accent-primary);
-}
-
-.tw-lesson-chevron {
-  transition: transform 0.15s ease;
-  flex-shrink: 0;
-}
-
-.tw-lesson-chevron-open {
-  transform: rotate(180deg);
 }
 
 .tw-lesson-item {

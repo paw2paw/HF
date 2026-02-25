@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, RotateCcw, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, RotateCcw, Save, ChevronRight } from "lucide-react";
 import { SortableList } from "@/components/shared/SortableList";
 import { reorderItems } from "@/lib/sortable/reorder";
 import "./extraction.css";
@@ -724,7 +724,9 @@ function CollapsibleSection({
           <div className="ext-section-title">{title}</div>
           <div className="ext-section-subtitle">{subtitle}</div>
         </div>
-        {expanded ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
+        <div className={`hf-chevron--sm${expanded ? " hf-chevron--open" : ""}`}>
+          <ChevronRight size={14} />
+        </div>
       </button>
       {expanded && (
         <div className="ext-section-body">

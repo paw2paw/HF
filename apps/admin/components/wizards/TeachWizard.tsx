@@ -19,7 +19,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ChevronRight,
-  ChevronDown,
   Plus,
   PlayCircle,
   Pencil,
@@ -1832,10 +1831,9 @@ export default function TeachWizard() {
                           ))}
                         </select>
                       </div>
-                      <ChevronRight
-                        size={14}
-                        className={`tw-group-chevron ${g.expanded ? "tw-group-chevron-open" : ""}`}
-                      />
+                      <div className={`hf-chevron--sm${g.expanded ? " hf-chevron--open" : ""}`}>
+                        <ChevronRight size={14} />
+                      </div>
                     </div>
 
                     {/* Expanded items */}
@@ -2036,10 +2034,9 @@ export default function TeachWizard() {
                           >
                             {lesson.durationMins} min · {lesson.tpCount} teaching point{lesson.tpCount !== 1 ? "s" : ""}
                             {hasExpandableTps && (
-                              <ChevronDown
-                                size={12}
-                                className={`tw-lesson-chevron${isExpanded ? " tw-lesson-chevron-open" : ""}`}
-                              />
+                              <span className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+                                <ChevronRight size={12} />
+                              </span>
                             )}
                           </button>
                           {lesson.objectives.length > 0 && (

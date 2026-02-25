@@ -24,28 +24,19 @@ export function AdvancedSection({ children, label = "Advanced options" }: Advanc
     <div style={{ marginTop: 8, marginBottom: 8 }}>
       <button
         onClick={() => setExpanded((v) => !v)}
+        className="hf-flex hf-items-center hf-gap-xs hf-text-sm hf-text-muted"
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
           padding: "6px 10px",
-          fontSize: 12,
           fontWeight: 500,
-          color: "var(--text-muted)",
           background: "transparent",
           border: "1px solid var(--border-subtle)",
           borderRadius: 6,
           cursor: "pointer",
-          transition: "all 0.15s ease",
         }}
       >
-        <ChevronRight
-          size={14}
-          style={{
-            transition: "transform 0.15s ease",
-            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
-          }}
-        />
+        <span className={`hf-chevron--sm${expanded ? " hf-chevron--open" : ""}`}>
+          <ChevronRight size={14} />
+        </span>
         {label}
       </button>
       {expanded && (
