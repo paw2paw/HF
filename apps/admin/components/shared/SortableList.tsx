@@ -50,7 +50,6 @@ function SortableCard({
   children,
 }: SortableCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
@@ -65,8 +64,16 @@ function SortableCard({
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
+  const cardClass = [
+    "hf-sortable-card",
+    isDragTarget && "hf-sortable-card--drag-over",
+    !enabled && "hf-sortable-card--disabled-item",
+    disabled && "hf-sortable-card--readonly",
+  ].filter(Boolean).join(" ");
+
   return (
     <div
+      className={cardClass}
       draggable={!disabled}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
@@ -82,42 +89,14 @@ function SortableCard({
         onDrop();
       }}
       onDragEnd={onDragEnd}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setMenuOpen(false); }}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: isDragTarget
-          ? "2px dashed var(--accent-primary, #3b82f6)"
-          : enabled
-            ? "1px solid var(--border-default, #e5e7eb)"
-            : "1px dashed var(--border-default, #e5e7eb)",
-        background: isDragTarget
-          ? "color-mix(in srgb, var(--accent-primary, #3b82f6) 5%, transparent)"
-          : "var(--surface-primary, #fff)",
-        opacity: enabled ? 1 : 0.45,
-        transition: "all 0.15s ease",
-        marginBottom: 6,
-        position: "relative",
-        cursor: disabled ? "default" : "grab",
-      }}
+      onMouseLeave={() => setMenuOpen(false)}
       data-testid="sortable-card"
     >
       {/* Drag handle */}
       {!disabled && (
         <div
+          className="hf-drag-handle"
           data-testid="drag-handle"
-          style={{
-            flexShrink: 0,
-            color: hovered ? "var(--text-secondary, #6b7280)" : "var(--text-muted, #9ca3af)",
-            display: "flex",
-            alignItems: "center",
-            cursor: "grab",
-            transition: "color 0.15s",
-          }}
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical size={16} />
@@ -125,24 +104,15 @@ function SortableCard({
       )}
 
       {/* Card content (render slot) */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="hf-sortable-content">
         {children}
       </div>
 
       {/* Enable/disable toggle */}
       {onToggle && (
         <button
+          className={`hf-sortable-toggle${enabled ? " hf-sortable-toggle--on" : ""}`}
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          style={{
-            flexShrink: 0,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: enabled ? "var(--status-success, #22c55e)" : "var(--text-muted, #9ca3af)",
-            display: "flex",
-            alignItems: "center",
-            padding: 2,
-          }}
           title={enabled ? "Disable" : "Enable"}
           data-testid="toggle-btn"
         >
@@ -154,42 +124,15 @@ function SortableCard({
       {!disabled && (
         <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
           <button
+            className={`hf-kebab-trigger${menuOpen ? " hf-kebab-trigger--open" : ""}`}
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-            style={{
-              width: 28,
-              height: 28,
-              border: "none",
-              background: menuOpen ? "rgba(255,255,255,0.06)" : "none",
-              color: "var(--text-muted, #9ca3af)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 6,
-              opacity: hovered || menuOpen ? 1 : 0,
-              transition: "opacity 0.15s",
-            }}
             data-testid="kebab-trigger"
           >
             <MoreVertical size={16} />
           </button>
 
           {menuOpen && (
-            <div
-              style={{
-                position: "absolute",
-                top: 32,
-                right: 0,
-                background: "var(--surface-primary, #fff)",
-                border: "1px solid var(--border-default, #e5e7eb)",
-                borderRadius: 10,
-                padding: 4,
-                minWidth: 150,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                zIndex: 50,
-              }}
-              data-testid="kebab-menu"
-            >
+            <div className="hf-kebab-menu" data-testid="kebab-menu">
               {onDuplicate && (
                 <KebabItem
                   icon={<Copy size={14} />}
@@ -251,49 +194,21 @@ function KebabItem({
   danger?: boolean;
   disabled?: boolean;
 }) {
+  const cls = [
+    "hf-kebab-item",
+    danger && "hf-kebab-item--danger",
+  ].filter(Boolean).join(" ");
+
   return (
-    <button
-      onClick={onClick}
-      disabled={itemDisabled}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "6px 10px",
-        borderRadius: 6,
-        fontSize: 12,
-        color: itemDisabled
-          ? "var(--text-muted, #9ca3af)"
-          : danger
-            ? "var(--status-error, #ef4444)"
-            : "var(--text-secondary, #6b7280)",
-        cursor: itemDisabled ? "default" : "pointer",
-        border: "none",
-        background: "none",
-        width: "100%",
-        textAlign: "left",
-        opacity: itemDisabled ? 0.4 : 1,
-        transition: "background 0.1s",
-      }}
-      onMouseEnter={(e) => {
-        if (!itemDisabled) {
-          (e.currentTarget as HTMLButtonElement).style.background = danger
-            ? "rgba(239,68,68,0.08)"
-            : "rgba(0,0,0,0.04)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = "none";
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>{icon}</span>
+    <button className={cls} onClick={onClick} disabled={itemDisabled}>
+      <span className="hf-kebab-item-icon">{icon}</span>
       {label}
     </button>
   );
 }
 
 function KebabSep() {
-  return <div style={{ height: 1, background: "var(--border-default, #e5e7eb)", margin: "4px 6px" }} />;
+  return <div className="hf-kebab-sep" />;
 }
 
 // ── SortableList ────────────────────────────────────────────────
@@ -400,18 +315,8 @@ export function SortableList<T>({
   // Empty state
   if (items.length === 0) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div
-          style={{
-            padding: "24px 16px",
-            textAlign: "center",
-            color: "var(--text-muted, #9ca3af)",
-            fontSize: 13,
-            borderRadius: 10,
-            border: "1px dashed var(--border-default, #e5e7eb)",
-          }}
-          data-testid="empty-state"
-        >
+      <div className="hf-flex hf-flex-col hf-gap-sm">
+        <div className="hf-sortable-empty" data-testid="empty-state">
           {emptyLabel}
         </div>
         {onAdd && !disabled && (
@@ -424,64 +329,35 @@ export function SortableList<T>({
   // Sectioned layout
   if (grouped && sections) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div className="hf-flex hf-flex-col">
         {sections.map((section, sectionIdx) => {
           const sectionItems = grouped.get(section.key) || [];
           return (
-            <div key={section.key} style={{ marginTop: sectionIdx > 0 ? 16 : 0 }}>
+            <div key={section.key} className={sectionIdx > 0 ? "hf-sortable-section" : undefined}>
               {/* Section header */}
               <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  paddingBottom: 6,
-                  marginBottom: 8,
-                  borderBottom: `2px solid ${section.color || "var(--border-default, #e5e7eb)"}`,
-                }}
+                className="hf-sortable-section-header"
+                style={{ borderBottom: `2px solid ${section.color || "var(--border-default)"}` }}
               >
                 <span
+                  className="hf-sortable-section-label"
                   style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.6px",
-                    padding: "2px 8px",
-                    borderRadius: 5,
                     background: section.color
                       ? `color-mix(in srgb, ${section.color} 12%, transparent)`
-                      : "var(--surface-secondary, #f9fafb)",
-                    color: section.color || "var(--text-secondary, #6b7280)",
+                      : "var(--surface-secondary)",
+                    color: section.color || "var(--text-secondary)",
                   }}
                 >
                   {section.label}
                 </span>
-                <span style={{ fontSize: 10, color: "var(--text-muted, #9ca3af)" }}>
+                <span className="hf-sortable-section-count">
                   {sectionItems.length} {sectionItems.length === 1 ? "step" : "steps"}
                 </span>
                 {onAdd && !disabled && (
                   <button
+                    className="hf-sortable-section-add"
                     onClick={() => (onAdd as (sectionKey?: string) => void)(section.key)}
-                    style={{
-                      marginLeft: "auto",
-                      fontSize: 11,
-                      color: section.color || "var(--accent-primary, #3b82f6)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      padding: "3px 8px",
-                      borderRadius: 4,
-                      transition: "background 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = section.color
-                        ? `color-mix(in srgb, ${section.color} 8%, transparent)`
-                        : "rgba(59,130,246,0.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = "none";
-                    }}
+                    style={{ color: section.color || "var(--accent-primary)" }}
                   >
                     + Add
                   </button>
@@ -490,13 +366,7 @@ export function SortableList<T>({
 
               {/* Section items */}
               {sectionItems.length === 0 && (
-                <div style={{
-                  padding: "12px",
-                  textAlign: "center",
-                  color: "var(--text-muted, #9ca3af)",
-                  fontSize: 11,
-                  fontStyle: "italic",
-                }}>
+                <div className="hf-sortable-section-empty">
                   No steps in this section
                 </div>
               )}
@@ -510,7 +380,7 @@ export function SortableList<T>({
 
   // Flat layout
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+    <div className="hf-flex hf-flex-col">
       {items.map((item, index) => renderItem(item, index))}
       {onAdd && !disabled && (
         <AddButton label={addLabel} onClick={() => onAdd()} />
@@ -523,35 +393,7 @@ export function SortableList<T>({
 
 function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "7px 14px",
-        borderRadius: 8,
-        border: "1px dashed var(--border-default, #e5e7eb)",
-        background: "transparent",
-        fontSize: 12,
-        cursor: "pointer",
-        color: "var(--text-secondary, #6b7280)",
-        marginTop: 4,
-        width: "100%",
-        textAlign: "center",
-        transition: "all 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        const btn = e.currentTarget as HTMLButtonElement;
-        btn.style.borderColor = "var(--accent-primary, #3b82f6)";
-        btn.style.color = "var(--accent-primary, #3b82f6)";
-        btn.style.background = "color-mix(in srgb, var(--accent-primary, #3b82f6) 5%, transparent)";
-      }}
-      onMouseLeave={(e) => {
-        const btn = e.currentTarget as HTMLButtonElement;
-        btn.style.borderColor = "var(--border-default, #e5e7eb)";
-        btn.style.color = "var(--text-secondary, #6b7280)";
-        btn.style.background = "transparent";
-      }}
-      data-testid="add-btn"
-    >
+    <button className="hf-sortable-add-btn" onClick={onClick} data-testid="add-btn">
       {label}
     </button>
   );

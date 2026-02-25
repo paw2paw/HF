@@ -51,15 +51,22 @@ export async function GET(
       },
       select: {
         id: true,
+        createdAt: true,
         _count: { select: { assertions: true, questions: true, vocabulary: true } },
       },
     });
 
     const sourceCount = sources.length;
     const sourceIds = sources.map((s) => s.id);
-    // A source is "extracted" if it produced any assertions, questions, or vocabulary
+    // A source is "extraction complete" if it produced content,
+    // OR if it was created long enough ago that extraction must have finished or failed.
+    // Fire-and-forget extractions have no completion signal, so we use a time-based
+    // fallback to prevent the wizard from spinning forever on failed/empty extractions.
+    const EXTRACTION_TIMEOUT_MS = 3 * 60_000; // 3 minutes
+    const now = Date.now();
     const extractedSourceCount = sources.filter(
       (s) => s._count.assertions > 0 || s._count.questions > 0 || s._count.vocabulary > 0
+        || (now - s.createdAt.getTime() > EXTRACTION_TIMEOUT_MS)
     ).length;
     const assertionCount = sources.reduce((sum, s) => sum + s._count.assertions, 0);
 

@@ -448,7 +448,8 @@ async function createSourceAndStartExtraction(
       });
 
       if (!result.ok) {
-        console.error(`[course-pack/ingest] Extraction failed for ${file.name}:`, result.error);
+        console.error(`[course-pack/ingest] Extraction failed for ${file.name} (source=${source.id}):`, result.error);
+        // Source stays at 0 assertions — content-stats time-based fallback will unblock the wizard
         return;
       }
 
@@ -490,7 +491,8 @@ async function createSourceAndStartExtraction(
         `${result.questions?.length || 0} questions, ${result.vocabulary?.length || 0} vocabulary`,
       );
     } catch (err: unknown) {
-      console.error(`[course-pack/ingest] Extraction failed for ${file.name}:`, err instanceof Error ? err.message : err);
+      console.error(`[course-pack/ingest] Extraction crashed for ${file.name} (source=${source.id}):`, err instanceof Error ? err.message : err);
+      // Source stays at 0 assertions — content-stats time-based fallback will unblock the wizard
     }
   })();
 

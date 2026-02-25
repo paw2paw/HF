@@ -6184,6 +6184,240 @@ html.light {
   opacity: 0.6;
 }
 
+/* ── Sortable List / Drag-and-Drop ────────────────────────
+   Gold UI for SortableList component: drag cards, handles,
+   kebab menus, sections, add button.
+   ──────────────────────────────────────────────────────── */
+
+/* Card container */
+.hf-sortable-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  transition: all 0.15s ease;
+  margin-bottom: 6px;
+  position: relative;
+  cursor: grab;
+}
+.hf-sortable-card--disabled-item {
+  border-style: dashed;
+  opacity: 0.45;
+}
+.hf-sortable-card--drag-over {
+  border: 2px dashed var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+.hf-sortable-card--readonly {
+  cursor: default;
+}
+
+/* Drag handle */
+.hf-drag-handle {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  transition: color 0.15s;
+}
+.hf-sortable-card:hover .hf-drag-handle {
+  color: var(--text-secondary);
+}
+
+/* Card content slot */
+.hf-sortable-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Enable/disable toggle */
+.hf-sortable-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  color: var(--text-muted);
+}
+.hf-sortable-toggle--on {
+  color: var(--status-success-text);
+}
+
+/* Kebab trigger */
+.hf-kebab-trigger {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.hf-sortable-card:hover .hf-kebab-trigger,
+.hf-kebab-trigger--open {
+  opacity: 1;
+}
+.hf-kebab-trigger--open {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+/* Kebab dropdown menu */
+.hf-kebab-menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 150px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-primary) 12%, transparent);
+  z-index: 50;
+}
+
+/* Kebab menu item */
+.hf-kebab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.1s;
+}
+.hf-kebab-item:hover {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
+.hf-kebab-item--danger {
+  color: var(--status-error-text);
+}
+.hf-kebab-item--danger:hover {
+  background: color-mix(in srgb, var(--status-error-text) 8%, transparent);
+}
+.hf-kebab-item:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.4;
+}
+.hf-kebab-item:disabled:hover {
+  background: none;
+}
+.hf-kebab-item-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Kebab separator */
+.hf-kebab-sep {
+  height: 1px;
+  background: var(--border-default);
+  margin: 4px 6px;
+}
+
+/* Section wrapper */
+.hf-sortable-section + .hf-sortable-section {
+  margin-top: 16px;
+}
+
+/* Section header bar */
+.hf-sortable-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+/* Section label pill */
+.hf-sortable-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+/* Section count */
+.hf-sortable-section-count {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Section add button */
+.hf-sortable-section-add {
+  margin-left: auto;
+  font-size: 11px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.hf-sortable-section-add:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+/* Section empty placeholder */
+.hf-sortable-section-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Add item button (full-width, dashed border) */
+.hf-sortable-add-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-default);
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  width: 100%;
+  text-align: center;
+  transition: all 0.15s;
+}
+.hf-sortable-add-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+/* Empty state */
+.hf-sortable-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-default);
+}
+
 /* ══════════════════════════════════════════════════════
    Wizard Intent Framing — Teach/Demonstrate flow
    ══════════════════════════════════════════════════════ */

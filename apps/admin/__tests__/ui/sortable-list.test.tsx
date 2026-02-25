@@ -307,7 +307,7 @@ describe("SortableList enable/disable", () => {
     { id: "2", label: "Disabled", enabled: false },
   ];
 
-  it("renders cards with reduced opacity when disabled", () => {
+  it("renders cards with reduced opacity class when disabled", () => {
     const { container } = render(
       <SortableList
         items={itemsWithEnabled}
@@ -317,11 +317,11 @@ describe("SortableList enable/disable", () => {
       />
     );
     const cards = container.querySelectorAll('[data-testid="sortable-card"]');
-    expect(cards[0].getAttribute("style")).toContain("opacity: 1");
-    expect(cards[1].getAttribute("style")).toContain("opacity: 0.45");
+    expect(cards[0].className).not.toContain("hf-sortable-card--disabled-item");
+    expect(cards[1].className).toContain("hf-sortable-card--disabled-item");
   });
 
-  it("renders dashed border on disabled cards", () => {
+  it("applies disabled-item class on disabled cards", () => {
     const { container } = render(
       <SortableList
         items={itemsWithEnabled}
@@ -331,6 +331,6 @@ describe("SortableList enable/disable", () => {
       />
     );
     const cards = container.querySelectorAll('[data-testid="sortable-card"]');
-    expect(cards[1].getAttribute("style")).toContain("dashed");
+    expect(cards[1].className).toContain("hf-sortable-card--disabled-item");
   });
 });
