@@ -16,8 +16,9 @@ import type { UserRole } from "@prisma/client";
 import type { Session } from "next-auth";
 import { getMasqueradeState, canMasquerade, isRoleEscalation } from "@/lib/masquerade";
 
-// Re-export from client-safe module so existing server imports still work
-export { ROLE_LEVEL } from "@/lib/roles";
+// Import + re-export from client-safe module so existing server imports still work
+import { ROLE_LEVEL } from "@/lib/roles";
+export { ROLE_LEVEL };
 
 type AuthSuccess = { session: Session };
 type AuthFailure = { error: NextResponse };
