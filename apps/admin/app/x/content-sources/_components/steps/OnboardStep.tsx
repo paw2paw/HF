@@ -8,6 +8,8 @@ import { reorderItems } from "@/lib/sortable/reorder";
 import { AgentTuner } from "@/components/shared/AgentTuner";
 import type { AgentTunerOutput } from "@/lib/agent-tuner/types";
 import type { StepProps } from "../types";
+import { FieldHint } from "@/components/shared/FieldHint";
+import { WIZARD_HINTS } from "@/lib/wizard-hints";
 
 type FlowPhase = {
   _id: string;
@@ -262,9 +264,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Welcome Message */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
-              What should the AI say first?
-            </div>
+            <FieldHint label="What should the AI say first?" hint={WIZARD_HINTS["onboard.welcomeMessage"]} />
             <textarea
               value={welcomeMessage}
               onChange={(e) => setWelcomeMessage(e.target.value)}
@@ -283,9 +283,7 @@ export default function OnboardStep({ setData, getData, onNext, onPrev }: StepPr
 
           {/* Identity Spec */}
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
-              AI persona
-            </div>
+            <FieldHint label="AI persona" hint={WIZARD_HINTS["onboard.aiPersona"]} />
             <select
               value={identitySpecId}
               onChange={(e) => setIdentitySpecId(e.target.value)}

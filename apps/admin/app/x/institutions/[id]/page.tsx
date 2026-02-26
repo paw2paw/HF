@@ -583,7 +583,7 @@ export default function InstitutionDetailPage() {
                 {logoUrl ? (
                   <img src={logoUrl} alt="Preview" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 6 }} />
                 ) : (
-                  <div className="hf-icon-box" style={{ background: primaryColor, color: "#fff", fontWeight: 700 }}>
+                  <div className="hf-icon-box" style={{ background: primaryColor, color: "var(--surface-primary)", fontWeight: 700 }}>
                     {name.charAt(0) || "?"}
                   </div>
                 )}

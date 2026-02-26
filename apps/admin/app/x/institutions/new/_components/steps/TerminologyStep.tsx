@@ -115,6 +115,7 @@ export function TerminologyStep({ getData, setData, onNext, onPrev }: StepRender
                     placeholder={baseTerminology[key] ?? label}
                   />
                   <div className="iw-term-suggestions">
+                    <span className="iw-term-suggestions-label">Pick:</span>
                     {TERM_SUGGESTIONS[key]?.map((s) => (
                       <button
                         key={s}

@@ -281,6 +281,51 @@ export const config = {
     },
 
     /**
+     * Coach Archetype Spec (default: COACH-001)
+     * Used for corporate, coaching, training institution types and the coaching interaction pattern.
+     * Can be overridden via COACH_ARCHETYPE_SLUG env var.
+     */
+    get coachArchetype(): string {
+      return optional("COACH_ARCHETYPE_SLUG", "COACH-001");
+    },
+
+    /**
+     * Companion Archetype Spec (default: COMPANION-001)
+     * Used for community, healthcare institution types and open/companion interaction patterns.
+     * Can be overridden via COMPANION_ARCHETYPE_SLUG env var.
+     */
+    get companionArchetype(): string {
+      return optional("COMPANION_ARCHETYPE_SLUG", "COMPANION-001");
+    },
+
+    /**
+     * Advisor Archetype Spec (default: ADVISOR-001)
+     * Used for the advisory interaction pattern.
+     * Can be overridden via ADVISOR_ARCHETYPE_SLUG env var.
+     */
+    get advisorArchetype(): string {
+      return optional("ADVISOR_ARCHETYPE_SLUG", "ADVISOR-001");
+    },
+
+    /**
+     * Facilitator Archetype Spec (default: FACILITATOR-001)
+     * Used for the facilitation interaction pattern.
+     * Can be overridden via FACILITATOR_ARCHETYPE_SLUG env var.
+     */
+    get facilitatorArchetype(): string {
+      return optional("FACILITATOR_ARCHETYPE_SLUG", "FACILITATOR-001");
+    },
+
+    /**
+     * Mentor Archetype Spec (default: MENTOR-001)
+     * Used for the reflective/mentoring interaction pattern.
+     * Can be overridden via MENTOR_ARCHETYPE_SLUG env var.
+     */
+    get mentorArchetype(): string {
+      return optional("MENTOR_ARCHETYPE_SLUG", "MENTOR-001");
+    },
+
+    /**
      * Content Source Setup Wizard Spec (default: CONTENT-SOURCE-SETUP-001)
      * Defines content source wizard steps: upload, extract, review.
      * Can be overridden via CONTENT_SOURCE_SETUP_SPEC_SLUG env var.

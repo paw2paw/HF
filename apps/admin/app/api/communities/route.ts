@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
+import { config } from "@/lib/config";
 import type { InteractionPattern } from "@/lib/content-trust/resolve-config";
 
-// ── Pattern → Archetype mapping ──────────────────────
+// ── Pattern → Archetype mapping (slugs via config.specs.*) ──
 const PATTERN_ARCHETYPE_MAP: Record<InteractionPattern, string> = {
-  companion: "COMPANION-001",
-  advisory: "ADVISOR-001",
-  coaching: "COACH-001",
-  socratic: "TUT-001",
-  facilitation: "FACILITATOR-001",
-  reflective: "MENTOR-001",
-  open: "COMPANION-001",
-  directive: "TUT-001",
+  companion: config.specs.companionArchetype,
+  advisory: config.specs.advisorArchetype,
+  coaching: config.specs.coachArchetype,
+  socratic: config.specs.defaultArchetype,
+  facilitation: config.specs.facilitatorArchetype,
+  reflective: config.specs.mentorArchetype,
+  open: config.specs.companionArchetype,
+  directive: config.specs.defaultArchetype,
 };
 
 /**

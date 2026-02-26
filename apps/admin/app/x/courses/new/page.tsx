@@ -49,8 +49,8 @@ const config: WizardConfig = {
     },
     {
       id: "lesson-plan",
-      label: "Lesson Plan",
-      activeLabel: "Building lesson plan",
+      label: "Session Plan",
+      activeLabel: "Building session plan",
       component: LessonPlanStep as S,
       summaryLabel: "Lessons",
       summary: (getData) => {

@@ -69,7 +69,7 @@ export const MODE_CONFIG: Record<ChatMode, { label: string; icon: string; color:
   DATA: {
     label: "Data",
     icon: "📊",
-    color: "#10b981",
+    color: "var(--status-success-text)",
     description: "Context-aware data exploration",
   },
 };

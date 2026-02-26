@@ -6,7 +6,15 @@
  *
  * Colors reference existing --badge-*-* CSS variables from globals.css.
  * Archetype mapping mirrors seed-institution-types.ts for client-side use.
+ *
+ * Note: This is a client-side file — server code should use config.specs.*Archetype instead.
  */
+
+// Archetype slug constants — mirror config.specs.*Archetype defaults.
+// Server-side: use config.specs.defaultArchetype, config.specs.coachArchetype, etc.
+const ARCHETYPE_TUTOR = "TUT-001";
+const ARCHETYPE_COACH = "COACH-001";
+const ARCHETYPE_COMPANION = "COMPANION-001";
 
 export type SectorSlug = "school" | "corporate" | "community" | "coaching" | "healthcare" | "training";
 
@@ -38,7 +46,7 @@ export const SECTOR_CONFIG: Record<SectorSlug, SectorDef> = {
     label: "School",
     description: "Primary/secondary schools and educational institutions",
     tooltip: "AI agent acts as a patient tutor — explains concepts, checks understanding, adapts to learning pace",
-    archetype: "TUT-001",
+    archetype: ARCHETYPE_TUTOR,
     teachingStyle: "tutor",
   },
   corporate: {
@@ -47,7 +55,7 @@ export const SECTOR_CONFIG: Record<SectorSlug, SectorDef> = {
     label: "Corporate",
     description: "Businesses and corporate training environments",
     tooltip: "AI agent acts as a professional coach — goal-oriented, strategic, focused on performance outcomes",
-    archetype: "COACH-001",
+    archetype: ARCHETYPE_COACH,
     teachingStyle: "coach",
   },
   community: {
@@ -56,7 +64,7 @@ export const SECTOR_CONFIG: Record<SectorSlug, SectorDef> = {
     label: "Community",
     description: "Purpose-led communities, support groups, and member networks",
     tooltip: "AI agent acts as a supportive companion — warm, empathetic, focused on connection and wellbeing",
-    archetype: "COMPANION-001",
+    archetype: ARCHETYPE_COMPANION,
     teachingStyle: "companion",
   },
   coaching: {
@@ -65,7 +73,7 @@ export const SECTOR_CONFIG: Record<SectorSlug, SectorDef> = {
     label: "Coaching",
     description: "Coaching practices and mentoring programs",
     tooltip: "AI agent acts as a strategic coach — challenges thinking, tracks goals, drives personal growth",
-    archetype: "COACH-001",
+    archetype: ARCHETYPE_COACH,
     teachingStyle: "coach",
   },
   healthcare: {
@@ -74,7 +82,7 @@ export const SECTOR_CONFIG: Record<SectorSlug, SectorDef> = {
     label: "Healthcare",
     description: "Healthcare facilities and patient care programs",
     tooltip: "AI agent acts as a care companion — gentle, patient-centred, focused on wellbeing and understanding",
-    archetype: "COMPANION-001",
+    archetype: ARCHETYPE_COMPANION,
     teachingStyle: "companion",
   },
   training: {
@@ -83,7 +91,7 @@ export const SECTOR_CONFIG: Record<SectorSlug, SectorDef> = {
     label: "Training",
     description: "Training companies and professional development providers",
     tooltip: "AI agent acts as a skills coach — structured, practical, focused on competency and certification",
-    archetype: "COACH-001",
+    archetype: ARCHETYPE_COACH,
     teachingStyle: "coach",
   },
 };

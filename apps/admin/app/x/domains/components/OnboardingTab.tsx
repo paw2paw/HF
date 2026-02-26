@@ -9,6 +9,8 @@ import type { DomainDetail } from "./types";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shared/AgentTuningPanel";
 import type { MatrixPosition } from "@/lib/domain/agent-tuning";
+import { FieldHint } from "@/components/shared/FieldHint";
+import { WIZARD_HINTS } from "@/lib/wizard-hints";
 
 export function OnboardingTabContent({
   domain,
@@ -391,9 +393,7 @@ export function OnboardingTabContent({
                     <div className="hf-card hf-p-20" style={{ borderRadius: 8 }}>
                       {/* Welcome Message */}
                       <div className="hf-mb-lg" style={{ marginBottom: 20 }}>
-                        <label className="hf-text-md hf-text-bold hf-mb-sm" style={{ display: "block" }}>
-                          Welcome Message
-                        </label>
+                        <FieldHint label="Welcome Message" hint={WIZARD_HINTS["onboard.welcomeMessage"]} labelClass="hf-text-md hf-text-bold hf-mb-sm" />
                         <textarea
                           className="hf-textarea"
                           value={onboardingForm.welcomeMessage}

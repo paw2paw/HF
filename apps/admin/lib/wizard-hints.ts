@@ -247,4 +247,22 @@ export const WIZARD_HINTS: Record<string, FieldHintContent> = {
     effect: "Companion listens without agenda. Advisory answers from the docs. Coaching tracks goals. Socratic asks questions.",
     examples: ["Elderly companion → Just be there", "Maintenance line → Give clear answers", "Support group → Explore and reflect"],
   },
+
+  // ── Onboarding / Domain onboarding ───────────────
+
+  "onboard.welcomeMessage": {
+    why: "This is the first thing the AI says to a new caller — it sets the tone for every session.",
+    effect: "The AI delivers this message verbatim at the start of the first call before adapting to the caller.",
+    examples: [
+      "Welcome to your first lesson! I'm here to help you build confidence step by step.",
+      "Hi there! I'm your biology tutor — what would you like to work on today?",
+      "Hello, I'm ready to support your learning journey. Where would you like to start?",
+    ],
+  },
+
+  "onboard.aiPersona": {
+    why: "The persona controls the AI's voice, personality, and teaching style for this domain.",
+    effect: "Different personas have different tones — a tutor explains patiently, a coach pushes for goals, a companion listens.",
+    examples: ["TUT-001 (patient tutor)", "COACH-001 (goal-driven coach)", "COMPANION-001 (warm companion)"],
+  },
 };

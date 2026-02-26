@@ -263,7 +263,10 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
               })()}
 
               {flowPhases.length === 0 && (
-                <p className="hf-text-xs hf-text-muted">No phases — AI defaults will be used.</p>
+                <div className="hf-banner hf-banner-info" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-primary)', flexShrink: 0 }}>(Default)</span>
+                  <span className="hf-text-sm">Your {personaName || 'AI'} will use its built-in call structure — intro, practice, wrap-up. Click <strong>+ Add</strong> to customise phases.</span>
+                </div>
               )}
             </>
           )}
