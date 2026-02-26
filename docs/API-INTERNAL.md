@@ -10983,6 +10983,24 @@ Update subject fields (name, description, trust level, qualification info, activ
 
 ---
 
+### `GET` /api/subjects/:subjectId/courses
+
+List courses (playbooks) that teach this subject via PlaybookSubject.
+
+**Auth**: Session · **Scope**: `subjects:read`
+
+**Response** `200`
+```json
+{ ok: true, courses: [{id, name, status, domainId, domainName}] }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ### `GET` /api/subjects/:subjectId/curriculum
 
 Get the most recent curriculum for this subject.
@@ -12327,8 +12345,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 351 |
-| Files with annotations | 350 |
+| Route files found | 352 |
+| Files with annotations | 351 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

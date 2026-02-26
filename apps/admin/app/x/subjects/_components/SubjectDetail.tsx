@@ -235,11 +235,15 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
+  // Taught-by courses
+  const [taughtBy, setTaughtBy] = useState<Array<{ id: string; name: string; status: string; domainId: string | null; domainName: string | null }>>([]);
+
   // Load subject
   useEffect(() => {
     loadSubject();
     loadCurriculum();
     loadDomains();
+    loadTaughtBy();
     loadMedia();
     // Reset local state on subject switch
     setError(null);
@@ -252,6 +256,7 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
     setLessonPlanReasoning(null);
     setUploadResults([]);
     setConfirmDeactivate(false);
+    setTaughtBy([]);
   }, [subjectId]);
 
   async function loadSubject() {
@@ -344,6 +349,14 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
       const data = await res.json();
       setAllDomains(data.domains || []);
     } catch (err) { console.error("[subjects] Failed to load domains:", err); }
+  }
+
+  async function loadTaughtBy() {
+    try {
+      const res = await fetch(`/api/subjects/${subjectId}/courses`);
+      const data = await res.json();
+      setTaughtBy(data.courses || []);
+    } catch (err) { console.error("[subjects] Failed to load taught-by courses:", err); }
   }
 
   // ------------------------------------------------------------------
@@ -1258,6 +1271,41 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
         )}
         {allDomains.length === 0 && (
           <p className="hf-text-sm hf-text-muted">{`No ${plural("domain").toLowerCase()} configured yet. Create ${plural("domain").toLowerCase()} first.`}</p>
+        )}
+      </section>
+
+      {/* === TAUGHT BY SECTION === */}
+      <section id="section-taught-by" style={{ marginBottom: 32 }}>
+        <h3 className="hf-heading-lg hf-mb-md">Taught By</h3>
+        <p className="hf-text-sm hf-text-muted hf-mb-md" style={{ marginTop: -8 }}>
+          Courses that include this subject in their curriculum.
+        </p>
+        {taughtBy.length === 0 ? (
+          <p className="hf-text-sm hf-text-muted">Not linked to any courses yet.</p>
+        ) : (
+          <div className="hf-flex hf-flex-wrap hf-gap-sm">
+            {taughtBy.map((course) => {
+              const statusColor = course.status === "PUBLISHED"
+                ? "var(--status-success-text)"
+                : course.status === "ARCHIVED"
+                  ? "var(--text-muted)"
+                  : "var(--status-warning-text)";
+              return (
+                <Link
+                  key={course.id}
+                  href={`/x/courses/${course.id}`}
+                  className="hf-flex hf-gap-sm hf-text-sm hf-items-center"
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border-default)", background: "var(--surface-secondary)", textDecoration: "none" }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, flexShrink: 0 }} />
+                  <span className="hf-text-bold">{course.name}</span>
+                  {course.domainName && (
+                    <span className="hf-text-muted" style={{ fontSize: 11 }}>{course.domainName}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         )}
       </section>
 

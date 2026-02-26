@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
-  Sparkles, BarChart3, Sliders, Shield, Compass,
+  Sparkles, BarChart3, Sliders, Shield, Compass, AlertTriangle,
   Settings as SettingsIcon, ChevronRight, CheckCircle2,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -640,7 +640,13 @@ export default function CourseDetailPage() {
                     <p className="hf-text-xs hf-text-muted hf-mb-sm hf-line-clamp-2">{sub.description}</p>
                   )}
                   <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted">
-                    <span><FileText size={12} className="hf-icon-inline" />{sub.sourceCount} sources</span>
+                    {sub.sourceCount === 0 ? (
+                      <span className="hf-text-warning hf-flex hf-items-center hf-gap-xs">
+                        <AlertTriangle size={12} />No content yet
+                      </span>
+                    ) : (
+                      <span><FileText size={12} className="hf-icon-inline" />{sub.sourceCount} sources</span>
+                    )}
                     <span>{sub.assertionCount} teaching points</span>
                     {sub.curriculumCount > 0 && <span>{sub.curriculumCount} curricula</span>}
                   </div>
