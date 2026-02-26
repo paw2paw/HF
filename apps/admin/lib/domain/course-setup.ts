@@ -48,6 +48,8 @@ export interface CourseSetupInput {
   selectedCallerIds?: string[];
   // Config step — behavior tuning targets from AgentTuner
   behaviorTargets?: Record<string, number>;
+  // Config step — user-edited call flow phases (overrides persona defaults if provided)
+  onboardingFlowPhases?: Array<{ phase: string; duration: string; goals: string[]; avoid?: string[] }>;
   // Two-axis identity: session structure (stored in Playbook.config)
   interactionPattern?: string; // "socratic" | "directive" | "advisory" | "coaching" | "companion" | "facilitation" | "reflective" | "open"
   // Wizard task tracking — reuse wizard task for launch progress
@@ -336,12 +338,18 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
       ? { ...existingTargets, ...wrappedNewTargets }
       : existingTargets;
 
+    // Resolve flow phases: prefer user-edited phases, fall back to persona defaults
+    const customPhases = ctx.input.onboardingFlowPhases;
+    const resolvedFlowPhases = customPhases && customPhases.length > 0
+      ? { phases: customPhases }
+      : await loadPersonaFlowPhases(ctx.input.teachingStyle);
+
     // Update onboarding config
     await prisma.domain.update({
       where: { id: domainId },
       data: {
         onboardingWelcome: ctx.input.welcomeMessage,
-        onboardingFlowPhases: await loadPersonaFlowPhases(ctx.input.teachingStyle),
+        onboardingFlowPhases: resolvedFlowPhases,
         ...(Object.keys(mergedForDomain).length > 0 && {
           onboardingDefaultTargets: mergedForDomain,
         }),

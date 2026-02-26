@@ -2318,6 +2318,75 @@ html.light {
   margin-top: 6px;
 }
 
+/* ── Progressive wizard reveal ──────────────────────────── */
+
+.hf-phase-reveal {
+  animation: hf-phase-in 0.22s ease-out both;
+}
+
+@keyframes hf-phase-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Inline AI hint row (sparkle + text, below a field group) */
+.hf-ai-inline-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.hf-ai-inline-hint strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Loading spinner row for AI fetches */
+.hf-ai-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Suggestion chips container */
+.hf-suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Individual suggestion chip — click-to-apply style */
+.hf-suggestion-chip {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.1s ease, color 0.1s ease, background 0.1s ease;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.hf-suggestion-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, var(--surface-secondary));
+}
+
+/* Label row — flex with gap for label + AI sparkle icon */
+.hf-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ── FieldHint — inline contextual help for wizard labels ── */
 
 .hf-field-hint-wrap {
@@ -2760,7 +2829,7 @@ html.light {
 
 .hf-wizard-stepper {
   padding: 16px 32px 0;
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -2768,7 +2837,7 @@ html.light {
 .hf-wizard-step {
   flex: 1;
   padding: 32px;
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto;
   width: 100%;
 }
@@ -6056,6 +6125,47 @@ html.light {
   line-height: 1.5;
 }
 .hf-flow-phase-avoid { color: var(--text-muted); font-style: italic; }
+
+/* ── Editable flow phase (CourseConfigStep) ──────────── */
+.hf-flow-phase-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+.hf-flow-phase-edit:last-child { border-bottom: none; }
+.hf-flow-phase-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hf-flow-phase-edit-name {
+  flex: 1 !important;
+  padding: 5px 10px !important;
+  font-size: 13px !important;
+  height: auto !important;
+}
+.hf-flow-phase-edit-dur {
+  width: 90px !important;
+  flex-shrink: 0 !important;
+  padding: 5px 10px !important;
+  font-size: 13px !important;
+  height: auto !important;
+}
+.hf-flow-phase-remove {
+  padding: 4px 6px !important;
+  color: var(--text-muted) !important;
+  flex-shrink: 0;
+}
+.hf-flow-phase-remove:hover { color: var(--status-error-text) !important; }
+.hf-flow-phase-edit-goals {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  resize: vertical;
+  min-height: 52px;
+  line-height: 1.5;
+}
 
 /* ── Course Context Banner (Subject + Source pages) ──── */
 

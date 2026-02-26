@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Building2 } from "lucide-react";
+import { BookOpen, Building2, Users } from "lucide-react";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { StepFooter } from "@/components/wizards/StepFooter";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -172,6 +172,14 @@ export function LaunchStep({ getData, setData, onPrev, endFlow }: StepRenderProp
                 onClick: () => {
                   endFlow();
                   router.push(`/x/institutions/${createdInstId}`);
+                },
+              },
+              {
+                label: "Invite Team",
+                icon: <Users className="hf-icon-md" />,
+                onClick: () => {
+                  endFlow();
+                  router.push("/x/users");
                 },
               },
             ]}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowRight, Loader2, ChevronRight } from 'lucide-react';
+import { ArrowRight, Loader2, ChevronRight, Plus, X } from 'lucide-react';
 import { AgentTuner } from '@/components/shared/AgentTuner';
 import type { AgentTunerOutput, AgentTunerPill } from '@/lib/agent-tuner/types';
 import { FieldHint } from '@/components/shared/FieldHint';
@@ -11,6 +11,7 @@ import type { StepProps } from '../CourseSetupWizard';
 // ── Types ──────────────────────────────────────────────
 
 type FlowPhase = {
+  _id: string;
   phase: string;
   duration: string;
   priority?: string;
@@ -28,21 +29,24 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
   const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>(getData<AgentTunerPill[]>('tunerPills') ?? []);
   const [behaviorTargets, setBehaviorTargets] = useState<Record<string, number>>(getData<Record<string, number>>('behaviorTargets') ?? {});
   const [flowPhases, setFlowPhases] = useState<FlowPhase[]>([]);
-  const [expandedPhase, setExpandedPhase] = useState<number | null>(null);
 
   const personaSlug = getData<string>('persona');
   const personaName = getData<string>('personaName');
   const courseName = getData<string>('courseName');
 
-  // Load saved welcome message
+  // Load saved welcome message + phases (from previous visit to this step)
   useEffect(() => {
     const saved = getData<string>('welcomeMessage');
     if (saved) setWelcomeMessage(saved);
+    const savedPhases = getData<FlowPhase[]>('flowPhases');
+    if (savedPhases?.length) setFlowPhases(savedPhases);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch persona config: welcome template + flow phases
+  // Fetch persona config: welcome template + flow phases (only if not already set)
   useEffect(() => {
     if (!personaSlug) return;
+    const savedPhases = getData<FlowPhase[]>('flowPhases');
+    if (savedPhases?.length) return; // don't overwrite user edits
     const ac = new AbortController();
     setLoadingWelcome(true);
 
@@ -54,7 +58,10 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
         if (!ac.signal.aborted && data.ok) {
           setDefaultWelcome(data.welcomeTemplate || '');
           if (data.firstCallFlow?.phases) {
-            setFlowPhases(data.firstCallFlow.phases);
+            setFlowPhases(data.firstCallFlow.phases.map((p: any) => ({
+              ...p,
+              _id: p._id || crypto.randomUUID(),
+            })));
           }
         }
       } catch (e: any) {
@@ -66,7 +73,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
     })();
 
     return () => ac.abort();
-  }, [personaSlug]);
+  }, [personaSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTunerChange = ({ pills, parameterMap }: AgentTunerOutput) => {
     setTunerPills(pills);
@@ -79,7 +86,26 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
     setData('welcomeMessage', welcomeMessage || defaultWelcome);
     setData('tunerPills', tunerPills);
     setData('behaviorTargets', behaviorTargets);
+    // Strip internal _id before saving
+    setData('flowPhases', flowPhases.map(({ _id, ...rest }) => rest));
     onNext();
+  };
+
+  const addPhase = () => {
+    setFlowPhases(prev => [...prev, { _id: crypto.randomUUID(), phase: '', duration: '', goals: [] }]);
+  };
+
+  const removePhase = (id: string) => {
+    setFlowPhases(prev => prev.filter(p => p._id !== id));
+  };
+
+  const updatePhase = (id: string, field: 'phase' | 'duration', value: string) => {
+    setFlowPhases(prev => prev.map(p => p._id === id ? { ...p, [field]: value } : p));
+  };
+
+  const updateGoals = (id: string, raw: string) => {
+    const goals = raw.split('\n').filter(g => g.trim());
+    setFlowPhases(prev => prev.map(p => p._id === id ? { ...p, goals } : p));
   };
 
   const displayWelcome = welcomeMessage || defaultWelcome || 'Your AI will introduce itself...';
@@ -155,71 +181,63 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
         <div className="hf-mb-lg">
           <FieldHint label="Call Flow" hint={WIZARD_HINTS["course.callFlow"]} labelClass="hf-section-title" />
           <p className="hf-text-xs hf-text-muted hf-mb-sm">
-            How the first lesson is structured — loaded from your {personaName || 'persona'} defaults
+            How the first lesson is structured — loaded from your {personaName || 'persona'} defaults. Edit or add phases to customise.
           </p>
 
-          {flowPhases.length > 0 ? (
-            <div className="hf-flow-card">
-              {flowPhases.map((phase, i) => {
-                const isExpanded = expandedPhase === i;
-                const goalsSummary = phase.goals.slice(0, 2).join(' · ');
-                return (
-                  <div
-                    key={`${phase.phase}-${i}`}
-                    className="hf-flow-phase"
-                    onClick={() => setExpandedPhase(isExpanded ? null : i)}
-                  >
-                    <span className="hf-flow-phase-num">{i + 1}</span>
-                    <div className="hf-flow-phase-body">
-                      <div className="hf-flow-phase-header">
-                        <span className="hf-flow-phase-name">{phase.phase}</span>
-                        <span className="hf-flow-phase-dur">{phase.duration}</span>
-                      </div>
-                      {!isExpanded && (
-                        <div className="hf-flow-phase-goals">{goalsSummary}</div>
-                      )}
-                      {isExpanded && (
-                        <div className="hf-flow-phase-detail">
-                          <div className="hf-flow-phase-detail-section">
-                            <div className="hf-flow-phase-detail-label">Goals</div>
-                            <ul className="hf-flow-phase-detail-list">
-                              {phase.goals.map((g, gi) => <li key={gi}>{g}</li>)}
-                            </ul>
-                          </div>
-                          {phase.avoid && phase.avoid.length > 0 && (
-                            <div className="hf-flow-phase-detail-section">
-                              <div className="hf-flow-phase-detail-label">Avoid</div>
-                              <ul className="hf-flow-phase-detail-list hf-flow-phase-avoid">
-                                {phase.avoid.map((a, ai) => <li key={ai}>{a}</li>)}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <ChevronRight
-                      size={14}
-                      className="hf-text-muted"
-                      style={{
-                        flexShrink: 0,
-                        transition: 'transform 0.15s ease',
-                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                        marginTop: 2,
-                      }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          ) : loadingWelcome ? (
+          {loadingWelcome ? (
             <div className="hf-loading-row">
               <Loader2 className="hf-spinner hf-icon-sm" />
               <span className="hf-text-sm">Loading call flow...</span>
             </div>
           ) : (
-            <div className="hf-empty-dashed">
-              No flow phases defined — the AI will use its default onboarding sequence.
-            </div>
+            <>
+              <div className="hf-flow-card">
+                {flowPhases.map((phase, i) => (
+                  <div key={phase._id} className="hf-flow-phase-edit">
+                    <div className="hf-flow-phase-edit-header">
+                      <span className="hf-flow-phase-num">{i + 1}</span>
+                      <input
+                        type="text"
+                        value={phase.phase}
+                        onChange={(e) => updatePhase(phase._id, 'phase', e.target.value)}
+                        placeholder="Phase name (e.g. Welcome)"
+                        className="hf-input hf-flow-phase-edit-name"
+                      />
+                      <input
+                        type="text"
+                        value={phase.duration}
+                        onChange={(e) => updatePhase(phase._id, 'duration', e.target.value)}
+                        placeholder="Duration"
+                        className="hf-input hf-flow-phase-edit-dur"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhase(phase._id)}
+                        className="hf-btn hf-btn-ghost hf-flow-phase-remove"
+                        title="Remove phase"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <textarea
+                      value={phase.goals.join('\n')}
+                      onChange={(e) => updateGoals(phase._id, e.target.value)}
+                      placeholder="Goals (one per line)"
+                      rows={2}
+                      className="hf-input hf-flow-phase-edit-goals"
+                    />
+                  </div>
+                ))}
+                {flowPhases.length === 0 && (
+                  <div className="hf-empty-dashed">
+                    No phases yet — click &quot;Add Phase&quot; or leave empty to use AI defaults.
+                  </div>
+                )}
+              </div>
+              <button type="button" onClick={addPhase} className="hf-btn hf-btn-secondary hf-mt-sm">
+                <Plus size={14} style={{ marginRight: 4 }} /> Add Phase
+              </button>
+            </>
           )}
         </div>
 

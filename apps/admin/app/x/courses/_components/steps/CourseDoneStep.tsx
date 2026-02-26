@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText } from 'lucide-react';
+import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText, Mic } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTaskPoll, type PollableTask } from '@/hooks/useTaskPoll';
 import { useBackgroundTaskQueue } from '@/components/shared/ContentJobQueue';
@@ -125,6 +125,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
     const timeout = setTimeout(() => controller.abort(), LAUNCH_TIMEOUT_MS);
 
     try {
+      const flowPhases = getData<Array<{ phase: string; duration: string; goals: string[] }>>('flowPhases');
       const res = await fetch('/api/courses/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,6 +144,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
           behaviorTargets: behaviorTargets && Object.keys(behaviorTargets).length > 0 ? behaviorTargets : undefined,
           wizardTaskId: wizardTaskId || undefined,
           groupId: getData<string>('groupId') || undefined,
+          onboardingFlowPhases: flowPhases && flowPhases.length > 0 ? flowPhases : undefined,
         }),
         signal: controller.signal,
       });
@@ -239,6 +241,14 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
                 onClick: () => {
                   endFlow();
                   router.push(domainId ? `/x/teach?domainId=${domainId}` : '/x/courses');
+                },
+              },
+              {
+                label: 'Preview Call',
+                icon: <Mic className="hf-icon-md" />,
+                onClick: () => {
+                  endFlow();
+                  router.push('/x/educator/try');
                 },
               },
             ]}

@@ -160,7 +160,7 @@ export function CommunityDoneStep({ getData, setData, onPrev, endFlow }: StepRen
     return (
       <div className="hf-wizard-page">
         <div className="hf-wizard-step hf-flex hf-flex-col hf-items-center hf-justify-center hf-text-center">
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+          <div className="hf-text-xl hf-mb-md">🎉</div>
           <h1 className="hf-page-title hf-mb-xs">{result.name} is live!</h1>
           <p className="hf-page-subtitle hf-mb-lg">
             {memberCount > 0
@@ -168,26 +168,26 @@ export function CommunityDoneStep({ getData, setData, onPrev, endFlow }: StepRen
               : 'Your community hub is ready. Share the join link to start adding members.'}
           </p>
 
-          <div className="hf-card hf-mb-lg" style={{ width: '100%', maxWidth: 400 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Kind</span>
+          <div className="hf-card hf-mb-lg" style={{ width: '100%', maxWidth: 420 }}>
+            <div className="hf-flex hf-flex-col hf-gap-xs hf-text-sm">
+              <div className="hf-flex hf-flex-between">
+                <span className="hf-text-muted">Kind</span>
                 <span>{communityKind === 'TOPIC_BASED' ? 'Topic-based' : 'Open connection'}</span>
               </div>
               {patternLabel && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>AI style</span>
+                <div className="hf-flex hf-flex-between">
+                  <span className="hf-text-muted">AI style</span>
                   <span>{patternLabel}</span>
                 </div>
               )}
               {communityKind === 'TOPIC_BASED' && topics.length > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Topics</span>
+                <div className="hf-flex hf-flex-between">
+                  <span className="hf-text-muted">Topics</span>
                   <span>{topics.length}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Members</span>
+              <div className="hf-flex hf-flex-between">
+                <span className="hf-text-muted">Members</span>
                 <span>{memberCount}</span>
               </div>
             </div>
@@ -195,14 +195,14 @@ export function CommunityDoneStep({ getData, setData, onPrev, endFlow }: StepRen
 
           {/* Join link */}
           {result.joinToken && (
-            <div className="hf-card hf-mb-md" style={{ width: '100%', maxWidth: 400 }}>
+            <div className="hf-card hf-mb-md" style={{ width: '100%', maxWidth: 420 }}>
               <p className="hf-label hf-mb-xs">Share this join link</p>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="hf-flex hf-gap-sm">
                 <input
                   readOnly
                   value={`${window.location.origin}/join/${result.joinToken}`}
-                  className="hf-input"
-                  style={{ flex: 1, fontSize: 13 }}
+                  className="hf-input hf-text-sm"
+                  style={{ flex: 1 }}
                 />
                 <button className="hf-btn hf-btn-secondary hf-flex hf-items-center hf-gap-sm" onClick={handleCopy}>
                   {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -214,30 +214,29 @@ export function CommunityDoneStep({ getData, setData, onPrev, endFlow }: StepRen
 
           {/* Email invite */}
           {result.cohortGroupId && (
-            <div className="hf-card hf-mb-lg" style={{ width: '100%', maxWidth: 400 }}>
-              <p className="hf-label hf-mb-xs">
-                <Mail size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+            <div className="hf-card hf-mb-lg" id="community-invite-section" style={{ width: '100%', maxWidth: 420 }}>
+              <p className="hf-label hf-mb-xs hf-flex hf-items-center hf-gap-xs">
+                <Mail size={14} />
                 Invite members by email
               </p>
               <textarea
                 value={inviteEmails}
                 onChange={(e) => setInviteEmails(e.target.value)}
-                placeholder={'one@email.com, two@email.com'}
-                className="hf-input"
+                placeholder="one@email.com, two@email.com"
+                className="hf-input hf-w-full hf-mb-sm"
                 rows={2}
-                style={{ width: '100%', resize: 'vertical' }}
+                style={{ resize: 'vertical' }}
               />
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+              <div className="hf-flex hf-gap-sm hf-items-center">
                 <button
                   className="hf-btn hf-btn-primary"
                   disabled={inviting || !inviteEmails.trim()}
                   onClick={handleSendInvites}
-                  style={{ fontSize: 13 }}
                 >
                   {inviting ? 'Sending...' : 'Send Invites'}
                 </button>
                 {inviteResult && (
-                  <span style={{ fontSize: 12, color: inviteResult.ok ? 'var(--status-success-text)' : 'var(--status-error-text)' }}>
+                  <span className={`hf-text-xs ${inviteResult.ok ? 'hf-text-success' : 'hf-text-error'}`}>
                     {inviteResult.message}
                   </span>
                 )}
@@ -258,13 +257,12 @@ export function CommunityDoneStep({ getData, setData, onPrev, endFlow }: StepRen
             </button>
             <button
               onClick={() => {
-                endFlow();
-                router.push('/x/communities/new');
+                document.getElementById('community-invite-section')?.scrollIntoView({ behavior: 'smooth' });
               }}
               className="hf-btn hf-btn-secondary hf-flex hf-items-center hf-gap-sm"
             >
-              Create Another
-              <ArrowRight size={16} />
+              <Mail size={16} />
+              Invite Members
             </button>
           </div>
         </div>

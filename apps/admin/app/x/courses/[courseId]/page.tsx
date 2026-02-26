@@ -7,6 +7,7 @@ import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
   Sparkles, BarChart3, Sliders, Shield, Compass, AlertTriangle,
   Settings as SettingsIcon, ChevronRight, CheckCircle2,
+  School, GraduationCap, Users2,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useTerminology } from '@/contexts/TerminologyContext';
@@ -93,6 +94,25 @@ type DrillState = {
   error: string | null;
 };
 
+type ClassroomItem = {
+  id: string;
+  name: string;
+  memberCount: number;
+  maxMembers: number | null;
+  fillRate: number;
+  institutionName: string | null;
+  institutionId: string | null;
+};
+
+type StudentItem = {
+  id: string;
+  name: string | null;
+  email: string;
+  lastCallAt: string | null;
+  callCount: number;
+  joinedAt: string;
+};
+
 const statusMap: Record<string, 'draft' | 'active' | 'archived'> = {
   draft: 'draft',
   published: 'active',
@@ -168,6 +188,12 @@ export default function CourseDetailPage() {
 
   // Tabs
   const [activeTab, setActiveTab] = useState<string>('overview');
+
+  // Lazy tab data
+  const [classrooms, setClassrooms] = useState<ClassroomItem[] | null>(null);
+  const [classroomsLoading, setClassroomsLoading] = useState(false);
+  const [students, setStudents] = useState<StudentItem[] | null>(null);
+  const [studentsLoading, setStudentsLoading] = useState(false);
 
   // Content tab drill-down
   const [expandedMethod, setExpandedMethod] = useState<string | null>(null);
@@ -265,8 +291,31 @@ export default function CourseDetailPage() {
   const tabs: TabDefinition[] = useMemo(() => [
     { id: 'overview', label: 'Overview', icon: <Sparkles size={14} /> },
     { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: contentTotal || null },
+    { id: 'classrooms', label: 'Classrooms', icon: <School size={14} /> },
+    { id: 'students', label: 'Students', icon: <GraduationCap size={14} /> },
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
   ], [contentTotal, isOperator]);
+
+  // ── Tab change: lazy load classrooms / students ──────
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'classrooms' && classrooms === null && !classroomsLoading) {
+      setClassroomsLoading(true);
+      fetch(`/api/courses/${courseId}/classrooms`)
+        .then((r) => r.json())
+        .then((data) => { if (data.ok) setClassrooms(data.classrooms || []); else setClassrooms([]); })
+        .catch(() => setClassrooms([]))
+        .finally(() => setClassroomsLoading(false));
+    }
+    if (tab === 'students' && students === null && !studentsLoading) {
+      setStudentsLoading(true);
+      fetch(`/api/courses/${courseId}/students`)
+        .then((r) => r.json())
+        .then((data) => { if (data.ok) setStudents(data.students || []); else setStudents([]); })
+        .catch(() => setStudents([]))
+        .finally(() => setStudentsLoading(false));
+    }
+  }, [courseId, classrooms, classroomsLoading, students, studentsLoading]);
 
   // ── Drill-down: load assertions for a teachMethod ───
   const loadDrillDown = useCallback(async (method: string) => {
@@ -589,7 +638,7 @@ export default function CourseDetailPage() {
         storageKey="course-detail-tabs"
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         showReset={false}
       />
 
@@ -875,6 +924,123 @@ export default function CourseDetailPage() {
                     </div>
                   );
                 })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* CLASSROOMS TAB                                 */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'classrooms' && (
+        <div className="hf-mt-lg">
+          {classroomsLoading ? (
+            <div className="hf-empty-compact">
+              <div className="hf-spinner" />
+            </div>
+          ) : classrooms === null ? null : classrooms.length === 0 ? (
+            <div className="hf-empty-compact">
+              <School size={36} className="hf-text-tertiary hf-mb-sm" />
+              <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No classrooms yet</div>
+              <p className="hf-text-xs hf-text-muted">
+                Classrooms using this course will appear here once cohorts are assigned.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="hf-flex hf-flex-between hf-items-center hf-mb-md">
+                <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">
+                  {classrooms.length} classroom{classrooms.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="hf-flex hf-flex-col" style={{ gap: 8 }}>
+                {classrooms.map((cl) => {
+                  const fillPct = cl.maxMembers ? Math.min(100, Math.round((cl.memberCount / cl.maxMembers) * 100)) : 0;
+                  return (
+                    <Link key={cl.id} href={`/x/cohorts/${cl.id}`} className="hf-list-row hf-list-row-link">
+                      <div className="hf-icon-box" style={{ flexShrink: 0 }}>
+                        <School size={16} className="hf-text-muted" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="hf-text-sm hf-text-bold hf-text-ellipsis">{cl.name}</div>
+                        {cl.institutionName && (
+                          <div className="hf-text-xs hf-text-muted">{cl.institutionName}</div>
+                        )}
+                      </div>
+                      <div className="hf-flex hf-gap-sm hf-items-center hf-flex-shrink-0">
+                        {cl.maxMembers ? (
+                          <>
+                            <div style={{ width: 60, height: 4, background: 'var(--surface-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ width: `${fillPct}%`, height: '100%', background: 'var(--accent-primary)', borderRadius: 2 }} />
+                            </div>
+                            <span className="hf-text-xs hf-text-muted">{cl.memberCount}/{cl.maxMembers}</span>
+                          </>
+                        ) : (
+                          <span className="hf-text-xs hf-text-muted">
+                            <Users2 size={12} className="hf-icon-inline" /> {cl.memberCount}
+                          </span>
+                        )}
+                        <ChevronRight size={14} className="hf-text-placeholder" />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* STUDENTS TAB                                   */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'students' && (
+        <div className="hf-mt-lg">
+          {studentsLoading ? (
+            <div className="hf-empty-compact">
+              <div className="hf-spinner" />
+            </div>
+          ) : students === null ? null : students.length === 0 ? (
+            <div className="hf-empty-compact">
+              <GraduationCap size={36} className="hf-text-tertiary hf-mb-sm" />
+              <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No students enrolled</div>
+              <p className="hf-text-xs hf-text-muted">
+                Students enrolled in classrooms using this course will appear here.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="hf-flex hf-flex-between hf-items-center hf-mb-md">
+                <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">
+                  {students.length} student{students.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="hf-flex hf-flex-col" style={{ gap: 8 }}>
+                {students.map((st) => (
+                  <Link key={st.id} href={`/x/callers/${st.id}`} className="hf-list-row hf-list-row-link">
+                    <div className="hf-icon-box" style={{ flexShrink: 0 }}>
+                      <GraduationCap size={16} className="hf-text-muted" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="hf-text-sm hf-text-bold hf-text-ellipsis">
+                        {st.name || st.email}
+                      </div>
+                      {st.name && (
+                        <div className="hf-text-xs hf-text-muted">{st.email}</div>
+                      )}
+                    </div>
+                    <div className="hf-flex hf-gap-sm hf-items-center hf-flex-shrink-0 hf-text-xs hf-text-muted">
+                      {st.callCount > 0 && (
+                        <span>{st.callCount} call{st.callCount !== 1 ? 's' : ''}</span>
+                      )}
+                      {st.lastCallAt && (
+                        <span>Last: {new Date(st.lastCallAt).toLocaleDateString()}</span>
+                      )}
+                      <ChevronRight size={14} className="hf-text-placeholder" />
+                    </div>
+                  </Link>
+                ))}
               </div>
             </>
           )}

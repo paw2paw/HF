@@ -50,6 +50,7 @@
   - [Educator](#educator)
   - [Goals](#goals)
   - [Groups](#groups)
+  - [Institutions](#institutions)
   - [Invites](#invites)
   - [Lab](#lab)
   - [Layers](#layers)
@@ -4827,6 +4828,19 @@ Create a course via the setup wizard. Returns a task ID immediately; actual setu
 
 ---
 
+### `POST` /api/courses/suggest-outcomes
+
+AI-suggests 4 learning outcomes for a given course name.
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+{ ok, outcomes: string[] }
+```
+
+---
+
 ### `POST` /api/courses/suggest-type
 
 AI-suggests the best TeachingMode for a given course name.
@@ -6573,6 +6587,21 @@ List available group templates, optionally filtered by institution type.
 **Response** `200`
 ```json
 { ok: true, templates: [...], defaultId: string|null }
+```
+
+---
+
+## Institutions
+
+### `POST` /api/institutions/suggest-welcome
+
+AI-suggests 3 welcome message options for a new institution.
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+{ ok, suggestions: string[] }
 ```
 
 ---
@@ -12453,8 +12482,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 358 |
-| Files with annotations | 357 |
+| Route files found | 360 |
+| Files with annotations | 359 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 
