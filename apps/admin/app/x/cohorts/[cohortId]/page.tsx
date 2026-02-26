@@ -137,7 +137,7 @@ export default function CohortDashboardPage() {
 
   if (loading) {
     return (
-      <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>
+      <div className="hf-text-center hf-text-muted hf-p-xl">
         Loading cohort dashboard...
       </div>
     );
@@ -159,9 +159,9 @@ export default function CohortDashboardPage() {
   const { cohort, summary, pupils } = dashboard;
 
   return (
-    <div className="hf-flex-col" style={{ height: "100vh" }}>
+    <div className="hf-page-container hf-page-scroll">
       {/* Header */}
-      <div style={{ padding: "16px 24px 0 24px", flexShrink: 0 }}>
+      <div style={{ padding: "16px 24px 0 24px" }}>
         <Link href="/x/cohorts" className="hf-back-link">
           <ArrowLeft size={14} /> Back to Cohorts
         </Link>
@@ -169,7 +169,7 @@ export default function CohortDashboardPage() {
         <div className="hf-flex-between hf-items-start hf-mb-md">
           <div>
             <div className="hf-flex hf-gap-sm hf-items-center hf-mb-xs">
-              <h1 className="hf-page-title" style={{ fontSize: 22 }}>
+              <h1 className="hf-page-title">
                 {cohort.name}
               </h1>
               <span className={`hf-badge ${cohort.isActive ? "hf-badge-success" : "hf-badge-muted"}`}>
@@ -221,8 +221,8 @@ export default function CohortDashboardPage() {
         />
       </div>
 
-      {/* Scrollable Content */}
-      <div className="hf-p-lg hf-flex-1" style={{ overflowY: "auto" }}>
+      {/* Tab Content */}
+      <div className="hf-p-lg">
         {activeTab === "roster" && (
           <RosterTab pupils={pupils} cohortId={cohortId} />
         )}
@@ -384,7 +384,7 @@ function RosterTab({
                     {pupil.name || "Unnamed"}
                   </div>
                   {pupil.email && (
-                    <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
+                    <div className="hf-text-xs hf-text-muted hf-mt-xs">
                       {pupil.email}
                     </div>
                   )}
@@ -573,7 +573,7 @@ function PlaybooksTab({ cohortId }: { cohortId: string }) {
 
       {/* Picker */}
       {showPicker && available.length > 0 && (
-        <div className="hf-card-compact hf-mb-md" style={{ background: "var(--surface-secondary)", borderRadius: 8, padding: 12 }}>
+        <div className="hf-card-compact hf-mb-md">
           <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-sm">
             Available Courses
           </div>
@@ -721,7 +721,7 @@ function ActivityTab({ cohortId }: { cohortId: string }) {
                 <div className="hf-text-md hf-text-primary">
                   <strong>{item.callerName}</strong> had a call
                 </div>
-                <div className="hf-text-xs hf-text-muted hf-flex hf-gap-sm" style={{ marginTop: 2 }}>
+                <div className="hf-text-xs hf-text-muted hf-flex hf-gap-sm hf-mt-xs">
                   <span>Source: {item.source}</span>
                   {item.scoreCount > 0 && (
                     <span>{item.scoreCount} scores</span>
@@ -1100,7 +1100,7 @@ function InviteTab({ cohortId }: { cohortId: string }) {
               >
                 <div>
                   <div className="hf-text-primary">{invite.email}</div>
-                  <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
+                  <div className="hf-text-xs hf-text-muted hf-mt-xs">
                     Sent {invite.sentAt
                       ? formatRelativeTime(new Date(invite.sentAt))
                       : "not yet"}{" "}

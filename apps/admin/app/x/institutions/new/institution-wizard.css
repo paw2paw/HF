@@ -1,26 +1,5 @@
 /* InstitutionWizard — accordion wizard styles */
-
-.iw-page {
-  max-width: 720px;
-  padding-bottom: 40px;
-}
-
-.iw-back-link {
-  background: none;
-  border: none;
-  color: var(--accent-primary);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 0;
-  margin-bottom: 8px;
-}
-
-.iw-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-}
+/* Layout wrapper, back link, and accordion container are now handled by hf-page-container, hf-breadcrumb, and hf-ws-accordion */
 
 /* ── Identity section ──────────────────────── */
 

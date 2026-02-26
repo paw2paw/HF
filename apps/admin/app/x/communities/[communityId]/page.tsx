@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { DraggableTabs, type TabDefinition } from '@/components/shared/DraggableTabs';
 import type { CommunityDetail } from './_components/types';
 import { IdentityTab } from './_components/IdentityTab';
 import { OnboardingTab } from './_components/OnboardingTab';
@@ -76,7 +76,7 @@ export default function CommunityDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      <div className="hf-page-container hf-page-scroll">
         <div className="hf-spinner" style={{ margin: '64px auto' }} />
       </div>
     );
@@ -84,13 +84,12 @@ export default function CommunityDetailPage() {
 
   if (error && !community) {
     return (
-      <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-        <button
-          onClick={() => router.back()}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 24, fontSize: 14 }}
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
+      <div className="hf-page-container hf-page-scroll">
+        <nav className="hf-breadcrumb">
+          <button type="button" className="hf-breadcrumb-segment" onClick={() => router.back()}>
+            ← Back
+          </button>
+        </nav>
         <div className="hf-banner hf-banner-error">{error}</div>
       </div>
     );
@@ -100,7 +99,7 @@ export default function CommunityDetailPage() {
 
   const isTopicBased = community.config?.communityKind === 'TOPIC_BASED';
 
-  const tabs: { id: Tab; label: string }[] = [
+  const tabs: TabDefinition[] = [
     { id: 'identity', label: 'Identity' },
     ...(isTopicBased ? [{ id: 'topics' as Tab, label: `Topics (${community.playbookCount})` }] : []),
     { id: 'members', label: `Members (${community.memberCount})` },
@@ -109,26 +108,29 @@ export default function CommunityDetailPage() {
   ];
 
   return (
-    <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-      {/* Header */}
-      <button
-        onClick={() => router.push('/x/communities')}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16, fontSize: 14 }}
-      >
-        <ArrowLeft size={16} /> Communities
-      </button>
+    <div className="hf-page-container hf-page-scroll">
+      {/* Back navigation */}
+      <nav className="hf-breadcrumb">
+        <button
+          type="button"
+          className="hf-breadcrumb-segment"
+          onClick={() => router.push('/x/communities')}
+        >
+          ← Communities
+        </button>
+      </nav>
 
       {error && (
-        <div className="hf-banner hf-banner-error" style={{ marginBottom: 16 }}>{error}</div>
+        <div className="hf-banner hf-banner-error hf-mb-sm">{error}</div>
       )}
 
       {/* Community header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 className="hf-page-title" style={{ marginBottom: 4 }}>{community.name}</h1>
+      <div className="hf-mb-lg">
+        <h1 className="hf-page-title hf-mb-xs">{community.name}</h1>
         {community.description && (
-          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>{community.description}</p>
+          <p className="hf-text-sm hf-text-muted">{community.description}</p>
         )}
-        <div style={{ display: 'flex', gap: 24, marginTop: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+        <div className="hf-flex hf-gap-lg hf-mt-sm hf-text-xs hf-text-muted">
           <span><strong>{community.memberCount}</strong> members</span>
           <span><strong>{community.playbookCount}</strong> playbooks</span>
           <span>Persona: <strong>{community.personaName}</strong></span>
@@ -136,29 +138,15 @@ export default function CommunityDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border-default)', marginBottom: 24 }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '10px 20px',
-              fontSize: 14,
-              fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              background: 'none',
-              border: 'none',
-              borderBottom: `2px solid ${activeTab === tab.id ? 'var(--accent-primary)' : 'transparent'}`,
-              cursor: 'pointer',
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <DraggableTabs
+        storageKey="community-detail-tabs"
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as Tab)}
+      />
 
       {/* Tab Content */}
+      <div className="hf-mt-lg">
       {activeTab === 'identity' && (
         <IdentityTab community={community} onSave={handleSave} saving={saving} />
       )}
@@ -174,6 +162,7 @@ export default function CommunityDetailPage() {
       {activeTab === 'settings' && (
         <SettingsTab community={community} onSave={handleSave} saving={saving} />
       )}
+      </div>
     </div>
   );
 }
