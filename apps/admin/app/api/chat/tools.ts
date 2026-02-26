@@ -178,6 +178,19 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
     return true;
   });
 
+  // Batch-load assertion context for each media item
+  const mediaIds = unique.map((i) => i.media.id);
+  const assertionLinks = mediaIds.length > 0
+    ? await prisma.assertionMedia.groupBy({
+        by: ["mediaId"],
+        where: { mediaId: { in: mediaIds } },
+        _count: { assertionId: true },
+      })
+    : [];
+  const assertionCountMap = new Map(
+    assertionLinks.map((al) => [al.mediaId, al._count.assertionId]),
+  );
+
   const lines = unique.map((item) => {
     const m = item.media;
     const typeLabel = m.mimeType.startsWith("image/") ? "Image" : m.mimeType === "application/pdf" ? "PDF" : m.mimeType.startsWith("audio/") ? "Audio" : "File";
@@ -185,7 +198,9 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
     const tags = m.tags.length > 0 ? ` [${m.tags.join(", ")}]` : "";
     const phaseRef = phaseMediaMap.get(m.id);
     const phaseHint = phaseRef ? ` | SHARE DURING: "${phaseRef.phase}" phase${phaseRef.instruction ? ` — ${phaseRef.instruction}` : ""}` : "";
-    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${desc}${tags}${phaseHint}`;
+    const refCount = assertionCountMap.get(m.id);
+    const refHint = refCount ? ` (Referenced by ${refCount} teaching point${refCount > 1 ? "s" : ""})` : "";
+    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${refHint}${desc}${tags}${phaseHint}`;
   });
 
   let instructions = "When discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. \"Take a look at the passage I just sent you\").";

@@ -38,6 +38,7 @@ import "./transforms/trust";
 import "./transforms/teaching-content";
 import "./transforms/activities";
 import "./transforms/actions";
+import "./transforms/visual-aids";
 
 /**
  * Execute the full composition pipeline.
@@ -606,6 +607,16 @@ export function getDefaultSections(): CompositionSectionDef[] {
       transform: "renderTeachingContent",
       outputKey: "teachingContent",
       dependsOn: ["content_trust"],
+    },
+    {
+      id: "visual_aids",
+      name: "Visual Aids",
+      priority: 12.65,
+      dataSource: "visualAids",
+      activateWhen: { condition: "dataExists" },
+      fallback: { action: "null" },
+      transform: "formatVisualAids",
+      outputKey: "visualAids",
     },
     {
       id: "pedagogy_mode",

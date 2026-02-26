@@ -76,6 +76,8 @@ interface PackUploadStepProps {
   domainId: string;
   domainSlug?: string;
   courseName: string;
+  /** Interaction pattern chosen by the teacher (e.g. socratic, directive). Passed to extraction for pattern-specific categories. */
+  interactionPattern?: string;
   existingCourses?: ExistingCourse[];
   /** When provided, shows subject picker instead of course picker */
   existingSubjects?: ExistingSubject[];
@@ -129,6 +131,7 @@ const ROLE_ICONS: Record<string, string> = {
 export function PackUploadStep({
   domainId,
   courseName,
+  interactionPattern,
   existingCourses = [],
   existingSubjects = [],
   onResult,
@@ -243,6 +246,9 @@ export function PackUploadStep({
       formData.append('manifest', JSON.stringify(manifest));
       formData.append('domainId', domainId);
       formData.append('courseName', courseName);
+      if (interactionPattern) {
+        formData.append('interactionPattern', interactionPattern);
+      }
       for (const file of files) {
         formData.append('files', file);
       }
@@ -281,7 +287,7 @@ export function PackUploadStep({
       setIngestError(err instanceof Error ? err.message : 'Ingest failed');
       setIngesting(false);
     }
-  }, [manifest, domainId, courseName, files, onResult]);
+  }, [manifest, domainId, courseName, interactionPattern, files, onResult]);
 
   // ── Select existing course ─────────────────────────
 

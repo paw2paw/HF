@@ -50,7 +50,7 @@ export async function GET(
     const sourceIds = sources.map((s) => s.id);
 
     if (sourceIds.length === 0) {
-      return NextResponse.json({ ok: true, categories: [], total: 0, questions: [], vocabularyCount: 0 });
+      return NextResponse.json({ ok: true, categories: [], total: 0, questions: [], vocabularyCount: 0, mediaCount: 0 });
     }
 
     // Group assertions by category
@@ -86,7 +86,12 @@ export async function GET(
       where: { sourceId: { in: sourceIds } },
     });
 
-    return NextResponse.json({ ok: true, categories, total, questions, vocabularyCount });
+    // Extracted image count (visual aids)
+    const mediaCount = await prisma.mediaAsset.count({
+      where: { sourceId: { in: sourceIds }, mimeType: { startsWith: "image/" }, extractedFrom: { not: null } },
+    });
+
+    return NextResponse.json({ ok: true, categories, total, questions, vocabularyCount, mediaCount });
   } catch (error: unknown) {
     console.error("[domains/:id/content-categories] GET error:", error);
     return NextResponse.json(

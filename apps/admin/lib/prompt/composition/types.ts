@@ -92,6 +92,18 @@ export interface LoadedDataContext {
   teachingDepth?: number | null;
   /** Open actions (pending/in-progress) for prompt awareness */
   openActions?: OpenActionData[];
+  /** Visual aids (extracted images) linked to the caller's domain subjects */
+  visualAids?: VisualAidData[];
+}
+
+/** Visual aid data loaded for prompt and content catalog */
+export interface VisualAidData {
+  mediaId: string;
+  fileName: string;
+  captionText: string | null;
+  figureRef: string | null;
+  chapter: string | null;
+  mimeType: string;
 }
 
 /** Open action data loaded for voice prompt integration */

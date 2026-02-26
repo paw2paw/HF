@@ -21,17 +21,27 @@ import {
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
 import { embedAssertionsForSource } from "@/lib/embeddings";
+import { structureSourceIfEligible } from "@/lib/content-trust/structure-assertions";
 import { linkContentForSource } from "@/lib/content-trust/link-content";
 import { getStorageAdapter } from "@/lib/storage";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { generateContentSpec } from "@/lib/domain/generate-content-spec";
+import {
+  extractImagesFromPdf,
+  extractImagesFromDocx,
+  linkImagesToSubject,
+  persistImageMetadata,
+  type ExtractedImage,
+} from "@/lib/content-trust/extract-images";
+import { linkFiguresToAssertions } from "@/lib/content-trust/link-figures";
+import { getImageExtractionSettings } from "@/lib/system-settings";
 import {
   startTaskTracking,
   updateTaskProgress,
   completeTask,
   failTask,
 } from "@/lib/ai/task-guidance";
-import type { DocumentType } from "@/lib/content-trust/resolve-config";
+import type { DocumentType, InteractionPattern } from "@/lib/content-trust/resolve-config";
 
 /**
  * @api POST /api/content-sources/:sourceId/extract
@@ -46,6 +56,7 @@ import type { DocumentType } from "@/lib/content-trust/resolve-config";
  * @pathParam sourceId string - ContentSource UUID
  * @body subjectId string - Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources)
  * @body text string - Optional pre-extracted text (if not provided, downloads from linked media asset)
+ * @body interactionPattern string - Optional interaction pattern (socratic, directive, etc.) for pattern-specific extraction categories
  *
  * @response 202 { ok, jobId, totalChunks }
  * @response 400 { ok: false, error }
@@ -98,6 +109,33 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const subjectId = body.subjectId || source.subjects[0]?.subjectId || undefined;
     const subjectSlug = source.subjects[0]?.subject?.slug || source.slug;
+
+    // Resolve interactionPattern: explicit from body, or look up from domain playbook
+    let interactionPattern: InteractionPattern | undefined = body.interactionPattern || undefined;
+    if (!interactionPattern && subjectId) {
+      try {
+        const domainPlaybook = await prisma.subjectDomain.findFirst({
+          where: { subjectId },
+          select: {
+            domain: {
+              select: {
+                playbooks: {
+                  where: { isActive: true },
+                  select: { config: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        });
+        const pbConfig = domainPlaybook?.domain?.playbooks?.[0]?.config as Record<string, any> | null;
+        if (pbConfig?.interactionPattern) {
+          interactionPattern = pbConfig.interactionPattern as InteractionPattern;
+        }
+      } catch {
+        // Best-effort — extraction works without pattern, just misses supplementary categories
+      }
+    }
     const subjectName = source.subjects[0]?.subject?.name || source.name;
     const qualificationRef = source.subjects[0]?.subject?.qualificationRef || undefined;
 
@@ -134,6 +172,7 @@ export async function POST(
 
     // Fire-and-forget background extraction with document type
     const fileName = source.mediaAssets[0]?.fileName || source.name;
+    const mediaStorageKey = source.mediaAssets[0]?.storageKey;
     runBackgroundExtraction(
       job.id,
       sourceId,
@@ -147,6 +186,8 @@ export async function POST(
         documentType: source.documentType as DocumentType,
         qualificationRef,
         maxAssertions: 500,
+        mediaStorageKey,
+        interactionPattern,
       },
     ).catch(async (err) => {
       console.error(`[content-sources/:id/extract] Background job ${job.id} error:`, err);
@@ -186,6 +227,8 @@ async function runBackgroundExtraction(
     documentType: DocumentType;
     qualificationRef?: string;
     maxAssertions: number;
+    mediaStorageKey?: string;
+    interactionPattern?: InteractionPattern;
   },
 ) {
   // Track cumulative per-chunk save counts for the final job record
@@ -240,7 +283,7 @@ async function runBackgroundExtraction(
   if (useSpecialist) {
     // Use specialist extractor (returns assertions + questions + vocabulary)
     const extractor = getExtractor(opts.documentType);
-    const extractionConfig = await resolveExtractionConfig(opts.sourceId, opts.documentType);
+    const extractionConfig = await resolveExtractionConfig(opts.sourceId, opts.documentType, opts.interactionPattern);
 
     const fullResult = await extractor.extract(text, {
       ...opts,
@@ -341,6 +384,20 @@ async function runBackgroundExtraction(
     embedAssertionsForSource(sourceId).catch((err) =>
       console.error(`[extract] Embedding failed for source ${sourceId}:`, err)
     );
+
+    // Auto-structure into pedagogical pyramid (non-blocking)
+    structureSourceIfEligible(sourceId).catch((err) =>
+      console.error(`[extract] Auto-structure failed for source ${sourceId}:`, err)
+    );
+  }
+
+  // ── Image extraction (non-blocking) ──
+  // Extract embedded images from the source document and link to assertions.
+  // Runs after text extraction so figure-assertion linking can match refs.
+  if (opts.mediaStorageKey) {
+    runImageExtraction(sourceId, userId, fileName, opts.mediaStorageKey).catch((err) =>
+      console.error(`[extract] Image extraction failed for source ${sourceId}:`, err),
+    );
   }
 
   // Auto-trigger curriculum generation if all extractions for this subject are done
@@ -415,5 +472,65 @@ async function runScaffoldingTask(taskId: string, domainId: string, userId: stri
     await completeTask(taskId);
   } catch (err: any) {
     throw err;
+  }
+}
+
+// ── Image extraction runner ──
+
+async function runImageExtraction(
+  sourceId: string,
+  userId: string,
+  fileName: string,
+  storageKey: string,
+): Promise<void> {
+  const settings = await getImageExtractionSettings();
+  if (!settings.enabled) return;
+
+  const nameLower = fileName.toLowerCase();
+  const isPdf = nameLower.endsWith(".pdf");
+  const isDocx = nameLower.endsWith(".docx");
+
+  if (!isPdf && !isDocx) return;
+
+  // Download file buffer from storage
+  const storage = getStorageAdapter();
+  const buffer = await storage.download(storageKey);
+
+  let result;
+  if (isPdf) {
+    result = await extractImagesFromPdf(buffer, sourceId, userId, settings);
+  } else {
+    result = await extractImagesFromDocx(buffer, sourceId, userId, settings);
+  }
+
+  if (!result.ok) {
+    console.warn(`[extract] Image extraction not ok for ${sourceId}:`, result.warnings);
+    return;
+  }
+
+  if (result.images.length === 0) {
+    if (result.warnings.length > 0) {
+      console.log(`[extract] No images extracted for ${sourceId}:`, result.warnings.join("; "));
+    }
+    return;
+  }
+
+  console.log(`[extract] Extracted ${result.images.length} images from ${fileName}`);
+
+  // Persist caption/figureRef metadata on the MediaAsset records
+  await persistImageMetadata(result.images);
+
+  // Link images to subject's media library (for content catalog visibility)
+  const subjectLinked = await linkImagesToSubject(sourceId, result.images);
+  console.log(`[extract] Linked ${subjectLinked} image-subject pairs for ${sourceId}`);
+
+  // Link images to assertions that reference them
+  const linkResult = await linkFiguresToAssertions(sourceId, result.images);
+  console.log(
+    `[extract] Figure-assertion linking for ${sourceId}: ${linkResult.linked} linked, ${linkResult.unlinked} unlinked`,
+  );
+
+  if (linkResult.warnings.length > 0) {
+    console.warn(`[extract] Figure linking warnings:`, linkResult.warnings.join("; "));
   }
 }

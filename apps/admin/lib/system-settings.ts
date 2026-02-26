@@ -750,6 +750,43 @@ export async function getAITimeoutSettings(): Promise<AITimeoutSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// 15. IMAGE EXTRACTION
+// ═══════════════════════════════════════════════════════
+
+export interface ImageExtractionSettings {
+  /** Master toggle for image extraction from documents */
+  enabled: boolean;
+  /** Maximum images to extract per document */
+  maxImagesPerDocument: number;
+  /** Skip images smaller than this (filters icons/bullets) */
+  minImageSizeBytes: number;
+  /** Auto-detect captions from surrounding text */
+  captionDetection: boolean;
+  /** Use AI vision for rich captioning (post-market-test) */
+  aiCaptioning: boolean;
+}
+
+export const IMAGE_EXTRACTION_DEFAULTS: ImageExtractionSettings = {
+  enabled: true,
+  maxImagesPerDocument: 50,
+  minImageSizeBytes: 5000,
+  captionDetection: true,
+  aiCaptioning: false,
+};
+
+const IMAGE_EXTRACTION_KEYS: Record<keyof ImageExtractionSettings, string> = {
+  enabled: "image_extraction.enabled",
+  maxImagesPerDocument: "image_extraction.max_images_per_document",
+  minImageSizeBytes: "image_extraction.min_image_size_bytes",
+  captionDetection: "image_extraction.caption_detection",
+  aiCaptioning: "image_extraction.ai_captioning",
+};
+
+export async function getImageExtractionSettings(): Promise<ImageExtractionSettings> {
+  return loadGroup(IMAGE_EXTRACTION_KEYS, IMAGE_EXTRACTION_DEFAULTS);
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -1006,6 +1043,19 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "content_linking.min_link_score", label: "Min link score", description: "Minimum combined score to create a link (0–1)", type: "float" as const, default: 0.35, min: 0, max: 1, step: 0.05 },
       { key: "content_linking.use_vector_similarity", label: "Use vector similarity", description: "Use pgvector cosine similarity for semantic matching (requires assertion embeddings)", type: "bool" as const, default: true },
       { key: "content_linking.min_vector_similarity", label: "Min vector similarity", description: "Minimum cosine similarity when using vector mode (0–1)", type: "float" as const, default: 0.6, min: 0, max: 1, step: 0.05 },
+    ],
+  },
+  {
+    id: "image_extraction",
+    label: "Image Extraction",
+    icon: "Image",
+    description: "Auto-extraction of figures, diagrams, and images from uploaded documents (PDFs, DOCX)",
+    settings: [
+      { key: "image_extraction.enabled", label: "Enabled", description: "Master toggle for image extraction from documents", type: "bool" as const, default: true },
+      { key: "image_extraction.max_images_per_document", label: "Max images per document", description: "Maximum number of images to extract from a single document", type: "int" as const, default: 50, min: 1, max: 200 },
+      { key: "image_extraction.min_image_size_bytes", label: "Min image size (bytes)", description: "Skip images smaller than this threshold (filters icons, bullets, decorative elements)", type: "int" as const, default: 5000, min: 100, max: 50000 },
+      { key: "image_extraction.caption_detection", label: "Caption detection", description: "Auto-detect figure captions from surrounding text using regex patterns", type: "bool" as const, default: true },
+      { key: "image_extraction.ai_captioning", label: "AI vision captioning", description: "Use AI vision model to generate rich image descriptions (increases cost per document)", type: "bool" as const, default: false },
     ],
   },
 ];

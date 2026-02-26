@@ -4106,6 +4106,28 @@ Unauthorized
 
 ## Content Sources
 
+### `GET` /api/content-sources/:sourceId/images
+
+List extracted images for a content source. Returns MediaAsset records
+
+**Auth**: VIEWER · **Scope**: `content-sources:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| sourceId | path | string | Yes | ContentSource UUID |
+
+**Response** `200`
+```json
+{ ok, images: Array<{ id, fileName, mimeType, figureRef, captionText, pageNumber, positionIndex, url }> }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Source not found" }
+```
+
+---
+
 ### `GET` /api/content-sources/available
 
 List content sources in a lightweight format for the source picker UI. Domain-scoped users see only their domain's sources.
@@ -4292,6 +4314,7 @@ Trigger extraction for a classified content source.
 | sourceId | path | string | Yes | ContentSource UUID |
 | subjectId | body | string | No | Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources) |
 | text | body | string | No | Optional pre-extracted text (if not provided, downloads from linked media asset) |
+| interactionPattern | body | string | No | Optional interaction pattern (socratic, directive, etc.) for pattern-specific extraction categories |
 
 **Response** `202`
 ```json
@@ -5416,7 +5439,7 @@ Lightweight stats for a domain's content sources — assertion count
 
 **Response** `200`
 ```json
-{ ok, assertionCount, sourceCount, extractedSourceCount, allExtracted, questionCount, vocabularyCount }
+{ ok, assertionCount, sourceCount, extractedSourceCount, allExtracted, questionCount, vocabularyCount, structuredSourceCount }
 ```
 
 **Response** `404`
@@ -5540,6 +5563,29 @@ Auto-generate a CONTENT spec from the domain's content source assertions.
 **Response** `500`
 ```json
 { ok: false, error: string }
+```
+
+---
+
+### `GET` /api/domains/:domainId/knowledge-map
+
+Returns the hierarchical pyramid structure for a domain's content.
+
+**Auth**: VIEWER · **Scope**: `domains:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | path | string | Yes | Domain UUID |
+| subjectIds | query | string | No | Comma-separated subject IDs to scope results |
+
+**Response** `200`
+```json
+{ ok, sources: Array<{ sourceId, sourceName, tree }>, stats }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Domain not found" }
 ```
 
 ---
@@ -12027,8 +12073,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 338 |
-| Files with annotations | 337 |
+| Route files found | 340 |
+| Files with annotations | 339 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

@@ -62,6 +62,7 @@ import { useTaskPoll } from "@/hooks/useTaskPoll";
 import { useSession } from "next-auth/react";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
+import KnowledgeMapTree, { type SourceTree, type KnowledgeMapStats } from "@/components/shared/KnowledgeMapTree";
 import "./demo-teach-wizard.css";
 
 // ── Types ──────────────────────────────────────────
@@ -287,6 +288,9 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [domainDetailLoading, setDomainDetailLoading] = useState(false);
   const [teachingPoints, setTeachingPoints] = useState<Array<{ id: string; text: string; type: string; reviewed: boolean; chapter?: string }>>([]);
   const [teachingPointsLoading, setTeachingPointsLoading] = useState(false);
+  const [knowledgeMapExpanded, setKnowledgeMapExpanded] = useState(false);
+  const [knowledgeMapSources, setKnowledgeMapSources] = useState<SourceTree[] | null>(null);
+  const [knowledgeMapStats, setKnowledgeMapStats] = useState<KnowledgeMapStats | null>(null);
   const [tunePersonaExpanded, setTunePersonaExpanded] = useState(false);
   const [promptPreviewExpanded, setPromptPreviewExpanded] = useState(false);
   const [savingPersona, setSavingPersona] = useState(false);
@@ -411,6 +415,9 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     setPromptPreviewExpanded(false);
     setDomainDetail(null);
     setTeachingPoints([]);
+    setKnowledgeMapSources(null);
+    setKnowledgeMapStats(null);
+    setKnowledgeMapExpanded(false);
     setLaunchTaskId(null);
     setLaunchMessage("");
     setExtractionTaskId(null);
@@ -1410,6 +1417,23 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     }
   }, [currentStep, selectedDomainId, contentPhase, fetchTeachingPoints]);
 
+  // Fetch knowledge map when content becomes available on step 2
+  useEffect(() => {
+    if (currentStep === 2 && selectedDomainId && (contentPhase === "done" || contentPhase === "has-content")) {
+      const subjectIds = isTeachFlow ? getData<string[]>("subjectIds") : undefined;
+      const qs = subjectIds?.length ? `?subjectIds=${subjectIds.join(",")}` : "";
+      fetch(`/api/domains/${selectedDomainId}/knowledge-map${qs}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok && data.sources?.length > 0) {
+            setKnowledgeMapSources(data.sources);
+            setKnowledgeMapStats(data.stats);
+          }
+        })
+        .catch(() => {}); // Non-critical
+    }
+  }, [currentStep, selectedDomainId, contentPhase, isTeachFlow, getData]);
+
   const handleToggleOnboarding = useCallback(() => {
     const willExpand = !onboardingExpanded;
     setOnboardingExpanded(willExpand);
@@ -2246,6 +2270,28 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                       )}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Knowledge Map — appears when pyramid structuring is complete */}
+          {(contentPhase === "done" || contentPhase === "has-content") && knowledgeMapSources && knowledgeMapSources.length > 0 && (
+            <div className="dtw-accordion-card">
+              <button onClick={() => setKnowledgeMapExpanded((v) => !v)} className="dtw-accordion-toggle">
+                {knowledgeMapExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <span>Knowledge Map</span>
+                {knowledgeMapStats && (
+                  <span className="dtw-accordion-badge">{knowledgeMapStats.totalTopics} topic{knowledgeMapStats.totalTopics !== 1 ? "s" : ""}</span>
+                )}
+              </button>
+              {knowledgeMapExpanded && (
+                <div className="dtw-accordion-content" style={{ padding: 12 }}>
+                  <KnowledgeMapTree
+                    sources={knowledgeMapSources}
+                    stats={knowledgeMapStats ?? undefined}
+                    initialExpandDepth={1}
+                  />
                 </div>
               )}
             </div>

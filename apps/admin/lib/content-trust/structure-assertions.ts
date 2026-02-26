@@ -26,6 +26,13 @@ import {
 import crypto from "crypto";
 
 // ------------------------------------------------------------------
+// Constants
+// ------------------------------------------------------------------
+
+/** Minimum assertions needed to justify AI structuring cost */
+const MIN_ASSERTIONS_FOR_STRUCTURE = 15;
+
+// ------------------------------------------------------------------
 // Types
 // ------------------------------------------------------------------
 
@@ -494,4 +501,33 @@ export async function applyStructure(sourceId: string): Promise<StructuringResul
     },
     warnings,
   };
+}
+
+// ------------------------------------------------------------------
+// Auto-structuring helper (fire-and-forget after extraction)
+// ------------------------------------------------------------------
+
+/**
+ * Structure a source's assertions into a pyramid IF eligible.
+ * Checks minimum assertion count and idempotency (skips if already structured).
+ * Designed to be called fire-and-forget after extraction completes.
+ */
+export async function structureSourceIfEligible(sourceId: string): Promise<void> {
+  const count = await prisma.contentAssertion.count({ where: { sourceId } });
+  if (count < MIN_ASSERTIONS_FOR_STRUCTURE) {
+    console.log(`[structure] Skipping ${sourceId}: ${count} assertions < ${MIN_ASSERTIONS_FOR_STRUCTURE} minimum`);
+    return;
+  }
+
+  // Idempotency: skip if already structured
+  const structured = await prisma.contentAssertion.count({
+    where: { sourceId, depth: { not: null } },
+  });
+  if (structured > 0) {
+    console.log(`[structure] Skipping ${sourceId}: already structured (${structured} nodes with depth)`);
+    return;
+  }
+
+  console.log(`[structure] Auto-structuring ${sourceId} (${count} assertions)`);
+  await applyStructure(sourceId);
 }

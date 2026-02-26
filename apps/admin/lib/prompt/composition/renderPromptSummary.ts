@@ -248,6 +248,21 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
   if (qs?.curriculum_progress) parts.push(qs.curriculum_progress);
   parts.push("");
 
+  // --- VISUAL AIDS ---
+  const visuals = (llmPrompt as any).visualAids;
+  if (visuals?.hasVisualAids && visuals.available?.length) {
+    parts.push("[VISUAL AIDS]");
+    parts.push("Teaching materials include these visual aids:");
+    for (const v of visuals.available.slice(0, 8)) {
+      const label = v.captionText || v.figureRef || v.fileName;
+      const chapterTag = v.chapter ? ` (${v.chapter})` : "";
+      parts.push(`- ${label}${chapterTag}`);
+    }
+    parts.push("In voice calls: describe visuals verbally. Never say 'look at' or 'see the diagram'.");
+    parts.push("In text sim: you can share these using the share_content tool.");
+    parts.push("");
+  }
+
   // --- PEDAGOGY MODE ---
   const pedMode = (llmPrompt as any).pedagogyMode;
   if (pedMode?.mode) {
@@ -427,6 +442,19 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     }
     if (trust.referenceCard) {
       parts.push("\n" + trust.referenceCard);
+    }
+    parts.push("");
+  }
+
+  // Visual Aids
+  const visuals2 = (llmPrompt as any).visualAids;
+  if (visuals2?.hasVisualAids && visuals2.available?.length) {
+    parts.push("## Visual Aids\n");
+    parts.push(`**${visuals2.count}** figures/diagrams available:\n`);
+    for (const v of visuals2.available) {
+      const label = v.captionText || v.figureRef || v.fileName;
+      const chapterTag = v.chapter ? ` (${v.chapter})` : "";
+      parts.push(`- ${label}${chapterTag}`);
     }
     parts.push("");
   }

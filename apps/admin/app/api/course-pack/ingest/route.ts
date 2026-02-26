@@ -5,6 +5,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { extractTextFromBuffer } from "@/lib/content-trust/extract-assertions";
 import { getStorageAdapter, computeContentHash } from "@/lib/storage";
 import { config } from "@/lib/config";
+import type { InteractionPattern } from "@/lib/content-trust/resolve-config";
 import {
   startTaskTracking,
   updateTaskProgress,
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
     const manifestJson = formData.get("manifest") as string;
     const domainId = formData.get("domainId") as string;
     const courseName = (formData.get("courseName") as string) || "";
+    const interactionPattern = (formData.get("interactionPattern") as string) || undefined;
 
     if (!manifestJson) {
       return NextResponse.json({ ok: false, error: "Missing manifest" }, { status: 400 });
@@ -186,6 +188,7 @@ export async function POST(req: NextRequest) {
               domain.slug,
               mf.documentType,
               authResult.session.user.id,
+              interactionPattern as InteractionPattern | undefined,
             );
             groupSources.push({ sourceId: result.sourceId, role: mf.role, fileName: file.name });
             sourceCount++;
@@ -264,6 +267,7 @@ export async function POST(req: NextRequest) {
               domain.slug,
               mf.documentType || "LESSON_PLAN",
               authResult.session.user.id,
+              interactionPattern as InteractionPattern | undefined,
             );
             sourceCount++;
           }
@@ -319,6 +323,7 @@ async function createSourceAndStartExtraction(
   domainSlug: string,
   documentType: string,
   userId: string,
+  interactionPattern?: InteractionPattern,
 ) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -419,7 +424,7 @@ async function createSourceAndStartExtraction(
       let totalVocabularyCreated = 0;
 
       const extractor = getExtractor(finalDocType);
-      const extractionConfig = await resolveExtractionConfig(source.id, finalDocType);
+      const extractionConfig = await resolveExtractionConfig(source.id, finalDocType, interactionPattern);
 
       const result = await extractor.extract(text, {
         sourceSlug: source.slug,
@@ -483,6 +488,12 @@ async function createSourceAndStartExtraction(
       if (totalCreated > 0) {
         embedAssertionsForSource(source.id).catch((err: unknown) => {
           console.error(`[course-pack/ingest] Embedding failed for ${file.name}:`, err instanceof Error ? err.message : err);
+        });
+
+        // Auto-structure into pedagogical pyramid (non-blocking)
+        const { structureSourceIfEligible } = await import("@/lib/content-trust/structure-assertions");
+        structureSourceIfEligible(source.id).catch((err: unknown) => {
+          console.error(`[course-pack/ingest] Auto-structure failed for ${file.name}:`, err instanceof Error ? err.message : err);
         });
       }
 

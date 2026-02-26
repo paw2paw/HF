@@ -34,9 +34,9 @@ export async function GET(
     const category = searchParams.get("category");
     const limit = Math.min(parseInt(searchParams.get("limit") || "100", 10) || 100, 500);
 
-    if (!groupType || !["assertion", "question", "vocabulary"].includes(groupType)) {
+    if (!groupType || !["assertion", "question", "vocabulary", "visual_aid"].includes(groupType)) {
       return NextResponse.json(
-        { ok: false, error: "groupType must be one of: assertion, question, vocabulary" },
+        { ok: false, error: "groupType must be one of: assertion, question, vocabulary, visual_aid" },
         { status: 400 },
       );
     }
@@ -123,6 +123,42 @@ export async function GET(
           questionType: q.questionType,
           correctAnswer: q.correctAnswer,
           chapter: q.chapter,
+        })),
+      });
+    }
+
+    // visual_aid — extracted images/figures
+    if (groupType === "visual_aid") {
+      const images = await prisma.mediaAsset.findMany({
+        where: {
+          sourceId: { in: sourceIds },
+          mimeType: { startsWith: "image/" },
+          extractedFrom: { not: null },
+        },
+        select: {
+          id: true,
+          fileName: true,
+          mimeType: true,
+          figureRef: true,
+          captionText: true,
+          pageNumber: true,
+          positionIndex: true,
+        },
+        orderBy: [{ pageNumber: "asc" }, { positionIndex: "asc" }],
+        take: limit,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        items: images.map((m) => ({
+          id: m.id,
+          text: m.captionText || m.figureRef || m.fileName,
+          fileName: m.fileName,
+          figureRef: m.figureRef,
+          captionText: m.captionText,
+          pageNumber: m.pageNumber,
+          mimeType: m.mimeType,
+          url: `/api/media/${m.id}?inline=1`,
         })),
       });
     }

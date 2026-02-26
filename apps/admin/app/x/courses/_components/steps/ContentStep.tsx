@@ -16,6 +16,7 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
 
   const domainId = getData<string>('domainId') || '';
   const courseName = getData<string>('courseName') || '';
+  const interactionPattern = getData<string>('interactionPattern') || undefined;
 
   // Load saved data
   useEffect(() => {
@@ -80,7 +81,7 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
               <span>{packSummary}</span>
             </div>
           ) : (
-            <PackUploadStep domainId={domainId} courseName={courseName} onResult={handlePackResult} onBack={onPrev} />
+            <PackUploadStep domainId={domainId} courseName={courseName} interactionPattern={interactionPattern} onResult={handlePackResult} onBack={onPrev} />
           )}
         </div>
       </div>

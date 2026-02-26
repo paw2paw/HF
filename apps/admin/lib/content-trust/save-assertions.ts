@@ -61,6 +61,7 @@ export async function saveAssertions(
         taxYear: a.taxYear || null,
         contentHash: a.contentHash,
         teachMethod: a.teachMethod || null,
+        figureRefs: a.figureRefs?.length ? a.figureRefs : [],
       })),
     });
   }

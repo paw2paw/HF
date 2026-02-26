@@ -12,7 +12,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  *   and extraction status. Used by the Plan Sessions step to poll for extraction progress.
  * @pathParam domainId string - Domain UUID
  * @query subjectIds string - Comma-separated subject IDs to scope results (course-scoped)
- * @response 200 { ok, assertionCount, sourceCount, extractedSourceCount, allExtracted, questionCount, vocabularyCount }
+ * @response 200 { ok, assertionCount, sourceCount, extractedSourceCount, allExtracted, questionCount, vocabularyCount, structuredSourceCount }
  * @response 404 { ok: false, error: "Domain not found" }
  */
 export async function GET(
@@ -96,6 +96,23 @@ export async function GET(
 
     const allExtracted = sourceCount > 0 && extractedSourceCount === sourceCount && !hasActiveJobs;
 
+    // Count sources that have been structured (at least one assertion with depth set)
+    const structuredSourceCount = sourceIds.length > 0
+      ? await prisma.contentSource.count({
+          where: {
+            id: { in: sourceIds },
+            assertions: { some: { depth: { not: null } } },
+          },
+        })
+      : 0;
+
+    // Count extracted images (visual aids)
+    const mediaCount = sourceIds.length > 0
+      ? await prisma.mediaAsset.count({
+          where: { sourceId: { in: sourceIds }, mimeType: { startsWith: "image/" }, extractedFrom: { not: null } },
+        })
+      : 0;
+
     return NextResponse.json({
       ok: true,
       assertionCount,
@@ -104,6 +121,8 @@ export async function GET(
       allExtracted,
       questionCount,
       vocabularyCount,
+      structuredSourceCount,
+      mediaCount,
     });
   } catch (error: unknown) {
     console.error("[domains/:id/content-stats] GET error:", error);

@@ -2104,6 +2104,7 @@ Trigger extraction for a classified content source.
 | sourceId | path | string | Yes | ContentSource UUID |
 | subjectId | body | string | No | Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources) |
 | text | body | string | No | Optional pre-extracted text (if not provided, downloads from linked media asset) |
+| interactionPattern | body | string | No | Optional interaction pattern (socratic, directive, etc.) for pattern-specific extraction categories |
 
 **Response** `202`
 ```json

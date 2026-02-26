@@ -6419,6 +6419,83 @@ html.light {
 }
 
 /* ══════════════════════════════════════════════════════
+   Knowledge Map Tree — Pyramid hierarchy viewer
+   ══════════════════════════════════════════════════════ */
+
+.hf-km-tree {
+  padding: 0;
+  list-style: none;
+  margin: 0;
+}
+.hf-km-node {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 3px 0;
+  line-height: 1.4;
+}
+.hf-km-node--depth0 { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.hf-km-node--depth1 { padding-left: 20px; font-size: 13px; color: var(--text-primary); }
+.hf-km-node--depth2 { padding-left: 40px; font-size: 13px; color: var(--text-muted); }
+.hf-km-node--depth3 { padding-left: 60px; font-size: 12px; color: var(--text-muted); }
+.hf-km-toggle {
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.hf-km-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 1px 6px;
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.hf-km-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.hf-km-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.hf-km-source-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+.hf-km-source-label:first-child { margin-top: 0; }
+.hf-km-stats {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: 8px;
+}
+.hf-km-stats strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════
    Wizard Intent Framing — Teach/Demonstrate flow
    ══════════════════════════════════════════════════════ */
 
@@ -6438,4 +6515,58 @@ html.light {
   color: var(--text-muted);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ── Image Lightbox ──────────────────────────────────── */
+
+.hf-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: color-mix(in srgb, #000 80%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.hf-lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  cursor: default;
+}
+
+.hf-lightbox-close {
+  position: absolute;
+  top: -36px;
+  right: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  opacity: 0.8;
+}
+.hf-lightbox-close:hover {
+  opacity: 1;
+}
+
+.hf-lightbox-image {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px color-mix(in srgb, #000 50%, transparent);
+}
+
+.hf-lightbox-caption {
+  text-align: center;
+  color: #fff;
+  font-size: 14px;
+  margin-top: 12px;
+  padding: 0 16px;
+  opacity: 0.9;
 }

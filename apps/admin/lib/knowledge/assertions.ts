@@ -9,7 +9,14 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { toVectorLiteral } from "@/lib/embeddings";
 
+export type AssertionMediaRef = {
+  mediaId: string;
+  figureRef: string | null;
+  captionText: string | null;
+};
+
 export type AssertionResult = {
+  id?: string;
   assertion: string;
   category: string;
   chapter: string | null;
@@ -19,6 +26,8 @@ export type AssertionResult = {
   sourceName: string;
   relevanceScore: number;
   teachMethod: string | null;
+  /** Linked figures/images from AssertionMedia junction */
+  mediaRefs?: AssertionMediaRef[];
 };
 
 /**
@@ -57,9 +66,14 @@ export async function searchAssertionsHybrid(
     }
   }
 
-  return Array.from(merged.values())
+  const results = Array.from(merged.values())
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, limit);
+
+  // Batch-load linked media for the result set
+  await attachMediaRefs(results);
+
+  return results;
 }
 
 /**
@@ -77,6 +91,7 @@ export async function searchAssertionsByVector(
   const vectorLiteral = toVectorLiteral(queryEmbedding);
 
   const rows = await prisma.$queryRaw<Array<{
+    id: string;
     assertion: string;
     category: string;
     chapter: string | null;
@@ -89,7 +104,7 @@ export async function searchAssertionsByVector(
   }>>(
     sourceIds
       ? Prisma.sql`
-          SELECT a.assertion, a.category, a.chapter, a.tags,
+          SELECT a.id, a.assertion, a.category, a.chapter, a.tags,
                  a."trustLevel"::text, a."examRelevance",
                  a."teachMethod",
                  s.name as "sourceName",
@@ -102,7 +117,7 @@ export async function searchAssertionsByVector(
           LIMIT ${limit}
         `
       : Prisma.sql`
-          SELECT a.assertion, a.category, a.chapter, a.tags,
+          SELECT a.id, a.assertion, a.category, a.chapter, a.tags,
                  a."trustLevel"::text, a."examRelevance",
                  a."teachMethod",
                  s.name as "sourceName",
@@ -118,6 +133,7 @@ export async function searchAssertionsByVector(
   return rows
     .filter((r) => r.similarity >= minRelevance)
     .map((r) => ({
+      id: r.id,
       assertion: r.assertion,
       category: r.category,
       chapter: r.chapter,
@@ -186,6 +202,7 @@ export async function searchAssertions(
       );
 
       return {
+        id: a.id,
         assertion: a.assertion,
         category: a.category,
         chapter: a.chapter,
@@ -251,6 +268,47 @@ export async function searchCallerMemories(
 }
 
 /**
+ * Batch-load linked media (figures/images) for a set of assertion results.
+ * Populates the `mediaRefs` field on each result that has linked images.
+ */
+async function attachMediaRefs(results: AssertionResult[]): Promise<void> {
+  const ids = results.map((r) => r.id).filter(Boolean) as string[];
+  if (ids.length === 0) return;
+
+  const links = await prisma.assertionMedia.findMany({
+    where: { assertionId: { in: ids } },
+    select: {
+      assertionId: true,
+      figureRef: true,
+      media: {
+        select: { id: true, captionText: true },
+      },
+    },
+  });
+
+  if (links.length === 0) return;
+
+  // Group by assertionId
+  const byAssertion = new Map<string, AssertionMediaRef[]>();
+  for (const link of links) {
+    const refs = byAssertion.get(link.assertionId) || [];
+    refs.push({
+      mediaId: link.media.id,
+      figureRef: link.figureRef,
+      captionText: link.media.captionText,
+    });
+    byAssertion.set(link.assertionId, refs);
+  }
+
+  // Attach to results
+  for (const r of results) {
+    if (r.id && byAssertion.has(r.id)) {
+      r.mediaRefs = byAssertion.get(r.id)!;
+    }
+  }
+}
+
+/**
  * Format a teaching assertion for AI consumption.
  */
 export function formatAssertion(a: {
@@ -260,6 +318,7 @@ export function formatAssertion(a: {
   sourceName: string;
   trustLevel: string | null;
   teachMethod?: string | null;
+  mediaRefs?: AssertionMediaRef[];
 }): string {
   const parts: string[] = [];
   if (a.teachMethod) parts.push(`[${a.teachMethod}]`);
@@ -267,6 +326,15 @@ export function formatAssertion(a: {
   if (a.chapter) parts.push(`(${a.chapter})`);
   parts.push(a.assertion);
   if (a.trustLevel) parts.push(`[Trust: ${a.trustLevel}]`);
+
+  // Append linked figure markers so the AI knows images are available
+  if (a.mediaRefs?.length) {
+    for (const ref of a.mediaRefs) {
+      const label = ref.captionText || ref.figureRef || ref.mediaId;
+      parts.push(`[HAS FIGURE: "${label}", media_id: ${ref.mediaId}]`);
+    }
+  }
+
   return parts.join(" ");
 }
 

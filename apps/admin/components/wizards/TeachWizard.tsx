@@ -43,6 +43,7 @@ import {
   type TeachMethod,
 } from "@/lib/content-trust/resolve-config";
 import { getDocTypeInfo, DOC_TYPE_INFO } from "@/lib/doc-type-icons";
+import KnowledgeMapTree, { type SourceTree, type KnowledgeMapStats } from "@/components/shared/KnowledgeMapTree";
 import "./teach-wizard.css";
 
 // ── Constants ───────────────────────────────────────
@@ -91,7 +92,7 @@ type ContentGroup = {
   originalCount: number;
   teachMethod: TeachMethod;
   included: boolean;
-  groupType: "assertion" | "question" | "vocabulary";
+  groupType: "assertion" | "question" | "vocabulary" | "visual_aid";
   expanded: boolean;
   items: ContentItem[] | null; // null = not loaded, [] = loaded but empty
   loadingItems: boolean;
@@ -152,6 +153,8 @@ function categoryIcon(category: string): string {
     open: "💬",
     tutor_question: "🎯",
     information: "ℹ️",
+    // Visual aids
+    visual_aid: "🖼️",
   };
   return map[category] ?? "📌";
 }
@@ -159,6 +162,7 @@ function categoryIcon(category: string): string {
 function countLabel(g: ContentGroup): string {
   if (g.groupType === "vocabulary") return g.count === 1 ? "term" : "terms";
   if (g.groupType === "question") return g.count === 1 ? "Q" : "Qs";
+  if (g.groupType === "visual_aid") return g.count === 1 ? "figure" : "figures";
   return g.count === 1 ? "TP" : "TPs";
 }
 
@@ -246,6 +250,9 @@ export default function TeachWizard() {
       setExtractElapsed(0);
       setContentError(null);
       setUploadSourceCount(0);
+      setKnowledgeMapSources(null);
+      setKnowledgeMapStats(null);
+      knowledgeMapFetchedRef.current = false;
       if (extractPollRef.current) {
         clearInterval(extractPollRef.current);
         extractPollRef.current = null;
@@ -519,6 +526,11 @@ export default function TeachWizard() {
   >([]);
   const [classificationCorrected, setClassificationCorrected] = useState(false);
 
+  // Knowledge Map (progressive — appears when structuring completes)
+  const [knowledgeMapSources, setKnowledgeMapSources] = useState<SourceTree[] | null>(null);
+  const [knowledgeMapStats, setKnowledgeMapStats] = useState<KnowledgeMapStats | null>(null);
+  const knowledgeMapFetchedRef = useRef(false);
+
   // Poll for extraction completion then load categories (Bug Fix B: every 5s)
   const startExtractionPoll = useCallback(
     (domainId: string, sIds: string[]) => {
@@ -542,7 +554,7 @@ export default function TeachWizard() {
           const qs = sIds.length ? `?subjectIds=${sIds.join(",")}` : "";
           const res = await fetch(`/api/domains/${domainId}/content-stats${qs}`);
           const data = await res.json();
-          const totalCount = (data.assertionCount || 0) + (data.questionCount || 0) + (data.vocabularyCount || 0);
+          const totalCount = (data.assertionCount || 0) + (data.questionCount || 0) + (data.vocabularyCount || 0) + (data.mediaCount || 0);
           if (data.allExtracted) {
             clearInterval(extractPollRef.current!);
             extractPollRef.current = null;
@@ -556,6 +568,20 @@ export default function TeachWizard() {
           }
           // Update the live point count even without reloading groups
           if (totalCount > 0) setContentTotal(totalCount);
+
+          // Check for structured content (pyramid) — fetch knowledge map once
+          if (data.structuredSourceCount > 0 && !knowledgeMapFetchedRef.current) {
+            knowledgeMapFetchedRef.current = true;
+            fetch(`/api/domains/${domainId}/knowledge-map${qs}`)
+              .then((r) => r.json())
+              .then((km) => {
+                if (km.ok && km.sources?.length > 0) {
+                  setKnowledgeMapSources(km.sources);
+                  setKnowledgeMapStats(km.stats);
+                }
+              })
+              .catch(() => {}); // Non-critical — fail silently
+          }
         } catch {
           // keep polling
         }
@@ -624,6 +650,22 @@ export default function TeachWizard() {
               teachMethod: "definition_matching" as TeachMethod,
               included: true,
               groupType: "vocabulary",
+              expanded: false,
+              items: null,
+              loadingItems: false,
+              itemError: null,
+            });
+          }
+
+          // Add visual aids group (extracted figures/diagrams)
+          if (data.mediaCount > 0) {
+            groups.push({
+              category: "visual_aid",
+              count: data.mediaCount,
+              originalCount: data.mediaCount,
+              teachMethod: "direct_instruction" as TeachMethod,
+              included: true,
+              groupType: "visual_aid",
               expanded: false,
               items: null,
               loadingItems: false,
@@ -799,7 +841,7 @@ export default function TeachWizard() {
               g.category === category
                 ? {
                     ...g,
-                    items: (data.items as Array<{ id: string; term?: string; definition?: string; text?: string; questionType?: string; partOfSpeech?: string }>).map(
+                    items: (data.items as Array<{ id: string; term?: string; definition?: string; text?: string; questionType?: string; partOfSpeech?: string; figureRef?: string; pageNumber?: number; url?: string }>).map(
                       (item) => ({
                         id: item.id,
                         text:
@@ -807,7 +849,10 @@ export default function TeachWizard() {
                             ? `${item.term} — ${item.definition || ""}`
                             : item.text || "",
                         excluded: false,
-                        meta: item.questionType || item.partOfSpeech || undefined,
+                        meta:
+                          groupType === "visual_aid"
+                            ? item.pageNumber ? `p.${item.pageNumber}` : undefined
+                            : item.questionType || item.partOfSpeech || undefined,
                       })
                     ),
                     loadingItems: false,
@@ -869,8 +914,10 @@ export default function TeachWizard() {
   // Bug Fix C: count from assertions, not source count
   const totalIncludedTPs = includedGroups.reduce((s, g) => s + g.count, 0);
 
+  const visualAidGroup = includedGroups.find((g) => g.groupType === "visual_aid");
+  const visualAidSuffix = visualAidGroup ? `, ${visualAidGroup.count} visual aid${visualAidGroup.count !== 1 ? "s" : ""}` : "";
   const contentSummary = contentGroups.length > 0
-    ? `${totalIncludedTPs} teaching point${totalIncludedTPs !== 1 ? "s" : ""} · ${includedGroups.length} group${includedGroups.length !== 1 ? "s" : ""} included`
+    ? `${totalIncludedTPs} item${totalIncludedTPs !== 1 ? "s" : ""}${visualAidSuffix} · ${includedGroups.length} group${includedGroups.length !== 1 ? "s" : ""} included`
     : "No content selected";
 
   // ── Section 5 — Lesson Plan ────────────────────────
@@ -1879,6 +1926,14 @@ export default function TeachWizard() {
                 ))}
               </div>
 
+              {/* Knowledge Map — appears progressively when structuring completes */}
+              {knowledgeMapSources && knowledgeMapSources.length > 0 && (
+                <KnowledgeMapAccordion
+                  sources={knowledgeMapSources}
+                  stats={knowledgeMapStats}
+                />
+              )}
+
               {!canContinueContent && (
                 <div className="tw-banner-warning" style={{ marginTop: 8 }}>
                   Select at least one group to continue.
@@ -2195,6 +2250,47 @@ export default function TeachWizard() {
           </button>
         </WizardSection>
       </div>
+    </div>
+  );
+}
+
+// ── Knowledge Map Accordion ─────────────────────────
+
+function KnowledgeMapAccordion({
+  sources,
+  stats,
+}: {
+  sources: SourceTree[];
+  stats: KnowledgeMapStats | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const topicCount = stats?.totalTopics ?? 0;
+
+  return (
+    <div className="tw-km-accordion" style={{ marginTop: 12 }}>
+      <div
+        className="tw-group-row"
+        onClick={() => setExpanded((prev) => !prev)}
+        style={{ cursor: "pointer" }}
+      >
+        <span className="tw-group-icon">🗺️</span>
+        <span className="tw-group-name">Knowledge Map</span>
+        <span className="tw-group-count">
+          {topicCount} topic{topicCount !== 1 ? "s" : ""}
+        </span>
+        <div className={`hf-chevron--sm${expanded ? " hf-chevron--open" : ""}`}>
+          <ChevronRight size={14} />
+        </div>
+      </div>
+      {expanded && (
+        <div className="tw-group-items" style={{ padding: 12 }}>
+          <KnowledgeMapTree
+            sources={sources}
+            stats={stats ?? undefined}
+            initialExpandDepth={1}
+          />
+        </div>
+      )}
     </div>
   );
 }

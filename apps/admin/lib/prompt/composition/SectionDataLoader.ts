@@ -54,6 +54,7 @@ export async function loadAllData(
     curriculumQuestions,
     curriculumVocabulary,
     openActions,
+    visualAids,
   ] = await Promise.all([
     loaderRegistry.get("caller")!(callerId),
     loaderRegistry.get("memories")!(callerId, { limit: memoriesLimit }),
@@ -74,6 +75,7 @@ export async function loadAllData(
     loaderRegistry.get("curriculumQuestions")!(callerId),
     loaderRegistry.get("curriculumVocabulary")!(callerId),
     loaderRegistry.get("openActions")!(callerId),
+    loaderRegistry.get("visualAids")!(callerId),
   ]);
 
   return {
@@ -96,6 +98,7 @@ export async function loadAllData(
     curriculumQuestions: curriculumQuestions || [],
     curriculumVocabulary: curriculumVocabulary || [],
     openActions: openActions || [],
+    visualAids: visualAids || [],
   };
 }
 
@@ -757,4 +760,71 @@ registerLoader("openActions", async (callerId) => {
       createdAt: true,
     },
   });
+});
+
+/**
+ * Visual aids — extracted images from content sources linked to the caller's domain.
+ * Injected into prompt so the AI knows what figures/diagrams are available to reference
+ * (verbally in voice calls, or via share_content in sim).
+ */
+registerLoader("visualAids", async (callerId) => {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return [];
+
+  // Find subjects linked to domain → SubjectMedia → MediaAsset (images only)
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    select: { subjectId: true },
+  });
+  const subjectIds = subjectDomains.map((sd) => sd.subjectId);
+  if (subjectIds.length === 0) return [];
+
+  const subjectMedia = await prisma.subjectMedia.findMany({
+    where: {
+      subjectId: { in: subjectIds },
+      media: { mimeType: { startsWith: "image/" } },
+    },
+    include: {
+      media: {
+        select: {
+          id: true,
+          fileName: true,
+          captionText: true,
+          figureRef: true,
+          mimeType: true,
+          pageNumber: true,
+        },
+      },
+    },
+    take: 20,
+    orderBy: { sortOrder: "asc" },
+  });
+
+  // Resolve chapter from AssertionMedia link if available
+  const mediaIds = subjectMedia.map((sm) => sm.media.id);
+  const assertionLinks = mediaIds.length > 0
+    ? await prisma.assertionMedia.findMany({
+        where: { mediaId: { in: mediaIds } },
+        select: {
+          mediaId: true,
+          assertion: { select: { chapter: true } },
+        },
+        distinct: ["mediaId"],
+      })
+    : [];
+  const mediaChapterMap = new Map(
+    assertionLinks.map((al) => [al.mediaId, al.assertion.chapter]),
+  );
+
+  return subjectMedia.map((sm) => ({
+    mediaId: sm.media.id,
+    fileName: sm.media.fileName,
+    captionText: sm.media.captionText,
+    figureRef: sm.media.figureRef,
+    chapter: mediaChapterMap.get(sm.media.id) || null,
+    mimeType: sm.media.mimeType,
+  }));
 });
