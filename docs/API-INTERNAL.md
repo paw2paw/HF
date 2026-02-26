@@ -49,6 +49,7 @@
   - [Domains](#domains)
   - [Educator](#educator)
   - [Goals](#goals)
+  - [Groups](#groups)
   - [Invites](#invites)
   - [Lab](#lab)
   - [Layers](#layers)
@@ -1186,6 +1187,27 @@ Create or update an AI configuration for a specific call point. Validates provid
 **Response** `500`
 ```json
 { ok: false, error: "Failed to update AI configuration" }
+```
+
+---
+
+### `GET` /api/ai-config/inspect
+
+**Auth**: Session · **Scope**: `ai-config:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| callPoint | query | string | No | Single call point to inspect (e.g. "content-trust.extract-comprehension") |
+| category | query | string | No | Inspect all call points in a category (e.g. "content-processing") |
+
+**Response** `200`
+```json
+{ ok: true, inspections: [...] }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
 ```
 
 ---
@@ -3659,7 +3681,7 @@ List all communities (Domains with kind=COMMUNITY)
 
 ### `POST` /api/communities
 
-Create a new community with optional topics and founding members
+Create a new community hub with full scaffolding.
 
 **Auth**: Session · **Scope**: `communities:write`
 
@@ -3669,6 +3691,7 @@ Create a new community with optional topics and founding members
 | description | body | string | No | Community purpose/description |
 | communityKind | body | string | No | TOPIC_BASED or OPEN_CONNECTION |
 | hubPattern | body | string | No | InteractionPattern for OPEN_CONNECTION hubs |
+| institutionId | body | string | No | Parent institution ID (optional) |
 
 **Response** `200`
 ```json
@@ -6331,6 +6354,49 @@ Update a goal (name, description, type, status, priority, targetDate).
 
 ---
 
+## Groups
+
+### `GET` /api/playbook-groups
+
+List all playbook groups for a domain with playbook and cohort counts.
+
+**Auth**: Bearer token · **Scope**: `groups:read`
+
+**Response** `200`
+```json
+{ ok: true, groups: [...] }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "domainId is required" }
+```
+
+---
+
+### `POST` /api/playbook-groups
+
+Create one or more playbook groups. Use `bulk` for batch creation from templates/AI.
+
+**Auth**: Bearer token · **Scope**: `groups:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | body | string | No | Domain to create group in |
+| name | body | string | No | Group name |
+
+**Response** `200`
+```json
+{ ok: true, group: {...} } or { ok: true, groups: [...], count: N }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Invites
 
 ### `POST` /api/invite/accept
@@ -8005,6 +8071,14 @@ Get a single institution by ID.
 Update institution fields (name, branding, type, active status).
 
 **Auth**: ADMIN
+
+---
+
+### `POST` /api/institutions/url-import
+
+Extract metadata (name, logo, colors) from a website URL
+
+**Auth**: OPERATOR
 
 ---
 
@@ -12073,8 +12147,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 340 |
-| Files with annotations | 339 |
+| Route files found | 343 |
+| Files with annotations | 342 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

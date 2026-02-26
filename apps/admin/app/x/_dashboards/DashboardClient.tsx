@@ -144,6 +144,20 @@ export default function DashboardClient({ role }: Props) {
         <WizardSection terms={terms} lower={lower} />
       )}
 
+      {/* Explore Demos */}
+      {config.showWizards && (
+        <Link href="/x/demos" className="dash-demos-banner">
+          <div className="dash-demos-banner-icon">
+            {ICON_MAP.Presentation && <ICON_MAP.Presentation size={18} />}
+          </div>
+          <div className="dash-demos-banner-text">
+            <span className="dash-demos-banner-title">Explore Demos</span>
+            <span className="dash-demos-banner-desc">Interactive walkthroughs of key features</span>
+          </div>
+          <ChevronRight size={16} className="dash-demos-banner-arrow" />
+        </Link>
+      )}
+
       {/* Active Jobs */}
       {config.showJobs && data && data.activeTasks.length > 0 && (
         <ActiveJobsSection tasks={data.activeTasks} />

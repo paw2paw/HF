@@ -11,6 +11,7 @@ export type {
   ExtractionContext,
   ExtractedQuestion,
   ExtractedVocabulary,
+  CallAIResult,
 } from "./base-extractor";
 export { hashContent, callAI, parseJsonResponse } from "./base-extractor";
 export { GenericExtractor } from "./generic-extractor";

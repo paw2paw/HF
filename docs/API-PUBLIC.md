@@ -1741,7 +1741,7 @@ List all communities (Domains with kind=COMMUNITY)
 
 ### `POST` /api/v1/communities
 
-Create a new community with optional topics and founding members
+Create a new community hub with full scaffolding.
 
 **Auth**: Session · **Scope**: `communities:write`
 
@@ -1751,6 +1751,7 @@ Create a new community with optional topics and founding members
 | description | body | string | No | Community purpose/description |
 | communityKind | body | string | No | TOPIC_BASED or OPEN_CONNECTION |
 | hubPattern | body | string | No | InteractionPattern for OPEN_CONNECTION hubs |
+| institutionId | body | string | No | Parent institution ID (optional) |
 
 **Response** `200`
 ```json

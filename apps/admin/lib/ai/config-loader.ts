@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import type { AIEngine } from "./client";
 import { getAIModelConfigsFallback } from "@/lib/fallback-settings";
+import { getDefaultsMap } from "./call-points";
 
 // =====================================================
 // ENGINE AVAILABILITY (inlined to avoid circular imports)
@@ -52,65 +53,9 @@ export interface AIConfigResult {
   isCustomized: boolean;
 }
 
-// Per-call-point defaults: provider, model, and optional temperature/maxTokens.
-// Uses config.ai.claude.model for flagship and config.ai.claude.lightModel for fast/cheap tasks.
-// All env-overridable via config.ai.*. Operators can override per-call-point via /x/ai-config.
-// These match the definitions in /api/ai-config/route.ts
-const DEFAULT_CONFIGS: Record<string, { provider: AIEngine; model: string; temperature?: number; maxTokens?: number }> = {
-  "pipeline.measure": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 4096 },
-  "pipeline.learn": { provider: "claude", model: config.ai.claude.model },
-  "pipeline.score_agent": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 4096 },
-  "pipeline.adapt": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 1024 },
-  "pipeline.extract_goals": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 1024 },
-  "compose.prompt": { provider: "claude", model: config.ai.claude.model },
-  "analysis.measure": { provider: "claude", model: config.ai.claude.lightModel },
-  "analysis.learn": { provider: "claude", model: config.ai.claude.lightModel },
-  "parameter.enrich": { provider: "claude", model: config.ai.claude.lightModel },
-  "bdd.parse": { provider: "claude", model: config.ai.claude.model },
-  "chat.stream": { provider: "claude", model: config.ai.claude.model },
-  "spec.assistant": { provider: "claude", model: config.ai.claude.model },
-  "spec.view": { provider: "claude", model: config.ai.claude.model },
-  "spec.extract": { provider: "claude", model: config.ai.claude.model },
-  "spec.parse": { provider: "claude", model: config.ai.claude.lightModel },
-  "chat.data": { provider: "claude", model: config.ai.claude.model, temperature: 0.7, maxTokens: 4000 },
-  "chat.call": { provider: "claude", model: config.ai.claude.model, temperature: 0.85, maxTokens: 300 },
-  "chat.bug": { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2000 },
-  "assistant.chat": { provider: "claude", model: config.ai.claude.model },
-  "assistant.tasks": { provider: "claude", model: config.ai.claude.model },
-  "assistant.data": { provider: "claude", model: config.ai.claude.model },
-  "assistant.spec": { provider: "claude", model: config.ai.claude.model },
-  "content-trust.extract": { provider: "claude", model: config.ai.claude.model, temperature: 0.1, maxTokens: 4000 },
-  "content-trust.quick-extract": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 1500 },
-  "content-trust.structure": { provider: "claude", model: config.ai.claude.model, temperature: 0.2, maxTokens: 8000 },
-  "content-trust.classify": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 500 },
-  "content-trust.curriculum": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 8000 }, // lightModel for market test — switch to full model post-launch
-  "content-trust.curriculum-from-goals": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 8000 }, // lightModel for market test
-  "content-trust.curriculum-skeleton": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2000 },
-  "workflow.classify": { provider: "claude", model: config.ai.claude.model },
-  "workflow.step": { provider: "claude", model: config.ai.claude.model },
-  "quick-launch.identity": { provider: "claude", model: config.ai.claude.model, temperature: 0.4 },
-  "test-harness.system": { provider: "claude", model: config.ai.claude.model },
-  "test-harness.caller": { provider: "claude", model: config.ai.claude.model },
-  "test-harness.greeting": { provider: "claude", model: config.ai.claude.model },
-  "targets.suggest": { provider: "claude", model: config.ai.claude.lightModel },
-  "content-sources.suggest": { provider: "claude", model: config.ai.claude.lightModel },
-  "agent-tuner.interpret": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2048 },
-  // Specialist extractors — structured JSON output needs more room than default 1024
-  // lightModel (Haiku) is sufficient for structured extraction and avoids Sonnet timeout at 30s
-  "content-trust.extract-comprehension": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8000 },
-  "content-trust.extract-assessment": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8000 },
-  "content-trust.extract-reading-passage": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 4000 },
-  "content-trust.extract-question-bank": { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8000 },
-  // Missing from original — synced from route.ts AI_CALL_POINTS
-  "pipeline.artifacts": { provider: "claude", model: config.ai.claude.lightModel },
-  "pipeline.actions": { provider: "claude", model: config.ai.claude.lightModel },
-  "content-trust.segment": { provider: "claude", model: config.ai.claude.lightModel },
-  "content-trust.lesson-plan": { provider: "claude", model: config.ai.claude.model },
-  "lesson-plan.generate": { provider: "claude", model: config.ai.claude.model },
-  "quick-launch.suggest-name": { provider: "claude", model: "claude-haiku-4-5-20251001" },
-  "demonstrate.suggest": { provider: "claude", model: config.ai.claude.lightModel },
-  "workflow.step-guidance": { provider: "claude", model: config.ai.claude.model },
-};
+// Defaults are imported from the canonical call-points registry (single source of truth).
+// No duplicate default map here — all call point definitions live in call-points.ts.
+const DEFAULT_CONFIGS = getDefaultsMap();
 
 // In-memory cache with TTL
 const configCache: Map<string, { config: AIConfigResult; fetchedAt: number }> = new Map();
@@ -212,11 +157,12 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
       defaultConfig.model
     );
 
+    // Cascade: SystemSettings maxTokens/temperature override hardcoded defaults
     const result: AIConfigResult = {
       provider,
       model,
-      maxTokens: hardcodedConfig?.maxTokens,
-      temperature: hardcodedConfig?.temperature,
+      maxTokens: fallbackConfig?.maxTokens ?? hardcodedConfig?.maxTokens,
+      temperature: fallbackConfig?.temperature ?? hardcodedConfig?.temperature,
       isCustomized: false,
     };
     configCache.set(callPoint, { config: result, fetchedAt: Date.now() });
@@ -250,22 +196,28 @@ export async function preloadAIConfigs(): Promise<void> {
       where: { isActive: true },
     });
 
-    for (const config of allConfigs) {
+    for (const dbEntry of allConfigs) {
       const result: AIConfigResult = {
-        provider: config.provider as AIEngine,
-        model: config.model,
-        maxTokens: config.maxTokens ?? undefined,
-        temperature: config.temperature ?? undefined,
+        provider: dbEntry.provider as AIEngine,
+        model: dbEntry.model,
+        maxTokens: dbEntry.maxTokens ?? undefined,
+        temperature: dbEntry.temperature ?? undefined,
         isCustomized: true,
       };
-      configCache.set(config.callPoint, { config: result, fetchedAt: Date.now() });
+      configCache.set(dbEntry.callPoint, { config: result, fetchedAt: Date.now() });
     }
 
     // Also cache defaults for unconfigured call points
     for (const [callPoint, defaultConfig] of Object.entries(DEFAULT_CONFIGS)) {
       if (!configCache.has(callPoint)) {
         configCache.set(callPoint, {
-          config: { ...defaultConfig, isCustomized: false },
+          config: {
+            provider: defaultConfig.provider as AIEngine,
+            model: defaultConfig.model,
+            maxTokens: defaultConfig.maxTokens,
+            temperature: defaultConfig.temperature,
+            isCustomized: false,
+          },
           fetchedAt: Date.now(),
         });
       }

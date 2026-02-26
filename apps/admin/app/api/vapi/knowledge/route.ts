@@ -4,7 +4,8 @@ import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
 import { embedText } from "@/lib/embeddings";
 import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
-import { getSourceIdsForDomain } from "@/lib/knowledge/domain-sources";
+import { getSourceIdsForDomain, getSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import {
   searchAssertionsHybrid,
   searchAssertions,
@@ -66,20 +67,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ results: [] });
     }
 
-    // Find caller for personalized retrieval + domain scoping
+    // Find caller for personalized retrieval + course-scoped content
     let callerId: string | null = null;
-    let domainId: string | null = null;
+    let sourceIds: string[] | undefined;
     if (customerPhone) {
       const caller = await prisma.caller.findFirst({
         where: { phone: customerPhone.replace(/\s+/g, "") },
         select: { id: true, domainId: true },
       });
       callerId = caller?.id || null;
-      domainId = caller?.domainId || null;
-    }
 
-    // Resolve domain's content source IDs for scoped retrieval
-    const sourceIds = domainId ? await getSourceIdsForDomain(domainId) : undefined;
+      if (callerId) {
+        // Resolve active playbook for course-scoped content retrieval
+        const playbookId = await resolvePlaybookId(callerId);
+        if (playbookId) {
+          sourceIds = await getSourceIdsForPlaybook(playbookId);
+        } else if (caller?.domainId) {
+          // No single playbook resolved — fall back to domain-wide
+          sourceIds = await getSourceIdsForDomain(caller.domainId);
+        }
+      }
+    }
 
     // Embed query text for vector search (runs in parallel with DB lookups below)
     let queryEmbedding: number[] | undefined;
@@ -89,7 +97,7 @@ export async function POST(request: NextRequest) {
       console.warn("[vapi/knowledge] Embedding failed, falling back to keyword search:", err);
     }
 
-    // Run retrieval strategies in parallel — scoped to caller's domain
+    // Run retrieval strategies in parallel — scoped to caller's course (or domain fallback)
     const [knowledgeResults, assertionResults, memoryResults, questionResults, vocabularyResults] = await Promise.all([
       // 1. Knowledge chunks (vector + keyword hybrid)
       // NOTE: KnowledgeChunk has no domain FK — stays unscoped until schema migration
@@ -101,7 +109,7 @@ export async function POST(request: NextRequest) {
         minRelevance: ks.minRelevance,
       }),
 
-      // 2. Teaching assertions (vector + tag/keyword hybrid) — domain-scoped
+      // 2. Teaching assertions (vector + tag/keyword hybrid) — course-scoped
       queryEmbedding
         ? searchAssertionsHybrid(queryText, queryEmbedding, ks.assertionLimit, ks.minRelevance, sourceIds)
         : searchAssertions(queryText, ks.assertionLimit, sourceIds),
@@ -109,10 +117,10 @@ export async function POST(request: NextRequest) {
       // 3. Caller memories relevant to current topic (already caller-scoped)
       callerId ? searchCallerMemories(callerId, queryText, ks.memoryLimit) : Promise.resolve([]),
 
-      // 4. Questions (for practice/assessment) — domain-scoped
+      // 4. Questions (for practice/assessment) — course-scoped
       searchQuestions(queryText, 5, sourceIds),
 
-      // 5. Vocabulary (for term definitions) — domain-scoped
+      // 5. Vocabulary (for term definitions) — course-scoped
       searchVocabulary(queryText, 5, sourceIds),
     ]);
 

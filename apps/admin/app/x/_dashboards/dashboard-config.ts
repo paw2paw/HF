@@ -214,6 +214,7 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
 
 export const TASK_LABELS: Record<string, string> = {
   quick_launch: "Community",
+  institution_setup: "Institution Setup",
   content_wizard: "Content Wizard",
   create_spec: "Create Spec",
   configure_caller: "Configure Caller",
@@ -222,6 +223,7 @@ export const TASK_LABELS: Record<string, string> = {
 };
 
 export const RESUME_PATHS: Record<string, (ctx: Record<string, unknown>) => string> = {
+  institution_setup: () => "/x/institutions/new",
   quick_launch: () => "/x/quick-launch",
   content_wizard: () => "/x/content-sources",
   create_spec: () => "/x/specs",
@@ -243,26 +245,26 @@ export const FOOTER_LINKS = [
 
 export const WIZARD_ACTIONS = [
   {
-    label: "Community",
-    termKey: "cohort" as TermKey,
-    icon: "Users",
-    href: "/x/quick-launch",
-    description: "Set up a new group",
+    label: "Institution",
+    termKey: "domain" as TermKey,
+    icon: "Rocket",
+    href: "/x/institutions/new",
+    description: "Set up a new institution",
     primary: true,
   },
   {
-    label: "Teach",
-    termKey: "teach_action" as TermKey,
-    icon: "GraduationCap",
-    href: "/x/teach",
-    description: "Create a teaching plan",
+    label: "Course",
+    icon: "Rocket",
+    href: "/x/courses?action=setup",
+    description: "Create a new course",
     primary: false,
   },
   {
-    label: "Demos",
-    icon: "Presentation",
-    href: "/x/demos",
-    description: "Browse demos",
+    label: "Community",
+    termKey: "cohort" as TermKey,
+    icon: "Rocket",
+    href: "/x/quick-launch",
+    description: "Set up a new group",
     primary: false,
   },
 ];

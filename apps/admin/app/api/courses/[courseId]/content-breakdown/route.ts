@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { getSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
 
 /**
  * @api GET /api/courses/:courseId/content-breakdown
@@ -85,16 +86,8 @@ export async function GET(
       }
       sourceIds = [sourceIdParam];
     } else {
-      // All sources for subjects linked to this domain
-      const sources = await prisma.contentSource.findMany({
-        where: {
-          subjects: {
-            some: { subject: { domains: { some: { domainId } } } },
-          },
-        },
-        select: { id: true },
-      });
-      sourceIds = sources.map((s) => s.id);
+      // All sources for this course (playbook-scoped, domain fallback)
+      sourceIds = await getSourceIdsForPlaybook(courseId);
     }
 
     if (sourceIds.length === 0) {
@@ -230,9 +223,9 @@ export async function GET(
     }> | undefined;
 
     if (bySubject) {
-      // Get subjects linked to this domain
-      const subjectDomains = await prisma.subjectDomain.findMany({
-        where: { domainId },
+      // Get subjects linked to this course (playbook-scoped, domain fallback)
+      const playbookSubjects = await prisma.playbookSubject.findMany({
+        where: { playbookId: courseId },
         select: {
           subject: {
             select: {
@@ -244,9 +237,25 @@ export async function GET(
         },
       });
 
+      // Fall back to domain-wide if no PlaybookSubject records
+      const subjectRecords = playbookSubjects.length > 0
+        ? playbookSubjects.map((ps) => ps.subject)
+        : (await prisma.subjectDomain.findMany({
+            where: { domainId },
+            select: {
+              subject: {
+                select: {
+                  id: true,
+                  name: true,
+                  sources: { select: { sourceId: true } },
+                },
+              },
+            },
+          })).map((sd) => sd.subject);
+
       bySubjectData = [];
-      for (const sd of subjectDomains) {
-        const subSourceIds = sd.subject.sources
+      for (const subject of subjectRecords) {
+        const subSourceIds = subject.sources
           .map((ss) => ss.sourceId)
           .filter((id) => sourceIds.includes(id));
         if (subSourceIds.length === 0) continue;
@@ -259,8 +268,8 @@ export async function GET(
         });
 
         bySubjectData.push({
-          subjectId: sd.subject.id,
-          subjectName: sd.subject.name,
+          subjectId: subject.id,
+          subjectName: subject.name,
           methods: subGroups.map((g) => ({
             teachMethod: g.teachMethod || "unassigned",
             count: g._count.id,

@@ -318,14 +318,22 @@ export function hashContent(text: string): string {
   return crypto.createHash("sha256").update(text.trim().toLowerCase()).digest("hex").substring(0, 16);
 }
 
+export interface CallAIResult {
+  content: string;
+  stopReason?: string;
+}
+
 export async function callAI(
   systemPrompt: string,
   userPrompt: string,
   callPoint: string,
-  config: ExtractionConfig["extraction"]["llmConfig"],
+  _llmConfig?: ExtractionConfig["extraction"]["llmConfig"],
   metadata?: Record<string, any>,
-): Promise<string> {
+): Promise<CallAIResult> {
   // @ai-call content-trust.extract — Extract content via specialist extractor | config: /x/ai-config
+  // maxTokens and temperature are resolved from the AI Config cascade:
+  // DB AIConfig (admin overrides) → SystemSettings → call-points.ts defaults
+  // Do NOT pass explicit values here — that would bypass admin overrides.
   const result = await getConfiguredMeteredAICompletion(
     {
       callPoint,
@@ -333,13 +341,23 @@ export async function callAI(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      maxTokens: config.maxTokens,
-      temperature: config.temperature,
       timeoutMs: 120000, // 2 min — extraction prompts are large + structured JSON output
       maxRetries: 0, // Outer extractor loop handles retry with better backoff
     },
     { sourceOp: `content-trust:${callPoint}` },
   );
+
+  // Warn if response was truncated (max_tokens hit) — likely means incomplete JSON
+  if (result.stopReason === "max_tokens") {
+    console.warn(`[${callPoint}] Response truncated at max_tokens. Output may be incomplete. Check AI Config for this call point.`);
+    logAI(`${callPoint}:truncated`, `Response truncated — max_tokens reached`, "max_tokens hit — output likely incomplete JSON", {
+      callPoint,
+      responseLength: result.content.length,
+      sourceOp: `content-trust:${callPoint}`,
+      deep: true,
+      ...metadata,
+    });
+  }
 
   logAssistantCall(
     {
@@ -350,7 +368,7 @@ export async function callAI(
     { response: "Extraction complete", success: true },
   );
 
-  return result.content.trim();
+  return { content: result.content.trim(), stopReason: result.stopReason };
 }
 
 export function parseJsonResponse(text: string): any {

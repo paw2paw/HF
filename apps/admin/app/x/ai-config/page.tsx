@@ -65,6 +65,35 @@ interface Provider {
   color: string;
 }
 
+// Inspector types for cascade source annotations
+type ConfigSource = "db-override" | "system-settings" | "system-default";
+
+interface SourceAnnotation {
+  value: string | number | undefined;
+  source: ConfigSource;
+}
+
+interface InspectionResult {
+  callPoint: string;
+  effective: {
+    provider: string;
+    model: string;
+    temperature: number | undefined;
+    maxTokens: number | undefined;
+  };
+  sources: {
+    provider: SourceAnnotation;
+    model: SourceAnnotation;
+    temperature: SourceAnnotation;
+    maxTokens: SourceAnnotation;
+  };
+  cascade: Array<{
+    level: ConfigSource;
+    label: string;
+    values: Record<string, string | number | undefined>;
+  }>;
+}
+
 interface KeyStatus {
   envVar: string;
   configured: boolean;
@@ -87,6 +116,13 @@ const TIER_STYLES: Record<string, { bg: string; text: string }> = {
   test: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)" },
   premium: { bg: "var(--badge-yellow-bg)", text: "var(--badge-yellow-text)" },
   free: { bg: "var(--badge-green-bg)", text: "var(--badge-green-text)" },
+};
+
+// Source annotation badge styles for cascade inspector
+const SOURCE_STYLES: Record<ConfigSource, { label: string; bg: string; text: string }> = {
+  "system-default": { label: "SYS", bg: "var(--status-neutral-bg)", text: "var(--text-muted)" },
+  "system-settings": { label: "SET", bg: "var(--badge-blue-bg)", text: "var(--badge-blue-text)" },
+  "db-override": { label: "DB", bg: "var(--badge-green-bg)", text: "var(--badge-green-text)" },
 };
 
 // =====================================================
@@ -121,6 +157,10 @@ export default function AIConfigPage() {
   const [newKeyValue, setNewKeyValue] = useState("");
   const [testingKey, setTestingKey] = useState<string | null>(null);
   const [keyTestResult, setKeyTestResult] = useState<{ provider: string; valid: boolean; message: string } | null>(null);
+
+  // Inspector state — cascade source annotations
+  const [inspections, setInspections] = useState<Map<string, InspectionResult>>(new Map());
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   // Filter configs by search term
   const filteredConfigs = configs.filter((c) => {
@@ -158,6 +198,15 @@ export default function AIConfigPage() {
     setCollapsedSections((prev) => ({ ...prev, [category]: !prev[category] }));
   };
 
+  const toggleCardExpand = (callPoint: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(callPoint)) next.delete(callPoint);
+      else next.add(callPoint);
+      return next;
+    });
+  };
+
   // When searching, force all sections open
   const isSectionCollapsed = (category: string) => {
     if (search.trim()) return false;
@@ -186,6 +235,27 @@ export default function AIConfigPage() {
   useEffect(() => {
     fetchConfigs();
   }, [fetchConfigs]);
+
+  // Fetch cascade inspector data (supplementary — source annotations per call point)
+  const fetchInspections = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai-config/inspect");
+      const data = await res.json();
+      if (data.ok) {
+        const map = new Map<string, InspectionResult>();
+        for (const insp of data.inspections) {
+          map.set(insp.callPoint, insp);
+        }
+        setInspections(map);
+      }
+    } catch {
+      // Inspector data is supplementary — don't block on errors
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInspections();
+  }, [fetchInspections]);
 
   // Update a configuration
   const updateConfig = async (
@@ -223,6 +293,7 @@ export default function AIConfigPage() {
       if (data.ok) {
         setSuccessMessage(data.message);
         await fetchConfigs();
+        fetchInspections();
       } else {
         setError(data.error);
       }
@@ -247,6 +318,7 @@ export default function AIConfigPage() {
       if (data.ok) {
         setSuccessMessage(data.message);
         await fetchConfigs();
+        fetchInspections();
       } else {
         setError(data.error);
       }
@@ -869,6 +941,13 @@ export default function AIConfigPage() {
                           {/* Left: Label and Description */}
                           <div className="aic-config-info">
                             <div className="aic-config-label-row">
+                              <button
+                                className="aic-cascade-toggle"
+                                onClick={() => toggleCardExpand(config.callPoint)}
+                                title="View config cascade"
+                              >
+                                {expandedCards.has(config.callPoint) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
                               <span className="aic-config-label">{config.label}</span>
                               {config.isCustomized && (
                                 <span
@@ -888,6 +967,12 @@ export default function AIConfigPage() {
                             <div className="aic-control-group">
                               <label className="aic-control-label">
                                 PROVIDER
+                                {(() => {
+                                  const src = inspections.get(config.callPoint)?.sources.provider;
+                                  if (!src) return null;
+                                  const s = SOURCE_STYLES[src.source];
+                                  return <span className="aic-source-chip" style={{ background: s.bg, color: s.text }}>{s.label}</span>;
+                                })()}
                               </label>
                               <FancySelect
                                 value={config.provider}
@@ -906,7 +991,15 @@ export default function AIConfigPage() {
 
                             {/* Model Selector */}
                             <div className="aic-control-group">
-                              <label className="aic-control-label">MODEL</label>
+                              <label className="aic-control-label">
+                                MODEL
+                                {(() => {
+                                  const src = inspections.get(config.callPoint)?.sources.model;
+                                  if (!src) return null;
+                                  const s = SOURCE_STYLES[src.source];
+                                  return <span className="aic-source-chip" style={{ background: s.bg, color: s.text }}>{s.label}</span>;
+                                })()}
+                              </label>
                               <FancySelect
                                 value={config.model}
                                 onChange={(v) => updateConfig(config.callPoint, { model: v })}
@@ -978,6 +1071,75 @@ export default function AIConfigPage() {
                             Last updated: {new Date(config.updatedAt).toLocaleString()}
                           </div>
                         )}
+
+                        {/* Cascade Inspector Panel */}
+                        {expandedCards.has(config.callPoint) && (() => {
+                          const insp = inspections.get(config.callPoint);
+                          if (!insp) return (
+                            <div className="aic-cascade-panel">
+                              <div className="aic-cascade-loading">Loading cascade data...</div>
+                            </div>
+                          );
+                          return (
+                            <div className="aic-cascade-panel">
+                              <div className="aic-cascade-title">Configuration Cascade</div>
+                              <table className="aic-cascade-table">
+                                <thead>
+                                  <tr>
+                                    <th className="aic-cascade-th">Parameter</th>
+                                    <th className="aic-cascade-th">Effective Value</th>
+                                    <th className="aic-cascade-th">Source</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(["provider", "model", "temperature", "maxTokens"] as const).map((param) => {
+                                    const src = insp.sources[param];
+                                    const eff = insp.effective[param];
+                                    if (eff === undefined && src?.value === undefined) return null;
+                                    const s = SOURCE_STYLES[src?.source ?? "system-default"];
+                                    return (
+                                      <tr key={param} className="aic-cascade-row">
+                                        <td className="aic-cascade-param">{param}</td>
+                                        <td className="aic-cascade-value">
+                                          <code>{String(eff ?? "—")}</code>
+                                        </td>
+                                        <td className="aic-cascade-source">
+                                          <span className="aic-source-chip" style={{ background: s.bg, color: s.text }}>{s.label}</span>
+                                          <span className="aic-cascade-source-label">
+                                            {src?.source === "db-override" ? "Admin Override" : src?.source === "system-settings" ? "System Settings" : "Compiled Default"}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+
+                              {/* Cascade layers */}
+                              {insp.cascade.length > 1 && (
+                                <div className="aic-cascade-layers">
+                                  <div className="aic-cascade-layers-title">Cascade Layers (lowest → highest priority)</div>
+                                  {insp.cascade.map((layer, i) => {
+                                    const s = SOURCE_STYLES[layer.level];
+                                    return (
+                                      <div key={layer.level} className="aic-cascade-layer">
+                                        <span className="aic-cascade-layer-num">{i + 1}</span>
+                                        <span className="aic-source-chip" style={{ background: s.bg, color: s.text }}>{s.label}</span>
+                                        <span className="aic-cascade-layer-label">{layer.label}</span>
+                                        <span className="aic-cascade-layer-values">
+                                          {Object.entries(layer.values)
+                                            .filter(([, v]) => v !== undefined)
+                                            .map(([k, v]) => `${k}=${v}`)
+                                            .join(", ")}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -990,10 +1152,11 @@ export default function AIConfigPage() {
 
       {/* Footer Info */}
       <div className="aic-footer-info">
-        <strong>How it works:</strong> These settings are loaded at runtime by the AI client. When
-        an operation runs (e.g., Pipeline MEASURE), it looks up the configuration for that call
-        point and uses the specified provider and model. If no custom configuration exists, the
-        system default is used.
+        <strong>How it works:</strong> Each call point resolves its config through a 3-level cascade:
+        {" "}<span className="aic-source-chip" style={{ background: SOURCE_STYLES["system-default"].bg, color: SOURCE_STYLES["system-default"].text }}>SYS</span> Compiled defaults →
+        {" "}<span className="aic-source-chip" style={{ background: SOURCE_STYLES["system-settings"].bg, color: SOURCE_STYLES["system-settings"].text }}>SET</span> System Settings →
+        {" "}<span className="aic-source-chip" style={{ background: SOURCE_STYLES["db-override"].bg, color: SOURCE_STYLES["db-override"].text }}>DB</span> Admin overrides (highest priority).
+        {" "}Click the arrow on any call point to inspect the full cascade.
       </div>
     </div>
   );

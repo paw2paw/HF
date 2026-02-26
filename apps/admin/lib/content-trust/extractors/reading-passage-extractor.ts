@@ -93,7 +93,7 @@ export class ReadingPassageExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
-    const responseText = await callAI(
+    const aiResult = await callAI(
       READING_PASSAGE_EXTRACTION_PROMPT,
       userPrompt,
       "content-trust.extract-reading-passage",
@@ -106,7 +106,7 @@ export class ReadingPassageExtractor extends DocumentExtractor {
       },
     );
 
-    const parsed = parseJsonResponse(responseText);
+    const parsed = parseJsonResponse(aiResult.content);
 
     const rawAssertions = Array.isArray(parsed) ? parsed : (parsed.assertions || []);
     const rawVocabulary = Array.isArray(parsed) ? [] : (parsed.vocabulary || []);

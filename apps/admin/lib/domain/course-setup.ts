@@ -258,6 +258,23 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
           },
         });
       }
+
+      // Link Subject to Playbook (course-scoped content retrieval)
+      if (ctx.results.subjectId) {
+        await prisma.playbookSubject.upsert({
+          where: {
+            playbookId_subjectId: {
+              playbookId: scaffoldResult.playbook.id,
+              subjectId: ctx.results.subjectId,
+            },
+          },
+          update: {},
+          create: {
+            playbookId: scaffoldResult.playbook.id,
+            subjectId: ctx.results.subjectId,
+          },
+        });
+      }
     }
 
     ctx.results.warnings = [...(ctx.results.warnings || []), ...scaffoldResult.skipped];

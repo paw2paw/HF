@@ -32,6 +32,7 @@ const SCHOOL_TERMS: TermMap = {
   mentor: 'Teacher',
   teach_action: 'Teach',
   learning_noun: 'Learning',
+  group: 'Department',
 };
 
 describe('lib/terminology (two-tier resolution)', () => {

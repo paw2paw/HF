@@ -57,6 +57,7 @@ import { CreateInstitutionModal } from "./CreateInstitutionModal";
 import { archetypeToTeachingStyle } from "@/lib/institution-types/sector-config";
 import { PackUploadStep } from "./PackUploadStep";
 import type { PackUploadResult } from "./PackUploadStep";
+import { suggestInteractionPattern } from "@/lib/content-trust/resolve-config";
 import { POLL_TIMEOUT_MS, WIRING_FETCH_TIMEOUT_MS } from "@/lib/tasks/constants";
 import { useTaskPoll } from "@/hooks/useTaskPoll";
 import { useSession } from "next-auth/react";
@@ -1979,6 +1980,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                 <PackUploadStep
                   domainId={selectedDomainId}
                   courseName={goalText}
+                  interactionPattern={suggestInteractionPattern(goalText) ?? undefined}
                   existingCourses={existingCourses}
                   existingSubjects={existingSubjects}
                   onResult={handlePackResult}
@@ -2033,6 +2035,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                   <PackUploadStep
                     domainId={selectedDomainId}
                     courseName={goalText}
+                    interactionPattern={suggestInteractionPattern(goalText) ?? undefined}
                     onResult={handlePackResult}
                     onBack={handlePrev}
                   />

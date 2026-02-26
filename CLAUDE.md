@@ -178,6 +178,54 @@ If servers fail:
 
 ---
 
+## Plan Mode: Intent-First Design (MANDATORY)
+
+**Every plan must think deeply about user-intent across three lifecycle phases.** Do not jump to implementation. First, understand who interacts with this feature and what they need at each phase.
+
+### The 3 Phases
+
+| Phase | Question to answer | What to surface |
+|-------|-------------------|-----------------|
+| **Setup** | How does this get configured the first time? Who does it? What decisions do they face? | First-run experience, defaults, wizard vs manual, what happens if they skip steps |
+| **Maintenance** | How does an admin/educator revisit, edit, monitor, or troubleshoot this over time? | Edit flows, status indicators, error recovery, bulk operations, "what changed?" audit |
+| **Runtime Usage** | What does the end-user (educator, student, caller) actually see and do? What's the moment-to-moment experience? | Live interactions, feedback loops, empty states, success states, edge cases |
+
+### UX Sketching (MANDATORY for UI-touching plans)
+
+**Every plan that adds or changes UI MUST include ASCII mockups.** Sketch all surfaces the user will see:
+
+- Page layout (header, content zones, sidebar interactions)
+- Key states: empty, loading, populated, error, success
+- Interactive elements: what's clickable, what opens, what navigates where
+- Mobile/responsive considerations if applicable
+
+Format:
+```
+┌─────────────────────────────────┐
+│ Page Title              [Action]│
+├─────────────────────────────────┤
+│ ┌───────┐ ┌───────┐ ┌───────┐  │
+│ │ Card  │ │ Card  │ │ Card  │  │
+│ │       │ │       │ │ Empty │  │
+│ └───────┘ └───────┘ └───────┘  │
+│                                 │
+│ [+ Add New]                     │
+└─────────────────────────────────┘
+```
+
+Do not describe UX in paragraphs — **draw it**. A 10-line ASCII sketch communicates more than 100 words of description.
+
+### Intent Checklist (scan before finalising plan)
+
+- [ ] **Who** — identified every user role that touches this feature
+- [ ] **Setup path** — first-time experience is explicit, not assumed
+- [ ] **Maintenance path** — editing/updating is as easy as creating
+- [ ] **Runtime path** — end-user experience is sketched moment-by-moment
+- [ ] **Edges** — empty states, error states, permission boundaries, what happens when data is missing
+- [ ] **Navigation** — how the user gets here (sidebar? link? wizard step?) and where they go next
+
+---
+
 ## Plan Guards (MANDATORY — Every Coding Plan)
 
 **Before writing any code** (pre-plan) AND **before declaring done** (post-plan), walk through every guard below. Flag violations explicitly. Do not skip guards because "it's a small change."

@@ -157,6 +157,53 @@ export const WIZARD_HINTS: Record<string, FieldHintContent> = {
     examples: ["Add a class group", "Pick individuals", "Invite by email"],
   },
 
+  // ── Institution Setup wizard ─────────────────────
+
+  "institution.name": {
+    why: "The institution name appears in the sidebar, status bar, and student join pages.",
+    effect: "Sets the identity for all users and AI interactions under this institution.",
+    examples: ["Riverside Academy", "CII London", "Greenfield Primary School"],
+  },
+
+  "institution.type": {
+    why: "Determines how the AI behaves, what terminology is used, and the default teaching style.",
+    effect: "School = patient tutor. Corporate = professional coach. Community = supportive companion.",
+    examples: ["School", "Corporate", "Community", "Coaching"],
+  },
+
+  "institution.website": {
+    why: "Auto-imports your school's logo, brand colours, and description — saves setup time.",
+    effect: "Pre-fills branding fields from your website's metadata. Works best with well-structured sites.",
+    examples: ["https://www.oakwoodprimary.co.uk", "https://training.company.com"],
+  },
+
+  "institution.logo": {
+    why: "Your logo appears in the sidebar header and student-facing pages.",
+    effect: "Replaces the default text with your visual brand mark.",
+    examples: ["PNG or SVG URL", "200x200px minimum recommended"],
+  },
+
+  "institution.primaryColor": {
+    why: "Your primary colour becomes the accent throughout the entire platform.",
+    effect: "Buttons, active states, links, and highlights all use this colour.",
+    examples: ["#166534 (green)", "#4f46e5 (indigo)", "#dc2626 (red)"],
+  },
+
+  "institution.welcome": {
+    why: "The welcome message is what students see on their join page.",
+    effect: "Sets the first impression for every new student joining this institution.",
+    examples: [
+      "Welcome to Greenfield Academy! Our AI tutors help every student build confidence.",
+      "You're joining CII Training — let's get started.",
+    ],
+  },
+
+  "institution.terminology": {
+    why: "Controls how the platform labels concepts for your users.",
+    effect: "Students might see 'Lesson' instead of 'Session', 'Class' instead of 'Cohort'.",
+    examples: ["School preset: Student / Class / Teacher", "Corporate preset: Employee / Team / Trainer"],
+  },
+
   // ── Community Setup wizard ────────────────────────
 
   "community.hubName": {

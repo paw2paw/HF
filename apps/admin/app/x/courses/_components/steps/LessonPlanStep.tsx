@@ -9,6 +9,7 @@ import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
 import { reorderItems } from "@/lib/sortable/reorder";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
+import KnowledgeMapTree, { type SourceTree, type KnowledgeMapStats } from "@/components/shared/KnowledgeMapTree";
 import type { StepProps } from "../CourseSetupWizard";
 
 // ── Types ──────────────────────────────────────────────
@@ -87,6 +88,12 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
   const [showAdd, setShowAdd] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState<string>("introduce");
+
+  // Knowledge Map
+  const [kmExpanded, setKmExpanded] = useState(false);
+  const [kmSources, setKmSources] = useState<SourceTree[]>([]);
+  const [kmStats, setKmStats] = useState<KnowledgeMapStats | null>(null);
+  const kmFetchedRef = useRef(false);
 
   // Content from previous step
   const contentMode = getData<string>("contentMode");
@@ -187,6 +194,28 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
       setData("planTaskId", null);
     }, [setData]),
   });
+
+  // ── Knowledge Map fetch (once, when editing) ─────────
+
+  useEffect(() => {
+    if (phase !== "editing" || kmFetchedRef.current) return;
+    const domainId = getData<string>("domainId");
+    if (!domainId) return;
+    kmFetchedRef.current = true;
+
+    const subjectIds = getData<string[]>("packSubjects")?.map((s: any) => s.id || s).filter(Boolean);
+    const qs = subjectIds?.length ? `?subjectIds=${subjectIds.join(",")}` : "";
+
+    fetch(`/api/domains/${domainId}/knowledge-map${qs}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.sources?.length > 0) {
+          setKmSources(data.sources);
+          setKmStats(data.stats || null);
+        }
+      })
+      .catch(() => {}); // silent — Knowledge Map is supplementary
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Intent helpers ────────────────────────────────────
 
@@ -540,6 +569,30 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
             {reasoning && (
               <div className="hf-ai-callout hf-mb-md">
                 <strong className="hf-text-primary">AI reasoning:</strong> {reasoning}
+              </div>
+            )}
+
+            {/* Knowledge Map — appears when structuring completes */}
+            {kmSources.length > 0 && (
+              <div className="hf-card-compact hf-mb-md">
+                <button
+                  className="hf-flex hf-items-center hf-gap-sm hf-w-full hf-cursor-pointer"
+                  onClick={() => setKmExpanded((p) => !p)}
+                  style={{ background: "none", border: "none", padding: 0, textAlign: "left" }}
+                >
+                  <span className={`hf-chevron--sm${kmExpanded ? " hf-chevron--open" : ""}`} />
+                  <span className="hf-section-title">Knowledge Map</span>
+                  {kmStats && (
+                    <span className="hf-km-badge">
+                      {kmStats.totalTopics} topics · {kmStats.totalPoints} points
+                    </span>
+                  )}
+                </button>
+                {kmExpanded && (
+                  <div className="hf-km-tree hf-mt-sm">
+                    <KnowledgeMapTree sources={kmSources} stats={kmStats || undefined} />
+                  </div>
+                )}
               </div>
             )}
 

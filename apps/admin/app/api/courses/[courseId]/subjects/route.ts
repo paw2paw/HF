@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @api GET /api/courses/:courseId/subjects
- * @desc List subjects linked to the course's domain via SubjectDomain
+ * @desc List subjects linked to a course (playbook-scoped, domain fallback)
  * @auth VIEWER+
  * @tags courses, subjects
  * @returns {object} { ok, subjects: Subject[], course: { id, name, domainId, domainName } }
@@ -33,8 +33,9 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Course not found' }, { status: 404 });
     }
 
-    const subjectDomains = await prisma.subjectDomain.findMany({
-      where: { domainId: playbook.domainId },
+    // Course-scoped: PlaybookSubject first, domain fallback
+    const playbookSubjects = await prisma.playbookSubject.findMany({
+      where: { playbookId: courseId },
       include: {
         subject: {
           include: {
@@ -55,8 +56,31 @@ export async function GET(
       },
     });
 
-    const subjects = subjectDomains
-      .map((sd) => sd.subject)
+    const subjectRecords = playbookSubjects.length > 0
+      ? playbookSubjects.map((ps) => ps.subject)
+      : (await prisma.subjectDomain.findMany({
+          where: { domainId: playbook.domainId },
+          include: {
+            subject: {
+              include: {
+                sources: {
+                  include: {
+                    source: {
+                      select: {
+                        id: true,
+                        name: true,
+                        _count: { select: { assertions: true } },
+                      },
+                    },
+                  },
+                },
+                _count: { select: { sources: true, curricula: true } },
+              },
+            },
+          },
+        })).map((sd) => sd.subject);
+
+    const subjects = subjectRecords
       .filter((s) => s.isActive)
       .map((s) => ({
         id: s.id,

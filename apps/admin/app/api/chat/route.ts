@@ -14,7 +14,8 @@ import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
 import { embedText } from "@/lib/embeddings";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
-import { getSourceIdsForDomain } from "@/lib/knowledge/domain-sources";
+import { getSourceIdsForDomain, getSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import {
   searchAssertionsHybrid,
   searchAssertions,
@@ -447,16 +448,21 @@ async function retrieveSimKnowledge(
 
     if (!queryText.trim()) return null;
 
-    // Resolve domain's content source IDs for scoped retrieval
+    // Resolve course-scoped content source IDs (playbook-scoped, domain fallback)
     let sourceIds: string[] | undefined;
     if (callerId) {
-      const { prisma } = await import("@/lib/prisma");
-      const caller = await prisma.caller.findUnique({
-        where: { id: callerId },
-        select: { domainId: true },
-      });
-      if (caller?.domainId) {
-        sourceIds = await getSourceIdsForDomain(caller.domainId);
+      const playbookId = await resolvePlaybookId(callerId);
+      if (playbookId) {
+        sourceIds = await getSourceIdsForPlaybook(playbookId);
+      } else {
+        const { prisma } = await import("@/lib/prisma");
+        const caller = await prisma.caller.findUnique({
+          where: { id: callerId },
+          select: { domainId: true },
+        });
+        if (caller?.domainId) {
+          sourceIds = await getSourceIdsForDomain(caller.domainId);
+        }
       }
     }
 

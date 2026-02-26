@@ -95,7 +95,7 @@ export class AssessmentExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
-    const responseText = await callAI(
+    const aiResult = await callAI(
       ASSESSMENT_EXTRACTION_PROMPT,
       userPrompt,
       "content-trust.extract-assessment",
@@ -108,7 +108,7 @@ export class AssessmentExtractor extends DocumentExtractor {
       },
     );
 
-    const parsed = parseJsonResponse(responseText);
+    const parsed = parseJsonResponse(aiResult.content);
 
     const rawAssertions = Array.isArray(parsed) ? parsed : (parsed.assertions || []);
     const rawQuestions = Array.isArray(parsed) ? [] : (parsed.questions || []);

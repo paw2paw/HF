@@ -31,6 +31,7 @@ interface InstitutionTypeSeed {
     mentor: string;
     teach_action: string;
     learning_noun: string;
+    group: string;
   };
   setupSpecSlug: string | null;
   defaultDomainKind: "INSTITUTION" | "COMMUNITY";
@@ -56,6 +57,7 @@ const TYPES: InstitutionTypeSeed[] = [
       mentor: "Teacher",
       teach_action: "Teach",
       learning_noun: "Learning",
+      group: "Department",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -79,6 +81,7 @@ const TYPES: InstitutionTypeSeed[] = [
       mentor: "Manager",
       teach_action: "Train",
       learning_noun: "Development",
+      group: "Division",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -102,6 +105,7 @@ const TYPES: InstitutionTypeSeed[] = [
       mentor: "Guide",
       teach_action: "Facilitate",
       learning_noun: "Journey",
+      group: "Circle",
     },
     setupSpecSlug: "COMMUNITY-SETUP-001",
     defaultDomainKind: "COMMUNITY",
@@ -125,6 +129,7 @@ const TYPES: InstitutionTypeSeed[] = [
       mentor: "Coach",
       teach_action: "Coach",
       learning_noun: "Growth",
+      group: "Track",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -148,6 +153,7 @@ const TYPES: InstitutionTypeSeed[] = [
       mentor: "Provider",
       teach_action: "Educate",
       learning_noun: "Care Plan",
+      group: "Unit",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -171,6 +177,7 @@ const TYPES: InstitutionTypeSeed[] = [
       mentor: "Trainer",
       teach_action: "Train",
       learning_noun: "Training",
+      group: "Track",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",

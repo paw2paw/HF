@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { AITool, AIToolUse } from "@/lib/ai/client";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 
 // =====================================================
 // TOOL DEFINITIONS
@@ -133,7 +134,21 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
 
   if (!caller?.domain) return null;
 
-  const subjectIds = caller.domain.subjects.map((s) => s.subjectId);
+  // Resolve course-scoped subjects (playbook → PlaybookSubject, domain fallback)
+  let subjectIds: string[];
+  const playbookId = await resolvePlaybookId(callerId);
+  if (playbookId) {
+    const playbookSubjects = await prisma.playbookSubject.findMany({
+      where: { playbookId },
+      select: { subjectId: true },
+    });
+    // Fall back to domain-wide if no PlaybookSubject records
+    subjectIds = playbookSubjects.length > 0
+      ? playbookSubjects.map((ps) => ps.subjectId)
+      : caller.domain.subjects.map((s) => s.subjectId);
+  } else {
+    subjectIds = caller.domain.subjects.map((s) => s.subjectId);
+  }
   if (subjectIds.length === 0) return null;
 
   const items = await prisma.subjectMedia.findMany({

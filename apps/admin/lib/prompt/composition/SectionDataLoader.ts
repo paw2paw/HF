@@ -9,7 +9,21 @@
 import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { getLearnerProfile } from "@/lib/learner/profile";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
+import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
 import type { LoadedDataContext } from "./types";
+
+/** Pre-resolved content scope passed to content loaders via config. */
+type ContentScope = {
+  domainId: string;
+  subjectIds: string[];
+  subjects: Array<{
+    id: string;
+    teachingDepth: number | null;
+    sources: Array<{ sourceId: string }>;
+  }>;
+  scoped: boolean;
+} | null;
 
 type LoaderFn = (callerId: string, config?: any) => Promise<any>;
 
@@ -33,6 +47,9 @@ export async function loadAllData(
 ): Promise<LoadedDataContext> {
   const memoriesLimit = specConfig.memoriesLimit || 50;
   const recentCallsLimit = specConfig.recentCallsLimit || 5;
+
+  // Pre-resolve content scope ONCE for all content loaders
+  const contentScope = await resolveContentScope(callerId);
 
   const [
     caller,
@@ -70,12 +87,12 @@ export async function loadAllData(
     loaderRegistry.get("systemSpecs")!(callerId),
     loaderRegistry.get("onboardingSpec")!(callerId),
     loaderRegistry.get("onboardingSession")!(callerId),
-    loaderRegistry.get("subjectSources")!(callerId),
-    loaderRegistry.get("curriculumAssertions")!(callerId),
-    loaderRegistry.get("curriculumQuestions")!(callerId),
-    loaderRegistry.get("curriculumVocabulary")!(callerId),
+    loaderRegistry.get("subjectSources")!(callerId, { contentScope }),
+    loaderRegistry.get("curriculumAssertions")!(callerId, { contentScope }),
+    loaderRegistry.get("curriculumQuestions")!(callerId, { contentScope }),
+    loaderRegistry.get("curriculumVocabulary")!(callerId, { contentScope }),
     loaderRegistry.get("openActions")!(callerId),
-    loaderRegistry.get("visualAids")!(callerId),
+    loaderRegistry.get("visualAids")!(callerId, { contentScope }),
   ]);
 
   return {
@@ -99,6 +116,50 @@ export async function loadAllData(
     curriculumVocabulary: curriculumVocabulary || [],
     openActions: openActions || [],
     visualAids: visualAids || [],
+  };
+}
+
+// =============================================================
+// Content scope resolution — resolves once, passed to 5 loaders
+// =============================================================
+
+async function resolveContentScope(callerId: string): Promise<ContentScope> {
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return null;
+
+  const playbookId = await resolvePlaybookId(callerId);
+  if (playbookId) {
+    const result = await getSubjectsForPlaybook(playbookId, caller.domainId);
+    return {
+      domainId: caller.domainId,
+      subjectIds: result.subjects.map((s) => s.id),
+      subjects: result.subjects,
+      scoped: result.scoped,
+    };
+  }
+
+  // No single playbook — fall back to domain-wide
+  const subjectDomains = await prisma.subjectDomain.findMany({
+    where: { domainId: caller.domainId },
+    select: {
+      subject: {
+        select: {
+          id: true,
+          teachingDepth: true,
+          sources: { select: { sourceId: true } },
+        },
+      },
+    },
+  });
+
+  return {
+    domainId: caller.domainId,
+    subjectIds: subjectDomains.map((sd) => sd.subject.id),
+    subjects: subjectDomains.map((sd) => sd.subject),
+    scoped: false,
   };
 }
 
@@ -484,72 +545,64 @@ registerLoader("onboardingSession", async (callerId) => {
 });
 
 /**
- * Load subject-based sources for the caller's domain.
- * Returns all subjects linked to the domain, with their sources and curricula.
+ * Load subject-based sources for the caller's course (playbook-scoped, domain fallback).
+ * Returns all subjects linked to the course, with their sources and curricula.
  */
-registerLoader("subjectSources", async (callerId) => {
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
+registerLoader("subjectSources", async (callerId, loaderConfig) => {
+  const scope: ContentScope = loaderConfig?.contentScope ?? null;
+  if (!scope || scope.subjectIds.length === 0) return null;
 
-  if (!caller?.domainId) return null;
-
-  // Find all subjects linked to this domain
-  const subjectDomains = await prisma.subjectDomain.findMany({
-    where: { domainId: caller.domainId },
+  // Fetch full subject data with sources and curricula
+  const subjects = await prisma.subject.findMany({
+    where: { id: { in: scope.subjectIds } },
     include: {
-      subject: {
+      sources: {
         include: {
-          sources: {
-            include: {
-              source: {
-                select: {
-                  id: true,
-                  slug: true,
-                  name: true,
-                  trustLevel: true,
-                  publisherOrg: true,
-                  accreditingBody: true,
-                  qualificationRef: true,
-                  validUntil: true,
-                  isActive: true,
-                },
-              },
-            },
-            orderBy: { sortOrder: "asc" },
-          },
-          curricula: {
-            orderBy: { updatedAt: "desc" },
-            take: 1,
+          source: {
             select: {
               id: true,
               slug: true,
               name: true,
-              description: true,
-              notableInfo: true,
-              deliveryConfig: true,
               trustLevel: true,
-              qualificationBody: true,
-              qualificationNumber: true,
-              qualificationLevel: true,
+              publisherOrg: true,
+              accreditingBody: true,
+              qualificationRef: true,
+              validUntil: true,
+              isActive: true,
             },
           },
+        },
+        orderBy: { sortOrder: "asc" },
+      },
+      curricula: {
+        orderBy: { updatedAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          notableInfo: true,
+          deliveryConfig: true,
+          trustLevel: true,
+          qualificationBody: true,
+          qualificationNumber: true,
+          qualificationLevel: true,
         },
       },
     },
   });
 
-  if (subjectDomains.length === 0) return null;
+  if (subjects.length === 0) return null;
 
   return {
-    subjects: subjectDomains.map((sd) => ({
-      id: sd.subject.id,
-      slug: sd.subject.slug,
-      name: sd.subject.name,
-      defaultTrustLevel: sd.subject.defaultTrustLevel,
-      qualificationRef: sd.subject.qualificationRef,
-      sources: sd.subject.sources.map((ss) => ({
+    subjects: subjects.map((subject) => ({
+      id: subject.id,
+      slug: subject.slug,
+      name: subject.name,
+      defaultTrustLevel: subject.defaultTrustLevel,
+      qualificationRef: subject.qualificationRef,
+      sources: subject.sources.map((ss) => ({
         slug: ss.source.slug,
         name: ss.source.name,
         trustLevel: ss.trustLevelOverride || ss.source.trustLevel,
@@ -560,51 +613,27 @@ registerLoader("subjectSources", async (callerId) => {
         validUntil: ss.source.validUntil,
         isActive: ss.source.isActive,
       })),
-      curriculum: sd.subject.curricula[0] || null,
+      curriculum: subject.curricula[0] || null,
     })),
   };
 });
 
 /**
- * Load curriculum assertions (approved teaching points) for the caller's domain.
- * Fetches from ContentAssertion table, filtered by domain's linked content sources.
+ * Load curriculum assertions (approved teaching points) for the caller's course.
+ * Fetches from ContentAssertion table, filtered by course-scoped content sources.
  * Returns assertions grouped-ready with source metadata for the teaching-content transform.
  */
-registerLoader("curriculumAssertions", async (callerId) => {
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
+registerLoader("curriculumAssertions", async (_callerId, loaderConfig) => {
+  const scope: ContentScope = loaderConfig?.contentScope ?? null;
+  if (!scope) return [];
 
-  if (!caller?.domainId) return [];
-
-  // Find all content sources linked to the domain via subjects
-  // Also load teachingDepth from the subject
-  const subjectDomains = await prisma.subjectDomain.findMany({
-    where: { domainId: caller.domainId },
-    select: {
-      subject: {
-        select: {
-          teachingDepth: true,
-          sources: {
-            select: { sourceId: true },
-          },
-        },
-      },
-    },
-  });
-
-  const sourceIds = subjectDomains.flatMap((sd) =>
-    sd.subject.sources.map((s) => s.sourceId)
-  );
+  const sourceIds = scope.subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId));
+  if (sourceIds.length === 0) return [];
 
   // Extract teachingDepth from first subject that has one
-  const teachingDepth = subjectDomains
-    .map((sd) => sd.subject.teachingDepth)
+  const teachingDepth = scope.subjects
+    .map((s) => s.teachingDepth)
     .find((d) => d !== null) ?? null;
-
-  // No sources linked to this domain → no teaching content (don't leak other domains' data)
-  if (sourceIds.length === 0) return [];
 
   // Fetch assertions from these sources
   // Order by depth (tree traversal) then orderIndex, with exam relevance as tiebreaker
@@ -617,7 +646,7 @@ registerLoader("curriculumAssertions", async (callerId) => {
       { orderIndex: "asc" },
       { examRelevance: "desc" },
     ],
-    take: 300, // Increased from 100 to support pyramid hierarchy
+    take: 300,
     select: {
       id: true,
       assertion: true,
@@ -642,8 +671,6 @@ registerLoader("curriculumAssertions", async (callerId) => {
     },
   });
 
-  // Store teachingDepth in a side-channel via the result shape
-  // The transform will access this from loadedData
   const result = assertions.map((a) => ({
     id: a.id,
     assertion: a.assertion,
@@ -664,7 +691,6 @@ registerLoader("curriculumAssertions", async (callerId) => {
   }));
 
   // Attach teachingDepth as metadata on the loader context
-  // (accessed via loadedData.teachingDepth in the transform)
   (result as any).__teachingDepth = teachingDepth;
 
   return result;
@@ -672,20 +698,13 @@ registerLoader("curriculumAssertions", async (callerId) => {
 
 /**
  * Curriculum questions — extracted Q&A pairs from content sources
- * linked to the caller's domain. Available for practice and assessment.
+ * linked to the caller's course. Available for practice and assessment.
  */
-registerLoader("curriculumQuestions", async (callerId) => {
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
-  if (!caller?.domainId) return [];
+registerLoader("curriculumQuestions", async (_callerId, loaderConfig) => {
+  const scope: ContentScope = loaderConfig?.contentScope ?? null;
+  if (!scope) return [];
 
-  const subjectDomains = await prisma.subjectDomain.findMany({
-    where: { domainId: caller.domainId },
-    select: { subject: { select: { sources: { select: { sourceId: true } } } } },
-  });
-  const sourceIds = subjectDomains.flatMap((sd) => sd.subject.sources.map((s) => s.sourceId));
+  const sourceIds = scope.subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId));
   if (sourceIds.length === 0) return [];
 
   return prisma.contentQuestion.findMany({
@@ -707,20 +726,13 @@ registerLoader("curriculumQuestions", async (callerId) => {
 
 /**
  * Curriculum vocabulary — extracted term/definition pairs from content sources
- * linked to the caller's domain.
+ * linked to the caller's course.
  */
-registerLoader("curriculumVocabulary", async (callerId) => {
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
-  if (!caller?.domainId) return [];
+registerLoader("curriculumVocabulary", async (_callerId, loaderConfig) => {
+  const scope: ContentScope = loaderConfig?.contentScope ?? null;
+  if (!scope) return [];
 
-  const subjectDomains = await prisma.subjectDomain.findMany({
-    where: { domainId: caller.domainId },
-    select: { subject: { select: { sources: { select: { sourceId: true } } } } },
-  });
-  const sourceIds = subjectDomains.flatMap((sd) => sd.subject.sources.map((s) => s.sourceId));
+  const sourceIds = scope.subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId));
   if (sourceIds.length === 0) return [];
 
   return prisma.contentVocabulary.findMany({
@@ -767,20 +779,11 @@ registerLoader("openActions", async (callerId) => {
  * Injected into prompt so the AI knows what figures/diagrams are available to reference
  * (verbally in voice calls, or via share_content in sim).
  */
-registerLoader("visualAids", async (callerId) => {
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
-  if (!caller?.domainId) return [];
+registerLoader("visualAids", async (_callerId, loaderConfig) => {
+  const scope: ContentScope = loaderConfig?.contentScope ?? null;
+  if (!scope || scope.subjectIds.length === 0) return [];
 
-  // Find subjects linked to domain → SubjectMedia → MediaAsset (images only)
-  const subjectDomains = await prisma.subjectDomain.findMany({
-    where: { domainId: caller.domainId },
-    select: { subjectId: true },
-  });
-  const subjectIds = subjectDomains.map((sd) => sd.subjectId);
-  if (subjectIds.length === 0) return [];
+  const subjectIds = scope.subjectIds;
 
   const subjectMedia = await prisma.subjectMedia.findMany({
     where: {

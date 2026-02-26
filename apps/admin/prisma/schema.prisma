@@ -179,6 +179,15 @@ enum DomainKind {
   COMMUNITY // Purpose-led group of individuals
 }
 
+// Playbook group type — how groups are used within a domain
+enum GroupType {
+  DEPARTMENT // School: "Science Department", Corporate: "Engineering"
+  YEAR_GROUP // School: "Year 8", "Key Stage 3"
+  DIVISION   // Corporate: "EMEA", Healthcare: "Cardiology"
+  TRACK      // Training: "Leadership Track", Coaching: "Executive"
+  CUSTOM     // User-defined grouping
+}
+
 model Parameter {
   id                   String   @id @default(uuid())
   parameterId          String   @unique
@@ -388,6 +397,7 @@ model Domain {
   assignedUsers      User[]              @relation("AssignedUsers") // Users scoped to this domain
   cohortGroups       CohortGroup[] // Cohort groups in this domain
   channelConfigs     ChannelConfig[] // Delivery channel configs for this domain
+  playbookGroups     PlaybookGroup[] // Departments, divisions, tracks within this domain
 
   @@index([slug])
   @@index([isDefault])
@@ -906,6 +916,10 @@ model CohortGroup {
   institutionId String?
   institution   Institution? @relation(fields: [institutionId], references: [id])
 
+  // Optional department/division/track grouping
+  groupId String?
+  group   PlaybookGroup? @relation(fields: [groupId], references: [id])
+
   // Invites linked to this cohort
   invites Invite[]
 
@@ -919,6 +933,37 @@ model CohortGroup {
   @@index([ownerId])
   @@index([isActive])
   @@index([institutionId])
+  @@index([groupId])
+}
+
+// =========================
+// PLAYBOOK GROUPS (Departments, Divisions, Tracks)
+// =========================
+// A playbook group organises playbooks and cohort groups within a domain.
+// Schools use departments (Science, English), corporates use divisions,
+// training companies use tracks. Nullable FKs on Playbook + CohortGroup
+// mean existing data is unaffected.
+
+model PlaybookGroup {
+  id               String    @id @default(uuid())
+  domainId         String
+  domain           Domain    @relation(fields: [domainId], references: [id])
+  name             String
+  slug             String
+  description      String?
+  groupType        GroupType @default(DEPARTMENT)
+  identityOverride Json? // { toneSliders: {...}, styleNotes: "..." }
+  sortOrder        Int       @default(0)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  playbooks    Playbook[]
+  cohortGroups CohortGroup[]
+
+  @@unique([domainId, slug])
+  @@index([domainId, groupType])
+  @@index([domainId, isActive])
 }
 
 // CallerCohortMembership — join table for multi-cohort membership.
@@ -2398,6 +2443,10 @@ model Playbook {
   domainId String
   domain   Domain @relation(fields: [domainId], references: [id])
 
+  // Optional department/division/track grouping
+  groupId String?
+  group   PlaybookGroup? @relation(fields: [groupId], references: [id])
+
   // Stack order within domain (lower = higher priority, first wins on conflicts)
   sortOrder Int @default(0)
 
@@ -2460,6 +2509,7 @@ model Playbook {
   @@index([domainId, sortOrder])
   @@index([status])
   @@index([parentVersionId])
+  @@index([groupId])
 }
 
 // Item in a Playbook - either a Spec or a PromptTemplate

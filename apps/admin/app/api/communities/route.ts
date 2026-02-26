@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { scaffoldDomain } from "@/lib/domain/scaffold";
+import type { InteractionPattern } from "@/lib/content-trust/resolve-config";
+
+// ── Pattern → Archetype mapping ──────────────────────
+const PATTERN_ARCHETYPE_MAP: Record<InteractionPattern, string> = {
+  companion: "COMPANION-001",
+  advisory: "ADVISOR-001",
+  coaching: "COACH-001",
+  socratic: "TUT-001",
+  facilitation: "FACILITATOR-001",
+  reflective: "MENTOR-001",
+  open: "COMPANION-001",
+  directive: "TUT-001",
+};
 
 /**
  * @api GET /api/communities
@@ -67,13 +81,17 @@ export async function GET(request: NextRequest) {
  * @scope communities:write
  * @auth session
  * @tags communities
- * @description Create a new community with optional topics and founding members
+ * @description Create a new community hub with full scaffolding.
+ *   Creates Domain (kind=COMMUNITY), scaffolds identity spec + playbook + onboarding,
+ *   links founding members, and optionally creates topic playbooks.
+ *   Archetype is resolved from the interaction pattern (e.g., companion → COMPANION-001).
  * @body name string - Community name (required)
  * @body description string - Community purpose/description
  * @body communityKind string - TOPIC_BASED or OPEN_CONNECTION
  * @body hubPattern string - InteractionPattern for OPEN_CONNECTION hubs
  * @body topics Array<{ name: string; pattern: string }> - Topics for TOPIC_BASED hubs
  * @body memberCallerIds string[] - Caller IDs to add as founding members
+ * @body institutionId string - Parent institution ID (optional)
  * @response 200 { ok: true, community: { id, name, slug, memberCount } }
  * @response 400 { ok: false, error: "name is required" }
  * @response 500 { ok: false, error: "..." }
@@ -91,6 +109,7 @@ export async function POST(request: NextRequest) {
       hubPattern,
       topics = [],
       memberCallerIds = [],
+      institutionId,
     } = body;
 
     if (!name?.trim()) {
@@ -120,12 +139,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Build community config
-    const config: Record<string, unknown> = { communityKind };
+    const domainConfig: Record<string, unknown> = { communityKind };
     if (communityKind === "OPEN_CONNECTION" && hubPattern) {
-      config.hubPattern = hubPattern;
+      domainConfig.hubPattern = hubPattern;
     }
 
-    // Create Domain + Topics + Members in one transaction
+    // Resolve archetype from interaction pattern
+    const primaryPattern: InteractionPattern =
+      communityKind === "OPEN_CONNECTION"
+        ? (hubPattern || "companion")
+        : (topics[0]?.pattern || "companion");
+    const archetype = PATTERN_ARCHETYPE_MAP[primaryPattern] || "COMPANION-001";
+
+    // 1. Create Domain (kind=COMMUNITY) in transaction with topic playbooks + members
     const community = await prisma.$transaction(async (tx) => {
       const domain = await tx.domain.create({
         data: {
@@ -133,11 +159,12 @@ export async function POST(request: NextRequest) {
           slug,
           description: description?.trim() || null,
           kind: "COMMUNITY",
-          config: config as any,
+          config: domainConfig as any,
+          institutionId: institutionId || null,
         },
       });
 
-      // Create a playbook per topic (TOPIC_BASED)
+      // Create topic playbooks (TOPIC_BASED) — these are additional to the scaffold playbook
       if (communityKind === "TOPIC_BASED" && topics.length > 0) {
         for (let i = 0; i < topics.length; i++) {
           const topic = topics[i];
@@ -146,7 +173,7 @@ export async function POST(request: NextRequest) {
             data: {
               name: topic.name.trim(),
               domainId: domain.id,
-              sortOrder: i,
+              sortOrder: i + 1, // +1 to leave room for scaffold's main playbook
               status: "PUBLISHED",
               config: { interactionPattern: topic.pattern || "companion" },
             },
@@ -169,7 +196,15 @@ export async function POST(request: NextRequest) {
       return domain;
     });
 
-    // Count members after transaction
+    // 2. Scaffold domain — creates identity spec, main playbook, onboarding config
+    //    Archetype is resolved from the interaction pattern selected in the wizard.
+    //    forceNewPlaybook=true so topic playbooks (TOPIC_BASED) don't get archived.
+    await scaffoldDomain(community.id, {
+      playbookName: name.trim(),
+      extendsAgent: archetype,
+      forceNewPlaybook: communityKind === "TOPIC_BASED" && topics.length > 0,
+    });
+
     const memberCount = memberCallerIds.length;
 
     return NextResponse.json({

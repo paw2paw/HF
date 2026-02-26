@@ -93,7 +93,7 @@ export class ComprehensionExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
-    const responseText = await callAI(
+    const aiResult = await callAI(
       COMPREHENSION_EXTRACTION_PROMPT,
       userPrompt,
       "content-trust.extract-comprehension",
@@ -106,7 +106,7 @@ export class ComprehensionExtractor extends DocumentExtractor {
       },
     );
 
-    const parsed = parseJsonResponse(responseText);
+    const parsed = parseJsonResponse(aiResult.content);
 
     // Handle both { assertions, questions, vocabulary } and flat array formats
     const rawAssertions = Array.isArray(parsed) ? parsed : (parsed.assertions || []);

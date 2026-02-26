@@ -1,12 +1,12 @@
 [
   {
-    "id": "start",
+    "id": "launch",
+    "title": "Launch",
     "defaultHiddenFor": ["STUDENT"],
     "items": [
-      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Community", "icon": "Users", "highlighted": true, "wizard": true, "terminologyLabel": "cohort" },
-      { "id": "teach", "href": "/x/teach", "label": "Start Teaching", "icon": "GraduationCap", "wizard": true, "terminologyLabel": "teach_action" },
-      { "id": "create-course", "href": "/x/courses?action=setup", "label": "Create Course", "icon": "BookPlus", "wizard": true },
-      { "id": "demos", "href": "/x/demos", "label": "Demos", "icon": "Presentation" }
+      { "id": "institution", "href": "/x/institutions/new", "label": "Institution", "icon": "Rocket", "highlighted": true, "wizard": true, "terminologyLabel": "domain" },
+      { "id": "create-course", "href": "/x/courses?action=setup", "label": "Course", "icon": "Rocket", "wizard": true },
+      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Community", "icon": "Rocket", "wizard": true, "terminologyLabel": "cohort" }
     ]
   },
   {

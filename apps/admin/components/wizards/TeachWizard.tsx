@@ -30,6 +30,7 @@ import WizardSection, { type SectionStatus } from "@/components/shared/WizardSec
 import WizardProgress from "@/components/shared/WizardProgress";
 import { PackUploadStep } from "./PackUploadStep";
 import type { PackUploadResult } from "./PackUploadStep";
+import { suggestInteractionPattern } from "@/lib/content-trust/resolve-config";
 import { CreateInstitutionModal } from "./CreateInstitutionModal";
 import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
 import {
@@ -414,6 +415,11 @@ export default function TeachWizard() {
 
     return () => { if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current); };
   }, [newCourseName]);
+
+  // Auto-select the suggested mode so the recommended item is pre-selected
+  useEffect(() => {
+    if (suggestedMode) setTeachingMode(suggestedMode);
+  }, [suggestedMode]);
 
   const selectedDomain = domains.find((d) => d.id === selectedDomainId);
 
@@ -1639,6 +1645,7 @@ export default function TeachWizard() {
               courseName={
                 selectedPlaybook?.name ?? newCourseName ?? goalText ?? "Course"
               }
+              interactionPattern={suggestInteractionPattern(selectedPlaybook?.name ?? newCourseName ?? goalText ?? "") ?? undefined}
               existingCourses={existingCourses}
               existingSubjects={existingSubjects}
               onResult={handlePackResult}

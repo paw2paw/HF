@@ -11,6 +11,8 @@ import {
 interface BrandingContextValue {
   branding: InstitutionBranding;
   loading: boolean;
+  /** Force a re-fetch from the API (e.g. after creating a new institution). */
+  refreshBranding: () => void;
 }
 
 const BrandingContext = createContext<BrandingContextValue | null>(null);
@@ -19,8 +21,13 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const [branding, setBranding] = useState<InstitutionBranding>(DEFAULT_BRANDING);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [fetchKey, setFetchKey] = useState(0);
 
-  // Fetch branding from API on mount (for authenticated users)
+  const refreshBranding = useCallback(() => {
+    setFetchKey((k) => k + 1);
+  }, []);
+
+  // Fetch branding from API on mount and when refreshBranding() is called
   useEffect(() => {
     let cancelled = false;
 
@@ -47,7 +54,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchKey]);
 
   // Apply branding CSS variable overrides when branding changes
   useEffect(() => {
@@ -60,7 +67,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   }, [mounted, branding]);
 
   return (
-    <BrandingContext.Provider value={{ branding, loading }}>
+    <BrandingContext.Provider value={{ branding, loading, refreshBranding }}>
       {children}
     </BrandingContext.Provider>
   );
@@ -70,7 +77,7 @@ export function useBranding(): BrandingContextValue {
   const context = useContext(BrandingContext);
   if (!context) {
     // Return defaults when used outside provider (e.g. public join pages)
-    return { branding: DEFAULT_BRANDING, loading: false };
+    return { branding: DEFAULT_BRANDING, loading: false, refreshBranding: () => {} };
   }
   return context;
 }

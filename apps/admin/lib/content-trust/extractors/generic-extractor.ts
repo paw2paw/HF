@@ -44,7 +44,7 @@ export class GenericExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
-    const responseText = await callAI(
+    const aiResult = await callAI(
       extraction.systemPrompt,
       userPrompt,
       "content-trust.extract",
@@ -57,7 +57,7 @@ export class GenericExtractor extends DocumentExtractor {
       },
     );
 
-    const raw = parseJsonResponse(responseText);
+    const raw = parseJsonResponse(aiResult.content);
 
     if (!Array.isArray(raw)) {
       return { assertions: [], questions: [], vocabulary: [], warnings: [] };
