@@ -8154,6 +8154,42 @@ Toggle deep logging on/off
 
 ---
 
+### `GET` /api/courses/[courseId]/classrooms
+
+List all classrooms (cohort groups) assigned to a course (playbook).
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+{ ok: true, classrooms: Classroom[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Course not found" }
+```
+
+---
+
+### `GET` /api/courses/[courseId]/students
+
+List all students (callers) enrolled in a course (playbook).
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+{ ok: true, students: Student[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Course not found" }
+```
+
+---
+
 ### `GET` /api/curricula/:curriculumId/modules
 
 **Auth**: session (OPERATOR+) · **Scope**: `curricula:write`
@@ -8251,6 +8287,78 @@ Get a single institution by ID.
 Update institution fields (name, branding, type, active status).
 
 **Auth**: ADMIN
+
+---
+
+### `GET` /api/institutions/[id]/classrooms
+
+List all cohort groups (classrooms) belonging to an institution.
+
+**Auth**: ADMIN
+
+**Response** `200`
+```json
+{ ok: true, classrooms: Classroom[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Institution not found" }
+```
+
+---
+
+### `GET` /api/institutions/[id]/communities
+
+List all communities (COMMUNITY-kind domains) belonging to an institution.
+
+**Auth**: ADMIN
+
+**Response** `200`
+```json
+{ ok: true, communities: Community[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Institution not found" }
+```
+
+---
+
+### `GET` /api/institutions/[id]/courses
+
+List all courses (playbooks) belonging to an institution's domains.
+
+**Auth**: ADMIN
+
+**Response** `200`
+```json
+{ ok: true, courses: Course[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Institution not found" }
+```
+
+---
+
+### `GET` /api/institutions/[id]/team
+
+List all users (team members) belonging to an institution.
+
+**Auth**: ADMIN
+
+**Response** `200`
+```json
+{ ok: true, team: TeamMember[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Institution not found" }
+```
 
 ---
 
@@ -12345,8 +12453,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 352 |
-| Files with annotations | 351 |
+| Route files found | 358 |
+| Files with annotations | 357 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

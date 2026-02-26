@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Building2, Users, BookOpen, ChevronRight } from "lucide-react";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 import { useSession } from "next-auth/react";
+import "./institutions.css";
 
 interface Institution {
   id: string;
@@ -15,6 +17,33 @@ interface Institution {
   userCount: number;
   cohortCount: number;
   createdAt: string;
+}
+
+const PALETTE = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
+
+function hashColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+function SkeletonCard() {
+  return (
+    <div className="inst-skeleton-card">
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
+        <div className="hf-skeleton" style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div className="hf-skeleton hf-skeleton-text" style={{ width: "60%", marginBottom: 6 }} />
+          <div className="hf-skeleton hf-skeleton-text" style={{ width: "35%" }} />
+        </div>
+        <div className="hf-skeleton" style={{ width: 50, height: 20, borderRadius: 10 }} />
+      </div>
+      <div className="hf-skeleton hf-skeleton-text" style={{ width: "75%", marginBottom: 14 }} />
+      <div style={{ paddingTop: 14, borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "flex-end" }}>
+        <div className="hf-skeleton hf-skeleton-text" style={{ width: 80, height: 28 }} />
+      </div>
+    </div>
+  );
 }
 
 export default function InstitutionsPage() {
@@ -47,52 +76,31 @@ export default function InstitutionsPage() {
   useEffect(() => {
     fetch("/api/institutions")
       .then((r) => r.json())
-      .then((res) => {
-        if (res.ok) setInstitutions(res.institutions);
-      })
+      .then((res) => { if (res.ok) setInstitutions(res.institutions); })
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ padding: 32, color: "var(--text-muted)", fontSize: 14 }}>
-        Loading institutions...
-      </div>
-    );
-  }
+  const activeCount = institutions.filter((i) => i.isActive).length;
+  const totalUsers = institutions.reduce((sum, i) => sum + i.userCount, 0);
 
   return (
-    <div style={{ paddingBottom: 40 }}>
+    <div className="inst-page">
       <AdvancedBanner />
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+
+      <div className="inst-header">
         <div>
-          <h1 className="hf-page-title" style={{ marginBottom: 4 }}>
-            Institutions
-          </h1>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-            Manage schools and organizations
-          </p>
+          <h1 className="hf-page-title" style={{ marginBottom: 4 }}>Institutions</h1>
+          <p className="hf-page-subtitle">Manage schools and organizations</p>
         </div>
         {isOperator && (
-          <Link
-            href="/x/institutions/new"
-            style={{
-              padding: "10px 16px",
-              background: "var(--button-primary-bg)",
-              color: "var(--button-primary-text)",
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
+          <Link href="/x/institutions/new" className="hf-btn hf-btn-primary">
             + New Institution
           </Link>
         )}
       </div>
 
       {actionError && (
-        <div className="hf-banner hf-banner-error" style={{ justifyContent: "space-between" }}>
+        <div className="hf-banner hf-banner-error" style={{ justifyContent: "space-between", marginBottom: 16 }}>
           <span>{actionError}</span>
           <button
             onClick={() => setActionError(null)}
@@ -104,153 +112,129 @@ export default function InstitutionsPage() {
         </div>
       )}
 
-      {institutions.length === 0 ? (
-        <div
-          style={{
-            padding: 48,
-            textAlign: "center",
-            background: "var(--surface-primary)",
-            border: "1px solid var(--border-default)",
-            borderRadius: 12,
-          }}
-        >
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🏫</div>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
+      {!loading && institutions.length > 0 && (
+        <div className="hf-summary-strip">
+          <div className="hf-summary-card">
+            <span className="hf-summary-value">{institutions.length}</span>
+            <span className="hf-summary-label">Total</span>
+          </div>
+          <div className="hf-summary-card">
+            <span className="hf-summary-value" style={{ color: "var(--status-success-text)" }}>{activeCount}</span>
+            <span className="hf-summary-label">Active</span>
+          </div>
+          <div className="hf-summary-card">
+            <span className="hf-summary-value">{institutions.length - activeCount}</span>
+            <span className="hf-summary-label">Inactive</span>
+          </div>
+          <div className="hf-summary-card">
+            <span className="hf-summary-value">{totalUsers}</span>
+            <span className="hf-summary-label">Total Users</span>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="inst-skeleton-grid">
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : institutions.length === 0 ? (
+        <div className="inst-empty">
+          <Building2 size={40} style={{ color: "var(--text-muted)", marginBottom: 16 }} />
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>
             No institutions yet
           </h3>
-          <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 16 }}>
+          <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20 }}>
             Create your first institution to enable branded experiences for schools.
           </p>
           {isOperator && (
-            <Link
-              href="/x/institutions/new"
-              style={{
-                padding: "10px 20px",
-                background: "var(--button-primary-bg)",
-                color: "var(--button-primary-text)",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
+            <Link href="/x/institutions/new" className="hf-btn hf-btn-primary">
               Create Institution
             </Link>
           )}
         </div>
       ) : (
-        <div style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "var(--table-header-bg)" }}>
-                <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Institution
-                </th>
-                <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Slug
-                </th>
-                <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Users
-                </th>
-                <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Cohorts
-                </th>
-                <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Status
-                </th>
-                {isSuperAdmin && (
-                  <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {institutions.map((inst) => (
-                <tr key={inst.id} style={{ borderTop: "1px solid var(--table-row-border)" }}>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      {inst.primaryColor && (
-                        <div
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: 3,
-                            background: inst.primaryColor,
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
-                      <Link
-                        href={`/x/institutions/${inst.id}`}
-                        style={{ color: "var(--accent-primary)", textDecoration: "none", fontWeight: 500, fontSize: 14 }}
-                      >
-                        {inst.name}
-                      </Link>
+        <div className="inst-grid">
+          {institutions.map((inst) => {
+            const initColor = inst.primaryColor || hashColor(inst.name);
+            return (
+              <div key={inst.id} className="inst-card">
+                <div className="inst-card-header">
+                  {inst.logoUrl ? (
+                    <img src={inst.logoUrl} alt={inst.name} className="inst-card-avatar" />
+                  ) : (
+                    <div className="inst-card-initial" style={{ background: initColor }}>
+                      {inst.name.charAt(0).toUpperCase()}
                     </div>
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-muted)", fontSize: 13, fontFamily: "monospace" }}>
-                    {inst.slug}
-                  </td>
-                  <td style={{ padding: "12px 16px", textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
-                    {inst.userCount}
-                  </td>
-                  <td style={{ padding: "12px 16px", textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
-                    {inst.cohortCount}
-                  </td>
-                  <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: "2px 8px",
-                        borderRadius: 10,
-                        background: inst.isActive
-                          ? "color-mix(in srgb, var(--status-success-text) 12%, transparent)"
-                          : "color-mix(in srgb, var(--text-muted) 12%, transparent)",
-                        color: inst.isActive ? "var(--status-success-text)" : "var(--text-muted)",
-                      }}
-                    >
+                  )}
+                  <div className="inst-card-title-block">
+                    <div className="inst-card-name">{inst.name}</div>
+                    <div className="inst-card-slug">{inst.slug}</div>
+                  </div>
+                  <div className="inst-card-badge-col">
+                    <span className={`hf-badge ${inst.isActive ? "hf-badge-success" : "hf-badge-muted"}`}>
                       {inst.isActive ? "Active" : "Inactive"}
                     </span>
-                  </td>
-                  {isSuperAdmin && (
-                    <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                      {inst.isActive && (
-                        confirmDeactivateId === inst.id ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
-                            <button
-                              onClick={() => handleDeactivate(inst.id)}
-                              disabled={deactivating}
-                              className="hf-btn hf-btn-destructive"
-                              style={{ padding: "2px 8px", fontSize: 11 }}
-                            >
-                              {deactivating ? "..." : "Confirm"}
-                            </button>
-                            <button
-                              onClick={() => setConfirmDeactivateId(null)}
-                              className="hf-btn hf-btn-secondary"
-                              style={{ padding: "2px 8px", fontSize: 11 }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDeactivateId(inst.id)}
-                            className="hf-btn hf-btn-secondary"
-                            style={{ padding: "2px 8px", fontSize: 11 }}
-                          >
-                            Deactivate
-                          </button>
-                        )
-                      )}
-                    </td>
+                  </div>
+                </div>
+
+                {inst.primaryColor && (
+                  <div className="inst-card-swatches">
+                    <span className="inst-card-swatch" style={{ background: inst.primaryColor }} />
+                  </div>
+                )}
+
+                <div className="inst-card-stats">
+                  <span className="inst-card-stat">
+                    <BookOpen size={12} />
+                    <strong>{inst.cohortCount}</strong> classrooms
+                  </span>
+                  <span className="inst-card-stat">
+                    <Users size={12} />
+                    <strong>{inst.userCount}</strong> users
+                  </span>
+                </div>
+
+                <div className="inst-card-footer">
+                  {isSuperAdmin && inst.isActive && (
+                    confirmDeactivateId === inst.id ? (
+                      <div className="inst-card-confirm">
+                        <button
+                          onClick={() => handleDeactivate(inst.id)}
+                          disabled={deactivating}
+                          className="hf-btn hf-btn-destructive"
+                          style={{ padding: "2px 10px", fontSize: 11 }}
+                        >
+                          {deactivating ? "..." : "Confirm"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeactivateId(null)}
+                          className="hf-btn hf-btn-secondary"
+                          style={{ padding: "2px 10px", fontSize: 11 }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeactivateId(inst.id)}
+                        className="hf-btn hf-btn-ghost"
+                        style={{ fontSize: 12 }}
+                      >
+                        Deactivate
+                      </button>
+                    )
                   )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  <Link
+                    href={`/x/institutions/${inst.id}`}
+                    className="hf-btn hf-btn-secondary"
+                    style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}
+                  >
+                    Manage <ChevronRight size={14} />
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
