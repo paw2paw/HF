@@ -96,6 +96,7 @@ export async function GET(req: Request) {
  * @body domainId string - Domain ID (required)
  * @body ownerId string - Owner caller ID (optional, defaults to user's linked caller)
  * @body maxMembers number - Maximum member count (optional, default 50)
+ * @note institutionId is automatically inherited from the domain — no need to pass it explicitly
  * @response 200 { ok: true, cohort: CohortGroup }
  * @response 400 { ok: false, error: "..." }
  * @response 500 { ok: false, error: "Failed to create cohort" }
@@ -124,10 +125,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify domain exists
+    // Verify domain exists (also fetch institutionId so we can propagate it to the cohort)
     const domain = await prisma.domain.findUnique({
       where: { id: domainId },
-      select: { id: true },
+      select: { id: true, institutionId: true },
     });
     if (!domain) {
       return NextResponse.json(
@@ -176,6 +177,7 @@ export async function POST(req: Request) {
         domainId,
         ownerId,
         maxMembers: maxMembers || 50,
+        institutionId: domain.institutionId || null,
       },
       include: {
         owner: { select: { id: true, name: true, email: true } },

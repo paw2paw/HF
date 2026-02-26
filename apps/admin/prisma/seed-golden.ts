@@ -45,10 +45,18 @@ interface InstitutionDef {
   domain: DomainDef;
 }
 
+interface SubjectDef {
+  slug: string;
+  name: string;
+  description: string;
+}
+
 interface DomainDef {
   slug: string;
   name: string;
   description: string;
+  kind?: "INSTITUTION" | "COMMUNITY";
+  subjects?: SubjectDef[];
   groups?: GroupDef[];
   playbooks: PlaybookDef[];
   cohorts: CohortDef[];
@@ -109,6 +117,10 @@ const INSTITUTIONS: InstitutionDef[] = [
       slug: "greenfield-academy",
       name: "Greenfield Academy",
       description: "Primary school with focus on literacy and numeracy across Key Stage 2.",
+      subjects: [
+        { slug: "golden-english-ks2", name: "Year 5 English", description: "Key Stage 2 English — reading comprehension, creative writing, and grammar for Year 5." },
+        { slug: "golden-maths-ks2", name: "Year 5 Mathematics", description: "Key Stage 2 Mathematics — number, fractions, geometry, and problem-solving for Year 5." },
+      ],
       groups: [
         {
           slug: "english-dept",
@@ -157,6 +169,9 @@ const INSTITUTIONS: InstitutionDef[] = [
       slug: "apex-consulting",
       name: "Apex Consulting",
       description: "Professional development and leadership coaching for mid-level managers.",
+      subjects: [
+        { slug: "golden-leadership-mgmt", name: "Leadership & Management", description: "Professional leadership and management development for senior and mid-level managers." },
+      ],
       playbooks: [
         { slug: "golden-leadership", name: "Leadership Essentials", description: "Core leadership principles, vision setting, and team motivation for aspiring managers." },
       ],
@@ -182,7 +197,11 @@ const INSTITUTIONS: InstitutionDef[] = [
     domain: {
       slug: "companion-hub",
       name: "Companion Hub",
+      kind: "COMMUNITY" as const,
       description: "A peer-support community for wellbeing and life skills development.",
+      subjects: [
+        { slug: "golden-wellbeing", name: "Wellbeing & Life Skills", description: "Peer support for emotional wellbeing, resilience, self-care, and practical life skills." },
+      ],
       playbooks: [
         { slug: "golden-wellbeing-circle", name: "Wellbeing Circle", description: "Peer support for emotional wellbeing, resilience, and self-care strategies." },
         { slug: "golden-life-skills-lab", name: "Life Skills Lab", description: "Practical skills for daily life — budgeting, cooking, time management, and digital literacy." },
@@ -210,6 +229,9 @@ const INSTITUTIONS: InstitutionDef[] = [
       slug: "bright-path-training",
       name: "Bright Path Training",
       description: "Professional development provider offering 12+ courses across leadership, communication, and management skills.",
+      subjects: [
+        { slug: "golden-prof-development", name: "Professional Development", description: "Broad professional development spanning leadership, communication, and workplace management skills." },
+      ],
       groups: [
         {
           slug: "leadership-track",
@@ -263,6 +285,9 @@ const INSTITUTIONS: InstitutionDef[] = [
       slug: "momentum-coaching",
       name: "Momentum Coaching Practice",
       description: "Executive and life coaching practice specialising in career transitions, leadership development, and personal growth.",
+      subjects: [
+        { slug: "golden-exec-coaching", name: "Executive Coaching", description: "Executive and life coaching for career transitions, leadership development, and personal growth." },
+      ],
       groups: [
         {
           slug: "exec-track",
@@ -306,6 +331,9 @@ const INSTITUTIONS: InstitutionDef[] = [
       slug: "st-aidans-health",
       name: "St. Aidan's Community Health",
       description: "Community health programme supporting patients with chronic condition management, medication adherence, and healthy lifestyle coaching.",
+      subjects: [
+        { slug: "golden-health-wellbeing", name: "Health & Wellbeing", description: "Community health coaching for chronic condition management, medication adherence, and healthy lifestyle habits." },
+      ],
       groups: [
         {
           slug: "chronic-unit",
@@ -488,6 +516,7 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
   let totalCohorts = 0;
   let totalTeachers = 0;
   let totalLearners = 0;
+  let totalSubjects = 0;
   const allLearners: LearnerRecord[] = [];
 
   for (const inst of INSTITUTIONS) {
@@ -531,6 +560,7 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
         description: inst.domain.description,
         institutionId: institution.id,
         isActive: true,
+        ...(inst.domain.kind ? { kind: inst.domain.kind } : {}),
       },
       create: {
         slug: inst.domain.slug,
@@ -538,9 +568,34 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
         description: inst.domain.description,
         isActive: true,
         institutionId: institution.id,
+        ...(inst.domain.kind ? { kind: inst.domain.kind } : {}),
       },
     });
     console.log(`    + Domain: ${domain.name}`);
+
+    // Create Subjects + SubjectDomain links
+    if (inst.domain.subjects && inst.domain.subjects.length > 0) {
+      for (const subjectDef of inst.domain.subjects) {
+        const subject = await prisma.subject.upsert({
+          where: { slug: subjectDef.slug },
+          update: { name: subjectDef.name, description: subjectDef.description, isActive: true },
+          create: {
+            slug: subjectDef.slug,
+            name: subjectDef.name,
+            description: subjectDef.description,
+            defaultTrustLevel: "EXPERT_CURATED",
+            isActive: true,
+          },
+        });
+        await prisma.subjectDomain.upsert({
+          where: { subjectId_domainId: { subjectId: subject.id, domainId: domain.id } },
+          update: {},
+          create: { subjectId: subject.id, domainId: domain.id },
+        });
+        totalSubjects++;
+        console.log(`      + Subject: ${subject.name}`);
+      }
+    }
 
     // Create PlaybookGroups (departments/tracks)
     const playbookSlugToGroupId = new Map<string, string>();
@@ -835,6 +890,7 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
   console.log(`  ✓ Golden Path seed complete`);
   console.log(`    Institutions:    ${INSTITUTIONS.length}`);
   console.log(`    Domains:         ${INSTITUTIONS.length}`);
+  console.log(`    Subjects:        ${totalSubjects}`);
   console.log(`    Groups:          ${totalGroups}`);
   console.log(`    Playbooks:       ${totalPlaybooks}`);
   console.log(`    Cohorts:         ${totalCohorts}`);

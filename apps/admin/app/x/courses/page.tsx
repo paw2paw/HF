@@ -6,10 +6,6 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { BookOpen, Users, Plus } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
-import { useStepFlow } from '@/contexts';
-import { useWizardResume } from '@/hooks/useWizardResume';
-import { WizardResumeBanner } from '@/components/shared/WizardResumeBanner';
-import { CourseSetupWizard } from './_components/CourseSetupWizard';
 import { StatusBadge, DomainPill } from '@/src/components/shared/EntityPill';
 import { FancySelect } from '@/components/shared/FancySelect';
 import { AdvancedBanner } from '@/components/shared/AdvancedBanner';
@@ -78,17 +74,17 @@ export default function CoursesPage() {
   const { data: session } = useSession();
   const isOperator = ['OPERATOR', 'EDUCATOR', 'ADMIN', 'SUPERADMIN'].includes((session?.user?.role as string) || '');
   const { terms, plural } = useTerminology();
-  const { state, isActive: isSetupFlowActive, startFlow } = useStepFlow();
-  const { pendingTask, isLoading: resumeLoading } = useWizardResume('course_setup');
 
-  // Redirect ?id=xxx to /x/courses/xxx for backwards compat
+  // Redirect ?id=xxx to /x/courses/xxx and ?action=setup to /x/courses/new
   const legacyId = searchParams.get('id');
   const actionParam = searchParams.get('action');
   useEffect(() => {
     if (legacyId) {
       router.replace(`/x/courses/${legacyId}`);
+    } else if (actionParam === 'setup') {
+      router.replace('/x/courses/new');
     }
-  }, [legacyId, router]);
+  }, [legacyId, actionParam, router]);
 
   // List state
   const [courses, setCourses] = useState<CourseListItem[]>([]);
@@ -100,18 +96,6 @@ export default function CoursesPage() {
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
   const [groupBy, setGroupBy] = useState<'none' | 'department'>('none');
-
-  // Wizard
-  const showWizard = isSetupFlowActive && state?.flowId === 'create-course';
-
-  // Auto-launch wizard when arriving with ?action=setup (from detail page CTA)
-  useEffect(() => {
-    if (actionParam === 'setup' && !showWizard && !loading && !pendingTask && !resumeLoading) {
-      handleNewCourse();
-      router.replace('/x/courses');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionParam, loading, resumeLoading]);
 
   const loadCourses = async () => {
     try {
@@ -129,8 +113,9 @@ export default function CoursesPage() {
   };
 
   useEffect(() => {
-    if (!legacyId) loadCourses();
-  }, [legacyId]);
+    if (!legacyId && actionParam !== 'setup') loadCourses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legacyId, actionParam]);
 
   // Derive unique groups from courses
   const availableGroups = useMemo(() => {
@@ -206,113 +191,12 @@ export default function CoursesPage() {
     });
   };
 
-  // Wizard steps
-  const COURSE_STEPS_FALLBACK = [
-    { id: 'intent', label: 'Intent', activeLabel: 'Setting Intent' },
-    { id: 'content', label: 'Content', activeLabel: 'Adding Content' },
-    { id: 'lesson-plan', label: 'Lesson Plan', activeLabel: 'Planning Lessons' },
-    { id: 'course-config', label: 'First Call', activeLabel: 'Setting Up First Call' },
-    { id: 'students', label: 'Students', activeLabel: 'Adding Students' },
-    { id: 'done', label: 'Launch', activeLabel: 'Creating Course' },
-  ];
-
-  const loadWizardSteps = async () => {
-    try {
-      const response = await fetch('/api/wizard-steps?wizard=course');
-      const data = await response.json();
-      if (data.ok && data.steps?.length > 0) {
-        return data.steps.map((step: { id: string; label: string; activeLabel: string }) => ({
-          id: step.id,
-          label: step.label,
-          activeLabel: step.activeLabel,
-        }));
-      }
-    } catch (err) {
-      console.warn('[CoursesPage] Failed to load spec steps, using defaults', err);
-    }
-    return COURSE_STEPS_FALLBACK;
-  };
-
-  const handleNewCourse = async () => {
-    const stepsToUse = await loadWizardSteps();
-    let taskId: string | undefined;
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskType: 'course_setup', currentStep: 0, context: { _wizardStep: 0 } }),
-      });
-      const data = await res.json();
-      if (data.ok) taskId = data.taskId;
-    } catch {
-      // Continue without DB persistence
-    }
-    startFlow({
-      flowId: 'create-course',
-      steps: stepsToUse,
-      returnPath: '/x/courses',
-      taskType: 'course_setup',
-      taskId,
-    });
-  };
-
-  const handleResumeCourse = async () => {
-    if (!pendingTask) return;
-    const stepsToUse = await loadWizardSteps();
-    const ctx = pendingTask.context || {};
-    startFlow({
-      flowId: 'create-course',
-      steps: stepsToUse,
-      returnPath: '/x/courses',
-      taskType: 'course_setup',
-      taskId: pendingTask.id,
-      initialData: ctx,
-      initialStep: ctx._wizardStep ?? 0,
-    });
-  };
-
-  const handleDiscardResume = async () => {
-    if (pendingTask) {
-      try {
-        await fetch(`/api/tasks?taskId=${pendingTask.id}`, { method: 'DELETE' });
-      } catch { /* ignore */ }
-    }
-    await handleNewCourse();
-  };
-
   // Redirect in progress
-  if (legacyId) return (
+  if (legacyId || actionParam === 'setup') return (
     <div className="hf-empty-compact">
       <div className="hf-spinner" />
     </div>
   );
-
-  // Resume banner (shown before wizard or list)
-  if (!showWizard && !resumeLoading && pendingTask) {
-    return (
-      <div className="hf-page-container">
-        <div className="hf-mt-md">
-          <WizardResumeBanner
-            task={pendingTask}
-            onResume={handleResumeCourse}
-            onDiscard={handleDiscardResume}
-            label="Course Setup"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // Wizard mode
-  if (showWizard) {
-    return (
-      <CourseSetupWizard
-        onComplete={async () => {
-          await loadCourses();
-        }}
-      />
-    );
-  }
 
   const FilterPill = ({
     label, isActive, colors, onClick, icon, tooltip,

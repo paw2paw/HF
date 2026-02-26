@@ -13,6 +13,8 @@ export interface WizardConfig {
   wizardName: string;
   /** Where to redirect on cancel/complete */
   returnPath: string;
+  /** Label for the ← cancel/back link shown at top of wizard (e.g. "Courses", "Communities") */
+  cancelLabel?: string;
   /** For useWizardResume detection (optional) */
   taskType?: string;
   /** Step registry — order matters */

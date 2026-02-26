@@ -23,6 +23,7 @@ const config: WizardConfig = {
   flowId: "course-setup",
   wizardName: "course-setup",
   returnPath: "/x/courses",
+  cancelLabel: "Courses",
   taskType: "course_setup",
   steps: [
     {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import WizardSection from "@/components/shared/WizardSection";
@@ -29,6 +30,7 @@ interface WizardShellProps {
 }
 
 export function WizardShell({ config, onComplete }: WizardShellProps) {
+  const router = useRouter();
   const {
     state,
     isActive,
@@ -97,6 +99,12 @@ export function WizardShell({ config, onComplete }: WizardShellProps) {
     onComplete?.();
   }, [rawEndFlow, onComplete]);
 
+  // ── Cancel — clears flow state + navigates back ──────
+  const handleCancel = useCallback(() => {
+    rawEndFlow();
+    router.push(config.returnPath);
+  }, [rawEndFlow, router, config.returnPath]);
+
   // ── Resume handler ──────────────────────────────────
   const handleResume = useCallback(() => {
     if (!pendingTask) return;
@@ -155,6 +163,13 @@ export function WizardShell({ config, onComplete }: WizardShellProps) {
 
   return (
     <div className="hf-page-container hf-page-scroll">
+      {config.cancelLabel && (
+        <nav className="hf-breadcrumb">
+          <button type="button" className="hf-breadcrumb-segment" onClick={handleCancel}>
+            ← {config.cancelLabel}
+          </button>
+        </nav>
+      )}
       <div className="hf-ws-accordion">
         {config.steps.map((stepCfg, i) => {
           const status: SectionStatus =

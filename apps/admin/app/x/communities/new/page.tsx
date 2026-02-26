@@ -15,6 +15,7 @@ const config: WizardConfig = {
   flowId: "community-setup",
   wizardName: "community-setup",
   returnPath: "/x/communities",
+  cancelLabel: "Communities",
   taskType: "community_setup",
   steps: [
     {
