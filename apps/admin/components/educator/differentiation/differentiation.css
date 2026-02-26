@@ -1,0 +1,482 @@
+/* ── Differentiation Lens ─────────────────────────────────────────────────── */
+/* Gold UI: hf-* base classes + CSS vars only. No inline styles except         */
+/* data-driven widths on bar fills (unavoidable — value comes from DB).         */
+
+/* ── Snapshot grid (Level 0 — class overview) ─────────────────────────────── */
+
+.diff-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .diff-snapshot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.diff-snapshot-card {
+  padding: 16px;
+}
+
+.diff-snapshot-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* Distribution row: label + bar + count */
+.diff-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.diff-dist-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 110px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diff-dist-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.diff-dist-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.diff-dist-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Dimension chip row */
+.diff-dimension-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.diff-dimension-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.diff-dimension-chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.diff-dimension-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.diff-dimension-chip-active {
+  background: var(--accent-primary);
+  color: var(--accent-primary-text);
+  border-color: var(--accent-primary);
+}
+
+/* ── Band group (Level 1) ──────────────────────────────────────────────────── */
+
+.diff-band {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  background: var(--surface-primary);
+}
+
+.diff-band-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  border-left: 4px solid transparent;
+  transition: background 0.12s;
+}
+
+.diff-band-header:hover {
+  background: var(--surface-secondary);
+}
+
+.diff-band-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.diff-band-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.diff-band-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.diff-band-chevron {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.diff-band-chevron-open {
+  transform: rotate(90deg);
+}
+
+/* "What they get" summary chips — shown in collapsed band header */
+.diff-band-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 12px 42px;
+}
+
+.diff-band-target-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.diff-band-target-chip-high {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-color: transparent;
+}
+
+.diff-band-target-chip-low {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border-color: transparent;
+}
+
+.diff-band-students {
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Student rows (Level 1 list items) ────────────────────────────────────── */
+
+.diff-student-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+
+.diff-student-row:last-child {
+  border-bottom: none;
+}
+
+.diff-student-row:hover {
+  background: var(--table-row-hover);
+}
+
+.diff-student-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.diff-student-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mastery dot row (5 dots) */
+.diff-mastery-dots {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.diff-mastery-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.diff-mastery-dot-filled {
+  background: var(--accent-primary);
+}
+
+/* Momentum arrow */
+.diff-momentum {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Triage chip */
+.diff-triage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.diff-triage-attention {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+.diff-triage-advancing {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.diff-triage-active {
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+}
+
+.diff-triage-inactive {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+
+.diff-triage-new {
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+}
+
+/* Diagnostic text */
+.diff-diagnostic {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Expand toggle */
+.diff-expand-toggle {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.diff-expand-toggle-open {
+  transform: rotate(90deg);
+}
+
+/* ── Inline expand panel (Level 2) ────────────────────────────────────────── */
+
+.diff-student-expand {
+  padding: 12px 16px 16px 16px;
+  background: var(--surface-secondary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.diff-expand-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.diff-expand-meta-item {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.diff-expand-meta-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+/* Adaptation target bars */
+.diff-targets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 600px) {
+  .diff-targets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.diff-target-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diff-target-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 90px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.diff-target-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.diff-target-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+.diff-target-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.diff-target-no-data {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+/* Memories */
+.diff-memories {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diff-memory-item {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.diff-memory-bullet {
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+/* Full profile link */
+.diff-profile-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.diff-profile-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Empty + loading states ────────────────────────────────────────────────── */
+
+.diff-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+
+.diff-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.diff-empty-body {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.diff-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+/* ── Color overrides for band left-border ──────────────────────────────────── */
+
+.diff-band-foundation { border-left-color: var(--status-error-text); }
+.diff-band-developing { border-left-color: var(--status-warning-text); }
+.diff-band-advanced   { border-left-color: var(--status-success-text); }
+.diff-band-noData     { border-left-color: var(--text-muted); }
+
+/* Triage-based colours */
+.diff-band-attention  { border-left-color: var(--status-error-text); }
+.diff-band-active     { border-left-color: var(--status-info-text); }
+.diff-band-advancing  { border-left-color: var(--status-success-text); }
+.diff-band-inactive   { border-left-color: var(--status-warning-text); }
+.diff-band-new        { border-left-color: var(--text-muted); }
+
+/* Pace colours */
+.diff-band-fast       { border-left-color: var(--status-success-text); }
+.diff-band-moderate   { border-left-color: var(--status-info-text); }
+.diff-band-slow       { border-left-color: var(--status-warning-text); }
+.diff-band-unknown    { border-left-color: var(--text-muted); }

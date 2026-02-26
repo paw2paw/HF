@@ -45,6 +45,8 @@ import {
 } from "@/lib/content-trust/resolve-config";
 import { getDocTypeInfo, DOC_TYPE_INFO } from "@/lib/doc-type-icons";
 import KnowledgeMapTree, { type SourceTree, type KnowledgeMapStats } from "@/components/shared/KnowledgeMapTree";
+import { LessonPlanModelPicker } from "@/components/shared/LessonPlanModelPicker";
+import type { LessonPlanModel } from "@/lib/lesson-plan/types";
 import "./teach-wizard.css";
 
 // ── Constants ───────────────────────────────────────
@@ -303,6 +305,7 @@ export default function TeachWizard() {
   const [newCourseName, setNewCourseName] = useState("");
   const [teachingMode, setTeachingMode] = useState<TeachingMode>("recall");
   const [suggestedMode, setSuggestedMode] = useState<TeachingMode | null>(null);
+  const [lessonPlanModel, setLessonPlanModel] = useState<LessonPlanModel>("direct_instruction");
   const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [existingCourses, setExistingCourses] = useState<ExistingCourseInfo[]>([]);
   const [existingSubjects, setExistingSubjects] = useState<ExistingSubjectInfo[]>([]);
@@ -1003,7 +1006,7 @@ export default function TeachWizard() {
       const res = await fetch("/api/lesson-plan/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subjectIds, sessionLength: 30 }),
+        body: JSON.stringify({ subjectIds, sessionLength: 30, lessonPlanModel }),
       });
       const data = await res.json();
       if (
@@ -1048,7 +1051,7 @@ export default function TeachWizard() {
       clearTimeout(lessonPlanLoadingTimer.current);
       setLessonPlanLoading(false);
     }
-  }, [subjectIds, fallbackGenerateLessonPlan]);
+  }, [subjectIds, lessonPlanModel, fallbackGenerateLessonPlan]);
 
   // Auto-generate when section 5 becomes active
   useEffect(() => {
@@ -1482,6 +1485,11 @@ export default function TeachWizard() {
                     </div>
                   </div>
 
+                  <div>
+                    <p className="tw-label" style={{ marginTop: 16 }}>Lesson plan model</p>
+                    <LessonPlanModelPicker value={lessonPlanModel} onChange={setLessonPlanModel} />
+                  </div>
+
                   <div className="tw-continue-row">
                     <button
                       className="tw-btn-continue"
@@ -1515,6 +1523,11 @@ export default function TeachWizard() {
                         </button>
                       );
                     })}
+                  </div>
+
+                  <div style={{ marginTop: 16 }}>
+                    <p className="tw-label">Lesson plan model</p>
+                    <LessonPlanModelPicker value={lessonPlanModel} onChange={setLessonPlanModel} />
                   </div>
 
                   <div className="tw-continue-row">

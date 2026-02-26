@@ -11,6 +11,8 @@ import {
   suggestInteractionPattern,
   type InteractionPattern,
 } from '@/lib/content-trust/resolve-config';
+import { LessonPlanModelPicker } from '@/components/shared/LessonPlanModelPicker';
+import type { LessonPlanModel } from '@/lib/lesson-plan/types';
 import type { StepProps } from '../CourseSetupWizard';
 
 interface ExistingCourse {
@@ -32,6 +34,7 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
   const [suggestedPattern, setSuggestedPattern] = useState<InteractionPattern | null>(null);
   const [existingCourse, setExistingCourse] = useState<ExistingCourse | null>(null);
   const [hoveredPattern, setHoveredPattern] = useState<InteractionPattern | null>(null);
+  const [lessonPlanModel, setLessonPlanModel] = useState<LessonPlanModel>('direct_instruction');
 
   // Department selector state
   const [groupId, setGroupId] = useState<string | null>(null);
@@ -44,10 +47,13 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     const savedPattern = getData<InteractionPattern>('interactionPattern');
     const savedGroupId = getData<string>('groupId');
 
+    const savedModel = getData<LessonPlanModel>('lessonPlanModel');
+
     if (saved) setCourseName(saved);
     if (savedOutcomes) setOutcomes(savedOutcomes);
     if (savedPattern) setPattern(savedPattern);
     if (savedGroupId) setGroupId(savedGroupId);
+    if (savedModel) setLessonPlanModel(savedModel);
   }, [getData]);
 
   // Load available groups for the domain
@@ -132,6 +138,7 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     setData('interactionPatternName', patternInfo?.label || selectedPattern);
     // Keep teachingStyle for backward compat with lesson plan generation
     setData('teachingStyle', 'tutor');
+    setData('lessonPlanModel', lessonPlanModel);
     if (groupId) setData('groupId', groupId);
 
     // Eager generation — fire background plan generation so it's ready before user
@@ -149,6 +156,7 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
           durationMins: 30,
           emphasis: 'balanced',
           assessments: 'light',
+          lessonPlanModel,
         }),
       });
       const data = await res.json();
@@ -307,6 +315,13 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
               </div>
             );
           })()}
+        </div>
+        {/* Lesson Plan Model */}
+        <div className="hf-mb-lg">
+          <div className="hf-mb-xs">
+            <FieldHint label="Teaching model" hint={WIZARD_HINTS["course.model"]} labelClass="hf-label" />
+          </div>
+          <LessonPlanModelPicker value={lessonPlanModel} onChange={setLessonPlanModel} />
         </div>
       </div>
 

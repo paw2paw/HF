@@ -10,6 +10,7 @@ import { reorderItems } from "@/lib/sortable/reorder";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
 import { LessonPlanModelPicker } from "@/components/shared/LessonPlanModelPicker";
+import { getLessonPlanModel } from "@/lib/lesson-plan/models";
 import type { LessonPlanModel } from "@/lib/lesson-plan/types";
 import KnowledgeMapTree, { type SourceTree, type KnowledgeMapStats } from "@/components/shared/KnowledgeMapTree";
 import type { StepProps } from "../CourseSetupWizard";
@@ -131,6 +132,9 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
       if (saved.assessments) setAssessments(saved.assessments as typeof assessments);
       if (saved.lessonPlanModel) setLessonPlanModel(saved.lessonPlanModel as LessonPlanModel);
     }
+    // Also restore model from IntentStep's direct data bag key (set before eager generation)
+    const directModel = getData<LessonPlanModel>("lessonPlanModel");
+    if (directModel) setLessonPlanModel(directModel);
 
     // Check for saved plan first (stepping back & forward)
     const savedPlan = getData<LessonEntry[]>("lessonPlan");
@@ -647,6 +651,13 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                 )}
               </div>
             )}
+
+            <div className="hf-flex hf-items-center hf-gap-sm hf-mb-md">
+              <span className="hf-text-sm hf-text-muted">Teaching model:</span>
+              <span className="hf-chip hf-chip-selected hf-chip-sm" style={{ cursor: "default" }}>
+                {getLessonPlanModel(lessonPlanModel).label}
+              </span>
+            </div>
 
             <div className="hf-flex hf-items-center hf-gap-md hf-mb-md">
               <span className="hf-section-title">{entries.length} sessions</span>

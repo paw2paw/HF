@@ -287,6 +287,13 @@ export default function DepartmentsPage() {
     return map;
   }, [groups]);
 
+  const groupSummary = useMemo(() => ({
+    total: groups.length,
+    active: groups.filter((g) => g.isActive).length,
+    totalCourses: groups.reduce((s, g) => s + (g.playbookCount || 0), 0),
+    totalClasses: groups.reduce((s, g) => s + (g.cohortCount || 0), 0),
+  }), [groups]);
+
   // ── Render ───────────────────────────────────────
 
   if (authLoading || loading) {
@@ -421,6 +428,27 @@ export default function DepartmentsPage() {
           <button onClick={() => setError(null)} className="hf-btn dept-dismiss-btn">
             Dismiss
           </button>
+        </div>
+      )}
+
+      {groups.length > 0 && (
+        <div className="hf-summary-strip">
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{groupSummary.total}</div>
+            <div className="hf-summary-card-label">{groupTermPlural}</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: "var(--status-success-text)" }}>{groupSummary.active}</div>
+            <div className="hf-summary-card-label">Active</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{groupSummary.totalCourses}</div>
+            <div className="hf-summary-card-label">Courses</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{groupSummary.totalClasses}</div>
+            <div className="hf-summary-card-label">Classes</div>
+          </div>
         </div>
       )}
 

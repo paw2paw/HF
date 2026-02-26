@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOH ↔ HF Integration Strategy</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 10.5pt;
+    line-height: 1.6;
+    color: #1a1a2e;
+    background: #fff;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 48px;
+  }
+
+  /* ── Typography ───────────────────────────────────── */
+  h1 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 22pt;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+
+  .doc-meta {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9pt;
+    color: #6b7280;
+    margin-bottom: 32px;
+    border-bottom: 2px solid #1a1a2e;
+    padding-bottom: 12px;
+  }
+
+  h2 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13pt;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 36px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  h3 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 11pt;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 28px 0 8px;
+  }
+
+  p { margin-bottom: 10px; }
+
+  strong { font-weight: 700; }
+
+  em { font-style: italic; }
+
+  /* ── Executive Summary Box ────────────────────────── */
+  .exec-summary {
+    background: #f8f7ff;
+    border-left: 4px solid #1a1a2e;
+    border-radius: 0 6px 6px 0;
+    padding: 24px 28px;
+    margin: 24px 0 28px;
+  }
+
+  .exec-summary .recommendation {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 12pt;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #d1d5db;
+  }
+
+  .scqa-block {
+    margin-bottom: 12px;
+  }
+
+  .scqa-label {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .scqa-block p {
+    margin-bottom: 0;
+    font-size: 10pt;
+  }
+
+  /* ── Pyramid Principles ───────────────────────────── */
+  .principles {
+    margin: 20px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid #d1d5db;
+  }
+
+  .principles .label {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b7280;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .principle {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .principle-num {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9pt;
+    font-weight: 700;
+    color: #fff;
+    background: #1a1a2e;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .principle p {
+    margin: 0;
+    font-size: 10pt;
+  }
+
+  /* ── Divider ──────────────────────────────────────── */
+  .section-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 32px 0;
+  }
+
+  /* ── Diagram blocks ───────────────────────────────── */
+  pre, code {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 8.5pt;
+    background: #f3f4f6;
+    border-radius: 4px;
+  }
+
+  pre {
+    padding: 14px 16px;
+    margin: 14px 0;
+    overflow: hidden;
+    line-height: 1.55;
+    border-left: 3px solid #d1d5db;
+  }
+
+  code {
+    padding: 1px 4px;
+  }
+
+  /* ── JSON blocks ──────────────────────────────────── */
+  .json-block {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 8.5pt;
+    background: #1a1a2e;
+    color: #e2e8f0;
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    line-height: 1.6;
+  }
+
+  .json-key   { color: #93c5fd; }
+  .json-str   { color: #86efac; }
+  .json-label { color: #fbbf24; font-weight: 600; }
+
+  /* ── Tables ───────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 9.5pt;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  thead tr {
+    background: #1a1a2e;
+    color: #fff;
+  }
+
+  thead th {
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  tbody tr:nth-child(even) { background: #f8f9fa; }
+  tbody tr:nth-child(odd)  { background: #fff; }
+
+  tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+
+  /* ── Open Questions ───────────────────────────────── */
+  .question-list {
+    counter-reset: q-counter;
+    list-style: none;
+    padding: 0;
+    margin: 12px 0;
+  }
+
+  .question-list li {
+    counter-increment: q-counter;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+
+  .question-list li::before {
+    content: "Q" counter(q-counter);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: 700;
+    color: #fff;
+    background: #6b7280;
+    padding: 1px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ── Callout ──────────────────────────────────────── */
+  .callout {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 9.5pt;
+  }
+
+  .callout strong {
+    color: #92400e;
+  }
+
+  /* ── Footer ───────────────────────────────────────── */
+  .doc-footer {
+    margin-top: 48px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 8pt;
+    color: #9ca3af;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Page break hints ─────────────────────────────── */
+  .page-break-before { page-break-before: always; }
+
+  /* ── Print styles ─────────────────────────────────── */
+  @media print {
+    body {
+      padding: 20px 32px;
+      font-size: 10pt;
+      max-width: 100%;
+    }
+
+    h1 { font-size: 18pt; }
+    h2 { font-size: 11pt; }
+
+    .exec-summary {
+      page-break-inside: avoid;
+    }
+
+    pre, .json-block {
+      page-break-inside: avoid;
+    }
+
+    table {
+      page-break-inside: avoid;
+    }
+
+    .doc-footer {
+      position: fixed;
+      bottom: 16px;
+      left: 32px;
+      right: 32px;
+    }
+
+    @page {
+      margin: 20mm 18mm;
+      size: A4;
+    }
+
+    @page :first {
+      margin-top: 16mm;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────── -->
+<h1>FOH ↔ HF Integration Strategy</h1>
+<div class="doc-meta">
+  System Connection Design &nbsp;·&nbsp; Human First Foundation &nbsp;·&nbsp; February 2026
+  &nbsp;·&nbsp; CONFIDENTIAL — DRAFT
+</div>
+
+<!-- ── Page 1: Executive Summary ───────────────────── -->
+<h2>Executive Summary</h2>
+
+<div class="exec-summary">
+
+  <div class="recommendation">
+    Recommendation: One seam. Context travels once. VAPI is invisible to FOH.
+  </div>
+
+  <div class="scqa-block">
+    <span class="scqa-label">Situation</span>
+    <p>Two systems are being built in parallel: a web-facing <strong>Front of House (FOH)</strong> that captures caller identity and community interest, and <strong>HF</strong> — an AI voice brain that serves personalised prompts and processes call transcripts. Both must work together to deliver a coherent caller experience.</p>
+  </div>
+
+  <div class="scqa-block">
+    <span class="scqa-label">Complication</span>
+    <p>The natural instinct is to integrate deeply — FOH injecting context at call time, systems calling each other in both directions, VAPI events fanning out to both. This creates coupling that breaks autonomy: latency in the call path, cascading failures, shared secrets, and two teams blocking each other on every change.</p>
+  </div>
+
+  <div class="scqa-block">
+    <span class="scqa-label">Question</span>
+    <p>How do we connect two independent systems so that a caller captured by FOH receives a fully personalised HF voice session — without either system owning the other?</p>
+  </div>
+
+  <div class="scqa-block">
+    <span class="scqa-label">Answer</span>
+    <p>Connect them at a <strong>single point, before the call</strong>. FOH registers the caller in HF with a rich context payload. HF primes the prompt. When the call happens, VAPI talks only to HF. FOH steps aside entirely. Post-call, HF pushes a summary webhook back to FOH. Two API calls. No shared infrastructure. No coupling in the live call path.</p>
+  </div>
+
+  <div class="principles">
+    <span class="label">Three supporting principles</span>
+
+    <div class="principle">
+      <div class="principle-num">1</div>
+      <p><strong>Pre-call is the only integration moment.</strong> All FOH→HF data transfer happens at registration, not at call time. The live call path is VAPI↔HF only.</p>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">2</div>
+      <p><strong>Context seeds memory, not the prompt.</strong> FOH capture data (community, interests, onboarding answers) enters HF as memory entries, flowing naturally into prompt composition. No custom prompt injection needed.</p>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">3</div>
+      <p><strong>Secrets are asymmetric and minimal.</strong> HF issues FOH one API key. FOH issues HF one webhook secret. VAPI's secrets stay between VAPI and HF. No handshake, no shared auth layer.</p>
+    </div>
+
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ── Supporting Detail ────────────────────────────── -->
+<h2>Supporting Detail</h2>
+
+<!-- ── Principle 1 ──────────────────────────────────── -->
+<h3>1. Pre-call is the only integration moment</h3>
+
+<p><strong>The problem with in-call integration.</strong> VAPI imposes a hard 7.5-second deadline on the <code>assistant-request</code> event. Any synchronous FOH→HF call at that moment — to inject context, look up session state, verify enrollment — consumes that budget. One slow FOH response and the caller hears silence or gets a fallback prompt.</p>
+
+<p>The topology that works separates the integration into three clean phases:</p>
+
+<pre>REGISTRATION  (FOH → HF, once, async-tolerant)
+──────────────────────────────────────────────────────────
+FOH  POST /api/callers/register
+       { name, phone, community, context }
+HF   → creates Caller → enrolls in course → seeds memory → composes prompt
+HF   → 200 { callerId, promptReady: true }
+
+CALL TIME  (VAPI → HF only, 7.5s budget, FOH invisible)
+──────────────────────────────────────────────────────────
+VAPI  POST /api/vapi/assistant-request  →  HF returns pre-built prompt
+VAPI  POST /api/vapi/webhook            →  HF ingests transcript + runs pipeline
+
+POST-CALL  (HF → FOH, async push)
+──────────────────────────────────────────────────────────
+HF   POST {foh-callback-url}
+       { callerId, summary, topicsHit, nextSession }</pre>
+
+<p>FOH is active exactly once in the call lifecycle: at registration. Everything else runs without it. Critically, <strong>failure modes are contained</strong>: if FOH goes down, calls still work because prompts already exist in HF. If HF goes down, FOH still captures callers and can queue registrations for retry.</p>
+
+
+<!-- ── Principle 2 ──────────────────────────────────── -->
+<h3>2. Context seeds memory, not the prompt</h3>
+
+<p><strong>The naive approach</strong> — FOH sends a custom system prompt string to HF at registration — creates a maintenance problem. Every time HF's prompt template evolves, FOH breaks. The two teams become coupled at the content layer, meaning a change to pedagogy or persona requires a co-ordinated release across both systems.</p>
+
+<p><strong>The correct approach:</strong> FOH sends structured facts. HF decides how to use them.</p>
+
+<div class="json-block">
+<span class="json-label">POST /api/callers/register</span>
+{
+  <span class="json-key">"name"</span>: <span class="json-str">"Jane Smith"</span>,
+  <span class="json-key">"phone"</span>: <span class="json-str">"+447700900123"</span>,
+  <span class="json-key">"communityId"</span>: <span class="json-str">"abc123"</span>,
+  <span class="json-key">"context"</span>: {
+    <span class="json-key">"interest"</span>: <span class="json-str">"Improve sales pitch confidence"</span>,
+    <span class="json-key">"experience"</span>: <span class="json-str">"3 years B2B, struggling with objection handling"</span>,
+    <span class="json-key">"source"</span>: <span class="json-str">"website"</span>,
+    <span class="json-key">"onboarding"</span>: {
+      <span class="json-key">"goal"</span>: <span class="json-str">"close more deals"</span>,
+      <span class="json-key">"preferred_style"</span>: <span class="json-str">"direct feedback"</span>,
+      <span class="json-key">"availability"</span>: <span class="json-str">"weekday evenings"</span>
+    }
+  }
+}
+</div>
+
+<p>HF writes each <code>context</code> field as a <code>CallerMemory</code> entry. When the prompt is composed, these memories flow in through the existing pipeline — the same mechanism every other memory uses. Jane's <strong>first call feels like the AI already knows her</strong>, because it does. Her goals, her experience, her preferred style are all in the session prompt before she says a word.</p>
+
+<p>FOH never needs to understand HF's prompt structure. It sends facts; HF decides what to do with them. This is the correct separation of concerns.</p>
+
+
+<!-- ── Principle 3 ──────────────────────────────────── -->
+<h3>3. Secrets are asymmetric and minimal</h3>
+
+<p>Three directional relationships exist in this system. Each has exactly one issuer and one verifier. No secret is shared between more than two parties.</p>
+
+<pre>          FOH                      HF                     VAPI
+          ───                      ──                     ────
+
+          HF_API_KEY     ────────► (HF verifies)
+                                                           │
+                                   VAPI_WEBHOOK_SECRET ◄──┘ (FOH sets in VAPI dashboard)
+                                   (HF verifies)
+
+          CALLBACK_SECRET ◄─────── (HF signs outbound webhooks)
+          (FOH verifies)</pre>
+
+<table>
+  <thead>
+    <tr>
+      <th>Secret</th>
+      <th>Issued by</th>
+      <th>Held by</th>
+      <th>Verified by</th>
+      <th>MVP?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>HF_API_KEY</code></td>
+      <td>HF</td>
+      <td>FOH server</td>
+      <td>HF</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><code>VAPI_WEBHOOK_SECRET</code></td>
+      <td>FOH/VAPI</td>
+      <td>VAPI + HF env</td>
+      <td>HF</td>
+      <td>Yes (already live)</td>
+    </tr>
+    <tr>
+      <td><code>CALLBACK_SECRET</code></td>
+      <td>FOH</td>
+      <td>FOH + HF env</td>
+      <td>FOH</td>
+      <td>No — FOH polls for MVP</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The <code>HF_API_KEY</code> lives on FOH's server only — never in the browser. VAPI's secrets are entirely between VAPI and HF; FOH colleagues set them in their VAPI dashboard but never use them in their own codebase. If either system is compromised, the blast radius is contained to that directional relationship only.</p>
+
+<hr class="section-divider page-break-before">
+
+<!-- ── Decision Record ──────────────────────────────── -->
+<h2>Decision Record</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Decision</th>
+      <th>Chosen</th>
+      <th>Rejected</th>
+      <th>Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Integration point</td>
+      <td>Pre-call registration only</td>
+      <td>In-call proxy / middleware</td>
+      <td>7.5s VAPI deadline; latency risk unacceptable in live call path</td>
+    </tr>
+    <tr>
+      <td>Context delivery</td>
+      <td>Memory seed (structured facts)</td>
+      <td>Custom prompt string injection</td>
+      <td>Decouples content from prompt structure; survives prompt template changes</td>
+    </tr>
+    <tr>
+      <td>VAPI ownership</td>
+      <td>FOH owns VAPI entirely</td>
+      <td>HF owns VAPI / shared ownership</td>
+      <td>FOH already built around it; clean single-owner model reduces conflict</td>
+    </tr>
+    <tr>
+      <td>Post-call delivery</td>
+      <td>HF webhook push to FOH</td>
+      <td>FOH polls HF</td>
+      <td>Push enables real-time FOH UX updates; polling is acceptable for MVP</td>
+    </tr>
+    <tr>
+      <td>Auth pattern</td>
+      <td>Asymmetric API keys per direction</td>
+      <td>Mutual handshake / OAuth / shared secret</td>
+      <td>Simpler, no shared state, contained blast radius per relationship</td>
+    </tr>
+    <tr>
+      <td>Unknown callers</td>
+      <td>HF serves generic prompt; auto-creates bare record</td>
+      <td>Block call if not pre-registered</td>
+      <td>Graceful degradation; walk-in callers still get a session</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ── Open Questions ───────────────────────────────── -->
+<h2>Open Questions</h2>
+
+<ul class="question-list">
+  <li>
+    <div><strong>Voice recordings.</strong> VAPI posts <code>recordingUrl</code> in the end-of-call report. Does FOH want this URL, or does HF store the audio and own it? This needs a decision before audio analysis work begins — time-limited URLs expire and the audio must be fetched promptly.</div>
+  </li>
+  <li>
+    <div><strong>Unknown callers.</strong> If someone calls without pre-registration, HF serves a generic prompt and auto-creates a bare caller record (phone only, no community, no memory). Does FOH get notified? Should HF push a "new unregistered caller appeared" event so FOH can retrospectively capture them?</div>
+  </li>
+  <li>
+    <div><strong>Community mismatch.</strong> A caller registered in Community A calls after moving to Community B. Who resolves this — FOH (re-registers with new community) or HF (re-enrolls on the fly)? Needs a clear owner to avoid silent mismatches in prompt content.</div>
+  </li>
+  <li>
+    <div><strong>Prompt readiness SLA.</strong> Prompt composition after registration takes ~10–30 seconds (async AI pipeline). How long after registration does FOH guarantee it will wait before initiating a call? FOH should either poll for <code>promptReady: true</code> or respect a minimum delay before allowing a call to start.</div>
+  </li>
+</ul>
+
+<div class="callout">
+  <strong>Next action:</strong> Agree on the <code>POST /api/callers/register</code> contract — field names, community identifier format, context schema, and the <code>promptReady</code> polling mechanism. This is the entire interface between the two teams. Everything else can be built independently once this contract is signed off.
+</div>
+
+<!-- ── Footer ────────────────────────────────────────── -->
+<div class="doc-footer">
+  <span>Human First Foundation — CONFIDENTIAL DRAFT</span>
+  <span>February 2026</span>
+</div>
+
+</body>
+</html>

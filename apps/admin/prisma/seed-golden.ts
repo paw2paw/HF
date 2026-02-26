@@ -1145,7 +1145,12 @@ async function createOnboarding(
       callerId,
       domainId,
       currentPhase: "summary",
-      completedPhases: DEFAULT_FLOW_PHASES.map((p) => p.phase),
+      // Schema expects Array of {phase, completedAt, duration}
+      completedPhases: DEFAULT_FLOW_PHASES.map((p, i) => ({
+        phase: p.phase,
+        completedAt: daysAgo(45 - i * 4).toISOString(),
+        duration: 180 + i * 30, // seconds
+      })),
       isComplete: true,
       wasSkipped: false,
       firstCallId: firstCallId,
@@ -1214,12 +1219,13 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
     "conversationArtifact",
     "callAction",
     "callMessage",
+    // onboardingSession BEFORE call — firstCallId → Call.id has no onDelete (RESTRICT)
+    "onboardingSession",
     "call",
     // Enrollment and cohort join tables
     "callerPlaybook",
     "cohortPlaybook",
     "goal",
-    "onboardingSession",
     // Content tables
     "invite",
     "channelConfig",
@@ -1275,13 +1281,20 @@ async function cleanup(prisma: PrismaClient): Promise<void> {
   // Delete all domains
   await prisma.domain.deleteMany();
 
-  // Delete all institutions
-  await prisma.institution.deleteMany();
-
-  // Delete non-admin users (keep SUPERADMIN accounts from seed-clean)
+  // Delete non-admin users BEFORE institutions — User.institutionId → Institution.id
+  // has no onDelete, so deleting institutions while users reference them would fail.
   await prisma.user.deleteMany({
     where: { role: { not: "SUPERADMIN" } },
   });
+
+  // Clear institutionId on any remaining SUPERADMIN users so institution delete succeeds
+  await prisma.user.updateMany({
+    where: { institutionId: { not: null } },
+    data: { institutionId: null },
+  });
+
+  // Delete all institutions
+  await prisma.institution.deleteMany();
 
   console.log("  🧹 Cleaned all entity data (keeping specs + admin users)\n");
 }

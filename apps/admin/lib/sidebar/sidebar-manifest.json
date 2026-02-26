@@ -6,7 +6,7 @@
     "items": [
       { "id": "institution", "href": "/x/institutions/new", "label": "Institution", "icon": "Rocket", "highlighted": true, "wizard": true, "terminologyLabel": "domain" },
       { "id": "create-course", "href": "/x/courses?action=setup", "label": "Course", "icon": "Rocket", "wizard": true },
-      { "id": "quick-launch", "href": "/x/quick-launch", "label": "Community", "icon": "Rocket", "wizard": true, "terminologyLabel": "cohort" }
+      { "id": "new-community", "href": "/x/communities/new", "label": "Community", "icon": "Rocket", "wizard": true }
     ]
   },
   {
@@ -16,6 +16,7 @@
     "requiredRole": "OPERATOR",
     "items": [
       { "id": "courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "wizard": true, "terminologyLabel": "playbook_plural", "visibleFor": ["OPERATOR", "EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "subjects", "href": "/x/subjects", "label": "Subjects", "icon": "Library", "requiredRole": "OPERATOR" },
       { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck", "requiredRole": "OPERATOR", "advancedOnly": true },
       { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA", "requiredRole": "OPERATOR", "advancedOnly": true },
       { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download", "requiredRole": "OPERATOR", "advancedOnly": true }
@@ -40,7 +41,8 @@
     "title": "Manage",
     "defaultHiddenFor": ["STUDENT", "DEMO", "TESTER"],
     "items": [
-      { "id": "manage-cohorts", "href": "/x/cohorts", "label": "Communities", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms" } } },
+      { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users2", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "manage-cohorts", "href": "/x/cohorts", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms" } } },
       { "id": "manage-callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/students" } } },
       { "id": "manage-jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]

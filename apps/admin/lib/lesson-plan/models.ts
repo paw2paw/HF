@@ -110,7 +110,7 @@ const DIRECT_INSTRUCTION_MODEL: LessonPlanModelDefinition = {
 
 const FIVE_E_MODEL: LessonPlanModelDefinition = {
   id: "5e",
-  label: "5E Inquiry",
+  label: "Discover & Explain (5E)",
   description: "Engage → Explore → Explain → Elaborate → Evaluate. Inquiry-driven, student-centred.",
   suitableFor: "Science, investigation-based learning. Best when learners should discover concepts through exploration.",
   defaults: { maxTpsPerSession: 8, reviewFrequency: 4, assessmentStyle: "light" },
@@ -156,7 +156,7 @@ const FIVE_E_MODEL: LessonPlanModelDefinition = {
 
 const SPIRAL_MODEL: LessonPlanModelDefinition = {
   id: "spiral",
-  label: "Spiral",
+  label: "Revisit & Deepen",
   description: "Multiple passes: preview all topics → deepen subsets → mastery. Revisit concepts with increasing depth.",
   suitableFor: "Broad curricula where topics interconnect. Best when learners need repeated exposure at increasing depth.",
   defaults: { maxTpsPerSession: 8, reviewFrequency: 0, assessmentStyle: "light" },

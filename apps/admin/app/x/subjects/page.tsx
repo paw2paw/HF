@@ -119,6 +119,13 @@ export default function SubjectsPage() {
     });
   }, [subjects, search, selectedTrustLevels, selectedDomain]);
 
+  const subjectSummary = useMemo(() => ({
+    total: subjects.length,
+    active: subjects.filter((s) => s.isActive).length,
+    totalSources: subjects.reduce((sum, s) => sum + (s._count?.sources || 0), 0),
+    totalDomains: subjects.reduce((sum, s) => sum + (s._count?.domains || 0), 0),
+  }), [subjects]);
+
   const selectSubject = (id: string) => {
     router.push(`/x/subjects?id=${id}`, { scroll: false });
   };
@@ -244,13 +251,43 @@ export default function SubjectsPage() {
         </div>
       )}
 
+      {/* Summary Strip */}
+      {!loading && (
+        <div className="hf-summary-strip">
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{subjectSummary.total}</div>
+            <div className="hf-summary-card-label">Total Subjects</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: 'var(--status-success-text)' }}>{subjectSummary.active}</div>
+            <div className="hf-summary-card-label">Active</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{subjectSummary.totalSources}</div>
+            <div className="hf-summary-card-label">Content Sources</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{subjectSummary.totalDomains}</div>
+            <div className="hf-summary-card-label">Domain Links</div>
+          </div>
+        </div>
+      )}
+
       {/* Master-Detail Layout */}
       <div className="hf-flex hf-gap-lg hf-flex-1" style={{ minHeight: 0, overflow: 'hidden', alignItems: 'stretch' }}>
         {/* List Panel */}
         <div className="hf-master-list">
           {loading ? (
-            <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>
-              <div className="hf-spinner" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} style={{ padding: 12, border: '1px solid var(--border-subtle)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-lg" />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div className="hf-skeleton hf-skeleton-badge" />
+                    <div className="hf-skeleton hf-skeleton-badge hf-skeleton-w-sm" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredSubjects.length === 0 ? (
             <div className="hf-empty-compact" style={{ border: '1px solid var(--border-default)', borderRadius: 12 }}>

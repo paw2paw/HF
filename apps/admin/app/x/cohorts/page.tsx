@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useApi } from "@/hooks/useApi";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DomainPill } from "@/src/components/shared/EntityPill";
-import { School, Plus, Users, Phone, Target } from "lucide-react";
+import { School, Plus, Users } from "lucide-react";
 import { useSession } from "next-auth/react";
 import "./cohorts.css";
 
@@ -104,16 +104,33 @@ export default function CohortsPage() {
     );
   });
 
+  // Summary metrics (computed client-side from fetched cohorts)
+  const summary = useMemo(() => {
+    const active = cohorts.filter((c) => c.isActive);
+    const totalMembers = cohorts.reduce((s, c) => s + c._count.members, 0);
+    const fillRates = active.filter((c) => c.maxMembers > 0).map((c) => c._count.members / c.maxMembers);
+    const avgFill = fillRates.length > 0
+      ? Math.round(fillRates.reduce((s, r) => s + r, 0) / fillRates.length * 100)
+      : 0;
+    return { total: cohorts.length, active: active.length, totalMembers, avgFill };
+  }, [cohorts]);
+
+  const STATUS_PILLS = [
+    { value: "active",   label: "Active" },
+    { value: "inactive", label: "Inactive" },
+    { value: "all",      label: "All" },
+  ];
+
   return (
     <div>
       {/* Header */}
-      <div className="ch-header">
+      <div className="co-header">
         <div>
-          <div className="ch-header-left">
-            <School size={22} className="ch-header-icon" />
+          <div className="co-header-left">
+            <School size={22} className="co-header-icon" />
             <h1 className="hf-page-title">Cohorts</h1>
             {cohortsData && (
-              <span className="ch-count-badge">{cohortsData.total}</span>
+              <span className="co-count-badge">{cohortsData.total}</span>
             )}
           </div>
           <p className="hf-page-subtitle hf-text-muted">
@@ -131,158 +148,216 @@ export default function CohortsPage() {
         )}
       </div>
 
+      {/* Summary Strip */}
+      {!loading && cohorts.length > 0 && (
+        <div className="hf-summary-strip hf-mb-md">
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">Total</div>
+            <div className="hf-summary-card-value">{summary.total}</div>
+            <span className="hf-summary-card-sub">{summary.active} active</span>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">Members</div>
+            <div className="hf-summary-card-value">{summary.totalMembers}</div>
+            <span className="hf-summary-card-sub">across all cohorts</span>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">Avg Fill</div>
+            <div className="hf-summary-card-value">{summary.avgFill}%</div>
+            <span className="hf-summary-card-sub">capacity used</span>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">Inactive</div>
+            <div className="hf-summary-card-value">{summary.total - summary.active}</div>
+            <span className="hf-summary-card-sub">cohorts</span>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="ch-filters">
+      <div className="co-filters">
         <input
           type="text"
           placeholder="Search cohorts..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="ch-search-input"
+          className="hf-input"
+          style={{ width: 220, fontSize: 13 }}
         />
-        <FancySelect
-          value={filterDomain}
-          onChange={setFilterDomain}
-          searchable={false}
-          style={{ minWidth: 160 }}
-          options={[
-            { value: "all", label: "All Institutions" },
-            ...domains.map((d) => ({ value: d.id, label: d.name })),
-          ]}
-        />
-        <FancySelect
-          value={filterActive}
-          onChange={setFilterActive}
-          searchable={false}
-          style={{ minWidth: 140 }}
-          options={[
-            { value: "all", label: "All Status" },
-            { value: "active", label: "Active" },
-            { value: "inactive", label: "Inactive" },
-          ]}
-        />
+        {/* Status filter pills */}
+        <div className="hf-flex hf-gap-xs hf-items-center">
+          {STATUS_PILLS.map(({ value, label }) => (
+            <button
+              key={value}
+              className={`hf-filter-pill${filterActive === value ? " hf-filter-pill-active" : ""}`}
+              onClick={() => setFilterActive(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {/* Institution filter */}
+        {domains.length > 0 && (
+          <FancySelect
+            value={filterDomain}
+            onChange={setFilterDomain}
+            searchable={false}
+            style={{ minWidth: 160 }}
+            options={[
+              { value: "all", label: "All Institutions" },
+              ...domains.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+          />
+        )}
       </div>
 
       {/* Delete error */}
       {deleteError && (
-        <div className="hf-banner hf-banner-error hf-flex-between">
+        <div className="hf-banner hf-banner-error hf-flex-between hf-mb-md">
           <span>{deleteError}</span>
           <button
             onClick={() => setDeleteError(null)}
-            className="hf-btn-ghost ch-banner-dismiss"
+            className="hf-btn-ghost"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Error */}
+      {/* API error */}
       {error && (
-        <div className="ch-error">{error}</div>
+        <div className="hf-banner hf-banner-error hf-mb-md">{error}</div>
       )}
 
-      {/* Content */}
+      {/* Loading — skeleton cards */}
       {loading ? (
-        <div className="ch-loading">Loading...</div>
+        <div className="co-grid">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="co-skeleton-card">
+              <div className="hf-flex hf-flex-between hf-items-center">
+                <div className="hf-skeleton hf-skeleton-title hf-skeleton-w-md" />
+                <div className="hf-skeleton hf-skeleton-badge" />
+              </div>
+              <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-lg" />
+              <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-sm" />
+              <div className="co-skeleton-footer">
+                <div className="hf-skeleton hf-skeleton-badge" />
+                <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-md" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="ch-empty">
-          <School size={48} className="ch-empty-icon" />
-          <div className="ch-empty-title">
+        <div className="hf-empty-state">
+          <School size={48} className="hf-icon-placeholder" />
+          <div className="hf-empty-state-title">
             {search || filterDomain !== "all"
               ? "No cohorts match filters"
               : "No cohorts yet"}
           </div>
-          <div className="ch-empty-desc">
+          <div className="hf-empty-state-desc">
             Create a cohort to group pupils under a teacher or tutor
           </div>
         </div>
       ) : (
-        <div className="ch-grid">
-          {filtered.map((cohort) => (
-            <Link
-              key={cohort.id}
-              href={`/x/cohorts/${cohort.id}`}
-              className="ch-card-link"
-            >
-              <div className="ch-card">
-                {/* Card Header */}
-                <div className="ch-card-header">
-                  <div>
-                    <h3 className="ch-card-name">{cohort.name}</h3>
-                    {cohort.description && (
-                      <p className="ch-card-desc">
-                        {cohort.description.length > 80
-                          ? cohort.description.slice(0, 80) + "..."
-                          : cohort.description}
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    className={`ch-status-badge ${cohort.isActive ? "ch-status-active" : "ch-status-inactive"}`}
-                  >
-                    {cohort.isActive ? "Active" : "Inactive"}
-                  </span>
-                </div>
-
-                {/* Stats Row */}
-                <div className="ch-stats">
-                  <div className="ch-stat-item">
-                    <Users size={14} />
-                    <span className="ch-stat-value">
-                      {cohort._count.members}
-                    </span>
-                    <span className="ch-stat-max">
-                      / {cohort.maxMembers}
+        <div className="co-grid">
+          {filtered.map((cohort) => {
+            const fillPct = cohort.maxMembers > 0
+              ? Math.round(cohort._count.members / cohort.maxMembers * 100)
+              : null;
+            return (
+              <Link
+                key={cohort.id}
+                href={`/x/cohorts/${cohort.id}`}
+                className="co-card-link"
+              >
+                <div className="co-card">
+                  {/* Card Header */}
+                  <div className="co-card-header">
+                    <div>
+                      <h3 className="co-card-name">{cohort.name}</h3>
+                      {cohort.description && (
+                        <p className="co-card-desc">
+                          {cohort.description.length > 80
+                            ? cohort.description.slice(0, 80) + "..."
+                            : cohort.description}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`hf-badge ${cohort.isActive ? "hf-badge-success" : "hf-badge-muted"}`}>
+                      {cohort.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
-                </div>
 
-                {/* Footer */}
-                <div className="ch-card-footer">
-                  <DomainPill label={cohort.domain.name} size="compact" />
-                  <span className="ch-owner-label">
-                    Owner: {cohort.owner.name}
-                  </span>
-                </div>
+                  {/* Stats Row */}
+                  <div className="co-stats">
+                    <div className="co-stat-item">
+                      <Users size={14} />
+                      <span className="co-stat-value">{cohort._count.members}</span>
+                      <span className="co-stat-max">/ {cohort.maxMembers}</span>
+                    </div>
+                  </div>
 
-                {/* Delete action */}
-                {isOperator && (
-                  <div
-                    className="ch-delete-area"
-                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                  >
-                    {confirmDeleteId === cohort.id ? (
-                      <div className="ch-delete-confirm">
-                        <span className="ch-delete-warning">
-                          Permanently delete this cohort?
-                        </span>
-                        <button
-                          onClick={() => handleDelete(cohort.id)}
-                          disabled={deleting}
-                          className="hf-btn hf-btn-destructive"
-                        >
-                          {deleting ? "..." : "Yes, delete"}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="hf-btn hf-btn-secondary"
-                        >
-                          Cancel
-                        </button>
+                  {/* Fill rate bar */}
+                  {fillPct !== null && (
+                    <div className="co-fill-bar">
+                      <div className="co-fill-bar-track">
+                        <div
+                          className="co-fill-bar-fill"
+                          style={{ width: `${Math.min(fillPct, 100)}%` }}
+                        />
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmDeleteId(cohort.id)}
-                        className="hf-btn-ghost ch-delete-btn"
-                      >
-                        Delete
-                      </button>
-                    )}
+                      <div className="co-fill-bar-label">{fillPct}% capacity</div>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="co-card-footer">
+                    <DomainPill label={cohort.domain.name} size="compact" />
+                    <span className="co-owner-label">
+                      Owner: {cohort.owner.name}
+                    </span>
                   </div>
-                )}
-              </div>
-            </Link>
-          ))}
+
+                  {/* Delete action */}
+                  {isOperator && (
+                    <div
+                      className="co-delete-area"
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    >
+                      {confirmDeleteId === cohort.id ? (
+                        <div className="co-delete-confirm">
+                          <span className="co-delete-warning">
+                            Permanently delete this cohort?
+                          </span>
+                          <button
+                            onClick={() => handleDelete(cohort.id)}
+                            disabled={deleting}
+                            className="hf-btn hf-btn-destructive"
+                          >
+                            {deleting ? "..." : "Yes, delete"}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="hf-btn hf-btn-secondary"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(cohort.id)}
+                          className="hf-btn-ghost co-delete-btn"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
 
@@ -323,11 +398,9 @@ function CreateCohortModal({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
-  // Search for teacher/tutor owners
-  const {
-    data: ownerResults,
-    loading: searchingOwners,
-  } = useApi<{ callers: { id: string; name: string; role: string }[] }>(
+  const { data: ownerResults, loading: searchingOwners } = useApi<{
+    callers: { id: string; name: string; role: string }[];
+  }>(
     ownerSearch.length >= 2
       ? `/api/callers?role=TEACHER&limit=10&withCounts=false`
       : "",
@@ -345,22 +418,12 @@ function CreateCohortModal({
   );
 
   const handleCreate = async () => {
-    if (!name.trim()) {
-      setError("Name is required");
-      return;
-    }
-    if (!ownerId) {
-      setError("Select a teacher or tutor as owner");
-      return;
-    }
-    if (!domainId) {
-      setError("Select an institution");
-      return;
-    }
+    if (!name.trim()) { setError("Name is required"); return; }
+    if (!ownerId) { setError("Select a teacher or tutor as owner"); return; }
+    if (!domainId) { setError("Select an institution"); return; }
 
     setCreating(true);
     setError("");
-
     try {
       const res = await fetch("/api/cohorts", {
         method: "POST",
@@ -387,40 +450,38 @@ function CreateCohortModal({
 
   return (
     <div
-      className="ch-modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className="hf-modal-overlay"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="ch-modal">
-        <h2 className="ch-modal-title">Create Cohort</h2>
+      <div className="hf-card co-modal">
+        <h2 className="hf-section-title hf-mb-md">Create Cohort</h2>
 
         {error && (
-          <div className="ch-modal-error">{error}</div>
+          <div className="hf-banner hf-banner-error hf-mb-sm">{error}</div>
         )}
 
         {/* Name */}
-        <label className="ch-modal-label">Name</label>
+        <label className="hf-label">Name</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Year 10 Science"
-          className="ch-modal-input"
+          className="hf-input hf-mb-sm"
         />
 
         {/* Description */}
-        <label className="ch-modal-label">Description (optional)</label>
+        <label className="hf-label">Description (optional)</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Brief description..."
           rows={2}
-          className="ch-modal-textarea"
+          className="hf-input hf-mb-sm"
         />
 
         {/* Domain */}
-        <label className="ch-modal-label">Institution</label>
+        <label className="hf-label">Institution</label>
         <FancySelect
           value={domainId}
           onChange={setDomainId}
@@ -430,16 +491,13 @@ function CreateCohortModal({
         />
 
         {/* Owner search */}
-        <label className="ch-modal-label">Owner (Teacher / Tutor)</label>
+        <label className="hf-label">Owner (Teacher / Tutor)</label>
         {ownerId ? (
-          <div className="ch-owner-selected">
-            <span className="ch-owner-name">{ownerName}</span>
+          <div className="co-owner-selected">
+            <span className="co-owner-name">{ownerName}</span>
             <button
-              onClick={() => {
-                setOwnerId("");
-                setOwnerName("");
-              }}
-              className="ch-owner-change"
+              onClick={() => { setOwnerId(""); setOwnerName(""); }}
+              className="co-owner-change"
             >
               Change
             </button>
@@ -451,27 +509,23 @@ function CreateCohortModal({
               value={ownerSearch}
               onChange={(e) => setOwnerSearch(e.target.value)}
               placeholder="Search teachers/tutors by name..."
-              className="ch-modal-input ch-modal-input-tight"
+              className="hf-input hf-mb-xs"
             />
             {ownerSearch.length >= 2 && (
-              <div className="ch-owner-dropdown">
+              <div className="co-owner-dropdown">
                 {searchingOwners ? (
-                  <div className="ch-owner-dropdown-empty">Searching...</div>
+                  <div className="co-owner-dropdown-empty">Searching...</div>
                 ) : ownerResults?.callers.length === 0 ? (
-                  <div className="ch-owner-dropdown-empty">No teachers/tutors found</div>
+                  <div className="co-owner-dropdown-empty">No teachers/tutors found</div>
                 ) : (
                   ownerResults?.callers.map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => {
-                        setOwnerId(c.id);
-                        setOwnerName(c.name);
-                        setOwnerSearch("");
-                      }}
-                      className="ch-owner-option"
+                      onClick={() => { setOwnerId(c.id); setOwnerName(c.name); setOwnerSearch(""); }}
+                      className="co-owner-option"
                     >
                       {c.name}{" "}
-                      <span className="ch-owner-role">({c.role})</span>
+                      <span className="co-owner-role">({c.role})</span>
                     </div>
                   ))
                 )}
@@ -481,14 +535,14 @@ function CreateCohortModal({
         )}
 
         {/* Actions */}
-        <div className="ch-modal-actions">
-          <button onClick={onClose} className="ch-modal-cancel">
+        <div className="hf-flex hf-gap-sm hf-mt-md">
+          <button onClick={onClose} className="hf-btn hf-btn-secondary">
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="ch-modal-submit"
+            className="hf-btn hf-btn-primary"
           >
             {creating ? "Creating..." : "Create Cohort"}
           </button>

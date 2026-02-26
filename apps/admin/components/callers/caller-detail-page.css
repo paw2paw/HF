@@ -316,6 +316,7 @@
 .cdp-active-prompt-chevron {
   font-size: 12px;
 }
+.cdp-active-prompt-chevron--solo { margin-left: auto; }
 
 .cdp-active-prompt-content {
   padding: 0 24px 16px 24px;

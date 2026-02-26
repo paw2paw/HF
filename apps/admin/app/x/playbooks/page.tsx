@@ -210,10 +210,10 @@ export default function PlaybooksPage() {
         setPlaybook(data.playbook);
         fetchPlaybooks(); // Refresh list
       } else {
-        alert(data.error);
+        setDetailError(data.error);
       }
     } catch (e: any) {
-      alert(e.message);
+      setDetailError(e.message);
     } finally {
       setPublishing(false);
     }
@@ -234,10 +234,10 @@ export default function PlaybooksPage() {
         setPlaybook({ ...playbook, status: "ARCHIVED" });
         fetchPlaybooks();
       } else {
-        alert(data.error);
+        setDetailError(data.error);
       }
     } catch (e: any) {
-      alert(e.message);
+      setDetailError(e.message);
     } finally {
       setArchiving(false);
     }
@@ -257,10 +257,10 @@ export default function PlaybooksPage() {
         setPlaybook({ ...playbook, status: "DRAFT" });
         fetchPlaybooks();
       } else {
-        alert(data.error);
+        setDetailError(data.error);
       }
     } catch (e: any) {
-      alert(e.message);
+      setDetailError(e.message);
     } finally {
       setArchiving(false);
     }
@@ -282,10 +282,10 @@ export default function PlaybooksPage() {
           setPlaybook({ ...playbook, status: "ARCHIVED" });
         }
       } else {
-        alert(data.error);
+        setError(data.error);
       }
     } catch (e: any) {
-      alert(e.message);
+      setError(e.message);
     } finally {
       setArchivingList((prev) => {
         const next = new Set(prev);
@@ -311,10 +311,10 @@ export default function PlaybooksPage() {
           setPlaybook({ ...playbook, status: "DRAFT" });
         }
       } else {
-        alert(data.error);
+        setError(data.error);
       }
     } catch (e: any) {
-      alert(e.message);
+      setError(e.message);
     } finally {
       setArchivingList((prev) => {
         const next = new Set(prev);
@@ -335,10 +335,10 @@ export default function PlaybooksPage() {
         router.push("/x/playbooks", { scroll: false });
         fetchPlaybooks();
       } else {
-        alert(data.error);
+        setDetailError(data.error);
       }
     } catch (e: any) {
-      alert(e.message);
+      setDetailError(e.message);
     } finally {
       setDeleting(false);
     }
@@ -368,6 +368,14 @@ export default function PlaybooksPage() {
     if (selectedDomain && selectedDomain !== pb.domain.id) return false;
     return true;
   });
+
+  // Summary metrics (computed client-side from fetched playbooks)
+  const playbookSummary = {
+    total: playbooks.length,
+    published: playbooks.filter((p) => p.status === "PUBLISHED").length,
+    draft: playbooks.filter((p) => p.status === "DRAFT").length,
+    archived: playbooks.filter((p) => p.status === "ARCHIVED").length,
+  };
 
   // Group by domain
   const groupedByDomain = filteredPlaybooks.reduce(
@@ -533,8 +541,30 @@ export default function PlaybooksPage() {
       </div>
 
       {error && (
-        <div className="pb-error-banner">
+        <div className="hf-banner hf-banner-error" style={{ marginBottom: 16 }}>
           {error}
+        </div>
+      )}
+
+      {/* Summary Strip */}
+      {!loading && (
+        <div className="hf-summary-strip">
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{playbookSummary.total}</div>
+            <div className="hf-summary-card-label">Total {plural("playbook")}</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: "var(--status-success-text)" }}>{playbookSummary.published}</div>
+            <div className="hf-summary-card-label">Published</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: "var(--status-warning-text)" }}>{playbookSummary.draft}</div>
+            <div className="hf-summary-card-label">Draft</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: "var(--text-muted)" }}>{playbookSummary.archived}</div>
+            <div className="hf-summary-card-label">Archived</div>
+          </div>
         </div>
       )}
 
@@ -543,7 +573,18 @@ export default function PlaybooksPage() {
         {/* List Panel */}
         <div className="pb-list-panel">
           {loading ? (
-            <div className="pb-list-loading">Loading...</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="pb-card" style={{ pointerEvents: "none" }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <div className="hf-skeleton hf-skeleton-badge" />
+                    <div className="hf-skeleton hf-skeleton-badge hf-skeleton-w-sm" />
+                  </div>
+                  <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-lg" style={{ marginBottom: 4 }} />
+                  <div className="hf-skeleton hf-skeleton-text-sm hf-skeleton-w-sm" />
+                </div>
+              ))}
+            </div>
           ) : filteredPlaybooks.length === 0 ? (
             <div className="pb-list-empty">
               <div className="pb-list-empty-icon">{"\u{1F4DA}"}</div>
@@ -945,17 +986,11 @@ export default function PlaybooksPage() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div
-          className="pb-modal-backdrop"
-          onClick={() => setShowCreate(false)}
-        >
-          <div
-            className="pb-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="pb-modal-title">New {terms.playbook}</h2>
+        <div className="hf-modal-overlay" onClick={() => setShowCreate(false)}>
+          <div className="hf-card pb-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="hf-section-title" style={{ marginBottom: 16 }}>New {terms.playbook}</h2>
             <div className="pb-modal-field">
-              <label className="pb-modal-label">Institution</label>
+              <label className="hf-label">Institution</label>
               <FancySelect
                 value={newPlaybook.domainId}
                 onChange={(v) => setNewPlaybook({ ...newPlaybook, domainId: v })}
@@ -964,25 +999,22 @@ export default function PlaybooksPage() {
               />
             </div>
             <div className="pb-modal-field">
-              <label className="pb-modal-label">Name</label>
+              <label className="hf-label">Name</label>
               <input
                 type="text"
                 value={newPlaybook.name}
                 onChange={(e) => setNewPlaybook({ ...newPlaybook, name: e.target.value })}
-                className="pb-modal-input"
+                className="hf-input"
               />
             </div>
             <div className="pb-modal-footer">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="pb-modal-cancel"
-              >
+              <button onClick={() => setShowCreate(false)} className="hf-btn hf-btn-secondary">
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={creating || !newPlaybook.name || !newPlaybook.domainId}
-                className="pb-modal-submit"
+                className="hf-btn hf-btn-primary"
               >
                 {creating ? "Creating..." : "Create"}
               </button>

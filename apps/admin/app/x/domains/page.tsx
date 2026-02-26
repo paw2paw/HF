@@ -28,6 +28,7 @@ import { PromptPreviewModal } from "./components/PromptPreviewModal";
 import { SectorBadge } from "./components/SectorBadge";
 import { TypePicker } from "@/components/shared/TypePicker";
 import { OnboardingTabContent } from "./components/OnboardingTab";
+import "./domains.css";
 
 export default function DomainsPage() {
   const router = useRouter();
@@ -362,11 +363,19 @@ export default function DomainsPage() {
     ) : null
   );
 
+  // Summary metrics (computed client-side from already-fetched list)
+  const domainSummary = {
+    total: domains.length,
+    active: domains.filter((d) => d.isActive).length,
+    totalLearners: domains.reduce((s, d) => s + (d.callerCount || 0), 0),
+    withPublished: domains.filter((d) => d.publishedPlaybook).length,
+  };
+
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="dom-page">
       <AdvancedBanner />
       {/* Header */}
-      <div className="hf-card-compact hf-mb-md" style={{ borderRadius: 8, position: "relative", zIndex: 2 }}>
+      <div className="hf-card-compact hf-mb-md dom-header">
         <div className="hf-flex hf-flex-between" style={{ marginBottom: 10 }}>
           <h1 className="hf-section-title">{plural("domain")}</h1>
           <div className="hf-flex hf-gap-md hf-items-center">
@@ -410,8 +419,7 @@ export default function DomainsPage() {
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="hf-input"
-            style={{ padding: "6px 10px", borderRadius: 6, width: 160, fontSize: 12, borderColor: "var(--border-strong)" }}
+            className="hf-input dom-search-input"
           />
 
           <div className="hf-divider-v" />
@@ -432,12 +440,7 @@ export default function DomainsPage() {
               <button
                 onClick={() => setShowInactive(!showInactive)}
                 title={showInactive ? "Hide inactive institutions" : "Show inactive institutions"}
-                className="hf-filter-pill"
-                style={showInactive ? {
-                  border: "1px solid color-mix(in srgb, var(--status-warning-text) 25%, transparent)",
-                  background: "var(--status-warning-bg)",
-                  color: "var(--status-warning-text)",
-                } : undefined}
+                className={`hf-filter-pill${showInactive ? " dom-pill-warning" : ""}`}
               >
                 {showInactive ? "Showing Inactive" : "Show Inactive"}
               </button>
@@ -462,21 +465,61 @@ export default function DomainsPage() {
       </div>
 
       {error && (
-        <div className="hf-banner hf-banner-error hf-mb-lg" style={{ borderRadius: 8 }}>
+        <div className="hf-banner hf-banner-error hf-mb-lg">
           {error}
         </div>
       )}
 
+      {/* Summary Strip */}
+      {!loading && domains.length > 0 && (
+        <div className="hf-summary-strip hf-mb-md">
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">Institutions</div>
+            <div className="hf-summary-card-value">{domainSummary.total}</div>
+            <span className="hf-summary-card-sub">{domainSummary.active} active</span>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">{plural("caller")}</div>
+            <div className="hf-summary-card-value">{domainSummary.totalLearners}</div>
+            <span className="hf-summary-card-sub">across all</span>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">{plural("playbook")}</div>
+            <div className="hf-summary-card-value">{domains.reduce((s, d) => s + (d.playbookCount || 0), 0)}</div>
+            <span className="hf-summary-card-sub">total courses</span>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-label">Published</div>
+            <div className="hf-summary-card-value">{domainSummary.withPublished}</div>
+            <span className="hf-summary-card-sub">with live course</span>
+          </div>
+        </div>
+      )}
+
       {/* Master-Detail Layout */}
-      <div className="hf-flex hf-gap-lg hf-flex-1" style={{ minHeight: 0, overflow: "hidden", alignItems: "stretch" }}>
+      <div className="hf-flex hf-gap-lg hf-flex-1 dom-layout">
         {/* List Panel */}
         <div className="hf-master-list">
           {loading ? (
-            <div className="hf-text-center hf-text-muted" style={{ padding: 40 }}>Loading...</div>
+            <div className="hf-flex-col hf-gap-sm">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="dom-skeleton-row">
+                  <div className="hf-flex hf-gap-sm hf-items-center">
+                    <div className="hf-skeleton hf-skeleton-title hf-skeleton-w-md" />
+                    <div className="hf-skeleton hf-skeleton-badge" />
+                  </div>
+                  <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-lg" />
+                  <div className="dom-skeleton-meta">
+                    <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-sm" />
+                    <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-sm" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filteredAndSortedDomains.length === 0 ? (
-            <div className="hf-empty-compact" style={{ border: "1px solid var(--border-default)", borderRadius: 12 }}>
-              <div style={{ fontSize: 48 }} className="hf-mb-md">🌐</div>
-              <div className="hf-heading-lg hf-text-secondary">
+            <div className="hf-empty-compact">
+              <div className="hf-mb-md hf-text-center" style={{ fontSize: 40 }}>🌐</div>
+              <div className="hf-heading-lg hf-text-secondary hf-text-center">
                 {search || selectedStatuses.size > 0 ? `No ${plural("domain").toLowerCase()} match filters` : `No ${plural("domain").toLowerCase()} yet`}
               </div>
             </div>

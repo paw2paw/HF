@@ -190,6 +190,13 @@ export default function CoursesPage() {
     return groups;
   }, [filteredCourses, groupBy]);
 
+  const courseSummary = useMemo(() => ({
+    total: courses.length,
+    published: courses.filter((c) => c.status === 'published' || c.status === 'PUBLISHED').length,
+    draft: courses.filter((c) => c.status === 'draft' || c.status === 'DRAFT').length,
+    totalStudents: courses.reduce((s, c) => s + (c.studentCount || 0), 0),
+  }), [courses]);
+
   const toggleStatus = (status: string) => {
     setSelectedStatuses((prev) => {
       const next = new Set(prev);
@@ -452,10 +459,45 @@ export default function CoursesPage() {
         </div>
       )}
 
+      {/* Summary Strip */}
+      {!loading && (
+        <div className="hf-summary-strip">
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{courseSummary.total}</div>
+            <div className="hf-summary-card-label">Total Courses</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: 'var(--status-success-text)' }}>{courseSummary.published}</div>
+            <div className="hf-summary-card-label">Published</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value" style={{ color: 'var(--status-warning-text)' }}>{courseSummary.draft}</div>
+            <div className="hf-summary-card-label">Draft</div>
+          </div>
+          <div className="hf-summary-card">
+            <div className="hf-summary-card-value">{courseSummary.totalStudents}</div>
+            <div className="hf-summary-card-label">Students</div>
+          </div>
+        </div>
+      )}
+
       {/* Course Cards Grid */}
       {loading ? (
-        <div className="hf-empty-compact">
-          <div className="hf-spinner" />
+        <div className="hf-card-grid-lg">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="hf-card-compact" style={{ pointerEvents: 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div className="hf-skeleton hf-skeleton-text hf-skeleton-w-lg" />
+                <div className="hf-skeleton hf-skeleton-badge" />
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <div className="hf-skeleton hf-skeleton-badge hf-skeleton-w-md" />
+                <div className="hf-skeleton hf-skeleton-badge hf-skeleton-w-sm" />
+              </div>
+              <div className="hf-skeleton hf-skeleton-text-sm hf-skeleton-w-full" style={{ marginBottom: 4 }} />
+              <div className="hf-skeleton hf-skeleton-text-sm hf-skeleton-w-md" />
+            </div>
+          ))}
         </div>
       ) : filteredCourses.length === 0 ? (
         <div className="hf-empty-compact">

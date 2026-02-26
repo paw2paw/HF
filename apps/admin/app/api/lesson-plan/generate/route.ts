@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { generateLessonPlan, type LessonPlan, type LessonSession } from "@/lib/content-trust/lesson-planner";
+import { getLessonPlanModel } from "@/lib/lesson-plan/models";
 
 /**
  * @api POST /api/lesson-plan/generate
@@ -12,7 +13,7 @@ import { generateLessonPlan, type LessonPlan, type LessonSession } from "@/lib/c
  * @description Generate a multi-subject lesson plan using the content trust lesson planner.
  *   Resolves sourceIds from subjects, generates per-source plans in parallel,
  *   then merges sessions sequentially with assessment + review at the end.
- * @body { subjectIds: string[], sessionLength?: number }
+ * @body { subjectIds: string[], sessionLength?: number, lessonPlanModel?: string }
  * @response 200 { ok, plan: LessonPlan }
  * @response 400 { ok: false, error: "..." }
  */
@@ -22,7 +23,8 @@ export async function POST(req: NextRequest) {
     if (isAuthError(authResult)) return authResult.error;
 
     const body = await req.json();
-    const { subjectIds, sessionLength = 30 } = body;
+    const { subjectIds, sessionLength = 30, lessonPlanModel } = body;
+    const modelConfig = getLessonPlanModel(lessonPlanModel);
 
     if (!Array.isArray(subjectIds) || subjectIds.length === 0) {
       return NextResponse.json(
@@ -52,13 +54,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Apply model's cognitive load cap: maxTpsPerSession × ~3min/TP, capped at sessionLength
+    const maxTpsPerSession = modelConfig.defaults.maxTpsPerSession ?? 10;
+    const effectiveSessionLength = Math.min(sessionLength, maxTpsPerSession * 3);
+
     // Generate per-source plans in parallel — catch per-source so partial results merge
     const warnings: string[] = [];
     const perSourcePlans = await Promise.all(
       sourceIds.map(async (sourceId) => {
         try {
           return await generateLessonPlan(sourceId, {
-            sessionLength,
+            sessionLength: effectiveSessionLength,
             includeAssessment: false,
             includeReview: false,
           });
@@ -119,7 +125,7 @@ export async function POST(req: NextRequest) {
         assertionIds: [],
         questionIds: allQuestionIds,
         vocabularyIds: [],
-        estimatedMinutes: Math.min(sessionLength, allQuestionIds.length * 3),
+        estimatedMinutes: Math.min(effectiveSessionLength, allQuestionIds.length * 3),
         sessionType: "assess",
       });
       sessionNumber++;
@@ -136,7 +142,7 @@ export async function POST(req: NextRequest) {
         assertionIds: allAssertionIds.slice(0, 50), // cap to avoid huge payloads
         questionIds: [],
         vocabularyIds: allVocabIds,
-        estimatedMinutes: sessionLength,
+        estimatedMinutes: effectiveSessionLength,
         sessionType: "review",
       });
     }
@@ -152,7 +158,7 @@ export async function POST(req: NextRequest) {
 
     const plan: LessonPlan = {
       totalSessions: allSessions.length,
-      estimatedMinutesPerSession: sessionLength,
+      estimatedMinutesPerSession: effectiveSessionLength,
       sessions: allSessions,
       prerequisites,
       generatedAt: new Date().toISOString(),

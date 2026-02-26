@@ -53,7 +53,6 @@ import { WizardSummary } from "@/components/shared/WizardSummary";
 import { useWizardError } from "@/hooks/useWizardError";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { TeachPlanStep } from "@/components/wizards/TeachPlanStep";
-import { LessonPlanModelPicker } from "@/components/shared/LessonPlanModelPicker";
 import type { LessonPlanModel } from "@/lib/lesson-plan/types";
 import { CreateInstitutionModal } from "./CreateInstitutionModal";
 import { archetypeToTeachingStyle } from "@/lib/institution-types/sector-config";
@@ -308,7 +307,7 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [flowPhases, setFlowPhases] = useState<FlowPhase[]>([]);
   const [expandedPhase, setExpandedPhase] = useState<number | null>(null);
 
-  // Lesson plan model (Teach flow only — captured early at step 1)
+  // Lesson plan model (Teach flow only — captured at TeachPlanStep, step 3)
   const [lessonPlanModel, setLessonPlanModel] = useState<LessonPlanModel>("direct_instruction");
 
   // Agent tuning (Boston Matrix + behavior pills)
@@ -1811,23 +1810,6 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
                   label="Advanced: Fine-tune behavior"
                 />
               </div>
-            </div>
-          )}
-
-          {/* Teaching model — Teach flow only, captured early so TeachPlanStep has it */}
-          {isTeachFlow && (
-            <div style={{ marginTop: 20 }}>
-              <div className="dtw-section-label">Lesson Plan Model</div>
-              <div className="dtw-tuning-hint">
-                How should sessions be sequenced across the course?
-              </div>
-              <LessonPlanModelPicker
-                value={lessonPlanModel}
-                onChange={(m) => {
-                  setLessonPlanModel(m);
-                  setData("lessonPlanModel", m);
-                }}
-              />
             </div>
           )}
 
