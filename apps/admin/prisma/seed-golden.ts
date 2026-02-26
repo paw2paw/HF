@@ -387,9 +387,6 @@ const TRANSCRIPTS: Record<string, string[]> = {
 // ENRICHMENT DATA TEMPLATES
 // ══════════════════════════════════════════════════════════
 
-/** Parameter IDs for CallScores — cycle through per call */
-const SCORE_PARAMS = ["B5-O", "B5-C", "B5-E", "B5-A", "B5-N", "VARK-VISUAL", "VARK-AUDITORY", "VARK-READWRITE", "VARK-KINESTHETIC"];
-
 /** Memory templates per institution type */
 const MEMORY_TEMPLATES: Record<string, Array<{ category: "FACT" | "PREFERENCE" | "TOPIC" | "CONTEXT"; key: string; valueFn: (name: string) => string }>> = {
   school: [
@@ -888,6 +885,16 @@ async function enrichLearners(
     onboarding: 0,
   };
 
+  // Look up real parameter IDs from the DB (FK-safe)
+  const allParams = await prisma.parameter.findMany({
+    select: { parameterId: true },
+    take: 20,
+  });
+  const paramIds = allParams.map((p) => p.parameterId);
+  if (paramIds.length === 0) {
+    console.log("    ⚠ No parameters found — skipping scores/targets enrichment");
+  }
+
   for (let i = 0; i < learners.length; i++) {
     const learner = learners[i];
 
@@ -903,8 +910,10 @@ async function enrichLearners(
     const callIds = await createCalls(prisma, learner, i);
     stats.calls += callIds.length;
 
-    const scoreCount = await createScores(prisma, learner.id, callIds, i);
-    stats.scores += scoreCount;
+    if (paramIds.length > 0) {
+      const scoreCount = await createScores(prisma, learner.id, callIds, i, paramIds);
+      stats.scores += scoreCount;
+    }
 
     const memCount = await createMemories(prisma, learner);
     stats.memories += memCount;
@@ -915,8 +924,10 @@ async function enrichLearners(
     await createOnboarding(prisma, learner.id, learner.domainId, callIds[0]);
     stats.onboarding++;
 
-    const targetCount = await createTargets(prisma, learner.id, i);
-    stats.targets += targetCount;
+    if (paramIds.length > 0) {
+      const targetCount = await createTargets(prisma, learner.id, i, paramIds);
+      stats.targets += targetCount;
+    }
   }
 
   console.log(`    Enriched ${stats.activeLearners} active learners`);
@@ -962,29 +973,42 @@ async function createScores(
   prisma: PrismaClient,
   callerId: string,
   callIds: string[],
-  seed: number
+  seed: number,
+  paramIds: string[]
 ): Promise<number> {
   let count = 0;
 
   for (let c = 0; c < callIds.length; c++) {
-    const paramsPerCall = 2 + (c % 2); // 2-3 params per call
+    const paramsPerCall = Math.min(2 + (c % 2), paramIds.length); // 2-3 params per call
+    const usedParams = new Set<string>();
+
     for (let p = 0; p < paramsPerCall; p++) {
-      const paramIdx = (c * 3 + p + seed) % SCORE_PARAMS.length;
+      const paramIdx = (c * 3 + p + seed) % paramIds.length;
+      const parameterId = paramIds[paramIdx];
+
+      // Skip if already used for this call (unique constraint on callId+parameterId)
+      if (usedParams.has(parameterId)) continue;
+      usedParams.add(parameterId);
+
       const score = 0.35 + seededFloat(seed + c * 100 + p) * 0.55; // 0.35–0.90
 
-      await prisma.callScore.create({
-        data: {
-          callId: callIds[c],
-          callerId,
-          parameterId: SCORE_PARAMS[paramIdx],
-          score,
-          confidence: 0.6 + seededFloat(seed + c + p * 7) * 0.3, // 0.6–0.9
-          evidence: [`Observed in session ${c + 1}`],
-          reasoning: "Assessed from conversational indicators",
-          scoredBy: "golden-seed",
-        },
-      });
-      count++;
+      try {
+        await prisma.callScore.create({
+          data: {
+            callId: callIds[c],
+            callerId,
+            parameterId,
+            score,
+            confidence: 0.6 + seededFloat(seed + c + p * 7) * 0.3, // 0.6–0.9
+            evidence: [`Observed in session ${c + 1}`],
+            reasoning: "Assessed from conversational indicators",
+            scoredBy: "golden-seed",
+          },
+        });
+        count++;
+      } catch {
+        // Skip on unique constraint violation
+      }
     }
   }
 
@@ -1136,24 +1160,33 @@ async function createOnboarding(
 async function createTargets(
   prisma: PrismaClient,
   callerId: string,
-  seed: number
+  seed: number,
+  paramIds: string[]
 ): Promise<number> {
-  const targetParams = ["B5-O", "B5-E", "VARK-VISUAL"]; // 3 targets per learner
+  // Pick up to 3 real parameter IDs for this caller's targets
+  const targetCount = Math.min(3, paramIds.length);
   let count = 0;
 
-  for (const paramId of targetParams) {
-    await prisma.callerTarget.create({
-      data: {
-        callerId,
-        parameterId: paramId,
-        targetValue: 0.6 + seededFloat(seed * 43 + count) * 0.25, // 0.60–0.85
-        callsUsed: 2 + (seed % 3),
-        confidence: 0.5 + seededFloat(seed * 47 + count) * 0.4, // 0.50–0.90
-        decayHalfLife: 7.0,
-        lastUpdatedAt: daysAgo(5),
-      },
-    });
-    count++;
+  for (let t = 0; t < targetCount; t++) {
+    const paramIdx = (seed * 7 + t * 13) % paramIds.length;
+    const parameterId = paramIds[paramIdx];
+
+    try {
+      await prisma.callerTarget.create({
+        data: {
+          callerId,
+          parameterId,
+          targetValue: 0.6 + seededFloat(seed * 43 + t) * 0.25, // 0.60–0.85
+          callsUsed: 2 + (seed % 3),
+          confidence: 0.5 + seededFloat(seed * 47 + t) * 0.4, // 0.50–0.90
+          decayHalfLife: 7.0,
+          lastUpdatedAt: daysAgo(5),
+        },
+      });
+      count++;
+    } catch {
+      // Skip on unique constraint violation
+    }
   }
 
   return count;

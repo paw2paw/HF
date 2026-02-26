@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
           data: {
             name: authResult.session.user?.name || "Operator",
             email: authResult.session.user?.email || undefined,
-            role: "ADMIN",
+            role: "TEACHER",
             userId,
             domainId: domain.id,
           },

@@ -6017,6 +6017,19 @@ Update classroom settings (name, description, isActive). Requires educator owner
 
 ---
 
+### `GET` /api/educator/classrooms/[id]/differentiation
+
+Enriched per-student differentiation data for a classroom: mastery
+
+**Auth**: Bearer token · **Scope**: `educator:read`
+
+**Response** `200`
+```json
+{ ok: true, classroom: {...}, students: DiffStudent[] }
+```
+
+---
+
 ### `POST` /api/educator/classrooms/[id]/invite
 
 Send email invites to students for this classroom. Creates TESTER-role invites with LEARNER caller role and 30-day expiry. Deduplicates against existing pending invites.
@@ -12296,8 +12309,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 349 |
-| Files with annotations | 348 |
+| Route files found | 350 |
+| Files with annotations | 349 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

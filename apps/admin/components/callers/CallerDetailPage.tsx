@@ -663,7 +663,7 @@ export default function CallerDetailPage() {
                 +{composedPrompts.length - 1} previous prompt{composedPrompts.length > 2 ? 's' : ''}
               </span>
             )}
-            <span className="cdp-active-prompt-chevron" style={{ marginLeft: composedPrompts.length === 1 ? "auto" : 0 }}>
+            <span className={`cdp-active-prompt-chevron${composedPrompts.length === 1 ? " cdp-active-prompt-chevron--solo" : ""}`}>
               {activePromptExpanded ? "▼" : "▶"}
             </span>
           </button>
@@ -912,7 +912,7 @@ export default function CallerDetailPage() {
       )}
 
       {simChatMounted && (
-        <div style={{ display: activeSection === "ai-call" ? undefined : "none" }}>
+        <div className={activeSection === "ai-call" ? undefined : "hf-hidden"}>
           <SimChat
             key={callSession}
             callerId={callerId}

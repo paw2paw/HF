@@ -474,32 +474,30 @@ export default function CoursesPage() {
             </button>
           )}
         </div>
-      ) : (
-        {groupedCourses ? (
-          /* Group-by department view */
-          <div className="hf-flex hf-flex-col hf-gap-lg">
-            {groupedCourses.map((group) => (
-              <div key={group.label}>
-                <div className="hf-flex hf-items-center hf-gap-sm hf-mb-sm">
-                  <h2 className="hf-section-title hf-mb-0">{group.label}</h2>
-                  <span className="hf-badge hf-badge-neutral">{group.courses.length}</span>
-                </div>
-                <div className="hf-card-grid-lg">
-                  {group.courses.map((course) => (
-                    <CourseCard key={course.id} course={course} plural={plural} />
-                  ))}
-                </div>
+      ) : groupedCourses ? (
+        /* Group-by department view */
+        <div className="hf-flex hf-flex-col hf-gap-lg">
+          {groupedCourses.map((group) => (
+            <div key={group.label}>
+              <div className="hf-flex hf-items-center hf-gap-sm hf-mb-sm">
+                <h2 className="hf-section-title hf-mb-0">{group.label}</h2>
+                <span className="hf-badge hf-badge-neutral">{group.courses.length}</span>
               </div>
-            ))}
-          </div>
-        ) : (
-          /* Flat view */
-          <div className="hf-card-grid-lg">
-            {filteredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} plural={plural} />
-            ))}
-          </div>
-        )}
+              <div className="hf-card-grid-lg">
+                {group.courses.map((course) => (
+                  <CourseCard key={course.id} course={course} plural={plural} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Flat view */
+        <div className="hf-card-grid-lg">
+          {filteredCourses.map((course) => (
+            <CourseCard key={course.id} course={course} plural={plural} />
+          ))}
+        </div>
       )}
     </div>
   );

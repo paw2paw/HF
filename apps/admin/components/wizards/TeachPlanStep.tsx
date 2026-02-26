@@ -312,6 +312,7 @@ export function TeachPlanStep({
             durationMins,
             emphasis,
             assessments,
+            lessonPlanModel,
           },
         }),
       });
@@ -323,7 +324,7 @@ export function TeachPlanStep({
       setError(err instanceof Error ? err.message : "Generation failed");
       setPhase("intents");
     }
-  }, [taskId, phase, domainId, sessionCount, durationMins, emphasis, assessments, subjectIds, saveIntents, setData]);
+  }, [taskId, phase, domainId, sessionCount, durationMins, emphasis, assessments, lessonPlanModel, subjectIds, saveIntents, setData]);
 
   const handleAccept = useCallback(() => {
     saveIntents();
