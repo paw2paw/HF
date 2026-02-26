@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.6.103",
+  "version": "0.6.104",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -85,6 +85,8 @@
     "nodemailer": "^7.0.13",
     "openai": "^6.16.0",
     "pdf-parse": "^1.1.4",
+    "pdfjs-dist": "^5.4.624",
+    "pngjs": "^7.0.0",
     "prisma": "^6.19.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -100,6 +102,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/glob": "^8.1.0",
     "@types/node": "^20",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.182.0",

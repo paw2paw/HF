@@ -574,3 +574,430 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* =============================================================
+   Snapshot Strip — horizontal snapshot list
+   ============================================================= */
+
+.dm-snapshot-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.dm-snapshot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: all 0.15s;
+}
+
+.dm-snapshot-chip:hover {
+  border-color: var(--button-primary-bg);
+}
+
+.dm-snapshot-chip-name {
+  font-weight: 600;
+}
+
+.dm-snapshot-chip-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dm-snapshot-chip-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+
+.dm-snapshot-chip-btn:hover {
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+.dm-snapshot-chip-btn-restore {
+  color: var(--button-primary-bg);
+}
+
+.dm-snapshot-chip-btn-restore:hover {
+  background: color-mix(in srgb, var(--button-primary-bg) 10%, transparent);
+  color: var(--button-primary-bg);
+}
+
+.dm-snapshot-chip-btn-delete:hover {
+  color: var(--status-error-text);
+  background: color-mix(in srgb, var(--status-error-text) 10%, transparent);
+}
+
+.dm-snapshot-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Snapshot New Form (inline) ── */
+
+.dm-snapshot-new-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dm-snapshot-new-input {
+  padding: 5px 10px;
+  font-size: 13px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  width: 180px;
+}
+
+.dm-snapshot-new-input:focus {
+  outline: none;
+  border-color: var(--button-primary-bg);
+}
+
+/* =============================================================
+   Entity Datagrid — interactive table
+   ============================================================= */
+
+.dm-grid-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.dm-grid-filters {
+  display: flex;
+  gap: 4px;
+}
+
+.dm-grid-filter-chip {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dm-grid-filter-chip:hover {
+  border-color: var(--button-primary-bg);
+  color: var(--text-primary);
+}
+
+.dm-grid-filter-chip-active {
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  color: white;
+}
+
+.dm-grid-search {
+  padding: 5px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  width: 200px;
+}
+
+.dm-grid-search:focus {
+  outline: none;
+  border-color: var(--button-primary-bg);
+}
+
+/* ── Table ── */
+
+.dm-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dm-grid-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-default);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.dm-grid-table th:hover {
+  color: var(--text-primary);
+}
+
+.dm-grid-table th.dm-grid-th-checkbox {
+  width: 32px;
+  cursor: default;
+}
+
+.dm-grid-table th.dm-grid-th-count {
+  text-align: right;
+}
+
+.dm-grid-table th.dm-grid-th-actions {
+  width: 60px;
+  text-align: right;
+  cursor: default;
+}
+
+.dm-grid-sort-arrow {
+  font-size: 10px;
+  margin-left: 2px;
+  opacity: 0.5;
+}
+
+.dm-grid-sort-arrow-active {
+  opacity: 1;
+}
+
+/* ── Rows ── */
+
+.dm-grid-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+
+.dm-grid-row:hover {
+  background: color-mix(in srgb, var(--button-primary-bg) 4%, transparent);
+}
+
+.dm-grid-row td {
+  padding: 5px 10px;
+  vertical-align: middle;
+}
+
+.dm-grid-row-config {
+  opacity: 0.6;
+}
+
+.dm-grid-row-config:hover {
+  opacity: 0.8;
+}
+
+.dm-grid-row-separator td {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* ── Checkbox ── */
+
+.dm-grid-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--button-primary-bg);
+}
+
+.dm-grid-checkbox:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+/* ── Entity name ── */
+
+.dm-grid-entity-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dm-grid-entity-child {
+  padding-left: 20px;
+}
+
+.dm-grid-auto-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+/* ── Badges ── */
+
+.dm-grid-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.dm-grid-badge-runtime {
+  background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
+  color: var(--status-error-text);
+}
+
+.dm-grid-badge-config {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.dm-grid-badge-skip {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+}
+
+/* ── Layer pill ── */
+
+.dm-grid-layer {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: monospace;
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Count ── */
+
+.dm-grid-count {
+  text-align: right;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dm-grid-count-zero {
+  color: var(--text-muted);
+}
+
+/* ── Actions ── */
+
+.dm-grid-view-link {
+  font-size: 11px;
+  color: var(--button-primary-bg);
+  text-decoration: none;
+  font-weight: 600;
+  text-align: right;
+  display: block;
+}
+
+.dm-grid-view-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Bulk Toolbar ── */
+
+.dm-grid-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: color-mix(in srgb, var(--status-error-text) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-error-text) 20%, transparent);
+  border-radius: 8px;
+}
+
+.dm-grid-toolbar-info {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dm-grid-toolbar-count {
+  font-weight: 700;
+  color: var(--status-error-text);
+}
+
+/* ── Footer ── */
+
+.dm-grid-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 2px solid var(--border-default);
+  margin-top: 4px;
+}
+
+.dm-grid-footer-runtime {
+  font-weight: 600;
+}
+
+.dm-grid-footer-config {
+  font-weight: 500;
+}
+
+/* ── Quick Reset Input ── */
+
+.dm-reset-confirm-input {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  border: 2px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  letter-spacing: 2px;
+}
+
+.dm-reset-confirm-input:focus {
+  outline: none;
+  border-color: var(--status-error-text);
+}
+
+/* ── Snapshot section toggle ── */
+
+.dm-snapshot-section-toggle {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* ── Responsive: datagrid ── */
+
+@media (max-width: 768px) {
+  .dm-grid-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dm-grid-search {
+    width: 100%;
+  }
+}

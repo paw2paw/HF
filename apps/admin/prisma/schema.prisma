@@ -3498,9 +3498,13 @@ model ContentAssertion {
   // Vector embedding for semantic search (pgvector)
   embedding Unsupported("vector(1536)")?
 
-  // Linked questions and vocabulary
+  // Figure references (e.g., ["Figure 1.2", "Diagram A"])
+  figureRefs String[]
+
+  // Linked questions, vocabulary, and media
   questions  ContentQuestion[]
   vocabulary ContentVocabulary[]
+  mediaLinks AssertionMedia[]
 
   // Review chain
   createdBy  String? // User ID or "system:import"
@@ -3860,6 +3864,13 @@ model MediaAsset {
   description String?  @db.Text
   tags        String[]
 
+  // Image extraction provenance
+  pageNumber    Int?     // Page extracted from (PDFs)
+  positionIndex Int?     // Position within page (0-based)
+  captionText   String?  @db.Text  // Detected or AI-generated caption
+  figureRef     String?  // Canonical label: "Figure 1.2"
+  extractedFrom String?  // "pdf" | "docx" | null (manual upload)
+
   uploadedBy String
   uploader   User              @relation(fields: [uploadedBy], references: [id])
   sourceId   String?
@@ -3870,13 +3881,15 @@ model MediaAsset {
   updatedAt DateTime @updatedAt
 
   // Relations
-  subjects  SubjectMedia[]
-  messages  CallMessage[]
-  artifacts ConversationArtifact[]
+  subjects       SubjectMedia[]
+  messages       CallMessage[]
+  artifacts      ConversationArtifact[]
+  assertionLinks AssertionMedia[]
 
   @@index([uploadedBy])
   @@index([sourceId])
   @@index([mimeType])
+  @@index([figureRef])
 }
 
 // Many-to-many: which media assets belong to a subject's content library
@@ -3891,6 +3904,23 @@ model SubjectMedia {
 
   @@unique([subjectId, mediaId])
   @@index([subjectId])
+  @@index([mediaId])
+}
+
+// Many-to-many: which media assets are linked to which content assertions
+// One figure can be referenced by many assertions, one assertion can reference multiple figures
+model AssertionMedia {
+  id          String           @id @default(uuid())
+  assertionId String
+  mediaId     String
+  assertion   ContentAssertion @relation(fields: [assertionId], references: [id], onDelete: Cascade)
+  media       MediaAsset       @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  figureRef   String?          // Original reference text, e.g., "Figure 1.2"
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+
+  @@unique([assertionId, mediaId])
+  @@index([assertionId])
   @@index([mediaId])
 }
 
