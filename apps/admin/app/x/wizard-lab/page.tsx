@@ -19,8 +19,16 @@ const config: WizardConfig = {
   returnPath: "/x/wizard-lab",
   taskType: "wizard_lab_test",
   steps: [
-    { id: "intent", label: "Set Goal", activeLabel: "Setting Goal", component: IntentStep },
-    { id: "generate", label: "Generate", activeLabel: "Generating", component: GenerateStep },
+    {
+      id: "intent", label: "Set Goal", activeLabel: "Setting Goal", component: IntentStep,
+      summaryLabel: "Goal",
+      summary: (getData) => getData<string>("labName") || "No topic set",
+    },
+    {
+      id: "generate", label: "Generate", activeLabel: "Generating", component: GenerateStep,
+      summaryLabel: "Generate",
+      summary: (getData) => getData<string>("labEmphasis") ? `${getData<string>("labEmphasis")} · ${getData<string>("labDuration")}min` : "Generated",
+    },
     { id: "summary", label: "Summary", activeLabel: "Reviewing", component: SummaryStep },
   ],
 };

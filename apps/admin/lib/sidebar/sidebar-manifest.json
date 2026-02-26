@@ -5,7 +5,7 @@
     "defaultHiddenFor": ["STUDENT"],
     "items": [
       { "id": "institution", "href": "/x/institutions/new", "label": "Institution", "icon": "Rocket", "highlighted": true, "wizard": true, "terminologyLabel": "domain" },
-      { "id": "create-course", "href": "/x/courses?action=setup", "label": "Course", "icon": "Rocket", "wizard": true },
+      { "id": "new-course", "href": "/x/courses/new", "label": "Course", "icon": "Rocket", "wizard": true, "terminologyLabel": "playbook" },
       { "id": "new-community", "href": "/x/communities/new", "label": "Community", "icon": "Rocket", "wizard": true }
     ]
   },
@@ -28,6 +28,7 @@
     "defaultHiddenFor": ["STUDENT", "DEMO", "TESTER"],
     "items": [
       { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users2", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "magic-flow", "href": "/x/teach", "label": "MagicFlow", "icon": "Sparkles", "wizard": true, "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "manage-cohorts", "href": "/x/cohorts", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms" } } },
       { "id": "manage-callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/students" } } },
       { "id": "manage-jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] }
@@ -127,7 +128,8 @@
       { "id": "e2e-tests", "href": "/x/admin/tests", "label": "E2E Tests", "icon": "TestTube" },
       { "id": "seed-data", "href": "/x/data-management", "label": "Seed Data", "icon": "Sprout" },
       { "id": "snapshots", "href": "/x/snapshots", "label": "Snapshots", "icon": "Camera" },
-      { "id": "smoke-test", "href": "/x/smoke-test", "label": "Smoke Test", "icon": "ClipboardCheck" }
+      { "id": "smoke-test", "href": "/x/smoke-test", "label": "Smoke Test", "icon": "ClipboardCheck" },
+      { "id": "wizard-lab", "href": "/x/wizard-lab", "label": "Wizard Lab", "icon": "TestTube" }
     ]
   }
 ]

@@ -25,6 +25,10 @@ export interface WizardStepConfig {
   label: string;
   activeLabel?: string;
   component: React.ComponentType<StepRenderProps>;
+  /** Short label shown before the summary text in the collapsed done row, e.g. "Hub" */
+  summaryLabel?: string;
+  /** Returns the summary text shown in the collapsed done row — reads from the data bag */
+  summary?: (getData: <T = unknown>(key: string) => T | undefined) => React.ReactNode;
 }
 
 /** What every step component receives from WizardShell */

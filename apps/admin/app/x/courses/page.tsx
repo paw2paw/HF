@@ -345,10 +345,10 @@ export default function CoursesPage() {
           <p className="hf-page-subtitle">Manage your courses and track student progress</p>
         </div>
         {isOperator && (
-          <button onClick={handleNewCourse} className="hf-btn hf-btn-primary">
+          <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
             <Plus size={16} />
             New Course
-          </button>
+          </Link>
         )}
       </div>
 
@@ -510,10 +510,10 @@ export default function CoursesPage() {
               : 'No courses yet'}
           </div>
           {isOperator && !search && selectedStatuses.size === 0 && !selectedDomain && (
-            <button onClick={handleNewCourse} className="hf-btn hf-btn-primary">
+            <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
               <Plus size={14} />
               Create First Course
-            </button>
+            </Link>
           )}
         </div>
       ) : groupedCourses ? (

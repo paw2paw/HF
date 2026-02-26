@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { useStepFlow } from '@/contexts/StepFlowContext';
 import { ProgressStepper } from '@/components/shared/ProgressStepper';
 import { useUnsavedGuard } from '@/hooks/useUnsavedGuard';
@@ -77,8 +78,19 @@ export function CourseSetupWizard({ onComplete }: CourseSetupWizardProps) {
     };
   });
 
+  const courseName = getData<string>('courseName');
+
   return (
     <div className="hf-page-container hf-page-scroll">
+      <nav className="hf-breadcrumb">
+        <button type="button" className="hf-breadcrumb-segment" onClick={handleEndFlow}>
+          Courses
+        </button>
+        <ChevronRight className="hf-breadcrumb-separator" />
+        <span className="hf-breadcrumb-segment hf-breadcrumb-current">
+          {courseName || 'New Course'}
+        </span>
+      </nav>
       <div className="hf-wizard-stepper">
         <ProgressStepper steps={progressSteps} />
       </div>

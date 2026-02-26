@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  BookMarked, FileText, ExternalLink, Plus,
+  BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
   Sparkles, BarChart3, Sliders, Shield, Compass,
   Settings as SettingsIcon, ChevronRight, CheckCircle2,
 } from 'lucide-react';
@@ -179,6 +179,11 @@ export default function CourseDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Description editing
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descDraft, setDescDraft] = useState('');
+  const [savingDescription, setSavingDescription] = useState(false);
+
   // ── Data Loading ─────────────────────────────────────
   useEffect(() => {
     if (!courseId) return;
@@ -260,7 +265,8 @@ export default function CourseDetailPage() {
   const tabs: TabDefinition[] = useMemo(() => [
     { id: 'overview', label: 'Overview', icon: <Sparkles size={14} /> },
     { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: contentTotal || null },
-  ], [contentTotal]);
+    ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
+  ], [contentTotal, isOperator]);
 
   // ── Drill-down: load assertions for a teachMethod ───
   const loadDrillDown = useCallback(async (method: string) => {
@@ -420,6 +426,39 @@ export default function CourseDetailPage() {
     }
   };
 
+  const handleEditDescription = () => {
+    setDescDraft(detail?.description ?? '');
+    setEditingDescription(true);
+  };
+
+  const handleCancelDescription = () => {
+    setEditingDescription(false);
+    setDescDraft('');
+  };
+
+  const handleSaveDescription = async () => {
+    if (!detail) return;
+    setSavingDescription(true);
+    try {
+      const res = await fetch(`/api/playbooks/${detail.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: descDraft }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDetail((prev) => prev ? { ...prev, description: descDraft } : prev);
+        setEditingDescription(false);
+      } else {
+        setError(data.error || 'Failed to save description');
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save description');
+    } finally {
+      setSavingDescription(false);
+    }
+  };
+
   // ── Loading / Error States ───────────────────────────
   if (loading) {
     return (
@@ -492,9 +531,36 @@ export default function CourseDetailPage() {
         </Link>
       </div>
 
-      {detail.description && (
-        <p className="hf-text-sm hf-text-muted hf-mb-lg">{detail.description}</p>
-      )}
+      {/* Editable description */}
+      {editingDescription ? (
+        <div className="hf-mb-lg">
+          <textarea
+            className="hf-textarea hf-w-full hf-mb-sm"
+            rows={3}
+            value={descDraft}
+            onChange={(e) => setDescDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') handleCancelDescription(); }}
+            autoFocus
+          />
+          <div className="hf-flex hf-gap-xs">
+            <button onClick={handleSaveDescription} disabled={savingDescription} className="hf-btn-sm hf-btn-primary">
+              {savingDescription ? 'Saving...' : 'Save'}
+            </button>
+            <button onClick={handleCancelDescription} className="hf-btn-sm hf-btn-secondary">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : detail.description ? (
+        <button onClick={isOperator ? handleEditDescription : undefined} className={`hf-text-sm hf-text-muted hf-mb-lg hf-text-left${isOperator ? ' hf-btn-ghost' : ''}`}>
+          {detail.description}
+          {isOperator && <Pencil size={12} className="hf-ml-sm hf-text-placeholder" />}
+        </button>
+      ) : isOperator ? (
+        <button onClick={handleEditDescription} className="hf-btn-ghost hf-text-xs hf-text-placeholder hf-mb-lg">
+          + Add description
+        </button>
+      ) : null}
 
       {/* ── Stats Row ─────────────────────────────────── */}
       <div className="hf-flex hf-gap-lg hf-mb-lg">
@@ -551,7 +617,7 @@ export default function CourseDetailPage() {
               <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No subjects yet</div>
               <p className="hf-text-xs hf-text-muted hf-mb-md">Subjects are created when you upload content or use the Course Setup wizard.</p>
               {isOperator && (
-                <Link href="/x/courses?action=setup" className="hf-btn hf-btn-primary">
+                <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
                   <Plus size={14} />
                   Set Up Course
                 </Link>
@@ -672,59 +738,6 @@ export default function CourseDetailPage() {
             )}
           </div>
 
-          {/* Settings */}
-          {isOperator && (
-            <>
-              <SectionHeader title="Settings" icon={SettingsIcon} />
-
-              <div className="hf-mb-lg">
-                <div className="hf-flex hf-gap-sm hf-mb-lg hf-flex-wrap">
-                  {detail.status === 'DRAFT' && (
-                    <button onClick={handlePublish} disabled={publishing} className="hf-btn hf-btn-primary">
-                      {publishing ? 'Publishing...' : 'Publish'}
-                    </button>
-                  )}
-                  {detail.status !== 'ARCHIVED' && (
-                    <button onClick={handleArchive} disabled={archiving} className="hf-btn hf-btn-secondary">
-                      {archiving ? 'Archiving...' : 'Archive'}
-                    </button>
-                  )}
-                  {detail.status === 'ARCHIVED' && (
-                    <button onClick={handleRestore} disabled={archiving} className="hf-btn hf-btn-secondary">
-                      {archiving ? 'Restoring...' : 'Restore'}
-                    </button>
-                  )}
-                  {detail.status === 'DRAFT' && (
-                    <>
-                      {!showDeleteConfirm ? (
-                        <button onClick={() => setShowDeleteConfirm(true)} className="hf-btn hf-btn-destructive">
-                          Delete
-                        </button>
-                      ) : (
-                        <div className="hf-flex hf-gap-xs hf-items-center">
-                          <span className="hf-text-xs hf-text-error">Delete permanently?</span>
-                          <button onClick={handleDelete} disabled={deleting} className="hf-btn-sm hf-btn-destructive">
-                            {deleting ? '...' : 'Yes'}
-                          </button>
-                          <button onClick={() => setShowDeleteConfirm(false)} className="hf-btn-sm hf-btn-secondary">
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="hf-meta-row">
-                  <div className="hf-flex hf-gap-lg hf-text-xs hf-text-muted">
-                    <span>ID: <span className="hf-mono">{detail.id.slice(0, 8)}...</span></span>
-                    <span>Created: {new Date(detail.createdAt).toLocaleDateString()}</span>
-                    <span>Updated: {new Date(detail.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
         </>
       )}
 
@@ -858,6 +871,80 @@ export default function CourseDetailPage() {
                 })}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* SETTINGS TAB                                   */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'settings' && (
+        <div className="hf-mt-lg">
+          {isOperator ? (
+            <>
+              <SectionHeader title="Status" icon={SettingsIcon} />
+              <div className="hf-card hf-mb-lg">
+                <div className="hf-text-xs hf-text-muted hf-mb-md">
+                  Current status: <span className="hf-text-bold">{detail.status}</span>
+                </div>
+                <div className="hf-flex hf-gap-sm hf-flex-wrap">
+                  {detail.status === 'DRAFT' && (
+                    <button onClick={handlePublish} disabled={publishing} className="hf-btn hf-btn-primary">
+                      {publishing ? 'Publishing...' : 'Publish'}
+                    </button>
+                  )}
+                  {detail.status !== 'ARCHIVED' && (
+                    <button onClick={handleArchive} disabled={archiving} className="hf-btn hf-btn-secondary">
+                      {archiving ? 'Archiving...' : 'Archive'}
+                    </button>
+                  )}
+                  {detail.status === 'ARCHIVED' && (
+                    <button onClick={handleRestore} disabled={archiving} className="hf-btn hf-btn-secondary">
+                      {archiving ? 'Restoring...' : 'Restore'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {detail.status === 'DRAFT' && (
+                <>
+                  <SectionHeader title="Danger Zone" icon={Trash2} />
+                  <div className="hf-card hf-mb-lg">
+                    {!showDeleteConfirm ? (
+                      <button onClick={() => setShowDeleteConfirm(true)} className="hf-btn hf-btn-destructive">
+                        Delete Course
+                      </button>
+                    ) : (
+                      <div className="hf-flex hf-gap-xs hf-items-center">
+                        <span className="hf-text-xs hf-text-error">Delete permanently?</span>
+                        <button onClick={handleDelete} disabled={deleting} className="hf-btn-sm hf-btn-destructive">
+                          {deleting ? '...' : 'Yes, delete'}
+                        </button>
+                        <button onClick={() => setShowDeleteConfirm(false)} className="hf-btn-sm hf-btn-secondary">
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <SectionHeader title="Metadata" icon={FileText} />
+              <div className="hf-card">
+                <div className="hf-flex hf-gap-lg hf-text-xs hf-text-muted hf-flex-wrap">
+                  <span>ID: <span className="hf-mono">{detail.id.slice(0, 8)}...</span></span>
+                  <span>Created: {new Date(detail.createdAt).toLocaleDateString()}</span>
+                  <span>Updated: {new Date(detail.updatedAt).toLocaleDateString()}</span>
+                  {detail.publishedAt && (
+                    <span>Published: {new Date(detail.publishedAt).toLocaleDateString()}</span>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="hf-banner hf-banner-info">
+              You do not have permission to manage course settings.
+            </div>
           )}
         </div>
       )}

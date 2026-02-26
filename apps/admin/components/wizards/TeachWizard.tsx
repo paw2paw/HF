@@ -27,7 +27,6 @@ import {
 import { AgentTuner } from "@/components/shared/AgentTuner";
 import type { AgentTunerOutput, AgentTunerPill } from "@/lib/agent-tuner/types";
 import WizardSection, { type SectionStatus } from "@/components/shared/WizardSection";
-import WizardProgress from "@/components/shared/WizardProgress";
 import { PackUploadStep } from "./PackUploadStep";
 import type { PackUploadResult } from "./PackUploadStep";
 import { suggestInteractionPattern } from "@/lib/content-trust/resolve-config";
@@ -262,10 +261,6 @@ export default function TeachWizard() {
       }
     }
   }, []);
-
-  // Derive the current active step number (1-indexed) for WizardProgress
-  const activeStep =
-    SECTION_ORDER.findIndex((s) => sectionStatus[s] === "active") + 1;
 
   // ── Section 1 — Institution ────────────────────────
 
@@ -1272,19 +1267,6 @@ export default function TeachWizard() {
 
   // ── Render ─────────────────────────────────────────
 
-  const STEP_QUESTIONS: Record<SectionId, string> = {
-    institution: "Where are you teaching?",
-    course: "What are you teaching?",
-    goal: "What do students need to achieve?",
-    upload: "Add your source materials",
-    review: "Review your content",
-    "lesson-plan": "How should lessons be structured?",
-    launch: "Ready to teach",
-  };
-
-  const activeStepLabel =
-    activeStep > 0 ? STEP_QUESTIONS[SECTION_ORDER[activeStep - 1]] : "";
-
   return (
     <div className="tw-page">
       {/* Hero */}
@@ -1292,13 +1274,6 @@ export default function TeachWizard() {
         <span className="tw-hero-icon">👨‍🏫</span>
         <h1 className="tw-hero-title">Teach</h1>
       </div>
-
-      {/* Progress bar */}
-      <WizardProgress
-        current={activeStep || 1}
-        total={SECTION_ORDER.length}
-        stepName={activeStepLabel}
-      />
 
       <div className="tw-sections">
         {/* ═══════════════════════════════════════════ */}

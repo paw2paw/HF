@@ -3,7 +3,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
-import { ProgressStepper } from "@/components/shared/ProgressStepper";
+import WizardSection from "@/components/shared/WizardSection";
+import type { SectionStatus } from "@/components/shared/WizardSection";
 import { WizardResumeBanner } from "@/components/shared/WizardResumeBanner";
 import { useWizardResume } from "@/hooks/useWizardResume";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
@@ -16,8 +17,7 @@ import type { WizardConfig, StepRenderProps } from "./types";
 // - Initialize StepFlowContext (startFlow)
 // - Load steps from /api/wizard-steps (fallback to config.steps)
 // - Resume detection via useWizardResume
-// - ProgressStepper rendering
-// - Route to step component via registry
+// - Accordion rendering via WizardSection (blue border on active, collapse+summary on done)
 // - Unsaved guard on browser close
 //
 // Wizard pages are ~15 lines: define config + render <WizardShell />.
@@ -150,47 +150,47 @@ export function WizardShell({ config, onComplete }: WizardShellProps) {
     return null;
   }
 
-  // ── Resolve current step component ──────────────────
+  // ── Accordion rendering ─────────────────────────────
   const currentStep = state.currentStep;
-  const stepId = state.steps[currentStep]?.id;
-  const stepConfig = config.steps.find((s) => s.id === stepId) || config.steps[currentStep];
-  const StepComponent = stepConfig?.component;
-
-  if (!StepComponent) {
-    return (
-      <div className="hf-wizard-step">
-        <div className="hf-empty">Unknown step: {stepId || currentStep}</div>
-      </div>
-    );
-  }
-
-  // ── ProgressStepper data ────────────────────────────
-  const progressSteps = state.steps.map((s, i) => ({
-    label: s.label,
-    completed: i < currentStep,
-    active: i === currentStep,
-    onClick: i < currentStep ? () => setStep(i) : undefined,
-  }));
-
-  // ── StepRenderProps ─────────────────────────────────
-  const stepProps: StepRenderProps = {
-    setData,
-    getData,
-    onNext: nextStep,
-    onPrev: prevStep,
-    endFlow,
-    stepIndex: currentStep,
-    totalSteps: state.steps.length,
-    isFirst: currentStep === 0,
-    isLast: currentStep === state.steps.length - 1,
-  };
 
   return (
     <div className="hf-page-container hf-page-scroll">
-      <div className="hf-wizard-stepper">
-        <ProgressStepper steps={progressSteps} />
+      <div className="hf-ws-accordion">
+        {config.steps.map((stepCfg, i) => {
+          const status: SectionStatus =
+            i < currentStep ? "done" : i === currentStep ? "active" : "locked";
+
+          const stepProps: StepRenderProps = {
+            setData,
+            getData,
+            onNext: nextStep,
+            onPrev: prevStep,
+            endFlow,
+            stepIndex: i,
+            totalSteps: config.steps.length,
+            isFirst: i === 0,
+            isLast: i === config.steps.length - 1,
+          };
+
+          const StepComp = stepCfg.component;
+
+          return (
+            <WizardSection
+              key={stepCfg.id}
+              id={stepCfg.id}
+              stepNumber={i + 1}
+              status={status}
+              title={stepCfg.activeLabel || stepCfg.label}
+              summaryLabel={stepCfg.summaryLabel}
+              summary={stepCfg.summary ? stepCfg.summary(getData) : stepCfg.label}
+              onEdit={status === "done" ? () => setStep(i) : undefined}
+              showHeader={false}
+            >
+              {status === "active" ? <StepComp {...stepProps} /> : null}
+            </WizardSection>
+          );
+        })}
       </div>
-      <StepComponent {...stepProps} />
     </div>
   );
 }

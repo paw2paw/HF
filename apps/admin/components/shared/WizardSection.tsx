@@ -22,6 +22,11 @@ interface WizardSectionProps {
   aiEnhanced?: boolean;
   /** Animate the sparkles icon while AI is fetching. */
   aiLoading?: boolean;
+  /**
+   * Whether to render the step header (number + title + hint) above the children.
+   * Default: true. Set to false when the step component renders its own title.
+   */
+  showHeader?: boolean;
   /** Content shown when section is active */
   children: React.ReactNode;
 }
@@ -37,6 +42,7 @@ export default function WizardSection({
   onEdit,
   aiEnhanced,
   aiLoading,
+  showHeader = true,
   children,
 }: WizardSectionProps) {
   const [expanded, setExpanded] = useState(false);
@@ -102,18 +108,20 @@ export default function WizardSection({
   // active
   return (
     <div className="ws-wrap" data-status="active" data-section={id}>
-      <div className="ws-header">
-        <p className="ws-step-number">Step {stepNumber}</p>
-        <h2 className="ws-title">
-          {title}
-          {aiEnhanced && (
-            <span className={`hf-field-hint-ai${aiLoading ? " hf-field-hint-ai--loading" : ""}`} title="AI-enhanced — suggestions appear when you leave a field">
-              <Sparkles size={15} />
-            </span>
-          )}
-        </h2>
-        {hint && <p className="ws-hint">{hint}</p>}
-      </div>
+      {showHeader && (
+        <div className="ws-header">
+          <p className="ws-step-number">Step {stepNumber}</p>
+          <h2 className="ws-title">
+            {title}
+            {aiEnhanced && (
+              <span className={`hf-field-hint-ai${aiLoading ? " hf-field-hint-ai--loading" : ""}`} title="AI-enhanced — suggestions appear when you leave a field">
+                <Sparkles size={15} />
+              </span>
+            )}
+          </h2>
+          {hint && <p className="ws-hint">{hint}</p>}
+        </div>
+      )}
       <div className="ws-body">{children}</div>
     </div>
   );

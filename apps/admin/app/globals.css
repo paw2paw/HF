@@ -2780,6 +2780,28 @@ html.light {
   flex-direction: column;
 }
 
+/* Accordion wizard container (WizardShell accordion mode) */
+.hf-ws-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+  width: 100%;
+}
+
+/* Inside accordion: step components fill the card, no 100vh or extra padding */
+.hf-ws-accordion .hf-wizard-page {
+  min-height: unset;
+}
+
+.hf-ws-accordion .hf-wizard-step {
+  padding: 16px 0 0;
+  max-width: unset;
+  margin: 0;
+}
+
 /* Small button variant (inline edit, filter bar, compact actions) */
 .hf-btn-sm {
   padding: 4px 10px !important;

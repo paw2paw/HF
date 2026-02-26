@@ -17,7 +17,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Check, Globe } from "lucide-react";
 import WizardSection, { type SectionStatus } from "@/components/shared/WizardSection";
-import WizardProgress from "@/components/shared/WizardProgress";
 import { TypePicker } from "@/components/shared/TypePicker";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
@@ -133,9 +132,6 @@ export default function InstitutionWizard() {
       launch: "active",
     });
   }, []);
-
-  const activeStep =
-    SECTION_ORDER.findIndex((s) => sectionStatus[s] === "active") + 1;
 
   // ── Section 1 — Identity ───────────────────────────
 
@@ -356,12 +352,6 @@ export default function InstitutionWizard() {
         &larr; Back to Dashboard
       </button>
       <h1 className="hf-page-title">Set Up Institution</h1>
-
-      <WizardProgress
-        current={activeStep || SECTION_ORDER.length}
-        total={SECTION_ORDER.length}
-        stepName={activeStep ? SECTION_TITLES[SECTION_ORDER[activeStep - 1]] : "Done"}
-      />
 
       <div className="iw-sections">
         {/* ── Section 1: Identity ──────────────────── */}
@@ -696,7 +686,7 @@ export default function InstitutionWizard() {
               </div>
               <div className="iw-success-actions">
                 <Link
-                  href={`/x/courses?action=setup&institutionId=${created.institutionId}`}
+                  href="/x/courses/new"
                   className="hf-btn hf-btn-primary"
                 >
                   Create a Course
