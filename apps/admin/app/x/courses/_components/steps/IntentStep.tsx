@@ -55,6 +55,9 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
   const [groupId, setGroupId] = useState<string | null>(null);
   const [availableGroups, setAvailableGroups] = useState<GroupOption[]>([]);
 
+  // Whether the domain was pre-set from URL context (institution → create course)
+  const presetDomainId = getData<string>('domainId');
+
   // Load domains on mount
   useEffect(() => {
     (async () => {
@@ -63,9 +66,8 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
         const data = await res.json();
         if (data.ok && data.domains) {
           setDomains(data.domains);
-          const savedDomainId = getData<string>('domainId');
-          if (savedDomainId) {
-            setSelectedDomainId(savedDomainId);
+          if (presetDomainId) {
+            setSelectedDomainId(presetDomainId);
           } else if (data.domains.length === 1) {
             setSelectedDomainId(data.domains[0].id);
           }
@@ -263,16 +265,22 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
           {!loadingDomains && domains.length > 1 && (
             <div className="hf-mb-md">
               <label className="hf-label">Institution</label>
-              <select
-                className="hf-input"
-                value={selectedDomainId}
-                onChange={(e) => { setSelectedDomainId(e.target.value); setGroupId(null); }}
-              >
-                <option value="">Select an institution…</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+              {presetDomainId ? (
+                <p className="hf-input hf-text-muted" style={{ cursor: 'default', userSelect: 'none' }}>
+                  {domains.find(d => d.id === presetDomainId)?.name ?? presetDomainId}
+                </p>
+              ) : (
+                <select
+                  className="hf-input"
+                  value={selectedDomainId}
+                  onChange={(e) => { setSelectedDomainId(e.target.value); setGroupId(null); }}
+                >
+                  <option value="">Select an institution…</option>
+                  {domains.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 

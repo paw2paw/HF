@@ -2235,6 +2235,7 @@ html.light {
   color: var(--accent-primary);
 }
 .hf-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.hf-chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .hf-chip-badge {
   font-size: 10px;
   font-weight: 600;
@@ -2854,7 +2855,6 @@ html.light {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 720px;
   margin: 0 auto;
   padding: 24px 16px 40px;
   width: 100%;
@@ -6165,6 +6165,87 @@ html.light {
   resize: vertical;
   min-height: 52px;
   line-height: 1.5;
+}
+
+/* ── Phase chips (intent-led CourseConfigStep) ────────── */
+.hf-phase-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.hf-phase-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.hf-phase-chip:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-primary);
+}
+.hf-phase-chip--active {
+  border-color: var(--accent-primary);
+  background: var(--surface-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.hf-phase-chip-name { font-weight: 500; }
+.hf-phase-chip-dur {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.hf-phase-chip-x {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  margin-left: 2px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  transition: color 0.1s ease;
+}
+.hf-phase-chip-x:hover { color: var(--status-error-text); }
+.hf-phase-chip--add {
+  border-style: dashed;
+  color: var(--text-muted);
+  background: transparent;
+  font-weight: 400;
+}
+.hf-phase-chip--add:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: transparent;
+}
+
+/* Inline edit panel below selected chip */
+.hf-phase-edit-panel {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.hf-phase-edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hf-phase-edit-row .hf-input { flex: 1; }
+.hf-phase-edit-dur {
+  width: 100px !important;
+  flex: 0 0 100px !important;
 }
 
 /* ── Course Context Banner (Subject + Source pages) ──── */

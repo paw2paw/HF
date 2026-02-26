@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, ArrowRight, Copy, Check, Mail } from 'lucide-react';
+import { Users, Copy, Check, Mail } from 'lucide-react';
 import type { StepRenderProps } from '@/components/wizards/types';
 import type { InteractionPattern } from '@/lib/content-trust/resolve-config';
 import { INTERACTION_PATTERN_LABELS } from '@/lib/content-trust/resolve-config';
+import { WizardSummary } from '@/components/shared/WizardSummary';
 
 const COMMUNITY_PATTERN_LABELS: Partial<Record<InteractionPattern, string>> = {
   companion:    'Just be there',
@@ -159,112 +160,96 @@ export function CommunityDoneStep({ getData, setData, onPrev, endFlow }: StepRen
 
     return (
       <div className="hf-wizard-page">
-        <div className="hf-wizard-step hf-flex hf-flex-col hf-items-center hf-justify-center hf-text-center">
-          <div className="hf-text-xl hf-mb-md">🎉</div>
-          <h1 className="hf-page-title hf-mb-xs">{result.name} is live!</h1>
-          <p className="hf-page-subtitle hf-mb-lg">
-            {memberCount > 0
-              ? `Your community hub is ready with ${memberCount} founding member${memberCount !== 1 ? 's' : ''}.`
-              : 'Your community hub is ready. Share the join link to start adding members.'}
-          </p>
-
-          <div className="hf-card hf-mb-lg" style={{ width: '100%', maxWidth: 420 }}>
-            <div className="hf-flex hf-flex-col hf-gap-xs hf-text-sm">
-              <div className="hf-flex hf-flex-between">
-                <span className="hf-text-muted">Kind</span>
-                <span>{communityKind === 'TOPIC_BASED' ? 'Topic-based' : 'Open connection'}</span>
-              </div>
-              {patternLabel && (
-                <div className="hf-flex hf-flex-between">
-                  <span className="hf-text-muted">AI style</span>
-                  <span>{patternLabel}</span>
+        <div className="hf-wizard-step">
+          <WizardSummary
+            title={`${result.name} is live!`}
+            subtitle={memberCount > 0
+              ? `Ready with ${memberCount} founding member${memberCount !== 1 ? 's' : ''}.`
+              : 'Your community hub is ready. Share the join link to grow your group.'}
+            intent={{
+              items: [
+                { label: 'Kind', value: communityKind === 'TOPIC_BASED' ? 'Topic-based' : 'Open connection' },
+                ...(patternLabel ? [{ label: 'AI Style', value: patternLabel }] : []),
+                ...(communityKind === 'TOPIC_BASED' && topics.length > 0
+                  ? [{ label: 'Topics', value: `${topics.length}` }]
+                  : []),
+                { label: 'Members', value: `${memberCount}` },
+              ],
+            }}
+            created={{
+              entities: [
+                {
+                  icon: <Users className="hf-icon-md" />,
+                  label: 'Community',
+                  name: result.name,
+                  href: `/x/communities/${result.id}`,
+                },
+              ],
+            }}
+            primaryAction={{
+              label: 'View Hub',
+              icon: <Users className="hf-icon-md" />,
+              onClick: () => { endFlow(); router.push(`/x/communities/${result.id}`); },
+            }}
+            secondaryActions={result.joinToken ? [
+              {
+                label: 'Invite Members',
+                icon: <Mail className="hf-icon-md" />,
+                onClick: () => { document.getElementById('community-invite-section')?.scrollIntoView({ behavior: 'smooth' }); },
+              },
+            ] : []}
+          >
+            {/* Join link */}
+            {result.joinToken && (
+              <div className="hf-card hf-mb-md">
+                <p className="hf-label hf-mb-xs">Share this join link</p>
+                <div className="hf-flex hf-gap-sm">
+                  <input
+                    readOnly
+                    value={`${window.location.origin}/join/${result.joinToken}`}
+                    className="hf-input hf-text-sm"
+                    style={{ flex: 1 }}
+                  />
+                  <button className="hf-btn hf-btn-secondary hf-flex hf-items-center hf-gap-sm" onClick={handleCopy}>
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
                 </div>
-              )}
-              {communityKind === 'TOPIC_BASED' && topics.length > 0 && (
-                <div className="hf-flex hf-flex-between">
-                  <span className="hf-text-muted">Topics</span>
-                  <span>{topics.length}</span>
-                </div>
-              )}
-              <div className="hf-flex hf-flex-between">
-                <span className="hf-text-muted">Members</span>
-                <span>{memberCount}</span>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Join link */}
-          {result.joinToken && (
-            <div className="hf-card hf-mb-md" style={{ width: '100%', maxWidth: 420 }}>
-              <p className="hf-label hf-mb-xs">Share this join link</p>
-              <div className="hf-flex hf-gap-sm">
-                <input
-                  readOnly
-                  value={`${window.location.origin}/join/${result.joinToken}`}
-                  className="hf-input hf-text-sm"
-                  style={{ flex: 1 }}
+            {/* Email invite */}
+            {result.cohortGroupId && (
+              <div className="hf-card" id="community-invite-section">
+                <p className="hf-label hf-mb-xs hf-flex hf-items-center hf-gap-xs">
+                  <Mail size={14} />
+                  Invite members by email
+                </p>
+                <textarea
+                  value={inviteEmails}
+                  onChange={(e) => setInviteEmails(e.target.value)}
+                  placeholder="one@email.com, two@email.com"
+                  className="hf-input hf-w-full hf-mb-sm"
+                  rows={2}
+                  style={{ resize: 'vertical' }}
                 />
-                <button className="hf-btn hf-btn-secondary hf-flex hf-items-center hf-gap-sm" onClick={handleCopy}>
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
+                <div className="hf-flex hf-gap-sm hf-items-center">
+                  <button
+                    className="hf-btn hf-btn-primary"
+                    disabled={inviting || !inviteEmails.trim()}
+                    onClick={handleSendInvites}
+                  >
+                    {inviting ? 'Sending...' : 'Send Invites'}
+                  </button>
+                  {inviteResult && (
+                    <span className={`hf-text-xs ${inviteResult.ok ? 'hf-text-success' : 'hf-text-error'}`}>
+                      {inviteResult.message}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Email invite */}
-          {result.cohortGroupId && (
-            <div className="hf-card hf-mb-lg" id="community-invite-section" style={{ width: '100%', maxWidth: 420 }}>
-              <p className="hf-label hf-mb-xs hf-flex hf-items-center hf-gap-xs">
-                <Mail size={14} />
-                Invite members by email
-              </p>
-              <textarea
-                value={inviteEmails}
-                onChange={(e) => setInviteEmails(e.target.value)}
-                placeholder="one@email.com, two@email.com"
-                className="hf-input hf-w-full hf-mb-sm"
-                rows={2}
-                style={{ resize: 'vertical' }}
-              />
-              <div className="hf-flex hf-gap-sm hf-items-center">
-                <button
-                  className="hf-btn hf-btn-primary"
-                  disabled={inviting || !inviteEmails.trim()}
-                  onClick={handleSendInvites}
-                >
-                  {inviting ? 'Sending...' : 'Send Invites'}
-                </button>
-                {inviteResult && (
-                  <span className={`hf-text-xs ${inviteResult.ok ? 'hf-text-success' : 'hf-text-error'}`}>
-                    {inviteResult.message}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="hf-flex hf-gap-sm">
-            <button
-              onClick={() => {
-                endFlow();
-                router.push(`/x/communities/${result.id}`);
-              }}
-              className="hf-btn hf-btn-primary hf-flex hf-items-center hf-gap-sm"
-            >
-              <Users size={16} />
-              View Hub
-            </button>
-            <button
-              onClick={() => {
-                document.getElementById('community-invite-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="hf-btn hf-btn-secondary hf-flex hf-items-center hf-gap-sm"
-            >
-              <Mail size={16} />
-              Invite Members
-            </button>
-          </div>
+            )}
+          </WizardSummary>
         </div>
       </div>
     );

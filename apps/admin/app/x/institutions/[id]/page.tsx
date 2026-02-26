@@ -398,7 +398,7 @@ export default function InstitutionDetailPage() {
             ))}
           </div>
           <div className="hf-mt-lg hf-flex hf-gap-sm hf-flex-wrap">
-            <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
+            <Link href={`/x/courses/new?domainId=${id}`} className="hf-btn hf-btn-primary">
               <Rocket size={14} />Add Course
             </Link>
             <Link href="/x/communities/new" className="hf-btn hf-btn-secondary">
@@ -417,7 +417,7 @@ export default function InstitutionDetailPage() {
         <div className="hf-mt-lg">
           <div className="hf-flex hf-flex-between hf-items-center hf-mb-md">
             <div className="hf-section-title">Courses</div>
-            <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
+            <Link href={`/x/courses/new?domainId=${id}`} className="hf-btn hf-btn-primary">
               <Plus size={14} />New Course
             </Link>
           </div>
@@ -426,7 +426,7 @@ export default function InstitutionDetailPage() {
               <BookOpen size={36} className="hf-text-tertiary hf-mb-sm" />
               <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No courses yet</div>
               <p className="hf-text-xs hf-text-muted hf-mb-md">Create a course to define what students will learn.</p>
-              <Link href="/x/courses/new" className="hf-btn hf-btn-primary"><Plus size={14} />Create Course</Link>
+              <Link href={`/x/courses/new?domainId=${id}`} className="hf-btn hf-btn-primary"><Plus size={14} />Create Course</Link>
             </div>
           ) : (
             <div className="inst-tab-list">

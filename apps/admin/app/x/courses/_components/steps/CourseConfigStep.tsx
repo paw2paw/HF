@@ -29,6 +29,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
   const [tunerPills, setTunerPills] = useState<AgentTunerPill[]>(getData<AgentTunerPill[]>('tunerPills') ?? []);
   const [behaviorTargets, setBehaviorTargets] = useState<Record<string, number>>(getData<Record<string, number>>('behaviorTargets') ?? {});
   const [flowPhases, setFlowPhases] = useState<FlowPhase[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const personaSlug = getData<string>('persona');
   const personaName = getData<string>('personaName');
@@ -92,11 +93,14 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
   };
 
   const addPhase = () => {
-    setFlowPhases(prev => [...prev, { _id: crypto.randomUUID(), phase: '', duration: '', goals: [] }]);
+    const id = crypto.randomUUID();
+    setFlowPhases(prev => [...prev, { _id: id, phase: '', duration: '', goals: [] }]);
+    setEditingId(id);
   };
 
   const removePhase = (id: string) => {
     setFlowPhases(prev => prev.filter(p => p._id !== id));
+    if (editingId === id) setEditingId(null);
   };
 
   const updatePhase = (id: string, field: 'phase' | 'duration', value: string) => {
@@ -181,7 +185,7 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
         <div className="hf-mb-lg">
           <FieldHint label="Call Flow" hint={WIZARD_HINTS["course.callFlow"]} labelClass="hf-section-title" />
           <p className="hf-text-xs hf-text-muted hf-mb-sm">
-            How the first lesson is structured — loaded from your {personaName || 'persona'} defaults. Edit or add phases to customise.
+            How the first lesson is structured — loaded from your {personaName || 'persona'} defaults. Click a phase to edit.
           </p>
 
           {loadingWelcome ? (
@@ -191,29 +195,57 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
             </div>
           ) : (
             <>
-              <div className="hf-flow-card">
-                {flowPhases.map((phase, i) => (
-                  <div key={phase._id} className="hf-flow-phase-edit">
-                    <div className="hf-flow-phase-edit-header">
-                      <span className="hf-flow-phase-num">{i + 1}</span>
+              {/* Phase chips */}
+              <div className="hf-phase-chips">
+                {flowPhases.map((phase) => (
+                  <button
+                    key={phase._id}
+                    type="button"
+                    className={`hf-phase-chip${editingId === phase._id ? ' hf-phase-chip--active' : ''}`}
+                    onClick={() => setEditingId(editingId === phase._id ? null : phase._id)}
+                  >
+                    <span className="hf-phase-chip-name">{phase.phase || 'Unnamed'}</span>
+                    {phase.duration && <span className="hf-phase-chip-dur">· {phase.duration}</span>}
+                    <span
+                      className="hf-phase-chip-x"
+                      role="button"
+                      tabIndex={-1}
+                      onClick={(e) => { e.stopPropagation(); removePhase(phase._id); }}
+                    >
+                      <X size={11} />
+                    </span>
+                  </button>
+                ))}
+                <button type="button" className="hf-phase-chip hf-phase-chip--add" onClick={addPhase}>
+                  <Plus size={12} /> Add
+                </button>
+              </div>
+
+              {/* Inline edit panel for selected chip */}
+              {editingId && flowPhases.find(p => p._id === editingId) && (() => {
+                const phase = flowPhases.find(p => p._id === editingId)!;
+                return (
+                  <div className="hf-phase-edit-panel">
+                    <div className="hf-phase-edit-row">
                       <input
                         type="text"
                         value={phase.phase}
                         onChange={(e) => updatePhase(phase._id, 'phase', e.target.value)}
-                        placeholder="Phase name (e.g. Welcome)"
-                        className="hf-input hf-flow-phase-edit-name"
+                        placeholder="Phase name"
+                        className="hf-input"
+                        autoFocus
                       />
                       <input
                         type="text"
                         value={phase.duration}
                         onChange={(e) => updatePhase(phase._id, 'duration', e.target.value)}
-                        placeholder="Duration"
-                        className="hf-input hf-flow-phase-edit-dur"
+                        placeholder="e.g. 5 min"
+                        className="hf-input hf-phase-edit-dur"
                       />
                       <button
                         type="button"
-                        onClick={() => removePhase(phase._id)}
                         className="hf-btn hf-btn-ghost hf-flow-phase-remove"
+                        onClick={() => removePhase(phase._id)}
                         title="Remove phase"
                       >
                         <X size={14} />
@@ -227,16 +259,12 @@ export function CourseConfigStep({ setData, getData, onNext, onPrev }: StepProps
                       className="hf-input hf-flow-phase-edit-goals"
                     />
                   </div>
-                ))}
-                {flowPhases.length === 0 && (
-                  <div className="hf-empty-dashed">
-                    No phases yet — click &quot;Add Phase&quot; or leave empty to use AI defaults.
-                  </div>
-                )}
-              </div>
-              <button type="button" onClick={addPhase} className="hf-btn hf-btn-secondary hf-mt-sm">
-                <Plus size={14} style={{ marginRight: 4 }} /> Add Phase
-              </button>
+                );
+              })()}
+
+              {flowPhases.length === 0 && (
+                <p className="hf-text-xs hf-text-muted">No phases — AI defaults will be used.</p>
+              )}
             </>
           )}
         </div>

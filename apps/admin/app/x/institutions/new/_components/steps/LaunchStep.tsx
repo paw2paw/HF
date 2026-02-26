@@ -200,6 +200,13 @@ export function LaunchStep({ getData, setData, onPrev, endFlow }: StepRenderProp
           <h1 className="hf-page-title hf-mb-xs">Creating {institutionName}…</h1>
           <p className="hf-page-subtitle">Setting up your institution and scaffolding…</p>
         </div>
+        <div className="hf-step-footer">
+          <button type="button" disabled className="hf-btn hf-btn-ghost" style={{ opacity: 0.4 }}>Back</button>
+          <button type="button" disabled className="hf-btn hf-btn-primary" style={{ opacity: 0.6 }}>
+            <div className="hf-spinner hf-icon-xs" style={{ marginRight: 6 }} />
+            Creating…
+          </button>
+        </div>
       </div>
     );
   }
@@ -214,12 +221,8 @@ export function LaunchStep({ getData, setData, onPrev, endFlow }: StepRenderProp
           <p className="hf-page-subtitle hf-mb-lg">{error || "An error occurred"}</p>
         </div>
         <div className="hf-step-footer">
-          <button type="button" onClick={onPrev} className="hf-btn-ghost">
-            Back
-          </button>
-          <button type="button" onClick={handleCreate} className="hf-btn hf-btn-primary">
-            Retry
-          </button>
+          <button type="button" onClick={onPrev} className="hf-btn hf-btn-ghost">Back</button>
+          <button type="button" onClick={handleCreate} className="hf-btn hf-btn-primary">Retry</button>
         </div>
       </div>
     );
@@ -227,39 +230,30 @@ export function LaunchStep({ getData, setData, onPrev, endFlow }: StepRenderProp
 
   // ── Pre-launch review ─────────────────────────────────────
   return (
-    <div>
-      <div className="iw-launch-summary">
-        <div className="iw-launch-row">
-          <span className="iw-launch-label">Name</span>
-          <span className="iw-launch-value">{institutionName || "—"}</span>
-        </div>
-        <div className="iw-launch-row">
-          <span className="iw-launch-label">Type</span>
-          <span className="iw-launch-value">{typeSlug || "—"}</span>
-        </div>
-        {primaryColor && (
-          <div className="iw-launch-row">
-            <span className="iw-launch-label">Colours</span>
-            <div className="iw-launch-colors">
-              <span className="iw-launch-color-dot" style={{ background: primaryColor }} />
-              {secondaryColor && (
-                <span className="iw-launch-color-dot" style={{ background: secondaryColor }} />
-              )}
-            </div>
-          </div>
-        )}
-        {welcomeMessage && (
-          <div className="iw-launch-row">
-            <span className="iw-launch-label">Welcome</span>
-            <span className="iw-launch-value">
-              {welcomeMessage.slice(0, 60)}
-              {welcomeMessage.length > 60 ? "…" : ""}
-            </span>
-          </div>
-        )}
+    <div className="hf-wizard-page">
+      <div className="hf-wizard-step">
+        <WizardSummary
+          title={`Launch ${institutionName || 'Institution'}`}
+          subtitle="Review your details and launch when ready."
+          intent={{
+            items: [
+              { icon: <Building2 className="hf-icon-sm" />, label: "Name", value: institutionName || "—" },
+              ...(typeSlug ? [{ label: "Type", value: typeSlug }] : []),
+              ...(primaryColor ? [{ label: "Branding", value: "Custom colours set" }] : []),
+              ...(welcomeMessage ? [{ label: "Welcome", value: `${welcomeMessage.slice(0, 60)}${welcomeMessage.length > 60 ? "…" : ""}` }] : []),
+            ],
+          }}
+          primaryAction={{
+            label: "Launch Institution",
+            icon: <Building2 className="hf-icon-md" />,
+            onClick: handleCreate,
+          }}
+          secondaryActions={[
+            { label: "Cancel", onClick: () => { endFlow(); } },
+          ]}
+          onBack={onPrev}
+        />
       </div>
-
-      <StepFooter onBack={onPrev} onNext={handleCreate} nextLabel="Launch Institution" />
     </div>
   );
 }

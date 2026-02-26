@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { WizardShell } from "@/components/wizards/WizardShell";
 import type { WizardConfig, StepRenderProps } from "@/components/wizards/types";
 import { IntentStep } from "../_components/steps/IntentStep";
@@ -89,5 +90,8 @@ const config: WizardConfig = {
 };
 
 export default function CourseNewPage() {
-  return <WizardShell config={config} />;
+  const searchParams = useSearchParams();
+  const domainId = searchParams.get("domainId") ?? undefined;
+  const initialData = domainId ? { domainId } : undefined;
+  return <WizardShell config={config} initialData={initialData} />;
 }

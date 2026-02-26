@@ -235,10 +235,15 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
     }
 
     // 4. Scaffold domain (identity spec + playbook)
-    const flowPhases = await loadPersonaFlowPhases(ctx.input.teachingStyle);
+    // Prefer user-edited phases over persona defaults if provided
+    const personaFlowPhases = await loadPersonaFlowPhases(ctx.input.teachingStyle);
+    const customFlowPhases = ctx.input.onboardingFlowPhases;
+    const resolvedScaffoldPhases = customFlowPhases && customFlowPhases.length > 0
+      ? { phases: customFlowPhases }
+      : personaFlowPhases;
     const archetypeSlug = await loadPersonaArchetype(ctx.input.teachingStyle);
     const scaffoldResult = await scaffoldDomain(domain.id, {
-      flowPhases: flowPhases || undefined,
+      flowPhases: resolvedScaffoldPhases || undefined,
       extendsAgent: archetypeSlug || undefined,
       forceNewPlaybook: !!ctx.input.domainId,
       playbookName: ctx.input.courseName,
@@ -284,8 +289,8 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
 
     ctx.results.warnings = [...(ctx.results.warnings || []), ...scaffoldResult.skipped];
 
-    // 5. Configure onboarding (welcome message + behavior targets)
-    if (ctx.input.welcomeMessage || ctx.input.behaviorTargets) {
+    // 5. Configure onboarding (welcome message + behavior targets + custom flow phases)
+    if (ctx.input.welcomeMessage || ctx.input.behaviorTargets || ctx.input.onboardingFlowPhases?.length) {
       try {
         ctx.onProgress({ phase: "onboarding", message: "Configuring onboarding..." });
         await stepExecutors.configure_onboarding(ctx, step);

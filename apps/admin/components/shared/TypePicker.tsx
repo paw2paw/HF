@@ -93,7 +93,7 @@ export function TypePicker({ value, onChange, label = "What kind of organisation
       <label className="hf-label" style={{ marginBottom: 8 }}>
         {label}
       </label>
-      <div className="hf-chip-row">
+      <div className="hf-chip-grid">
         {types.map((t) => {
           const sectorDef = SECTOR_CONFIG[t.slug as SectorSlug];
           const IconComp = sectorDef ? ICON_COMPONENTS[sectorDef.icon] : HelpCircle;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
 import { StepFooter } from "@/components/wizards/StepFooter";
@@ -14,9 +15,21 @@ const TERM_PREVIEW_KEYS = [
   { key: "session", label: "Session" },
 ] as const;
 
+// Static fallback — mirrors seed-institution-types.ts for the 5 preview keys.
+// Used when the DB type has no terminology configured yet.
+const STATIC_TERMINOLOGY: Record<string, Record<string, string>> = {
+  school:     { domain: "School",        playbook: "Lesson Plan",    caller: "Student",     instructor: "Teacher",    session: "Lesson" },
+  corporate:  { domain: "Organization",  playbook: "Training Plan",  caller: "Employee",    instructor: "Trainer",    session: "Training Session" },
+  community:  { domain: "Hub",           playbook: "Programme",      caller: "Member",      instructor: "Facilitator",session: "Call" },
+  coaching:   { domain: "Practice",      playbook: "Coaching Plan",  caller: "Client",      instructor: "Coach",      session: "Coaching Session" },
+  healthcare: { domain: "Facility",      playbook: "Care Plan",      caller: "Patient",     instructor: "Provider",   session: "Patient Session" },
+  training:   { domain: "Academy",       playbook: "Course",         caller: "Participant", instructor: "Trainer",    session: "Training Session" },
+};
+
 export function TerminologyStep({ getData, onNext, onPrev }: StepRenderProps) {
   const typeSlug = getData<string>("typeSlug") ?? null;
   const [terminology, setTerminology] = useState<Record<string, string> | null>(null);
+  const [loading, setLoading] = useState(true);
   const fetched = useRef(false);
 
   useEffect(() => {
@@ -27,10 +40,17 @@ export function TerminologyStep({ getData, onNext, onPrev }: StepRenderProps) {
       .then((data) => {
         if (data.ok && data.types) {
           const match = data.types.find((t: { slug: string }) => t.slug === typeSlug);
-          if (match?.terminology) setTerminology(match.terminology);
+          // DB terminology takes priority; fall back to static presets
+          const terms = match?.terminology || STATIC_TERMINOLOGY[typeSlug] || null;
+          if (terms) setTerminology(terms);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // API failed — try static fallback
+        const terms = STATIC_TERMINOLOGY[typeSlug] || null;
+        if (terms) setTerminology(terms);
+      })
+      .finally(() => setLoading(false));
   }, [typeSlug]);
 
   return (
@@ -40,7 +60,12 @@ export function TerminologyStep({ getData, onNext, onPrev }: StepRenderProps) {
         Pre-filled from your institution type. You can customise these later in settings.
       </p>
 
-      {terminology ? (
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
+          <Loader2 size={14} className="hf-spinner" />
+          Loading terminology…
+        </div>
+      ) : terminology ? (
         <table className="iw-term-table">
           <thead>
             <tr>
@@ -58,7 +83,9 @@ export function TerminologyStep({ getData, onNext, onPrev }: StepRenderProps) {
           </tbody>
         </table>
       ) : (
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Default terminology will be used.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
+          No terminology preset found for this type. You can configure labels in Settings after creation.
+        </p>
       )}
 
       <StepFooter

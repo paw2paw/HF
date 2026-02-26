@@ -27,9 +27,11 @@ interface WizardShellProps {
   config: WizardConfig;
   /** Optional callback when the wizard completes */
   onComplete?: () => void;
+  /** Optional data to pre-seed into the wizard state bag (e.g. domainId from URL) */
+  initialData?: Record<string, unknown>;
 }
 
-export function WizardShell({ config, onComplete }: WizardShellProps) {
+export function WizardShell({ config, onComplete, initialData }: WizardShellProps) {
   const router = useRouter();
   const {
     state,
@@ -85,6 +87,7 @@ export function WizardShell({ config, onComplete }: WizardShellProps) {
           steps,
           returnPath: config.returnPath,
           taskType: config.taskType,
+          initialData,
         });
       }
     })();
@@ -163,7 +166,7 @@ export function WizardShell({ config, onComplete }: WizardShellProps) {
 
   return (
     <div className="hf-page-container hf-page-scroll">
-      {config.cancelLabel && (
+      {config.cancelLabel && currentStep < config.steps.length - 1 && (
         <nav className="hf-breadcrumb">
           <button type="button" className="hf-breadcrumb-segment" onClick={handleCancel}>
             ← {config.cancelLabel}
