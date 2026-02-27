@@ -1,15 +1,17 @@
 "use client";
 
 /**
- * TeachWizard — single-page progressive accordion for the Teach flow.
+ * TeachWizard — single-page progressive accordion for Teach and Demonstrate flows.
  *
- * 7 sections: institution → course (+ intent) → goal → upload → review → lesson-plan → launch
+ * Two modes:
+ *   teach: institution → course → goal → upload → review → lesson-plan → launch
+ *   demo:  institution (+ caller) → goal → upload → review → launch
  *
  * Design principles:
  * - SectionStatus state machine: locked / active / done
  * - CASCADE constant drives which sections re-lock when a prior section is edited
  * - All enum labels come from resolve-config.ts (no hardcodes in JSX)
- * - Upload (step 4) auto-advances to Review (step 5) — teacher never blocked
+ * - Upload auto-advances to Review — teacher never blocked
  * - Review shows two-phase extraction progress (quick preview + enrichment)
  */
 
@@ -19,11 +21,19 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ChevronRight,
+  ChevronDown,
   Plus,
   PlayCircle,
   Pencil,
   X as XIcon,
+  User,
+  Building2,
+  Target,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
+import { FancySelect } from "@/components/shared/FancySelect";
+import type { FancySelectOption } from "@/components/shared/FancySelect";
 import { AgentTuner } from "@/components/shared/AgentTuner";
 import type { AgentTunerOutput, AgentTunerPill } from "@/lib/agent-tuner/types";
 import WizardSection, { type SectionStatus } from "@/components/shared/WizardSection";
@@ -32,6 +42,12 @@ import type { PackUploadResult } from "./PackUploadStep";
 import { suggestInteractionPattern } from "@/lib/content-trust/resolve-config";
 import { CreateInstitutionModal } from "./CreateInstitutionModal";
 import { useTaskPoll, type PollableTask } from "@/hooks/useTaskPoll";
+import { WIRING_FETCH_TIMEOUT_MS } from "@/lib/tasks/constants";
+import { PromptPreviewContent } from "@/app/x/domains/components/PromptPreviewModal";
+import { FieldHint } from "@/components/shared/FieldHint";
+import { WIZARD_HINTS } from "@/lib/wizard-hints";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import {
   TEACHING_MODE_LABELS,
   TEACHING_MODE_ORDER,
@@ -50,31 +66,60 @@ import "./teach-wizard.css";
 
 // ── Constants ───────────────────────────────────────
 
-const SECTION_ORDER = [
-  "institution",
-  "course",
-  "goal",
-  "upload",
-  "review",
-  "lesson-plan",
-  "launch",
-] as const;
+type SectionId = "institution" | "course" | "goal" | "upload" | "review" | "lesson-plan" | "launch";
 
-type SectionId = (typeof SECTION_ORDER)[number];
+const SECTION_ORDER_TEACH: SectionId[] = [
+  "institution", "course", "goal", "upload", "review", "lesson-plan", "launch",
+];
 
-const CASCADE: Record<SectionId, SectionId[]> = {
-  institution: ["course", "goal", "upload", "review", "lesson-plan", "launch"],
-  course: ["upload", "review", "lesson-plan"],
-  goal: [],
-  upload: ["review", "lesson-plan"],
-  review: ["lesson-plan"],
-  "lesson-plan": [],
-  launch: [],
+const SECTION_ORDER_DEMO: SectionId[] = [
+  "institution", "goal", "upload", "review", "launch",
+];
+
+function buildCascade(sections: SectionId[]): Record<SectionId, SectionId[]> {
+  const base: Record<SectionId, SectionId[]> = {
+    institution: [], course: [], goal: [], upload: [], review: [], "lesson-plan": [], launch: [],
+  };
+  // institution re-locks everything after it
+  base.institution = sections.filter((s) => s !== "institution");
+  // course re-locks upload forward (teach mode only)
+  base.course = sections.filter((s) => ["upload", "review", "lesson-plan"].includes(s));
+  // upload re-locks review + lesson-plan
+  base.upload = sections.filter((s) => ["review", "lesson-plan"].includes(s));
+  // review re-locks lesson-plan
+  base.review = sections.filter((s) => s === "lesson-plan");
+  return base;
+}
+
+type CallerInfo = { id: string; name: string | null; email: string | null };
+
+type CourseCheck = {
+  id: string;
+  name: string;
+  description: string;
+  severity: "critical" | "recommended" | "optional";
+  passed: boolean;
+  detail: string;
+  fixAction?: { label: string; href: string };
+};
+
+type AutoWireResult = {
+  moduleCount: number;
+  contentSpecGenerated: boolean;
+  promptComposed: boolean;
+  warnings: string[];
 };
 
 // ── Types ───────────────────────────────────────────
 
-type DomainInfo = { id: string; slug: string; name: string };
+type DomainInfo = {
+  id: string;
+  slug: string;
+  name: string;
+  institution?: {
+    type?: { slug?: string; name?: string; defaultArchetypeSlug?: string | null } | null;
+  } | null;
+};
 type PlaybookInfo = {
   id: string;
   name: string;
@@ -199,41 +244,47 @@ function estimateDuration(tpCount: number): number {
 
 // ── Component ───────────────────────────────────────
 
-export default function TeachWizard() {
+export default function TeachWizard({ mode = "teach" }: { mode?: "teach" | "demo" }) {
   const router = useRouter();
   const { data: sessionData } = useSession();
   const canCreateInstitution = ["OPERATOR", "ADMIN", "SUPERADMIN"].includes(
     (sessionData?.user as { role?: string })?.role || ""
   );
 
+  const isDemo = mode === "demo";
+  const sectionOrder = isDemo ? SECTION_ORDER_DEMO : SECTION_ORDER_TEACH;
+  const cascade = useMemo(() => buildCascade(sectionOrder), [sectionOrder]);
+  const t = useTerminology();
+
+  // Warn before leaving with unsaved progress
+  useUnsavedGuard(goalText.trim().length > 0 || !!selectedDomainId);
+
   // ── Section status ─────────────────────────────────
 
-  const [sectionStatus, setSectionStatus] = useState<Record<SectionId, SectionStatus>>({
-    institution: "active",
-    course: "locked",
-    goal: "locked",
-    upload: "locked",
-    review: "locked",
-    "lesson-plan": "locked",
-    launch: "locked",
+  const [sectionStatus, setSectionStatus] = useState<Record<SectionId, SectionStatus>>(() => {
+    const initial: Record<SectionId, SectionStatus> = {
+      institution: "active", course: "locked", goal: "locked",
+      upload: "locked", review: "locked", "lesson-plan": "locked", launch: "locked",
+    };
+    return initial;
   });
 
   const completeSection = useCallback((id: SectionId) => {
     setSectionStatus((prev) => {
       const next = { ...prev, [id]: "done" as SectionStatus };
-      const idx = SECTION_ORDER.indexOf(id);
-      if (idx < SECTION_ORDER.length - 1) {
-        const nextId = SECTION_ORDER[idx + 1];
+      const idx = sectionOrder.indexOf(id);
+      if (idx < sectionOrder.length - 1) {
+        const nextId = sectionOrder[idx + 1];
         next[nextId] = "active";
       }
       return next;
     });
-  }, []);
+  }, [sectionOrder]);
 
   const editSection = useCallback((id: SectionId) => {
     setSectionStatus((prev) => {
       const next = { ...prev, [id]: "active" as SectionStatus };
-      for (const dep of CASCADE[id]) {
+      for (const dep of cascade[id]) {
         next[dep] = "locked";
       }
       return next;
@@ -283,13 +334,72 @@ export default function TeachWizard() {
       .finally(() => setLoadingDomains(false));
   }, []);
 
+  // ── Caller selection (demo mode only) ───────────────
+
+  const [callers, setCallers] = useState<CallerInfo[]>([]);
+  const [loadingCallers, setLoadingCallers] = useState(false);
+  const [selectedCallerId, setSelectedCallerId] = useState("");
+
+  // Fetch callers when domain changes in demo mode
+  useEffect(() => {
+    if (!isDemo || !selectedDomainId) {
+      setCallers([]);
+      setSelectedCallerId("");
+      return;
+    }
+    setLoadingCallers(true);
+    fetch(`/api/callers?scope=ALL&domainId=${selectedDomainId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list: CallerInfo[] = (data.callers ?? data.data ?? []).map(
+          (c: { id: string; name?: string | null; email?: string | null }) => ({
+            id: c.id, name: c.name ?? null, email: c.email ?? null,
+          })
+        );
+        setCallers(list);
+        // Auto-select first caller if only one
+        if (list.length === 1) setSelectedCallerId(list[0].id);
+      })
+      .catch(() => setCallers([]))
+      .finally(() => setLoadingCallers(false));
+  }, [isDemo, selectedDomainId]);
+
   const handleSelectDomain = useCallback(
     (id: string) => {
       setSelectedDomainId(id);
-      completeSection("institution");
+      // In demo mode, don't complete institution until caller is also selected
+      if (!isDemo) completeSection("institution");
     },
-    [completeSection]
+    [completeSection, isDemo]
   );
+
+  const handleSelectCaller = useCallback(
+    (id: string) => {
+      setSelectedCallerId(id);
+    },
+    []
+  );
+
+  const handleCompleteInstitution = useCallback(() => {
+    if (isDemo && !selectedCallerId) return;
+    completeSection("institution");
+  }, [isDemo, selectedCallerId, completeSection]);
+
+  // ── Demo-mode: auto-wiring + readiness ──────────────
+
+  const [autoWireResult, setAutoWireResult] = useState<AutoWireResult | null>(null);
+  const [autoWiring, setAutoWiring] = useState(false);
+
+  // Readiness
+  const [checks, setChecks] = useState<CourseCheck[]>([]);
+  const [ready, setReady] = useState(false);
+  const [checksLoading, setChecksLoading] = useState(false);
+  const [readinessScore, setReadinessScore] = useState(0);
+  const [readinessLevel, setReadinessLevel] = useState<"ready" | "almost" | "incomplete">("incomplete");
+  const readinessAbort = useRef<AbortController | null>(null);
+
+  // Prompt preview accordion (demo launch)
+  const [promptPreviewExpanded, setPromptPreviewExpanded] = useState(false);
 
   // ── Section 2 — Course + Intent ────────────────────
 
@@ -755,16 +865,130 @@ export default function TeachWizard() {
     return () => clearInterval(interval);
   }, [extractionTaskId]);
 
+  // ── Post-extraction wiring (demo mode) ──────────────
+  // After assertions are extracted, scaffold domain → generate content spec → compose prompt
+  const runPostExtractionWiring = useCallback(async () => {
+    if (!selectedDomainId) return;
+    setAutoWiring(true);
+    const warnings: string[] = [];
+    let moduleCount = 0;
+    let contentSpecGenerated = false;
+    let promptComposed = false;
+    const timeout = () => AbortSignal.timeout(WIRING_FETCH_TIMEOUT_MS);
+
+    // Scaffold (idempotent — ensures playbook exists)
+    try {
+      await fetch(`/api/domains/${selectedDomainId}/scaffold`, { method: "POST", signal: timeout() });
+    } catch (e: unknown) {
+      console.warn("[TeachWizard] Scaffold failed (non-critical):", e);
+      warnings.push("Domain scaffold failed — content spec may not be linked to playbook");
+    }
+
+    // Generate content spec (demo mode only — teach mode uses lesson plan step)
+    try {
+      const specRes = await fetch(`/api/domains/${selectedDomainId}/generate-content-spec`, {
+        method: "POST",
+        signal: timeout(),
+      });
+      const specData = await specRes.json();
+      if (specData.ok && specData.result?.contentSpec) {
+        moduleCount = specData.result.moduleCount || 0;
+        contentSpecGenerated = true;
+      } else if (specData.result?.skipped?.length > 0) {
+        warnings.push(...specData.result.skipped);
+        contentSpecGenerated = true;
+      } else if (specData.error) {
+        warnings.push(`Curriculum: ${specData.error}`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error && e.name === "TimeoutError" ? "Curriculum generation timed out" : "Curriculum generation failed";
+      console.warn("[TeachWizard] Content spec generation failed:", e);
+      warnings.push(msg);
+    }
+
+    // Compose prompt (even if spec generation failed — per-turn RAG can still find assertions)
+    if (selectedCallerId) {
+      try {
+        const composeRes = await fetch(`/api/callers/${selectedCallerId}/compose-prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ triggerType: "teach-wizard" }),
+          signal: timeout(),
+        });
+        const composeData = await composeRes.json();
+        if (composeData.ok) {
+          promptComposed = true;
+        } else {
+          warnings.push(`Prompt: ${composeData.error || "composition failed"}`);
+        }
+      } catch (e: unknown) {
+        const msg = e instanceof Error && e.name === "TimeoutError" ? "Prompt composition timed out" : "Prompt composition failed";
+        console.warn("[TeachWizard] Prompt composition failed:", e);
+        warnings.push(msg);
+      }
+    }
+
+    setAutoWireResult({ moduleCount, contentSpecGenerated, promptComposed, warnings });
+    setAutoWiring(false);
+  }, [selectedDomainId, selectedCallerId]);
+
+  // Trigger auto-wiring when extraction finishes in demo mode
+  const prevExtracting = useRef(false);
+  useEffect(() => {
+    const wasExtracting = prevExtracting.current;
+    prevExtracting.current = extractionInProgress;
+    if (isDemo && wasExtracting && !extractionInProgress && contentTotal > 0) {
+      runPostExtractionWiring();
+    }
+  }, [isDemo, extractionInProgress, contentTotal, runPostExtractionWiring]);
+
+  // ── Fetch readiness (demo mode launch) ─────────────
+  const fetchReadiness = useCallback(async () => {
+    if (!selectedDomainId) return;
+    readinessAbort.current?.abort();
+    const controller = new AbortController();
+    readinessAbort.current = controller;
+
+    setChecksLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedCallerId) params.set("callerId", selectedCallerId);
+      const res = await fetch(
+        `/api/domains/${selectedDomainId}/course-readiness?${params}`,
+        { signal: controller.signal },
+      );
+      const data = await res.json();
+      if (data.ok) {
+        setChecks(data.checks || []);
+        setReady(data.ready ?? false);
+        setReadinessScore(data.score ?? 0);
+        setReadinessLevel(data.level ?? "incomplete");
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      console.warn("[TeachWizard] Readiness fetch failed:", e);
+    } finally {
+      if (!controller.signal.aborted) setChecksLoading(false);
+    }
+  }, [selectedDomainId, selectedCallerId]);
+
+  // Fetch readiness when launch section activates in demo mode
+  useEffect(() => {
+    if (isDemo && sectionStatus.launch === "active" && selectedDomainId) {
+      fetchReadiness();
+    }
+  }, [isDemo, sectionStatus.launch, selectedDomainId, fetchReadiness]);
+
   // ── handlePackResult — auto-advances from Upload to Review ──
   const handlePackResult = useCallback(
     (result: PackUploadResult) => {
       if (result.mode === "skip") {
-        // Skip both upload AND review — go straight to lesson-plan
+        // Skip both upload AND review — go straight to next section
         setSectionStatus((prev) => ({
           ...prev,
           upload: "done" as SectionStatus,
           review: "done" as SectionStatus,
-          "lesson-plan": "active" as SectionStatus,
+          [isDemo ? "launch" : "lesson-plan"]: "active" as SectionStatus,
         }));
         return;
       }
@@ -1340,14 +1564,23 @@ export default function TeachWizard() {
     router,
   ]);
 
+  // Demo launch: redirect to sim with existing caller (no creation)
+  const handleDemoLaunch = useCallback(() => {
+    if (!selectedCallerId || !selectedDomainId) return;
+    const params = new URLSearchParams();
+    params.set("domainId", selectedDomainId);
+    if (goalText.trim()) params.set("goal", goalText.trim());
+    router.push(`/x/sim/${selectedCallerId}?${params.toString()}`);
+  }, [selectedCallerId, selectedDomainId, goalText, router]);
+
   // ── Render ─────────────────────────────────────────
 
   return (
     <div className="tw-page">
       {/* Hero */}
       <div className="tw-hero">
-        <span className="tw-hero-icon">👨‍🏫</span>
-        <h1 className="tw-hero-title">Teach</h1>
+        <span className="tw-hero-icon">{isDemo ? "🎬" : "👨‍🏫"}</span>
+        <h1 className="tw-hero-title">{isDemo ? "Demonstrate" : "Teach"}</h1>
       </div>
 
       <div className="tw-sections">
@@ -1358,10 +1591,16 @@ export default function TeachWizard() {
           id="institution"
           stepNumber={1}
           status={sectionStatus.institution}
-          title="Where are you teaching?"
-          hint="Choose the school or organisation you're teaching in."
+          title={isDemo ? "Where are you demonstrating?" : "Where are you teaching?"}
+          hint={isDemo
+            ? "Choose the institution and caller for this demonstration."
+            : "Choose the school or organisation you're teaching in."}
           summaryLabel="Institution"
-          summary={selectedDomain?.name ?? newDomainName}
+          summary={
+            isDemo && selectedCallerId
+              ? `${selectedDomain?.name ?? newDomainName} · ${callers.find((c) => c.id === selectedCallerId)?.name ?? "Caller"}`
+              : selectedDomain?.name ?? newDomainName
+          }
           onEdit={() => editSection("institution")}
         >
           {loadingDomains ? (
@@ -1369,7 +1608,7 @@ export default function TeachWizard() {
               <span className="tw-spinner" /> Loading institutions...
             </div>
           ) : domains.length === 0 ? (
-            <div style={{ marginTop: 8 }}>
+            <div className="tw-empty-state">
               <p className="tw-hint">
                 No institutions yet.{" "}
                 {canCreateInstitution
@@ -1378,8 +1617,7 @@ export default function TeachWizard() {
               </p>
               {canCreateInstitution && (
                 <button
-                  className="tw-chip tw-chip-new"
-                  style={{ marginTop: 12 }}
+                  className="tw-chip tw-chip-new tw-mt-sm"
                   onClick={() => setShowCreateModal(true)}
                   type="button"
                 >
@@ -1388,32 +1626,69 @@ export default function TeachWizard() {
               )}
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select
-                className="tw-input"
-                style={{ maxWidth: 400 }}
-                value={selectedDomainId}
-                onChange={(e) => {
-                  if (e.target.value) handleSelectDomain(e.target.value);
-                }}
-              >
-                <option value="">Select an institution…</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-              {canCreateInstitution && (
+            <>
+              <div className="tw-domain-row">
+                <FancySelect
+                  options={domains.map((d): FancySelectOption => ({
+                    value: d.id,
+                    label: d.name,
+                    subtitle: d.institution?.type?.name ?? d.slug,
+                  }))}
+                  value={selectedDomainId || null}
+                  onChange={(val) => { if (val) handleSelectDomain(val); }}
+                  placeholder="Select an institution..."
+                  searchable={domains.length > 5}
+                />
+                {canCreateInstitution && (
+                  <button
+                    className="tw-chip tw-chip-new"
+                    onClick={() => setShowCreateModal(true)}
+                    type="button"
+                  >
+                    <Plus size={14} /> New
+                  </button>
+                )}
+              </div>
+
+              {/* Caller selection — demo mode only */}
+              {isDemo && selectedDomainId && (
+                <div className="tw-caller-row">
+                  <label className="tw-label">
+                    <User size={14} /> Test Caller
+                  </label>
+                  {loadingCallers ? (
+                    <div className="tw-loading">
+                      <span className="tw-spinner" /> Loading callers...
+                    </div>
+                  ) : callers.length === 0 ? (
+                    <p className="tw-hint">No callers in this institution yet.</p>
+                  ) : (
+                    <FancySelect
+                      options={callers.map((c): FancySelectOption => ({
+                        value: c.id,
+                        label: c.name ?? c.email ?? "Unknown",
+                        subtitle: c.email ?? undefined,
+                      }))}
+                      value={selectedCallerId || null}
+                      onChange={(val) => { if (val) handleSelectCaller(val); }}
+                      placeholder="Select a caller..."
+                      searchable={callers.length > 5}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Continue button for demo mode (need both domain + caller) */}
+              {isDemo && selectedDomainId && selectedCallerId && (
                 <button
-                  className="tw-chip tw-chip-new"
-                  onClick={() => setShowCreateModal(true)}
+                  className="tw-btn tw-btn-primary tw-mt-md"
+                  onClick={handleCompleteInstitution}
                   type="button"
                 >
-                  <Plus size={14} /> New institution
+                  Continue <ChevronRight size={16} />
                 </button>
               )}
-            </div>
+            </>
           )}
 
           <CreateInstitutionModal
@@ -1427,15 +1702,15 @@ export default function TeachWizard() {
               setNewDomainName(newDomain.name);
               setSelectedDomainId(newDomain.id);
               setShowCreateModal(false);
-              completeSection("institution");
+              if (!isDemo) completeSection("institution");
             }}
           />
         </WizardSection>
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 2 — What are you teaching?        */}
+        {/* SECTION 2 — What are you teaching? (Teach mode only) */}
         {/* ═══════════════════════════════════════════ */}
-        <WizardSection
+        {!isDemo && <WizardSection
           id="course"
           stepNumber={2}
           status={sectionStatus.course}
@@ -1593,14 +1868,14 @@ export default function TeachWizard() {
               )}
             </>
           )}
-        </WizardSection>
+        </WizardSection>}
 
         {/* ═══════════════════════════════════════════ */}
         {/* SECTION 3 — What do students need to achieve? */}
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="goal"
-          stepNumber={3}
+          stepNumber={isDemo ? 2 : 3}
           status={sectionStatus.goal}
           title="What do students need to achieve?"
           hint="What should students be able to do or understand by the end? We'll suggest goals based on your content."
@@ -1687,7 +1962,7 @@ export default function TeachWizard() {
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="upload"
-          stepNumber={4}
+          stepNumber={isDemo ? 3 : 4}
           status={sectionStatus.upload}
           title="Add your source materials"
           hint="Upload a textbook chapter, worksheet, or lesson notes. You can skip this and add materials later."
@@ -1721,7 +1996,7 @@ export default function TeachWizard() {
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="review"
-          stepNumber={5}
+          stepNumber={isDemo ? 4 : 5}
           status={sectionStatus.review}
           title="Review your content"
           hint="Check what we found in your materials. Toggle groups on/off and choose how each should be taught."
@@ -2135,9 +2410,9 @@ export default function TeachWizard() {
         </WizardSection>
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 6 — How should lessons be structured? */}
+        {/* SECTION 6 — How should lessons be structured? (Teach mode only) */}
         {/* ═══════════════════════════════════════════ */}
-        <WizardSection
+        {!isDemo && <WizardSection
           id="lesson-plan"
           stepNumber={6}
           status={sectionStatus["lesson-plan"]}
@@ -2272,100 +2547,215 @@ export default function TeachWizard() {
               </div>
             </>
           )}
-        </WizardSection>
+        </WizardSection>}
 
         {/* ═══════════════════════════════════════════ */}
-        {/* SECTION 7 — Ready to teach                */}
+        {/* SECTION 7 — Ready                         */}
         {/* ═══════════════════════════════════════════ */}
         <WizardSection
           id="launch"
-          stepNumber={7}
+          stepNumber={isDemo ? 5 : 7}
           status={sectionStatus.launch}
-          title="Ready to teach"
-          hint="Review your choices and launch. Add an optional learner name to personalise the session."
+          title={isDemo ? "Ready to demonstrate" : "Ready to teach"}
+          hint={isDemo
+            ? "Review your choices and start the demonstration."
+            : "Review your choices and launch. Add an optional learner name to personalise the session."}
         >
-          {/* Summary */}
-          <div className="tw-summary-grid">
-            <div className="tw-summary-row">
-              <span className="tw-summary-key">Institution</span>
-              <span className="tw-summary-val">
-                {selectedDomain?.name ?? newDomainName ?? "—"}
-              </span>
-            </div>
-            <div className="tw-summary-row">
-              <span className="tw-summary-key">Course</span>
-              <span className="tw-summary-val">
-                {courseSummary ?? "—"}
-              </span>
-            </div>
-            <div className="tw-summary-row">
-              <span className="tw-summary-key">Goal</span>
-              <span className="tw-summary-val">{goalText || "—"}</span>
-            </div>
-            <div className="tw-summary-row">
-              <span className="tw-summary-key">Upload</span>
-              <span className="tw-summary-val">
-                {uploadSourceCount > 0
-                  ? `${uploadSourceCount} file${uploadSourceCount !== 1 ? "s" : ""}`
-                  : subjectIds.length > 0 ? "Existing content" : "Skipped"}
-              </span>
-            </div>
-            <div className="tw-summary-row">
-              <span className="tw-summary-key">Content</span>
-              <span className="tw-summary-val">{contentSummary}</span>
-            </div>
-            <div className="tw-summary-row">
-              <span className="tw-summary-key">Lessons</span>
-              <span className="tw-summary-val">{lessonSummary}</span>
-            </div>
-          </div>
+          {isDemo ? (
+            /* ── Demo mode launch ─────────────────────── */
+            <>
+              {/* Summary strip */}
+              <div className="tw-summary-grid">
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key"><Building2 size={14} /> Institution</span>
+                  <span className="tw-summary-val">{selectedDomain?.name ?? "—"}</span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key"><User size={14} /> Caller</span>
+                  <span className="tw-summary-val">
+                    {callers.find((c) => c.id === selectedCallerId)?.name ?? "—"}
+                  </span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key"><Target size={14} /> Goal</span>
+                  <span className="tw-summary-val">{goalText || "—"}</span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Content</span>
+                  <span className="tw-summary-val">{contentSummary}</span>
+                </div>
+              </div>
 
-          {/* Learner details (optional) */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1 }}>
-              <p className="tw-label">Learner name (optional)</p>
-              <input
-                className="tw-input"
-                type="text"
-                placeholder="e.g. Alex"
-                value={learnerName}
-                onChange={(e) => setLearnerName(e.target.value)}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <p className="tw-label">Email (optional)</p>
-              <input
-                className="tw-input"
-                type="email"
-                placeholder="alex@example.com"
-                value={learnerEmail}
-                onChange={(e) => setLearnerEmail(e.target.value)}
-              />
-            </div>
-          </div>
+              {/* Auto-wiring progress */}
+              {autoWiring && (
+                <div className="tw-launch-phase">
+                  <span className="tw-spinner" />
+                  Preparing demonstration...
+                </div>
+              )}
 
-          {launchError && (
-            <div className="tw-banner-error" style={{ marginBottom: 12 }}>
-              {launchError}
-            </div>
+              {/* Auto-wire result */}
+              {autoWireResult && autoWireResult.warnings.length > 0 && (
+                <div className="tw-banner-warning tw-mt-sm">
+                  {autoWireResult.warnings.map((w, i) => (
+                    <div key={i}>{w}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Readiness */}
+              {checksLoading ? (
+                <div className="tw-loading tw-mt-md">
+                  <span className="tw-spinner" /> Checking readiness...
+                </div>
+              ) : checks.length > 0 && (
+                <div className="tw-readiness tw-mt-md">
+                  <div className="tw-readiness-header">
+                    <span className={`tw-readiness-badge tw-readiness-badge--${readinessLevel}`}>
+                      {readinessScore}%
+                    </span>
+                    <span className="tw-readiness-label">
+                      {readinessLevel === "ready" ? "Ready" : readinessLevel === "almost" ? "Almost Ready" : "Incomplete"}
+                    </span>
+                  </div>
+                  <div className="tw-readiness-checks">
+                    {checks.map((check) => (
+                      <div key={check.id} className="tw-readiness-check">
+                        {check.passed
+                          ? <CheckCircle2 size={14} className="tw-readiness-icon--pass" />
+                          : <AlertTriangle size={14} className="tw-readiness-icon--fail" />}
+                        <span className="tw-readiness-check-name">{check.name}</span>
+                        <span className="tw-readiness-check-detail">{check.detail}</span>
+                        {!check.passed && check.fixAction && (
+                          <a href={check.fixAction.href} className="tw-readiness-fix">
+                            {check.fixAction.label}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Prompt preview accordion */}
+              <div className="tw-prompt-preview-accordion tw-mt-md">
+                <button
+                  className="tw-prompt-preview-toggle"
+                  onClick={() => setPromptPreviewExpanded((p) => !p)}
+                  type="button"
+                >
+                  {promptPreviewExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  Preview First Prompt
+                </button>
+                {selectedDomainId && (
+                  <div className={`tw-prompt-preview-body${promptPreviewExpanded ? "" : " tw-hidden"}`}>
+                    <PromptPreviewContent
+                      domainId={selectedDomainId}
+                      callerId={selectedCallerId || undefined}
+                      open={promptPreviewExpanded}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Demo launch button */}
+              <button
+                className="tw-btn-launch tw-mt-md"
+                onClick={handleDemoLaunch}
+                disabled={!selectedCallerId || !selectedDomainId || autoWiring}
+                type="button"
+              >
+                <PlayCircle size={20} />
+                {autoWiring ? "Preparing..." : "Start Lesson →"}
+              </button>
+            </>
+          ) : (
+            /* ── Teach mode launch ────────────────────── */
+            <>
+              {/* Summary */}
+              <div className="tw-summary-grid">
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Institution</span>
+                  <span className="tw-summary-val">
+                    {selectedDomain?.name ?? newDomainName ?? "—"}
+                  </span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Course</span>
+                  <span className="tw-summary-val">
+                    {courseSummary ?? "—"}
+                  </span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Goal</span>
+                  <span className="tw-summary-val">{goalText || "—"}</span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Upload</span>
+                  <span className="tw-summary-val">
+                    {uploadSourceCount > 0
+                      ? `${uploadSourceCount} file${uploadSourceCount !== 1 ? "s" : ""}`
+                      : subjectIds.length > 0 ? "Existing content" : "Skipped"}
+                  </span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Content</span>
+                  <span className="tw-summary-val">{contentSummary}</span>
+                </div>
+                <div className="tw-summary-row">
+                  <span className="tw-summary-key">Lessons</span>
+                  <span className="tw-summary-val">{lessonSummary}</span>
+                </div>
+              </div>
+
+              {/* Learner details (optional) */}
+              <div className="tw-learner-row">
+                <div className="tw-learner-field">
+                  <p className="tw-label">Learner name (optional)</p>
+                  <input
+                    className="tw-input"
+                    type="text"
+                    placeholder="e.g. Alex"
+                    value={learnerName}
+                    onChange={(e) => setLearnerName(e.target.value)}
+                  />
+                </div>
+                <div className="tw-learner-field">
+                  <p className="tw-label">Email (optional)</p>
+                  <input
+                    className="tw-input"
+                    type="email"
+                    placeholder="alex@example.com"
+                    value={learnerEmail}
+                    onChange={(e) => setLearnerEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {launchError && (
+                <div className="tw-banner-error tw-mt-sm">
+                  {launchError}
+                </div>
+              )}
+
+              {launchPhase && launching && (
+                <div className="tw-launch-phase">
+                  <span className="tw-spinner" />
+                  {launchPhase}
+                </div>
+              )}
+
+              <button
+                className="tw-btn-launch"
+                onClick={handleLaunch}
+                disabled={!selectedDomainId || launching}
+                type="button"
+              >
+                <PlayCircle size={20} />
+                {launching ? launchPhase || "Launching..." : "Launch lesson →"}
+              </button>
+            </>
           )}
-
-          {launchPhase && launching && (
-            <div className="tw-launch-phase">
-              <span className="tw-spinner" />
-              {launchPhase}
-            </div>
-          )}
-
-          <button
-            className="tw-btn-launch"
-            onClick={handleLaunch}
-            disabled={!selectedDomainId || launching}
-            type="button"
-          >
-            <PlayCircle size={20} />
-            {launching ? launchPhase || "Launching..." : "Launch lesson →"}
-          </button>
         </WizardSection>
       </div>
     </div>

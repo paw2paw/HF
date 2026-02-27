@@ -269,6 +269,13 @@ export const WIZARD_ACTIONS = [
     primary: false,
   },
   {
+    label: "Teach",
+    icon: "GraduationCap",
+    href: "/x/teach",
+    description: "Teach a lesson with AI",
+    primary: false,
+  },
+  {
     label: "Try It",
     icon: "PlayCircle",
     href: "/x/educator/try",

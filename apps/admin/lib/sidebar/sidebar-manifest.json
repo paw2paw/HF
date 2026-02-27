@@ -7,6 +7,8 @@
       { "id": "institution", "href": "/x/institutions/new", "label": "Institution", "icon": "Rocket", "highlighted": true, "wizard": true, "terminologyLabel": "domain" },
       { "id": "new-course", "href": "/x/courses/new", "label": "Course", "icon": "Rocket", "wizard": true, "terminologyLabel": "playbook" },
       { "id": "new-community", "href": "/x/communities/new", "label": "Community", "icon": "Rocket", "wizard": true, "terminologyLabel": "cohort" },
+      { "id": "teach", "href": "/x/teach", "label": "Teach", "icon": "GraduationCap", "wizard": true, "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "demonstrate", "href": "/x/demonstrate", "label": "Demonstrate", "icon": "PlayCircle", "wizard": true, "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "preview-prompt", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
@@ -40,7 +42,6 @@
     "defaultHiddenFor": ["STUDENT", "DEMO", "TESTER"],
     "items": [
       { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users2", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "magic-flow", "href": "/x/teach", "label": "MagicFlow", "icon": "Sparkles", "wizard": true, "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "manage-cohorts", "href": "/x/cohorts", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms" } } },
       { "id": "manage-callers", "href": "/x/callers", "label": "Callers", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/students" } } },
       { "id": "manage-jobs", "href": "/x/jobs", "label": "Jobs", "icon": "Cog", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] }

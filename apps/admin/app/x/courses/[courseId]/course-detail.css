@@ -18,6 +18,13 @@
 .cd-session-row-static {
   cursor: default;
 }
+.cd-session-row-clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cd-session-row-clickable:hover {
+  background: var(--surface-secondary);
+}
 .cd-session-icon {
   flex-shrink: 0;
 }

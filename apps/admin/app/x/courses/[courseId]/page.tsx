@@ -33,6 +33,7 @@ import {
   type SpecGroup,
 } from '@/lib/course/group-specs';
 import { TEACH_METHOD_CONFIG } from '@/lib/content-trust/resolve-config';
+import { SESSION_TYPES, SESSION_TYPE_ICONS, getSessionTypeColor, getSessionTypeLabel } from '@/lib/lesson-plan/session-ui';
 import './course-detail.css';
 
 // ── Types ──────────────────────────────────────────────
@@ -196,31 +197,8 @@ type SessionTabData = {
   subjectCount: number;
 };
 
-const SESSION_TYPES = [
-  { value: 'onboarding', label: 'Onboarding', color: 'var(--accent-primary)' },
-  { value: 'introduce', label: 'Introduce', color: 'var(--status-info-text)' },
-  { value: 'deepen', label: 'Deepen', color: 'var(--status-info-text)' },
-  { value: 'review', label: 'Review', color: 'var(--status-warning-text)' },
-  { value: 'assess', label: 'Assess', color: 'var(--status-error-text)' },
-  { value: 'consolidate', label: 'Consolidate', color: 'var(--status-success-text)' },
-] as const;
-
-const SESSION_TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
-  onboarding: Sparkles,
-  introduce: BookOpen,
-  deepen: Layers,
-  review: RotateCcw,
-  assess: Target,
-  consolidate: CheckCircle,
-};
-
-function getSessionTypeColor(type: string): string {
-  return SESSION_TYPES.find((t) => t.value === type)?.color || 'var(--text-muted)';
-}
-
-function getSessionTypeLabel(type: string): string {
-  return SESSION_TYPES.find((t) => t.value === type)?.label || type;
-}
+// SESSION_TYPES, SESSION_TYPE_ICONS, getSessionTypeColor, getSessionTypeLabel
+// imported from @/lib/lesson-plan/session-ui
 
 const statusMap: Record<string, 'draft' | 'active' | 'archived'> = {
   draft: 'draft',
@@ -1958,7 +1936,14 @@ export default function CourseDetailPage() {
 
                   return (
                     <div key={`sess-${i}`}>
-                      <div className="hf-session-row cd-session-row-static" style={{ '--session-color': typeColor } as React.CSSProperties}>
+                      <div
+                        className="hf-session-row cd-session-row-clickable"
+                        style={{ '--session-color': typeColor } as React.CSSProperties}
+                        onClick={() => router.push(`/x/courses/${courseId}/sessions/${entry.session}`)}
+                        role="link"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/x/courses/${courseId}/sessions/${entry.session}`); }}
+                      >
                         <span className="hf-session-num">{i + 1}</span>
                         {TypeIcon && <TypeIcon size={12} className="cd-session-icon" style={{ color: 'var(--session-color)' }} />}
                         <span className="hf-session-type cd-session-type">
@@ -1992,7 +1977,7 @@ export default function CourseDetailPage() {
                         {(entry.phases?.length || (sessionTPs[i + 1]?.length ?? 0) > 0) ? (
                           <button
                             className="hf-session-expand-btn"
-                            onClick={() => setExpandedSession(expandedSession === i ? null : i)}
+                            onClick={(e) => { e.stopPropagation(); setExpandedSession(expandedSession === i ? null : i); }}
                             title={expandedSession === i ? 'Collapse details' : 'Show details'}
                           >
                             <span className={`hf-chevron--sm${expandedSession === i ? ' hf-chevron--open' : ''}`} />

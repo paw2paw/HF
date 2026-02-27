@@ -50,6 +50,8 @@ export interface CourseSetupInput {
   behaviorTargets?: Record<string, number>;
   // Config step — user-edited call flow phases (overrides persona defaults if provided)
   onboardingFlowPhases?: Array<{ phase: string; duration: string; goals: string[]; avoid?: string[] }>;
+  // Content step — subjects created by PackUploadStep (with actual ContentSources)
+  packSubjectIds?: string[];
   // Two-axis identity: session structure (stored in Playbook.config)
   interactionPattern?: string; // "socratic" | "directive" | "advisory" | "coaching" | "companion" | "facilitation" | "reflective" | "open"
   // Wizard task tracking — reuse wizard task for launch progress
@@ -208,7 +210,7 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
     ctx.results.domainName = domain.name;
     ctx.results.institutionId = domain.institutionId ?? undefined;
 
-    // 2. Create or find Subject (reuse pre-created from Generate & Review path)
+    // 2. Create or find Subject (reuse pre-created from Generate & Review path, or pack upload)
     let subject;
     if (ctx.input.subjectId) {
       subject = await prisma.subject.findUnique({ where: { id: ctx.input.subjectId } });
@@ -217,6 +219,10 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
         ctx.results.warnings!.push("Pre-created subject not found, creating new one");
         ctx.input.subjectId = undefined;
       }
+    }
+    // If no subjectId but packSubjects exist, reuse the first one as the primary subject
+    if (!subject && ctx.input.packSubjectIds?.length) {
+      subject = await prisma.subject.findUnique({ where: { id: ctx.input.packSubjectIds[0] } });
     }
     if (!subject) {
       const subjectSlug = domainSlug;
@@ -293,6 +299,36 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
             subjectId: ctx.results.subjectId,
           },
         });
+      }
+    }
+
+    // 4b. Link content-rich subjects from PackUploadStep (if any)
+    if (ctx.input.packSubjectIds && ctx.input.packSubjectIds.length > 0 && scaffoldResult.playbook) {
+      for (const packSubId of ctx.input.packSubjectIds) {
+        // Link to Playbook
+        await prisma.playbookSubject.upsert({
+          where: {
+            playbookId_subjectId: {
+              playbookId: scaffoldResult.playbook.id,
+              subjectId: packSubId,
+            },
+          },
+          update: {},
+          create: {
+            playbookId: scaffoldResult.playbook.id,
+            subjectId: packSubId,
+          },
+        });
+
+        // Link to Domain
+        const domainLink = await prisma.subjectDomain.findFirst({
+          where: { subjectId: packSubId, domainId: domain.id },
+        });
+        if (!domainLink) {
+          await prisma.subjectDomain.create({
+            data: { subjectId: packSubId, domainId: domain.id },
+          });
+        }
       }
     }
 

@@ -1,0 +1,313 @@
+/* ── Session Detail Page ── sd-* prefix ── */
+
+/* Prev/Next navigation bar */
+.sd-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.sd-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sd-nav-btn:hover:not(:disabled) {
+  background: var(--surface-secondary);
+  border-color: var(--text-muted);
+}
+.sd-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.sd-nav-counter {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: 1;
+  text-align: center;
+}
+
+/* Header with type badge + title */
+.sd-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.sd-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--session-color);
+  background: color-mix(in srgb, var(--session-color) 12%, transparent);
+  flex-shrink: 0;
+}
+
+/* Overview card grid */
+.sd-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.sd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sd-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.sd-field-value {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.sd-field-full {
+  grid-column: 1 / -1;
+}
+
+/* Notes textarea */
+.sd-notes-display {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  min-height: 40px;
+}
+.sd-notes-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.sd-notes-textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  resize: vertical;
+  line-height: 1.5;
+}
+.sd-notes-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+/* Type dropdown */
+.sd-type-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  cursor: pointer;
+}
+.sd-type-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+/* Duration input */
+.sd-duration-input {
+  width: 70px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  text-align: center;
+}
+.sd-duration-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+.sd-duration-unit {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* Phase cards */
+.sd-phase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sd-phase-card {
+  padding: 14px 16px;
+  background: var(--surface-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+}
+.sd-phase-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sd-phase-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sd-phase-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+.sd-phase-duration {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.sd-phase-methods {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.sd-phase-guidance {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* Section card */
+.sd-section {
+  margin-bottom: 20px;
+}
+.sd-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sd-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sd-section-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Save indicator */
+.sd-save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.sd-save-indicator--saving {
+  color: var(--accent-primary);
+}
+.sd-save-indicator--error {
+  color: var(--status-error-text);
+}
+
+/* Media strip */
+.sd-media-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.sd-media-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.sd-media-thumb:hover {
+  border-color: var(--accent-primary);
+}
+
+/* Back link */
+.sd-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.sd-back-link:hover {
+  color: var(--text-primary);
+}
+
+/* LO chips */
+.sd-lo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Edit button inline */
+.sd-edit-btn {
+  padding: 2px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.sd-edit-btn:hover {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+/* Empty state */
+.sd-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-style: italic;
+}

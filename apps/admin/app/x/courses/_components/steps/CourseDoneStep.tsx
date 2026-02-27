@@ -69,6 +69,8 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
   const lessonPlan = getData<{ session: number; type: string; label: string }[]>('lessonPlan') || [];
   const flowPhases = getData<Array<{ phase: string; duration: string; goals: string[] }>>('flowPhases') || [];
   const welcomeMsg = getData<string>('welcomeMessage') || '';
+  const packSubjects = getData<Array<{ id: string; name: string }>>('packSubjects') || [];
+  const packSubjectIds = packSubjects.map((s) => s.id).filter(Boolean);
 
   // Build plan summary from actual lesson plan entries
   const planSummaryValue = (() => {
@@ -168,6 +170,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
           wizardTaskId: wizardTaskId || undefined,
           groupId: getData<string>('groupId') || undefined,
           onboardingFlowPhases: flowPhases && flowPhases.length > 0 ? flowPhases : undefined,
+          packSubjectIds: packSubjectIds.length > 0 ? packSubjectIds : undefined,
         }),
         signal: controller.signal,
       });

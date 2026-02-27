@@ -1291,3 +1291,203 @@
 .tw-group-row-dimmed:hover {
   opacity: 0.6;
 }
+
+/* ── Domain + Caller selection (Phase 1) ─────────── */
+
+.tw-domain-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tw-domain-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.tw-caller-row {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tw-caller-row .tw-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tw-hidden {
+  display: none;
+}
+
+.tw-empty-state {
+  padding: 12px 0;
+}
+
+.tw-mt-sm { margin-top: 8px; }
+.tw-mt-md { margin-top: 16px; }
+
+.tw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.tw-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tw-btn-primary {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.tw-btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-primary) 85%, #000);
+}
+
+/* ── Learner row (teach mode launch) ─────────────── */
+
+.tw-learner-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tw-learner-field {
+  flex: 1;
+}
+
+/* ── Readiness (demo mode launch) ────────────────── */
+
+.tw-readiness {
+  border: 1.5px solid var(--border-default);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.tw-readiness-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tw-readiness-badge {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.tw-readiness-badge--ready {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.tw-readiness-badge--almost {
+  background: color-mix(in srgb, var(--status-warning-text) 12%, transparent);
+  color: var(--status-warning-text);
+}
+
+.tw-readiness-badge--incomplete {
+  background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
+  color: var(--status-error-text);
+}
+
+.tw-readiness-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tw-readiness-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tw-readiness-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.tw-readiness-icon--pass {
+  color: var(--status-success-text);
+  flex-shrink: 0;
+}
+
+.tw-readiness-icon--fail {
+  color: var(--status-warning-text);
+  flex-shrink: 0;
+}
+
+.tw-readiness-check-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tw-readiness-check-detail {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.tw-readiness-fix {
+  font-size: 12px;
+  color: var(--accent-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tw-readiness-fix:hover {
+  text-decoration: underline;
+}
+
+/* ── Prompt preview accordion (demo launch) ──────── */
+
+.tw-prompt-preview-accordion {
+  border: 1.5px solid var(--border-default);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tw-prompt-preview-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-secondary);
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.tw-prompt-preview-toggle:hover {
+  background: color-mix(in srgb, var(--accent-primary) 5%, var(--surface-secondary));
+}
+
+.tw-prompt-preview-body {
+  padding: 14px;
+  border-top: 1px solid var(--border-default);
+  max-height: 400px;
+  overflow-y: auto;
+}
