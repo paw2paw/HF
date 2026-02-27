@@ -53,7 +53,14 @@ export async function POST(req: NextRequest) {
         maxTokens: 80,
         timeoutMs,
       },
-      { sourceOp: "community:suggest-description" }
+      {
+        sourceOp: "community:suggest-description",
+        userId: auth.session.user.id,
+        userName: auth.session.user.name || undefined,
+        entityLabel: hubName,
+        wizardName: "Community",
+        wizardStep: "Suggest Description",
+      }
     );
 
     const description = response.content.trim().replace(/^["']|["']$/g, "");

@@ -94,3 +94,33 @@ export function formatForClaude(log: LogEntry): string {
   }
   return lines.join("\n");
 }
+
+// ── Status ─────────────────────────────────────────────
+
+export type LogStatus = "ok" | "error" | "slow" | "neutral";
+
+/** @system-constant log-viewer — Duration threshold (ms) for "slow" status */
+const SLOW_THRESHOLD_MS = 5000;
+
+/**
+ * Derive RAG status from a log entry.
+ *   Red   = error level or error in metadata or stage contains ":error"
+ *   Amber = durationMs > SLOW_THRESHOLD_MS
+ *   Green = AI type with successful completion
+ *   Grey  = everything else
+ */
+export function deriveStatus(log: LogEntry): LogStatus {
+  if (isErrorEntry(log)) return "error";
+  if (log.stage?.includes(":error")) return "error";
+  if (log.metadata?.error) return "error";
+  if (log.durationMs && log.durationMs > SLOW_THRESHOLD_MS) return "slow";
+  if (log.type === "ai" && log.responseLength && log.responseLength > 0) return "ok";
+  return "neutral";
+}
+
+export const LOG_STATUS_COLORS: Record<LogStatus, string> = {
+  ok: "var(--status-success-text)",
+  error: "var(--status-error-text)",
+  slow: "var(--status-warning-text)",
+  neutral: "var(--text-muted)",
+};

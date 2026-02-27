@@ -64,7 +64,14 @@ Each message must:
         maxTokens: 300,
         timeoutMs,
       },
-      { sourceOp: "institution-wizard:suggest-welcome" },
+      {
+        sourceOp: "institution-wizard:suggest-welcome",
+        userId: authResult.session.user.id,
+        userName: authResult.session.user.name || undefined,
+        entityLabel: institutionName,
+        wizardName: "Institution",
+        wizardStep: "Suggest Welcome",
+      },
     );
 
     const raw = response.content

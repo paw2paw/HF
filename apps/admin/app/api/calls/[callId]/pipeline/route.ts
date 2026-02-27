@@ -229,7 +229,8 @@ async function runBatchedCallerAnalysis(
   call: { id: string; transcript: string | null },
   callerId: string,
   engine: AIEngine,
-  log: PipelineLogger
+  log: PipelineLogger,
+  userName?: string,
 ): Promise<{
   scoresCreated: number;
   memoriesCreated: number;
@@ -426,7 +427,7 @@ async function runBatchedCallerAnalysis(
         ],
         maxTokens: Math.max(2048, (measureParams.length + learnActions.length) * 120),
         timeoutMs: timeouts.pipelineTimeoutMs,
-      }, { callId: call.id, callerId, sourceOp: "pipeline:extract" });
+      }, { callId: call.id, callerId, sourceOp: "pipeline:extract", userName });
 
       log.debug("AI caller analysis response", { model: result.model, tokens: result.usage });
 
@@ -547,7 +548,8 @@ async function runBatchedAgentAnalysis(
   call: { id: string; transcript: string | null },
   callerId: string,
   engine: AIEngine,
-  log: PipelineLogger
+  log: PipelineLogger,
+  userName?: string,
 ): Promise<{ measurementsCreated: number }> {
   const transcript = call.transcript || "";
 
@@ -673,7 +675,7 @@ async function runBatchedAgentAnalysis(
         ],
         maxTokens: estimatedTokens,
         timeoutMs: agentTimeouts.pipelineTimeoutMs,
-      }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent" });
+      }, { callId: call.id, callerId, sourceOp: "pipeline:score_agent", userName });
 
       log.debug("AI agent analysis response", { model: result.model, contentLength: result.content.length });
 
@@ -1068,7 +1070,8 @@ async function runAdaptSpecs(
   callerId: string,
   engine: AIEngine,
   guardrails: GuardrailsConfig,
-  log: PipelineLogger
+  log: PipelineLogger,
+  userName?: string,
 ): Promise<{ targetsCreated: number }> {
   const callId = call.id;
   // Load ADAPT specs (by outputType, not specType)
@@ -1173,7 +1176,7 @@ async function runAdaptSpecs(
         maxTokens: 1024,
         temperature: aiSettings.temperature,
         timeoutMs: adaptTimeouts.pipelineTimeoutMs,
-      }, { callId, callerId, sourceOp: "pipeline:adapt" });
+      }, { callId, callerId, sourceOp: "pipeline:adapt", userName });
 
       // logAI now handled centrally by getConfiguredMeteredAICompletion
 
@@ -1725,6 +1728,7 @@ interface PipelineContext {
   force: boolean;
   log: PipelineLogger;
   request: NextRequest;
+  userName?: string;
   // Accumulated results from previous stages
   results: Record<string, any>;
 }
@@ -1752,7 +1756,7 @@ const stageExecutors: Record<string, StageExecutor> = {
       }
     }
 
-    const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+    const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log, ctx.userName);
     const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
 
     // Run all 5 non-blocking post-analysis ops in parallel
@@ -1853,7 +1857,7 @@ const stageExecutors: Record<string, StageExecutor> = {
       }
     }
 
-    const agentResult = await runBatchedAgentAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+    const agentResult = await runBatchedAgentAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log, ctx.userName);
     return {
       agentMeasurements: agentResult.measurementsCreated,
     };
@@ -1910,7 +1914,7 @@ const stageExecutors: Record<string, StageExecutor> = {
     // Run AI adapt, rule-based adapt, and goal extraction in parallel
     const [adaptSettled, ruleSettled, goalSettled] = await Promise.allSettled([
       // 1. AI-based adapt specs (creates CallTarget entries)
-      runAdaptSpecs(ctx.call, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log),
+      runAdaptSpecs(ctx.call, ctx.callerId, ctx.engine, ctx.guardrails, ctx.log, ctx.userName),
       // 2. Rule-based adapt specs (creates/updates CallerTarget entries)
       runRuleBasedAdapt(ctx.callerId),
       // 3. Extract goals from transcript (GOAL-001)
@@ -2140,6 +2144,7 @@ export async function POST(
   try {
     const authResult = await requireAuth("OPERATOR");
     if (isAuthError(authResult)) return authResult.error;
+    const pipelineUserName = authResult.session.user.name || undefined;
 
     const { callId } = await params;
     const body = await request.json().catch(() => ({}));
@@ -2201,6 +2206,7 @@ export async function POST(
       force,
       log,
       request,
+      userName: pipelineUserName,
       results: {},
     };
 

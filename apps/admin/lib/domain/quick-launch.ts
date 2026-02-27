@@ -187,7 +187,13 @@ async function autoGenerateGoals(ctx: LaunchContext): Promise<string[]> {
         temperature: 0.3,
         maxTokens: 200,
       },
-      { sourceOp: "quick-launch:auto-goals" },
+      {
+        sourceOp: "quick-launch:auto-goals",
+        userId: ctx.userId,
+        entityLabel: subjectName,
+        wizardName: "Quick Launch",
+        wizardStep: "Auto Goals",
+      },
     );
 
     const text = (response.content || "").trim().replace(/^```json\s*/i, "").replace(/```\s*$/, "");

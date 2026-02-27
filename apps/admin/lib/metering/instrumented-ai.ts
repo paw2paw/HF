@@ -28,6 +28,11 @@ export interface MeteringContext {
   callerId?: string;
   callId?: string;
   sourceOp?: string;
+  // ── Rich context (optional, for LogViewer display) ──
+  userName?: string;
+  entityLabel?: string;
+  wizardName?: string;
+  wizardStep?: string;
 }
 
 /**
@@ -208,6 +213,10 @@ function maybeDeepLog(
         callerId: context?.callerId,
         userId: context?.userId,
         sourceOp: context?.sourceOp || options.callPoint,
+        userName: context?.userName,
+        entityLabel: context?.entityLabel,
+        wizardName: context?.wizardName,
+        wizardStep: context?.wizardStep,
       });
     })
     .catch(() => {
@@ -244,6 +253,10 @@ function maybeDeepLogError(
         callerId: context?.callerId,
         userId: context?.userId,
         sourceOp: context?.sourceOp || options.callPoint,
+        userName: context?.userName,
+        entityLabel: context?.entityLabel,
+        wizardName: context?.wizardName,
+        wizardStep: context?.wizardStep,
       });
     })
     .catch(() => {
@@ -310,6 +323,10 @@ export async function getConfiguredMeteredAICompletion(
         callerId: context?.callerId,
         userId: context?.userId,
         sourceOp: context?.sourceOp || options.callPoint,
+        userName: context?.userName,
+        entityLabel: context?.entityLabel,
+        wizardName: context?.wizardName,
+        wizardStep: context?.wizardStep,
       });
 
       // Deep logging (fire-and-forget)

@@ -61,7 +61,14 @@ Each outcome must:
         maxTokens: 250,
         timeoutMs,
       },
-      { sourceOp: "course-wizard:suggest-outcomes" },
+      {
+        sourceOp: "course-wizard:suggest-outcomes",
+        userId: authResult.session.user.id,
+        userName: authResult.session.user.name || undefined,
+        entityLabel: courseName,
+        wizardName: "Course",
+        wizardStep: "Suggest Outcomes",
+      },
     );
 
     const raw = response.content

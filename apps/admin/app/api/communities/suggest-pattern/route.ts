@@ -68,7 +68,14 @@ export async function POST(req: NextRequest) {
         maxTokens: 60,
         timeoutMs,
       },
-      { sourceOp: "community:suggest-pattern" }
+      {
+        sourceOp: "community:suggest-pattern",
+        userId: auth.session.user.id,
+        userName: auth.session.user.name || undefined,
+        entityLabel: text.slice(0, 40),
+        wizardName: "Community",
+        wizardStep: "Suggest Pattern",
+      }
     );
 
     let parsed: { pattern: string; confidence: number };

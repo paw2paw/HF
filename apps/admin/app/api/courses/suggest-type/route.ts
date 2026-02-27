@@ -63,7 +63,14 @@ Return: {"mode": "<mode>", "confidence": <0.0-1.0>}`,
         maxTokens: 60,
         timeoutMs,
       },
-      { sourceOp: "teach-wizard:suggest-type" }
+      {
+        sourceOp: "teach-wizard:suggest-type",
+        userId: authResult.session.user.id,
+        userName: authResult.session.user.name || undefined,
+        entityLabel: courseName,
+        wizardName: "Teach",
+        wizardStep: "Suggest Type",
+      }
     );
 
     const raw = response.content.trim().replace(/^```json\s*/i, "").replace(/```\s*$/, "");

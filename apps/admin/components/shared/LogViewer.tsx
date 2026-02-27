@@ -20,6 +20,7 @@ import { useCopyToClipboard } from '@/hooks/useCopyToClipboard';
 import type { LogEntry, LogType } from '@/lib/log-types';
 import {
   ALL_TYPES, LOG_TYPE_COLORS, isDeepEntry, isErrorEntry, timeAgo, formatForClaude,
+  deriveStatus, LOG_STATUS_COLORS,
 } from '@/lib/log-types';
 
 // ── Types ──────────────────────────────────────────────
@@ -50,6 +51,44 @@ interface LogViewerProps {
 // ── Helpers ────────────────────────────────────────────
 
 const DEEP_BADGE = { bg: 'var(--status-error-text)', text: 'var(--surface-primary)' };
+
+const STATUS_LABELS: Record<string, string> = { ok: 'OK', error: 'Error', slow: 'Slow', neutral: '' };
+
+/** Title-case a kebab/snake segment: "suggest-outcomes" → "Suggest Outcomes" */
+function humanize(s: string): string {
+  return s.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/** Derive wizard + step from stage string: "pipeline:extract" → { wizardName: "Pipeline", wizardStep: "Extract" } */
+function deriveWizardStep(stage?: string): { wizardName: string; wizardStep: string } | null {
+  if (!stage) return null;
+  const clean = stage.replace(/:error$/, '');
+  const colonIdx = clean.indexOf(':');
+  if (colonIdx < 1) return null;
+  const prefix = clean.slice(0, colonIdx);
+  const suffix = clean.slice(colonIdx + 1);
+  if (!suffix) return null;
+  return { wizardName: humanize(prefix), wizardStep: humanize(suffix) };
+}
+
+function getLogContext(log: LogEntry): { userName?: string; entityLabel?: string; wizardName?: string; wizardStep?: string } {
+  const m = log.metadata;
+  const userName = (m?.userName as string) || undefined;
+  const entityLabel = (m?.entityLabel as string) || undefined;
+  let wizardName = (m?.wizardName as string) || undefined;
+  let wizardStep = (m?.wizardStep as string) || undefined;
+
+  // Always derive wizard+step from stage when not in metadata
+  if (!wizardName || !wizardStep) {
+    const derived = deriveWizardStep(log.stage);
+    if (derived) {
+      wizardName = wizardName || derived.wizardName;
+      wizardStep = wizardStep || derived.wizardStep;
+    }
+  }
+
+  return { userName, entityLabel, wizardName, wizardStep };
+}
 
 function getFilteredLogs(logs: LogEntry[], tab: LogTab, typeFilter: LogType[], deepOnly: boolean): LogEntry[] {
   let result = logs;
@@ -217,6 +256,40 @@ export function LogViewer({
   const deepBadge = (log: LogEntry) =>
     isDeepEntry(log) ? <span className="logs-viewer-deep-badge">DEEP</span> : null;
 
+  const statusDot = (log: LogEntry) => {
+    const status = deriveStatus(log);
+    return (
+      <span
+        className="logs-viewer-status-dot"
+        style={{ background: LOG_STATUS_COLORS[status] }}
+        title={STATUS_LABELS[status] || undefined}
+      />
+    );
+  };
+
+  const contextLine = (log: LogEntry) => {
+    const ctx = getLogContext(log);
+    if (!ctx) return null;
+    const parts: string[] = [];
+    if (ctx.userName) parts.push(ctx.userName);
+    if (ctx.entityLabel) parts.push(ctx.entityLabel);
+    if (ctx.wizardName && ctx.wizardStep) parts.push(`${ctx.wizardName} \u203a ${ctx.wizardStep}`);
+    else if (ctx.wizardName) parts.push(ctx.wizardName);
+    else if (ctx.wizardStep) parts.push(ctx.wizardStep);
+    if (parts.length === 0) return null;
+    return (
+      <div className="logs-viewer-context-line">
+        {statusDot(log)}
+        {parts.map((part, i) => (
+          <span key={i}>
+            {i > 0 && <span className="logs-viewer-context-sep">{'\u00b7'}</span>}
+            <span className="logs-viewer-context-chip">{part}</span>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   // ════════════════════════════════════════════════════════
   // POPUP MODE
   // ════════════════════════════════════════════════════════
@@ -306,11 +379,20 @@ export function LogViewer({
                     <FileText size={13} />
                   </div>
                   <div className="jobs-popup-row-content">
-                    <div className="jobs-popup-row-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {typeBadge(log)}
-                      {deepBadge(log)}
-                      <span style={{ fontSize: 12 }}>{log.stage}</span>
-                    </div>
+                    {(() => {
+                      const ctx = getLogContext(log);
+                      const wiz = ctx.wizardName && ctx.wizardStep
+                        ? `${ctx.wizardName} \u203a ${ctx.wizardStep}`
+                        : ctx.wizardName || ctx.wizardStep || log.stage;
+                      return (
+                        <div className="jobs-popup-row-name" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {statusDot(log)}
+                          {typeBadge(log)}
+                          {deepBadge(log)}
+                          <span style={{ fontSize: 12 }}>{wiz}</span>
+                        </div>
+                      );
+                    })()}
                     <div className="jobs-popup-row-meta">
                       {timeAgo(log.timestamp)}
                       {log.durationMs ? ` \u00b7 ${log.durationMs}ms` : ''}
@@ -458,6 +540,8 @@ export function LogViewer({
                 key={idx}
                 className={`logs-viewer-card${isError ? ' logs-viewer-card-error' : ''}${isDeep ? ' logs-viewer-card-deep' : ''}`}
               >
+                {/* Context line — always shows wizard › step + optional user/entity */}
+                {contextLine(log)}
                 {/* Row header */}
                 <div
                   className="logs-viewer-card-row"

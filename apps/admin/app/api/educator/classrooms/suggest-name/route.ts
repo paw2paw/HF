@@ -48,7 +48,14 @@ export async function POST(req: NextRequest) {
         maxTokens: 120,
         timeoutMs,
       },
-      { sourceOp: "classroom:suggest-name" }
+      {
+        sourceOp: "classroom:suggest-name",
+        userId: auth.session.user.id,
+        userName: auth.session.user.name || undefined,
+        entityLabel: domainName,
+        wizardName: "Classroom",
+        wizardStep: "Suggest Name",
+      }
     );
 
     let names: string[] = [];

@@ -405,16 +405,20 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
               )}
             </div>
 
-            <div className="hf-flex hf-flex-col hf-gap-sm">
+            <div className="hf-outcome-group">
               {outcomes.map((outcome, i) => (
-                <div key={i} className="hf-flex hf-items-center hf-gap-sm">
-                  <span className="hf-text-sm hf-text-muted hf-bullet-spacer">•</span>
+                <div key={i} className={`hf-outcome-row${outcome.trim() ? ' hf-outcome-row--filled' : ''}`}>
+                  <span className="hf-outcome-num">{i + 1}</span>
                   <input
                     type="text"
                     value={outcome}
                     onChange={(e) => handleOutcomeChange(i, e.target.value)}
-                    placeholder={`Outcome ${i + 1}`}
-                    className="hf-input"
+                    placeholder={
+                      i === 0 ? 'e.g., Understand key concepts and terminology'
+                        : i === 1 ? 'e.g., Apply knowledge to solve problems'
+                          : 'e.g., Evaluate and analyse real-world scenarios'
+                    }
+                    className="hf-input hf-outcome-input"
                   />
                 </div>
               ))}
@@ -428,14 +432,15 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
               </div>
             )}
             {!loadingSuggestions && outcomeSuggestions.length > 0 && (
-              <div className="hf-mt-sm">
-                <p className="hf-ai-inline-hint hf-mb-xs">
-                  <Sparkles size={11} /> Suggestions — click to use:
-                </p>
+              <div className="hf-suggestion-panel">
+                <div className="hf-suggestion-panel-header">
+                  <Sparkles size={12} />
+                  Suggested outcomes
+                </div>
                 <div className="hf-suggestion-chips">
                   {outcomeSuggestions.map((s, i) => (
                     <button key={i} type="button" className="hf-suggestion-chip" onClick={() => handleSuggestionClick(s)}>
-                      + {s}
+                      {s}
                     </button>
                   ))}
                 </div>

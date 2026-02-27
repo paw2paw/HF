@@ -80,7 +80,14 @@ Return ONLY valid JSON. No markdown, no backticks, no explanation.`,
         maxTokens: 300,
         timeoutMs,
       },
-      { sourceOp: "quick-launch:suggest-name" }
+      {
+        sourceOp: "quick-launch:suggest-name",
+        userId: authResult.session.user.id,
+        userName: authResult.session.user.name || undefined,
+        entityLabel: brief.slice(0, 40),
+        wizardName: "Quick Launch",
+        wizardStep: "Suggest Name",
+      }
     );
 
     const raw = response.content

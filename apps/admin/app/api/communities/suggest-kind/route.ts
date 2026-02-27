@@ -50,7 +50,14 @@ Respond ONLY with JSON: { "kind": "TOPIC_BASED" | "OPEN_CONNECTION", "confidence
         maxTokens: 60,
         timeoutMs,
       },
-      { sourceOp: "community:suggest-kind" }
+      {
+        sourceOp: "community:suggest-kind",
+        userId: auth.session.user.id,
+        userName: auth.session.user.name || undefined,
+        entityLabel: description.slice(0, 40),
+        wizardName: "Community",
+        wizardStep: "Suggest Kind",
+      }
     );
 
     let parsed: { kind: string; confidence: number };
