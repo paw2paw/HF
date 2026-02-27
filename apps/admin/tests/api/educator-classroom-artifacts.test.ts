@@ -16,7 +16,7 @@ const mockPrisma = {
   },
 };
 
-vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma, db: (tx) => tx ?? mockPrisma }));
 
 vi.mock("@/lib/educator-access", () => ({
   requireEducator: vi.fn().mockResolvedValue({

@@ -92,6 +92,7 @@ const mockPrisma = {
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
+  db: (tx) => tx ?? mockPrisma,
 }));
 
 const mockIsEngineAvailable = vi.fn((engine: string) => engine === "mock" || engine === "claude");

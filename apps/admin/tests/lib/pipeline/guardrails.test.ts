@@ -13,13 +13,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ── Mock prisma ──────────────────────────────────────
 const mockAnalysisSpecFindFirst = vi.fn();
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     analysisSpec: {
       findFirst: (...args: any[]) => mockAnalysisSpecFindFirst(...args),
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 // ── Mock system-settings ─────────────────────────────
 const mockGetPipelineSettings = vi.fn();

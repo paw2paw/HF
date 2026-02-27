@@ -353,6 +353,15 @@ export const config = {
     },
 
     /**
+     * Institution Setup Wizard Spec (default: INSTITUTION-SETUP-001)
+     * Defines institution creation wizard steps: identity, branding, welcome, terminology, launch.
+     * Can be overridden via INSTITUTION_SETUP_SPEC_SLUG env var.
+     */
+    get institutionSetup(): string {
+      return optional("INSTITUTION_SETUP_SPEC_SLUG", "INSTITUTION-SETUP-001");
+    },
+
+    /**
      * Course Readiness Spec (default: COURSE-READY-001)
      * Defines post-creation review checks for institutional courses.
      * Can be overridden via COURSE_READY_SPEC_SLUG env var.

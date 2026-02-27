@@ -16,7 +16,8 @@ const mocks = vi.hoisted(() => ({
   vocabularyFindMany: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentQuestion: { findMany: mocks.questionFindMany },
     contentVocabulary: { findMany: mocks.vocabularyFindMany },
@@ -24,7 +25,9 @@ vi.mock("@/lib/prisma", () => ({
     callerMemory: { findMany: vi.fn().mockResolvedValue([]) },
     $queryRaw: vi.fn().mockResolvedValue([]),
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 vi.mock("@/lib/embeddings", () => ({
   toVectorLiteral: vi.fn(),

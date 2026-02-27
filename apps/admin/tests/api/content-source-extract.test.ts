@@ -57,7 +57,8 @@ vi.mock("@/lib/storage", () => ({
   getStorageAdapter: mocks.getStorageAdapter,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentSource: { findUnique: mocks.sourceFindUnique },
     contentAssertion: {
@@ -65,7 +66,9 @@ vi.mock("@/lib/prisma", () => ({
       createMany: mocks.assertionCreateMany,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { POST } from "@/app/api/content-sources/[sourceId]/extract/route";
 import { NextRequest } from "next/server";

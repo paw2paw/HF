@@ -1123,12 +1123,11 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
     }
 
     if (result.mode === "pack-upload") {
-      // Fire-and-forget: extraction runs in background on the server.
-      // The extract endpoint auto-triggers scaffolding + content spec when done.
+      // SSE stream completes after extraction — content is ready when onResult fires.
       setContentCount(result.sourceCount || 0);
       setContentPhase("done");
-      // Tell downstream steps that extraction is still in progress
-      setData("extractionInProgress", true);
+      // Extraction is complete (SSE stream waited for it)
+      setData("extractionInProgress", false);
       setData("packSourceCount", result.sourceCount || 0);
       // Persist content availability for downstream steps (mirrors handleNext step 2)
       setData("contentAvailable", true);

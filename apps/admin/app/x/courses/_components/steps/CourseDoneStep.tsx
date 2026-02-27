@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText, Mic } from 'lucide-react';
+import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText, Mic, Sparkles } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { useTaskPoll, type PollableTask } from '@/hooks/useTaskPoll';
 import { useBackgroundTaskQueue } from '@/components/shared/ContentJobQueue';
 import { useTerminology } from '@/contexts/TerminologyContext';
@@ -40,11 +41,15 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
   const [taskSummary, setTaskSummary] = useState<TaskSummary | null>(null);
+  const [contentMethods, setContentMethods] = useState<{ teachMethod: string; count: number }[]>([]);
+  const [contentTotal, setContentTotal] = useState(0);
   const launchAbortRef = useRef<AbortController | null>(null);
 
   // Read all flow bag keys
   const courseName = getData<string>('courseName');
   const teachingStyle = getData<string>('teachingStyle');
+  const personaName = getData<string>('personaName');
+  const teachingStyleLabel = personaName || (teachingStyle ? teachingStyle.charAt(0).toUpperCase() + teachingStyle.slice(1) : null);
   const interactionPattern = getData<string>('interactionPattern');
   const interactionPatternName = getData<string>('interactionPatternName') || interactionPattern || '—';
   const learningOutcomes = getData<string[]>('learningOutcomes') || [];
@@ -102,9 +107,24 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
     }, []),
     onComplete: useCallback((task: PollableTask) => {
       setData('taskId', undefined);
-      setTaskSummary(task.context?.summary || null);
+      const summary = task.context?.summary || null;
+      setTaskSummary(summary);
       setCompleted(true);
       setLoading(false);
+
+      // Fetch teach method breakdown if we have a playbook
+      const pbId = summary?.playbook?.id;
+      if (pbId) {
+        fetch(`/api/courses/${pbId}/content-breakdown`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.ok && data.methods?.length > 0) {
+              setContentMethods(data.methods);
+              setContentTotal(data.total || 0);
+            }
+          })
+          .catch(() => {});
+      }
     }, [setData]),
     onError: useCallback((message: string, task?: PollableTask) => {
       setError(task?.context?.error || message);
@@ -192,6 +212,9 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
             intent={{
               items: [
                 { icon: <BookOpen className="hf-icon-sm" />, label: 'Course', value: courseName || '—' },
+                ...(teachingStyleLabel
+                  ? [{ icon: <Sparkles className="hf-icon-sm" />, label: 'Teaching Style', value: teachingStyleLabel }]
+                  : []),
                 { icon: <GraduationCap className="hf-icon-sm" />, label: 'Sessions', value: `${sessionCount} × ${durationMins} min` },
                 { icon: <Users className="hf-icon-sm" />, label: 'Pattern', value: interactionPatternName },
                 ...(lessonPlan.length > 0
@@ -252,7 +275,16 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
                 },
               },
             ]}
-          />
+          >
+            {contentMethods.length > 0 && (
+              <div className="hf-mt-md">
+                <div className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-mb-sm">
+                  Teaching Methods
+                </div>
+                <TeachMethodStats methods={contentMethods} total={contentTotal} />
+              </div>
+            )}
+          </WizardSummary>
         </div>
       </div>
     );
@@ -334,6 +366,9 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
           intent={{
             items: [
               { icon: <BookOpen className="hf-icon-sm" />, label: 'Course', value: courseName || '—' },
+              ...(teachingStyleLabel
+                ? [{ icon: <Sparkles className="hf-icon-sm" />, label: 'Teaching Style', value: teachingStyleLabel }]
+                : []),
               { icon: <GraduationCap className="hf-icon-sm" />, label: 'Sessions', value: `${sessionCount} × ${durationMins} min` },
               { icon: <Users className="hf-icon-sm" />, label: 'Students', value: totalStudents > 0 ? `${totalStudents} to enroll` : 'None yet' },
               { icon: <FileText className="hf-icon-sm" />, label: 'Plan', value: planSummaryValue },

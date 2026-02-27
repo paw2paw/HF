@@ -12,7 +12,14 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { Upload, FileText, BookOpen, X, Edit3, Check, Plus } from 'lucide-react';
+import type { IngestEvent } from '@/lib/content-trust/ingest-events';
 import './demo-teach-wizard.css';
+
+type TimelineStep = {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'done' | 'error';
+};
 
 // ── Types ──────────────────────────────────────────────
 
@@ -70,6 +77,12 @@ export interface PackUploadResult {
     confidence: number;
     reasoning: string;
   }>;
+  /** Extraction totals (populated when SSE stream completes) */
+  extractionTotals?: {
+    assertions: number;
+    questions: number;
+    vocabulary: number;
+  };
 }
 
 interface PackUploadStepProps {
@@ -151,8 +164,13 @@ export function PackUploadStep({
 
   // Ingestion state
   const [ingesting, setIngesting] = useState(false);
-  const [ingestProgress, setIngestProgress] = useState<string>('');
   const [ingestError, setIngestError] = useState<string | null>(null);
+  const ingestAbortRef = useRef<AbortController | null>(null);
+
+  // SSE extraction progress
+  const [timeline, setTimeline] = useState<TimelineStep[]>([]);
+  const [extractionTotals, setExtractionTotals] = useState({ assertions: 0, questions: 0, vocabulary: 0 });
+  const [currentFile, setCurrentFile] = useState<{ name: string; chunks: number; done: number } | null>(null);
 
   // Course / subject selection
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -232,14 +250,108 @@ export function PackUploadStep({
     }
   }, [files, courseName, domainId, onResult]);
 
-  // ── Ingest ─────────────────────────────────────────
+  // ── SSE event handler ────────────────────────────────
+
+  const handleIngestEvent = useCallback((event: IngestEvent) => {
+    const { phase, message, data } = event;
+
+    if (phase === 'complete') {
+      const classifications = manifest?.groups.flatMap(g =>
+        g.files.map(f => ({
+          fileName: f.fileName,
+          documentType: f.documentType,
+          confidence: f.confidence,
+          reasoning: f.reasoning,
+        }))
+      ) || [];
+
+      setIngesting(false);
+      setCurrentFile(null);
+      onResult({
+        mode: 'pack-upload',
+        subjects: data?.subjects,
+        sourceCount: data?.sourceCount,
+        classifications,
+        extractionTotals: {
+          assertions: data?.totalAssertions || 0,
+          questions: data?.totalQuestions || 0,
+          vocabulary: data?.totalVocabulary || 0,
+        },
+      });
+      return;
+    }
+
+    if (phase === 'error') {
+      setIngestError(data?.error || message);
+      setIngesting(false);
+      return;
+    }
+
+    if (phase === 'init') return;
+
+    // Track per-file extraction progress
+    if (phase === 'chunk-complete' && data) {
+      setCurrentFile({
+        name: data.fileName || '',
+        chunks: data.totalChunks || 0,
+        done: (data.chunkIndex || 0) + 1,
+      });
+      setExtractionTotals({
+        assertions: data.assertions || 0,
+        questions: data.questions || 0,
+        vocabulary: data.vocabulary || 0,
+      });
+      return; // Don't add chunk events to timeline
+    }
+
+    if (phase === 'file-complete' || phase === 'file-error') {
+      setCurrentFile(null);
+      if (data) {
+        setExtractionTotals(prev => ({
+          assertions: prev.assertions + (data.assertions || 0),
+          questions: prev.questions + (data.questions || 0),
+          vocabulary: prev.vocabulary + (data.vocabulary || 0),
+        }));
+      }
+    }
+
+    // Update timeline
+    setTimeline((prev) => {
+      const id = phase === 'file-complete' || phase === 'file-error'
+        ? `file-${data?.fileName}` : `${phase}-${data?.subjectName || data?.fileName || ''}`;
+      const existing = prev.find((s) => s.id === id);
+      const isDone = phase === 'subject-created' || phase === 'source-created' || phase === 'file-complete' || phase === 'post-processing';
+      const isError = phase === 'file-error';
+      const status = isError ? 'error' : isDone ? 'done' : 'active';
+
+      if (existing) {
+        return prev.map((s) =>
+          s.id === id ? { ...s, label: message, status } : s,
+        );
+      }
+
+      // Mark previous active step as done
+      const updated = prev.map((s) =>
+        s.status === 'active' ? { ...s, status: 'done' as const } : s,
+      );
+      return [...updated, { id, label: message, status }];
+    });
+  }, [manifest, onResult]);
+
+  // ── Ingest (SSE) ──────────────────────────────────────
 
   const handleIngest = useCallback(async () => {
     if (!manifest) return;
 
     setIngesting(true);
     setIngestError(null);
-    setIngestProgress('Uploading files...');
+    setTimeline([]);
+    setExtractionTotals({ assertions: 0, questions: 0, vocabulary: 0 });
+    setCurrentFile(null);
+
+    ingestAbortRef.current?.abort();
+    const controller = new AbortController();
+    ingestAbortRef.current = controller;
 
     try {
       const formData = new FormData();
@@ -256,38 +368,61 @@ export function PackUploadStep({
       const res = await fetch('/api/course-pack/ingest', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
-      const data = await res.json();
 
-      if (!data.ok) {
-        throw new Error(data.error || 'Ingest failed');
+      // Non-SSE error responses (auth, validation) come as JSON
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Server error: ${res.status}`);
       }
 
-      // Extract classification info from manifest for the wizard UI
-      const classifications = manifest.groups.flatMap(g =>
-        g.files.map(f => ({
-          fileName: f.fileName,
-          documentType: f.documentType,
-          confidence: f.confidence,
-          reasoning: f.reasoning,
-        }))
-      );
+      // SSE reader loop (same pattern as LaunchStep)
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No response stream');
 
-      setIngesting(false);
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      // Fire-and-forget: advance immediately after 202, background extraction runs on server
-      onResult({
-        mode: 'pack-upload',
-        taskId: data.taskId,
-        subjects: data.subjects,
-        sourceCount: data.sourceCount,
-        classifications,
-      });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+
+        for (const block of lines) {
+          const dataLine = block.split('\n').find((l) => l.startsWith('data: '));
+          if (!dataLine) continue;
+          try {
+            handleIngestEvent(JSON.parse(dataLine.slice(6)));
+          } catch { /* ignore malformed events */ }
+        }
+      }
+
+      // Flush remaining buffer
+      if (buffer.trim()) {
+        const dataLine = buffer.split('\n').find((l) => l.startsWith('data: '));
+        if (dataLine) {
+          try {
+            handleIngestEvent(JSON.parse(dataLine.slice(6)));
+          } catch { /* ignore */ }
+        }
+      }
     } catch (err: unknown) {
-      setIngestError(err instanceof Error ? err.message : 'Ingest failed');
+      if ((err as Error).name === 'AbortError') {
+        setIngesting(false);
+        return;
+      }
+      const msg = (err as Error).message || 'Ingest failed';
+      const isNetworkError = msg === 'Load failed' || msg === 'Failed to fetch'
+        || msg === 'NetworkError when attempting to fetch resource.';
+      setIngestError(isNetworkError ? 'Connection lost — check your network and try again.' : msg);
       setIngesting(false);
     }
-  }, [manifest, domainId, courseName, interactionPattern, files, onResult]);
+  }, [manifest, domainId, courseName, interactionPattern, files, handleIngestEvent]);
 
   // ── Select existing course ─────────────────────────
 
@@ -703,19 +838,83 @@ export function PackUploadStep({
         </div>
       )}
 
-      {/* ── Ingesting progress ── */}
+      {/* ── Ingesting progress (SSE timeline) ── */}
       {ingesting && (
         <div className="pack-ingest-progress">
           <div className="dtw-extract-status">
             <div className="dtw-pulse-dot" />
-            <div className="dtw-extract-label">{ingestProgress || 'Processing...'}</div>
+            <div className="dtw-extract-label">Extracting Content</div>
           </div>
-          <div className="dtw-progress-track">
-            <div className="dtw-progress-fill dtw-progress-fill--indeterminate" />
+
+          {/* Timeline */}
+          {timeline.length > 0 && (
+            <div className="hf-card hf-card-compact" style={{ marginTop: 12 }}>
+              {timeline.map((step) => (
+                <div key={step.id} className="hf-flex hf-items-center hf-gap-sm" style={{ marginBottom: 4 }}>
+                  {step.status === 'done' && <span style={{ color: 'var(--status-success-text)', fontSize: 14, width: 16, textAlign: 'center' }}>&#x2713;</span>}
+                  {step.status === 'active' && <span className="hf-spinner hf-icon-xs" />}
+                  {step.status === 'pending' && <span style={{ width: 16, textAlign: 'center', color: 'var(--text-muted)' }}>&#x25CB;</span>}
+                  {step.status === 'error' && <span style={{ color: 'var(--status-error-text)', fontSize: 14, width: 16, textAlign: 'center' }}>&#x2717;</span>}
+                  <span className={`hf-text-sm${step.status === 'done' ? ' hf-text-muted' : ''}`}>
+                    {step.label}
+                  </span>
+                </div>
+              ))}
+
+              {/* Per-file chunk progress bar */}
+              {currentFile && currentFile.chunks > 0 && (
+                <div style={{ marginTop: 6, marginBottom: 2, paddingLeft: 24 }}>
+                  <div className="dtw-progress-track" style={{ height: 4 }}>
+                    <div
+                      className="dtw-progress-fill"
+                      style={{ width: `${(currentFile.done / currentFile.chunks) * 100}%` }}
+                    />
+                  </div>
+                  <span className="hf-text-xs hf-text-muted">
+                    chunk {currentFile.done}/{currentFile.chunks}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Running totals */}
+          {(extractionTotals.assertions > 0 || extractionTotals.questions > 0 || extractionTotals.vocabulary > 0) && (
+            <div className="hf-card hf-card-compact" style={{ marginTop: 8 }}>
+              <div className="hf-flex hf-gap-md hf-text-sm">
+                {extractionTotals.assertions > 0 && (
+                  <span><strong>{extractionTotals.assertions}</strong> teaching points</span>
+                )}
+                {extractionTotals.questions > 0 && (
+                  <span><strong>{extractionTotals.questions}</strong> questions</span>
+                )}
+                {extractionTotals.vocabulary > 0 && (
+                  <span><strong>{extractionTotals.vocabulary}</strong> vocabulary</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {timeline.length === 0 && (
+            <>
+              <div className="dtw-progress-track" style={{ marginTop: 12 }}>
+                <div className="dtw-progress-fill dtw-progress-fill--indeterminate" />
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>
+                Preparing files...
+              </p>
+            </>
+          )}
+
+          {/* Cancel button */}
+          <div style={{ marginTop: 16 }}>
+            <button
+              className="dtw-btn-skip"
+              onClick={() => { ingestAbortRef.current?.abort(); setIngesting(false); }}
+            >
+              Cancel
+            </button>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>
-            Creating subjects, uploading files, and extracting teaching points...
-          </p>
         </div>
       )}
     </div>

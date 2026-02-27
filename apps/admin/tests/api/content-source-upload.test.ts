@@ -54,7 +54,8 @@ vi.mock("@/lib/config", () => ({
   config: { storage: { backend: "local" } },
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     subject: { findUnique: mocks.subjectFindUnique },
     contentSource: { create: mocks.contentSourceCreate },
@@ -66,7 +67,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     subjectMedia: { upsert: mocks.subjectMediaUpsert },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { POST } from "@/app/api/subjects/[subjectId]/upload/route";
 import { NextRequest } from "next/server";

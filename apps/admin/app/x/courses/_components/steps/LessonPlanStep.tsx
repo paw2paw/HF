@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ArrowRight, BookOpen, CheckCircle, FileText, RefreshCw, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle, FileText, Layers, RefreshCw, RotateCcw, Sparkles, Target, Zap } from "lucide-react";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
 import { SortableList } from "@/components/shared/SortableList";
@@ -49,6 +49,15 @@ const SESSION_TYPES = [
   { value: "assess", label: "Assess", color: "var(--status-error-text)" },
   { value: "consolidate", label: "Consolidate", color: "var(--status-success-text)" },
 ] as const;
+
+const SESSION_TYPE_ICONS: Record<string, typeof BookOpen> = {
+  onboarding: Sparkles,
+  introduce: BookOpen,
+  deepen: Layers,
+  review: RotateCcw,
+  assess: Target,
+  consolidate: CheckCircle,
+};
 
 const DURATIONS = [15, 20, 30, 45, 60] as const;
 const EMPHASIS_OPTIONS = ["breadth", "balanced", "depth"] as const;
@@ -465,6 +474,10 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
             }}
           >
             <span className="hf-session-num">{index + 1}</span>
+            {(() => {
+              const Icon = SESSION_TYPE_ICONS[entry.type];
+              return Icon ? <Icon size={12} style={{ color: getTypeColor(entry.type), flexShrink: 0 }} /> : null;
+            })()}
             <span
               className="hf-session-type"
               style={{
@@ -479,6 +492,13 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
               <span className="hf-session-tp-badge" title="Teaching points">
                 <BookOpen size={10} />
                 {entry.assertionCount} TPs
+              </span>
+            ) : null}
+            {entry.learningOutcomeRefs?.length ? (
+              <span className="hf-session-lo-badges">
+                {entry.learningOutcomeRefs.map((lo) => (
+                  <span key={lo} className="hf-session-lo-chip">{lo}</span>
+                ))}
               </span>
             ) : null}
             {entry.moduleLabel && (
@@ -615,7 +635,8 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
             {/* Skeleton session cards */}
             <div className="hf-flex hf-items-center hf-gap-md hf-mb-xs">
               <span className="hf-section-title">{skeletonEntries.length} sessions</span>
-              <span className="hf-text-xs hf-text-muted">(refining...)</span>
+              <span className="hf-spinner hf-spinner-xs" />
+              <span className="hf-text-xs hf-text-muted">refining...</span>
             </div>
             {skeletonEntries.map((entry, i) => (
               <div key={`skel-${i}`}>

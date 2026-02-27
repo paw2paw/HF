@@ -22,6 +22,7 @@ const mockPrisma = {
 
 vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
+  db: (tx) => tx ?? mockPrisma,
 }));
 
 // Mock ContractRegistry

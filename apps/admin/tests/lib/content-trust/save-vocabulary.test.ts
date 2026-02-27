@@ -15,7 +15,8 @@ const mocks = vi.hoisted(() => ({
   deleteMany: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentVocabulary: {
       findMany: mocks.findMany,
@@ -23,7 +24,9 @@ vi.mock("@/lib/prisma", () => ({
       deleteMany: mocks.deleteMany,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { saveVocabulary, deleteVocabularyForSource } from "@/lib/content-trust/save-vocabulary";
 import type { ExtractedVocabulary } from "@/lib/content-trust/extractors/base-extractor";

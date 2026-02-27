@@ -7,7 +7,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Prisma — factory must be inline (vi.mock is hoisted)
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     analysisSpec: {
       findMany: vi.fn(),
@@ -43,7 +44,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: vi.fn(),
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 vi.mock("@/lib/jobs/curriculum-runner", () => ({
   startCurriculumGeneration: vi.fn().mockResolvedValue("task-123"),

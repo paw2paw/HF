@@ -21,13 +21,16 @@ vi.mock("@/lib/content-trust/structure-assertions", () => ({
   applyStructure: mocks.applyStructure,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentSource: {
       findUnique: vi.fn(),
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 vi.mock("@/lib/permissions", () => ({
   requireAuth: (...args: any[]) => mocks.requireAuth(...args),

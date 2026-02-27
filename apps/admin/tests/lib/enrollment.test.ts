@@ -12,6 +12,7 @@ const mockPrisma = vi.hoisted(() => ({
     update: vi.fn(),
     updateMany: vi.fn(),
     findMany: vi.fn(),
+    count: vi.fn(),
   },
   playbook: {
     findMany: vi.fn(),
@@ -20,6 +21,7 @@ const mockPrisma = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
+  db: (tx) => tx ?? mockPrisma,
 }));
 
 import {

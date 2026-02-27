@@ -26,6 +26,7 @@ vi.mock("@/lib/ai/assistant-wrapper", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
+  db: (tx) => tx ?? mocks.prisma,
 }));
 
 // ---------------------------------------------------------------------------

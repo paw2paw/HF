@@ -184,6 +184,7 @@ async function runGeneratePlan(
         moduleId: `MOD-${i + 1}`,
         moduleLabel: m.title,
         label: `Introduction to ${m.title}`,
+        learningOutcomeRefs: m.learningOutcomes?.map((_: any, j: number) => `LO${j + 1}`) || undefined,
       })),
     ];
 

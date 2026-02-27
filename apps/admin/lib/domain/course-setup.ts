@@ -89,8 +89,19 @@ interface CourseSetupStep {
 
 // ── Spec Loader ────────────────────────────────────────
 
+/** Hardcoded fallback when COURSE-SETUP-001 spec is not seeded */
+const FALLBACK_STEPS: CourseSetupStep[] = [
+  { id: "intent", name: "Course Intent", operation: "noop", order: 1, onError: "continue", progressMessage: "Setting Course Intent" },
+  { id: "content", name: "Add Content", operation: "noop", order: 2, onError: "continue", progressMessage: "Adding Content" },
+  { id: "lesson-plan", name: "Lesson Plan", operation: "noop", order: 3, onError: "continue", progressMessage: "Planning Lessons" },
+  { id: "course-config", name: "Configure AI", operation: "noop", order: 4, onError: "continue", progressMessage: "Configuring AI" },
+  { id: "students", name: "Students", operation: "noop", order: 5, onError: "continue", progressMessage: "Adding Students" },
+  { id: "done", name: "Launch", operation: "create_course", order: 6, onError: "continue", progressMessage: "Creating Course" },
+];
+
 /**
  * Load course setup steps from COURSE-SETUP-001 spec.
+ * Falls back to hardcoded defaults if spec is not seeded.
  */
 async function loadCourseSetupSteps(): Promise<CourseSetupStep[]> {
   const spec = await prisma.analysisSpec.findFirst({
@@ -103,12 +114,10 @@ async function loadCourseSetupSteps(): Promise<CourseSetupStep[]> {
 
   if (!spec) {
     logSystem("course-setup", {
-      level: "error",
-      message: `Spec "${config.specs.courseSetup}" not found. Run "Import All" on /x/admin/spec-sync to import it.`,
+      level: "warn",
+      message: `Spec "${config.specs.courseSetup}" not found — using hardcoded fallback. Run db:seed to import it.`,
     });
-    throw new Error(
-      'Course setup is temporarily unavailable. Please try again later or contact your administrator.'
-    );
+    return FALLBACK_STEPS;
   }
 
   const specConfig = spec.config as Record<string, any>;
@@ -118,12 +127,10 @@ async function loadCourseSetupSteps(): Promise<CourseSetupStep[]> {
 
   if (!Array.isArray(steps) || steps.length === 0) {
     logSystem("course-setup", {
-      level: "error",
-      message: `Spec "${config.specs.courseSetup}" has no wizard_steps configured. Check config.parameters[id=wizard_steps].config.steps.`,
+      level: "warn",
+      message: `Spec "${config.specs.courseSetup}" has no wizard_steps — using hardcoded fallback.`,
     });
-    throw new Error(
-      'Course setup configuration is incomplete. Please contact your administrator.'
-    );
+    return FALLBACK_STEPS;
   }
 
   // Convert wizard steps to executor steps (add operation, onError, progressMessage)

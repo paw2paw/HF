@@ -24,13 +24,16 @@ const mocks = vi.hoisted(() => ({
   playbookFindFirst: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     analysisSpec: { findFirst: mocks.analysisSpecFindFirst },
     subjectSource: { findMany: mocks.subjectSourceFindMany },
     playbook: { findFirst: mocks.playbookFindFirst },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 vi.mock("@/lib/config", () => ({
   config: {

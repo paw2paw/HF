@@ -15,7 +15,7 @@ const VIBE_LABELS: Record<string, string> = {
 
 const config: WizardConfig = {
   flowId: "community-setup",
-  wizardName: "community-setup",
+  wizardName: "community",
   returnPath: "/x/communities",
   cancelLabel: "Communities",
   taskType: "community_setup",

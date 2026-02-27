@@ -7,7 +7,8 @@ vi.mock('@/lib/permissions', () => ({
 }));
 
 // Mock prisma
-vi.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => {
+  const _p = {
   prisma: {
     institutionType: {
       findMany: vi.fn(),
@@ -16,7 +17,9 @@ vi.mock('@/lib/prisma', () => ({
       update: vi.fn(),
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 // Mock terminology cache
 vi.mock('@/lib/terminology', () => ({

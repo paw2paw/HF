@@ -20,7 +20,8 @@ vi.mock("@/lib/permissions", () => ({
   isAuthError: (result: any) => "error" in result,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentVocabulary: {
       findMany: mocks.vocabularyFindMany,
@@ -28,7 +29,9 @@ vi.mock("@/lib/prisma", () => ({
       deleteMany: mocks.vocabularyDeleteMany,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { GET, DELETE } from "@/app/api/content-sources/[sourceId]/vocabulary/route";
 import { NextRequest } from "next/server";

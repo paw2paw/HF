@@ -85,7 +85,8 @@ vi.mock("@/lib/content-trust/save-assertions", () => ({
   saveAssertions: vi.fn().mockResolvedValue({ created: 0, duplicatesSkipped: 0 }),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentSource: {
       findUnique: mocks.sourceFindUnique,
@@ -97,7 +98,9 @@ vi.mock("@/lib/prisma", () => ({
       update: mocks.mediaAssetUpdate,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { POST } from "@/app/api/content-sources/[sourceId]/import/route";
 import { NextRequest } from "next/server";

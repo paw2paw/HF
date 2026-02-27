@@ -26,7 +26,8 @@ vi.mock("@/lib/permissions", () => ({
   isAuthError: (result: any) => "error" in result,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentQuestion: {
       findUnique: mocks.questionFindUnique,
@@ -36,7 +37,9 @@ vi.mock("@/lib/prisma", () => ({
       updateMany: mocks.questionUpdateMany,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { PATCH, DELETE } from "@/app/api/content-sources/[sourceId]/questions/[questionId]/route";
 import { POST as BULK_POST } from "@/app/api/content-sources/[sourceId]/questions/bulk-review/route";

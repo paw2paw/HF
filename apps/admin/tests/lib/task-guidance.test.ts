@@ -10,7 +10,8 @@ const mockUpdate = vi.fn();
 const mockCreate = vi.fn();
 const mockTransaction = vi.fn();
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     userTask: {
       findUnique: (...args: any[]) => mockFindUnique(...args),
@@ -19,7 +20,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: (...args: any[]) => mockTransaction(...args),
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import {
   startTaskTracking,

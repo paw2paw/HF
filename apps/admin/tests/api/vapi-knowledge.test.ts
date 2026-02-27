@@ -32,14 +32,17 @@ const mockFindMany = vi.fn();
 const mockQueryRaw = vi.fn();
 const mockMemoryFindMany = vi.fn().mockResolvedValue([]);
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     caller: { findFirst: (...args: any[]) => mockFindFirst(...args) },
     contentAssertion: { findMany: (...args: any[]) => mockFindMany(...args) },
     callerMemory: { findMany: (...args: any[]) => mockMemoryFindMany(...args) },
     $queryRaw: (...args: any[]) => mockQueryRaw(...args),
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 // ── Mock retriever ─────────────────────────────────
 const mockRetrieve = vi.fn();

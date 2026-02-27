@@ -19,13 +19,16 @@ const mocks = vi.hoisted(() => ({
   logAssistantCall: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentAssertion: { findMany: mocks.assertionFindMany },
     contentQuestion: { findMany: mocks.questionFindMany },
     contentVocabulary: { findMany: mocks.vocabularyFindMany },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 vi.mock("@/lib/metering/instrumented-ai", () => ({
   getConfiguredMeteredAICompletion: mocks.getConfiguredMeteredAICompletion,

@@ -3057,6 +3057,24 @@ html.light {
   white-space: nowrap;
 }
 
+/* Learning outcome ref chips — inline on session row */
+.hf-session-lo-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.hf-session-lo-chip {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  white-space: nowrap;
+}
+
 /* TeachMethods bar — shown below session row, always visible */
 .hf-session-methods-bar {
   display: flex;
@@ -6348,7 +6366,11 @@ html.light {
   transition: opacity 0.3s ease;
 }
 .hf-session-row--skeleton .hf-session-label {
+  flex: unset;
   animation: hf-deep-pulse 1.5s ease-in-out infinite;
+}
+.hf-session-row--skeleton .hf-session-meta {
+  color: var(--text-placeholder);
 }
 
 /* Shimmer placeholder bar for loading detail */

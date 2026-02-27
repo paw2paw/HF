@@ -14,7 +14,7 @@ type S = ComponentType<StepRenderProps>;
 
 const config: WizardConfig = {
   flowId: "institution-setup",
-  wizardName: "institution-setup",
+  wizardName: "institution",
   returnPath: "/x/institutions",
   cancelLabel: "Institutions",
   steps: [

@@ -112,6 +112,7 @@ const mockPrisma = {
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
+  db: (tx) => tx ?? mockPrisma,
 }));
 
 // Mock external lib dependencies used by the caller detail GET route

@@ -11,11 +11,14 @@ vi.mock("@/lib/ai/assistant-wrapper", () => ({
   logAssistantCall: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     analysisSpec: { findFirst: vi.fn().mockResolvedValue(null) },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 // Mock resolve-config to return a predictable config
 vi.mock("@/lib/content-trust/resolve-config", () => ({

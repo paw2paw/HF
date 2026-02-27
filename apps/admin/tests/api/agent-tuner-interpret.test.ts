@@ -72,7 +72,7 @@ const mockPrisma = {
   behaviorTarget: { findMany: vi.fn() },
 };
 
-vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma, db: (tx) => tx ?? mockPrisma }));
 
 const mockAI = vi.fn();
 vi.mock("@/lib/metering/instrumented-ai", () => ({

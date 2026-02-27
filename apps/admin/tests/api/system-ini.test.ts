@@ -8,7 +8,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Prisma
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     $queryRaw: vi.fn(),
     analysisSpec: {
@@ -29,7 +30,9 @@ vi.mock("@/lib/prisma", () => ({
       count: vi.fn(),
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 // Mock config — provide defaults matching real config structure
 vi.mock("@/lib/config", () => ({

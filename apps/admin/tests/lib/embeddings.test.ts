@@ -26,7 +26,8 @@ const mockFindUnique = vi.fn();
 const mockCreate = vi.fn();
 const mockCount = vi.fn();
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     $queryRaw: (...args: any[]) => mockQueryRaw(...args),
     $executeRaw: (...args: any[]) => mockExecuteRaw(...args),
@@ -41,7 +42,9 @@ vi.mock("@/lib/prisma", () => ({
       count: (...args: any[]) => mockCount(...args),
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import {
   openAiEmbed,

@@ -13,7 +13,7 @@ const mockPrisma = {
   subject: { create: vi.fn() },
   curriculum: { create: vi.fn() },
 };
-vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma, db: (tx) => tx ?? mockPrisma }));
 
 const mockGenerateCurriculum = vi.fn();
 vi.mock("@/lib/content-trust/extract-curriculum", () => ({

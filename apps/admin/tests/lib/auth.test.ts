@@ -77,6 +77,7 @@ const mockPrisma = {
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mockPrisma,
+  db: (tx) => tx ?? mockPrisma,
 }));
 
 // Unmock @/lib/auth so we can test the real module (overrides global setup.ts mock)

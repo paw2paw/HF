@@ -27,11 +27,14 @@ vi.mock("@/lib/content-trust/resolve-config", () => ({
   resolveExtractionConfig: mocks.resolveExtractionConfig,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     analysisSpec: { findFirst: vi.fn().mockResolvedValue(null) },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { chunkText, extractTextFromDocx } from "@/lib/content-trust/extract-assertions";
 

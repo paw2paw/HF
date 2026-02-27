@@ -22,14 +22,17 @@ vi.mock("@/lib/permissions", () => ({
   isAuthError: (result: any) => "error" in result,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     subject: {
       findMany: mocks.subjectFindMany,
       create: mocks.subjectCreate,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { GET, POST } from "@/app/api/subjects/route";
 import { NextRequest } from "next/server";

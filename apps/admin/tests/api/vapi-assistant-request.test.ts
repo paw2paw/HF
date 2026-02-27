@@ -23,12 +23,15 @@ vi.mock("@/lib/system-settings", () => ({
 const mockCallerFindFirst = vi.fn();
 const mockComposedPromptFindFirst = vi.fn();
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     caller: { findFirst: (...args: any[]) => mockCallerFindFirst(...args) },
     composedPrompt: { findFirst: (...args: any[]) => mockComposedPromptFindFirst(...args) },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 // ── Mock config ────────────────────────────────────
 vi.mock("@/lib/config", () => ({

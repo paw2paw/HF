@@ -8,6 +8,8 @@ const WIZARD_SLUG_MAP: Record<string, () => string> = {
   "content-source": () => config.specs.contentSourceSetup,
   "course": () => config.specs.courseSetup,
   "classroom": () => config.specs.classroomSetup,
+  "community": () => config.specs.communitySetup,
+  "institution": () => config.specs.institutionSetup,
   "demonstrate": () => config.specs.demonstrateFlow,
   "teach": () => config.specs.teachFlow,
 };

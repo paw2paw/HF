@@ -26,7 +26,8 @@ vi.mock("@/lib/permissions", () => ({
   isAuthError: (result: any) => "error" in result,
 }));
 
-vi.mock("@/lib/prisma", () => ({
+vi.mock("@/lib/prisma", () => {
+  const _p = {
   prisma: {
     contentVocabulary: {
       findUnique: mocks.vocabFindUnique,
@@ -36,7 +37,9 @@ vi.mock("@/lib/prisma", () => ({
       updateMany: mocks.vocabUpdateMany,
     },
   },
-}));
+};
+  return { ..._p, db: (tx) => tx ?? _p.prisma };
+});
 
 import { PATCH, DELETE } from "@/app/api/content-sources/[sourceId]/vocabulary/[vocabId]/route";
 import { POST as BULK_POST } from "@/app/api/content-sources/[sourceId]/vocabulary/bulk-review/route";
