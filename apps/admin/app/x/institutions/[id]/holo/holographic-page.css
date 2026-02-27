@@ -1,0 +1,445 @@
+/* ─── Holographic Page — hp-* prefixed ──────────────────────────────── */
+
+/* Two-pane layout */
+.hp-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--surface-secondary);
+}
+
+/* ─── Map Panel (left) ──────────────────────────────────────────────── */
+
+.hp-map {
+  width: 300px;
+  min-width: 300px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-primary);
+  border-right: 1px solid var(--border-default);
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.25s ease, min-width 0.25s ease;
+}
+
+.hp-map-collapsed {
+  width: 52px;
+  min-width: 52px;
+}
+
+/* ─── Map Header ────────────────────────────────────────────────────── */
+
+.hp-map-header {
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.hp-map-collapsed .hp-map-header {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hp-map-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.hp-map-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.hp-map-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.hp-collapse-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.hp-collapse-btn:hover {
+  background: var(--border-default);
+  color: var(--text-primary);
+}
+
+/* ─── Readiness Bar ─────────────────────────────────────────────────── */
+
+.hp-readiness-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hp-readiness-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hp-readiness-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.hp-readiness-fill[data-level="ready"] {
+  background: var(--status-success-text);
+}
+
+.hp-readiness-fill[data-level="almost"] {
+  background: var(--status-warning-text);
+}
+
+.hp-readiness-fill[data-level="incomplete"] {
+  background: var(--status-error-text);
+}
+
+.hp-readiness-fill[data-level="none"] {
+  background: var(--text-placeholder);
+}
+
+.hp-readiness-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Map Cards ─────────────────────────────────────────────────────── */
+
+.hp-map-cards {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.hp-map-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.hp-map-card:hover {
+  background: var(--surface-secondary);
+}
+
+.hp-map-card-active {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+/* Active section blue left bar */
+.hp-map-card-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-primary);
+}
+
+.hp-map-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.hp-map-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hp-map-card-dot[data-status="ready"] {
+  background: var(--status-success-text);
+}
+
+.hp-map-card-dot[data-status="almost"] {
+  background: var(--status-warning-text);
+}
+
+.hp-map-card-dot[data-status="incomplete"] {
+  background: var(--status-error-text);
+}
+
+.hp-map-card-dot[data-status="none"] {
+  background: var(--text-placeholder);
+}
+
+.hp-map-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hp-map-card-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 16px;
+}
+
+/* ─── Collapsed Map (dot rail) ──────────────────────────────────────── */
+
+.hp-map-collapsed .hp-map-cards {
+  padding: 8px 0;
+  align-items: center;
+}
+
+.hp-map-collapsed .hp-map-card {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.hp-map-collapsed .hp-map-card-header {
+  margin: 0;
+}
+
+.hp-map-collapsed .hp-map-card-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.hp-map-collapsed .hp-map-card-label,
+.hp-map-collapsed .hp-map-card-summary,
+.hp-map-collapsed .hp-map-subtitle,
+.hp-map-collapsed .hp-readiness-bar {
+  display: none;
+}
+
+/* ─── Save Indicator ────────────────────────────────────────────────── */
+
+.hp-save-indicator {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hp-save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.hp-save-dot[data-status="idle"] {
+  background: transparent;
+}
+
+.hp-save-dot[data-status="saving"] {
+  background: var(--status-warning-text);
+  animation: hp-pulse 1s ease infinite;
+}
+
+.hp-save-dot[data-status="saved"] {
+  background: var(--status-success-text);
+}
+
+.hp-save-dot[data-status="error"] {
+  background: var(--status-error-text);
+}
+
+@keyframes hp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.hp-map-collapsed .hp-save-indicator {
+  display: none;
+}
+
+/* ─── Editor Panel (right) ──────────────────────────────────────────── */
+
+.hp-editor {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px 40px;
+  background: var(--surface-secondary);
+}
+
+.hp-editor-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.hp-editor-tagline {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.hp-editor-content {
+  max-width: 720px;
+}
+
+/* Section placeholder (Phase 1 shell) */
+.hp-section-placeholder {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  border: 2px dashed var(--border-default);
+  border-radius: 12px;
+}
+
+.hp-section-placeholder-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.hp-section-placeholder-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ─── Loading / Error States ────────────────────────────────────────── */
+
+.hp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.hp-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.hp-error-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.hp-error-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ─── Mobile (<1024px) ──────────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .hp-map {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .hp-map-mobile-open {
+    display: flex;
+  }
+
+  .hp-editor {
+    padding: 20px 16px;
+  }
+
+  .hp-mobile-fab {
+    display: flex;
+  }
+}
+
+/* Mobile FAB (hidden on desktop) */
+.hp-mobile-fab {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  z-index: 99;
+}
+
+@media (max-width: 1023px) {
+  .hp-mobile-fab {
+    display: flex;
+  }
+}
+
+/* Backdrop for mobile map overlay */
+.hp-mobile-backdrop {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .hp-mobile-backdrop-open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+  }
+}
