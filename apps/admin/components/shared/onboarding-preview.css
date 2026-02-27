@@ -1,0 +1,147 @@
+/* ── OnboardingPreview ─────────────────────────────────
+ * WhatsApp-style first-call phase preview.
+ * Self-contained — no dependency on sim.css.
+ * Uses ob-* namespace to avoid collisions.
+ * ────────────────────────────────────────────────────── */
+
+/* Root container */
+.ob-preview {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Chat area — WA cross-hatch pattern */
+.ob-preview-chat {
+  background-color: #ECE5DD;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8c3bb' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+/* ── Greeting bubble ─────────────────────────────────── */
+
+.ob-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-top-left-radius: 2px;
+  background: #fff;
+  align-self: flex-start;
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.1);
+  font-size: 13px;
+  line-height: 1.4;
+  color: #111B21;
+}
+
+.ob-bubble-persona {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: 3px;
+}
+
+.ob-bubble-text {
+  white-space: pre-wrap;
+}
+
+/* ── Phase separator chips ───────────────────────────── */
+
+.ob-phase-chip {
+  align-self: center;
+  background: rgba(255,255,255,0.92);
+  padding: 6px 14px 8px;
+  border-radius: 8px;
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.1);
+  text-align: center;
+  max-width: 85%;
+}
+
+.ob-phase-chip-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111B21;
+}
+
+.ob-phase-chip-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ob-phase-chip-name {
+  text-transform: capitalize;
+}
+
+.ob-phase-chip-dur {
+  font-weight: 400;
+  color: #667781;
+  font-size: 11px;
+}
+
+.ob-phase-chip-goals {
+  font-size: 11px;
+  color: #667781;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* ── Hint chip ───────────────────────────────────────── */
+
+.ob-hint {
+  align-self: center;
+  font-size: 11px;
+  color: #667781;
+  padding: 4px 12px;
+  background: rgba(255,255,255,0.8);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* ── Dark mode ───────────────────────────────────────── */
+
+.dark .ob-preview-chat {
+  background-color: #0B141A;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23182520' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.dark .ob-bubble {
+  background: #202C33;
+  color: #E9EDEF;
+}
+
+.dark .ob-phase-chip {
+  background: rgba(32,44,51,0.92);
+}
+
+.dark .ob-phase-chip-header {
+  color: #E9EDEF;
+}
+
+.dark .ob-phase-chip-dur,
+.dark .ob-phase-chip-goals {
+  color: #8696A0;
+}
+
+.dark .ob-hint {
+  background: rgba(32,44,51,0.8);
+  color: #8696A0;
+}

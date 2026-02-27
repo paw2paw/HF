@@ -136,10 +136,7 @@ const PAGE_SIZE = 50;
 function TrustBadge({ level }: { level: string }) {
   const cfg = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];
   return (
-    <span
-      className="csd-trust-badge"
-      style={{ color: cfg.color, backgroundColor: cfg.bg, border: `1px solid color-mix(in srgb, ${cfg.color} 20%, transparent)` }}
-    >
+    <span className="csd-trust-badge" data-level={cfg.value}>
       {cfg.label}
     </span>
   );
@@ -152,7 +149,7 @@ function CategoryBadge({ category }: { category: string }) {
   return (
     <span
       className="csd-category-badge"
-      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)` }}
+      style={{ '--cat-color': color } as React.CSSProperties}
     >
       {icon && <span className="csd-category-icon">{icon}</span>}
       {cfg?.label || category}
@@ -201,12 +198,7 @@ function CategorySelect({
       onChange={(e) => handleChange(e.target.value)}
       disabled={saving}
       className="csd-category-select"
-      style={{
-        color,
-        backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
-        borderColor: `color-mix(in srgb, ${color} 25%, transparent)`,
-        opacity: saving ? 0.5 : 1,
-      }}
+      style={{ '--cat-color': color } as React.CSSProperties}
       title="Click to reclassify"
     >
       {CATEGORIES.map((c) => (
@@ -374,7 +366,7 @@ function EditableTrustBadge({
     <div className="csd-dropdown-wrap" ref={dropdownRef}>
       <button
         className="csd-trust-badge csd-badge-clickable"
-        style={{ color: cfg.color, backgroundColor: cfg.bg, border: `1px solid color-mix(in srgb, ${cfg.color} 20%, transparent)` }}
+        data-level={cfg.value}
         onClick={() => setOpen(!open)}
         title="Click to change trust level"
         disabled={saving}
@@ -390,10 +382,7 @@ function EditableTrustBadge({
               onClick={() => handleSelect(t.value)}
               disabled={saving}
             >
-              <span
-                className="csd-dropdown-dot"
-                style={{ backgroundColor: t.color }}
-              />
+              <span className="csd-dropdown-dot" data-level={t.value} />
               {t.label}
             </button>
           ))}

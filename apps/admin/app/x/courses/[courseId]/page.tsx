@@ -156,6 +156,14 @@ type SessionPhaseEntry = {
   guidance?: string;
 };
 
+type SessionMediaRef = {
+  mediaId: string;
+  fileName?: string;
+  captionText?: string | null;
+  figureRef?: string | null;
+  mimeType?: string;
+};
+
 type SessionEntry = {
   session: number;
   type: string;
@@ -168,6 +176,7 @@ type SessionEntry = {
   phases?: SessionPhaseEntry[] | null;
   learningOutcomeRefs?: string[] | null;
   assertionIds?: string[] | null;
+  media?: SessionMediaRef[] | null;
 };
 
 type ModuleSummary = {
@@ -329,6 +338,9 @@ export default function CourseDetailPage() {
   const [sessionMediaMap, setSessionMediaMap] = useState<SessionMediaMap | null>(null);
   const [mediaMapLoading, setMediaMapLoading] = useState(false);
   const [editingSessionMedia, setEditingSessionMedia] = useState<number | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<MediaRef | null>(null);
+  const [unassignedSearch, setUnassignedSearch] = useState('');
+  const [dragMediaId, setDragMediaId] = useState<string | null>(null);
 
   // Content tab drill-down
   const [expandedMethod, setExpandedMethod] = useState<string | null>(null);
@@ -850,6 +862,122 @@ export default function CourseDetailPage() {
     });
   }, [sessions]);
 
+  // ── Session media handlers (add/remove images from sessions) ──
+
+  const handleRemoveSessionImage = useCallback((sessionNum: number, mediaId: string) => {
+    if (!sessions?.curriculumId || !sessions?.plan?.entries) return;
+    // Optimistic: move image from session → unassigned in local state
+    setSessionMediaMap((prev) => {
+      if (!prev) return prev;
+      let removedImage: MediaRef | undefined;
+      const updatedSessions = prev.sessions.map((s) => {
+        if (s.session === sessionNum) {
+          removedImage = s.images.find((img) => img.mediaId === mediaId);
+          return { ...s, images: s.images.filter((img) => img.mediaId !== mediaId) };
+        }
+        return s;
+      });
+      return {
+        ...prev,
+        sessions: updatedSessions,
+        unassigned: removedImage ? [...prev.unassigned, removedImage] : prev.unassigned,
+        stats: {
+          ...prev.stats,
+          assigned: prev.stats.assigned - (removedImage ? 1 : 0),
+          unassigned: prev.stats.unassigned + (removedImage ? 1 : 0),
+        },
+      };
+    });
+    // Persist: update lesson plan entries with media[] changes
+    const updatedEntries = sessions.plan.entries.map((e) => {
+      if (e.session === sessionNum) {
+        const existingMedia = sessionMediaMap?.sessions?.find((s) => s.session === sessionNum)?.images || [];
+        return { ...e, media: existingMedia.filter((m) => m.mediaId !== mediaId) };
+      }
+      return e;
+    });
+    fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: updatedEntries }),
+    }).catch(() => {});
+  }, [sessions, sessionMediaMap]);
+
+  const handleAssignImageToSession = useCallback((mediaId: string, sessionNum: number) => {
+    if (!sessions?.curriculumId || !sessions?.plan?.entries) return;
+    // Optimistic: move image from unassigned → session
+    setSessionMediaMap((prev) => {
+      if (!prev) return prev;
+      const img = prev.unassigned.find((u) => u.mediaId === mediaId);
+      if (!img) return prev;
+      return {
+        ...prev,
+        sessions: prev.sessions.map((s) =>
+          s.session === sessionNum ? { ...s, images: [...s.images, img] } : s,
+        ),
+        unassigned: prev.unassigned.filter((u) => u.mediaId !== mediaId),
+        stats: {
+          ...prev.stats,
+          assigned: prev.stats.assigned + 1,
+          unassigned: prev.stats.unassigned - 1,
+        },
+      };
+    });
+    // Persist
+    const updatedEntries = sessions.plan.entries.map((e) => {
+      if (e.session === sessionNum) {
+        const existingMedia = sessionMediaMap?.sessions?.find((s) => s.session === sessionNum)?.images || [];
+        const img = sessionMediaMap?.unassigned.find((u) => u.mediaId === mediaId);
+        const newMedia = img ? [...existingMedia, img] : existingMedia;
+        return { ...e, media: newMedia };
+      }
+      return e;
+    });
+    fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: updatedEntries }),
+    }).catch(() => {});
+  }, [sessions, sessionMediaMap]);
+
+  const handleReorderSessionImages = useCallback((sessionNum: number, fromIdx: number, toIdx: number) => {
+    if (!sessions?.curriculumId || !sessions?.plan?.entries) return;
+    setSessionMediaMap((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        sessions: prev.sessions.map((s) => {
+          if (s.session !== sessionNum) return s;
+          const imgs = [...s.images];
+          const [moved] = imgs.splice(fromIdx, 1);
+          imgs.splice(toIdx, 0, moved);
+          return { ...s, images: imgs };
+        }),
+      };
+    });
+    // Persist reordered media
+    const sm = sessionMediaMap?.sessions?.find((s) => s.session === sessionNum);
+    if (sm) {
+      const imgs = [...sm.images];
+      const [moved] = imgs.splice(fromIdx, 1);
+      imgs.splice(toIdx, 0, moved);
+      const updatedEntries = sessions.plan.entries.map((e) =>
+        e.session === sessionNum ? { ...e, media: imgs } : e,
+      );
+      fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: updatedEntries }),
+      }).catch(() => {});
+    }
+  }, [sessions, sessionMediaMap]);
+
+  const handleDropOnSession = useCallback((sessionNum: number) => {
+    if (!dragMediaId) return;
+    handleAssignImageToSession(dragMediaId, sessionNum);
+    setDragMediaId(null);
+  }, [dragMediaId, handleAssignImageToSession]);
+
   // ── Loading / Error States ───────────────────────────
   if (loading) {
     return (
@@ -1123,38 +1251,340 @@ export default function CourseDetailPage() {
           </div>
 
           {/* Student Journey */}
-          <SectionHeader title="Student Journey" icon={Compass} />
+          <div className="hf-flex hf-flex-between hf-items-center hf-section-divider">
+            <div className="hf-flex hf-gap-sm hf-items-center">
+              <Compass size={18} className="hf-text-muted" />
+              <h2 className="hf-section-title hf-mb-0">Student Journey</h2>
+            </div>
+            {isOperator && !editingJourney && (
+              <div className="hf-flex hf-gap-xs">
+                {onboardingSource === 'course' && (
+                  <button
+                    className="hf-btn-sm hf-btn-secondary"
+                    onClick={async () => {
+                      if (!confirm('Reset to institution default? Your course-level customisations will be removed.')) return;
+                      setSavingJourney(true);
+                      try {
+                        const res = await fetch(`/api/courses/${courseId}/onboarding`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ onboardingFlowPhases: null }),
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                          const obRes = await fetch(`/api/courses/${courseId}/onboarding`);
+                          const obData = await obRes.json();
+                          if (obData.ok) {
+                            setOnboardingSource(obData.source);
+                            const phasesArr = obData.phases?.phases;
+                            setFlowPhases(Array.isArray(phasesArr) ? phasesArr.map((p: any) => ({
+                              id: p.phase || '', label: (p.phase || '').replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                              duration: p.duration, goals: p.goals, content: p.content,
+                            })) : []);
+                          }
+                          setJourneySaveSuccess(true);
+                          setTimeout(() => setJourneySaveSuccess(false), 3000);
+                        } else {
+                          setJourneySaveError(data.error || 'Failed to reset');
+                        }
+                      } catch { setJourneySaveError('Network error'); }
+                      finally { setSavingJourney(false); }
+                    }}
+                    disabled={savingJourney}
+                  >
+                    <RotateCcw size={13} />
+                    Reset to Default
+                  </button>
+                )}
+                <button
+                  className="hf-btn-sm hf-btn-primary"
+                  onClick={() => {
+                    setStructuredPhases(flowPhases.map((p) => ({
+                      _id: crypto.randomUUID(),
+                      phase: p.id,
+                      duration: p.duration || '',
+                      goals: p.goals || [],
+                      content: p.content,
+                    })));
+                    setEditingJourney(true);
+                    setJourneySaveError(null);
+                    setJourneySaveSuccess(false);
+                  }}
+                >
+                  <Pencil size={13} />
+                  {onboardingSource === 'none' ? 'Set Up' : onboardingSource === 'domain' ? 'Customise' : 'Edit'}
+                </button>
+              </div>
+            )}
+            {editingJourney && (
+              <div className="hf-flex hf-gap-xs">
+                <button
+                  className="hf-btn-sm hf-btn-secondary"
+                  onClick={() => { setEditingJourney(false); setJourneySaveError(null); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="hf-btn-sm hf-btn-primary"
+                  disabled={savingJourney}
+                  onClick={async () => {
+                    setSavingJourney(true);
+                    setJourneySaveError(null);
+                    try {
+                      const phasesPayload = structuredPhases.length > 0
+                        ? { phases: structuredPhases.map(({ _id, ...rest }) => rest) }
+                        : null;
+                      const res = await fetch(`/api/courses/${courseId}/onboarding`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ onboardingFlowPhases: phasesPayload }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        const obRes = await fetch(`/api/courses/${courseId}/onboarding`);
+                        const obData = await obRes.json();
+                        if (obData.ok) {
+                          setOnboardingSource(obData.source);
+                          const phasesArr = obData.phases?.phases;
+                          setFlowPhases(Array.isArray(phasesArr) ? phasesArr.map((p: any) => ({
+                            id: p.phase || '', label: (p.phase || '').replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                            duration: p.duration, goals: p.goals, content: p.content,
+                          })) : []);
+                        }
+                        setEditingJourney(false);
+                        setJourneySaveSuccess(true);
+                        setTimeout(() => setJourneySaveSuccess(false), 3000);
+                      } else {
+                        setJourneySaveError(data.error || 'Failed to save');
+                      }
+                    } catch { setJourneySaveError('Network error'); }
+                    finally { setSavingJourney(false); }
+                  }}
+                >
+                  {savingJourney ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {journeySaveSuccess && (
+            <div className="hf-banner hf-banner-success hf-mb-md">Onboarding flow saved.</div>
+          )}
+          {journeySaveError && (
+            <div className="hf-banner hf-banner-error hf-mb-md">{journeySaveError}</div>
+          )}
 
           <div className="hf-mb-lg">
-            {flowPhases.length > 0 ? (
+            {editingJourney ? (
+              /* ── Inline Phase Editor ── */
               <div className="hf-card-compact">
-                <div className="hf-flex hf-gap-sm hf-items-center hf-mb-md">
-                  <Compass size={15} className="hf-text-muted" />
-                  <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">Onboarding Flow</span>
-                </div>
-                <div className="hf-flex hf-gap-sm hf-items-center hf-flex-wrap">
-                  {flowPhases.map((phase, i) => (
-                    <div key={phase.id} className="hf-flex hf-gap-sm hf-items-center">
-                      <div className="hf-phase-pill">
-                        <div className="hf-text-xs hf-text-bold">{phase.label}</div>
-                        {phase.duration && (
-                          <div className="hf-text-xs hf-text-muted hf-phase-duration">
-                            {phase.duration}
-                          </div>
-                        )}
+                {onboardingSource === 'domain' && (
+                  <div className="hf-banner hf-banner-info hf-mb-md">
+                    You are creating a custom onboarding flow for this course. It will override the institution default.
+                  </div>
+                )}
+
+                <SortableList
+                  items={structuredPhases}
+                  getItemId={(p) => p._id}
+                  onReorder={(from, to) => setStructuredPhases(reorderItems(structuredPhases, from, to))}
+                  onAdd={() => setStructuredPhases([...structuredPhases, {
+                    _id: crypto.randomUUID(),
+                    phase: '',
+                    duration: '3min',
+                    goals: [],
+                  }])}
+                  onRemove={(i) => setStructuredPhases(structuredPhases.filter((_, idx) => idx !== i))}
+                  addLabel="Add Phase"
+                  emptyLabel="No phases — add your first onboarding phase"
+                  renderCard={(phase, index) => (
+                    <div className="hf-flex-1">
+                      <div className="hf-flex hf-gap-sm hf-mb-sm">
+                        <div className="hf-flex-1">
+                          <label className="hf-label">Phase Name</label>
+                          <input
+                            type="text"
+                            className="hf-input"
+                            placeholder="e.g. welcome, discover, teach"
+                            value={phase.phase}
+                            onChange={(e) => {
+                              const updated = [...structuredPhases];
+                              updated[index] = { ...updated[index], phase: e.target.value };
+                              setStructuredPhases(updated);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="hf-label">Duration</label>
+                          <input
+                            type="text"
+                            className="hf-input"
+                            placeholder="e.g. 2min"
+                            value={phase.duration}
+                            onChange={(e) => {
+                              const updated = [...structuredPhases];
+                              updated[index] = { ...updated[index], duration: e.target.value };
+                              setStructuredPhases(updated);
+                            }}
+                          />
+                        </div>
                       </div>
-                      {i < flowPhases.length - 1 && (
-                        <ChevronRight size={14} className="hf-text-placeholder" />
+                      <div className="hf-mb-sm">
+                        <label className="hf-label">Goals (one per line)</label>
+                        <textarea
+                          className="hf-textarea"
+                          rows={2}
+                          placeholder="Greet learner and establish rapport"
+                          value={(phase.goals || []).join('\n')}
+                          onChange={(e) => {
+                            const updated = [...structuredPhases];
+                            updated[index] = { ...updated[index], goals: e.target.value.split('\n').filter((g) => g.trim()) };
+                            setStructuredPhases(updated);
+                          }}
+                        />
+                      </div>
+                      {/* Media attachment */}
+                      {(phase.content || []).length > 0 && (
+                        <div className="hf-mb-sm">
+                          {(phase.content || []).map((ref, ci) => {
+                            const media = domainMedia.find((m) => m.id === ref.mediaId);
+                            return (
+                              <div key={ci} className="hf-flex hf-gap-sm hf-items-center hf-mb-xs">
+                                <Paperclip size={12} className="hf-text-muted hf-flex-shrink-0" />
+                                <span className="hf-text-xs hf-flex-1 hf-truncate">{media?.title || media?.fileName || ref.mediaId}</span>
+                                <input
+                                  type="text"
+                                  className="hf-input hf-text-xs"
+                                  placeholder="Instruction..."
+                                  value={ref.instruction || ''}
+                                  onChange={(e) => {
+                                    const updated = [...structuredPhases];
+                                    const newContent = [...(updated[index].content || [])];
+                                    newContent[ci] = { ...newContent[ci], instruction: e.target.value };
+                                    updated[index] = { ...updated[index], content: newContent };
+                                    setStructuredPhases(updated);
+                                  }}
+                                />
+                                <button
+                                  className="hf-btn-ghost hf-text-xs hf-text-muted"
+                                  onClick={() => {
+                                    const updated = [...structuredPhases];
+                                    const newContent = (updated[index].content || []).filter((_, j) => j !== ci);
+                                    updated[index] = { ...updated[index], content: newContent.length > 0 ? newContent : undefined };
+                                    setStructuredPhases(updated);
+                                  }}
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {domainMedia.length > 0 && (
+                        <select
+                          className="hf-select hf-text-xs"
+                          value=""
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            const existing = phase.content || [];
+                            if (existing.some((c) => c.mediaId === e.target.value)) return;
+                            const updated = [...structuredPhases];
+                            updated[index] = { ...updated[index], content: [...existing, { mediaId: e.target.value }] };
+                            setStructuredPhases(updated);
+                          }}
+                        >
+                          <option value="">+ Attach media to this phase...</option>
+                          {domainMedia
+                            .filter((m) => !(phase.content || []).some((c) => c.mediaId === m.id))
+                            .map((m) => (
+                              <option key={m.id} value={m.id}>{m.title || m.fileName}</option>
+                            ))}
+                        </select>
                       )}
                     </div>
-                  ))}
+                  )}
+                />
+              </div>
+            ) : flowPhases.length > 0 ? (
+              /* ── Enhanced Read-Only Flow Cards ── */
+              <div className="hf-flow-card">
+                {flowPhases.map((phase, i) => (
+                  <div key={phase.id || i} className="hf-flow-phase">
+                    <div className="hf-flow-phase-num">{i + 1}</div>
+                    <div className="hf-flow-phase-body">
+                      <div className="hf-flow-phase-header">
+                        <span className="hf-flow-phase-name">{phase.label}</span>
+                        {phase.duration && <span className="hf-flow-phase-dur">{phase.duration}</span>}
+                      </div>
+                      {phase.goals && phase.goals.length > 0 && (
+                        <div className="hf-flow-phase-goals">
+                          {phase.goals.map((g, gi) => (
+                            <div key={gi}>&middot; {g}</div>
+                          ))}
+                        </div>
+                      )}
+                      {phase.content && phase.content.length > 0 && (
+                        <div className="hf-flow-phase-media-badge">
+                          <Paperclip size={11} />
+                          {phase.content.length} media
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div className="hf-flow-inherit-footer">
+                  {onboardingSource === 'course' ? (
+                    <span className="hf-badge hf-badge-info">Custom</span>
+                  ) : onboardingSource === 'domain' && onboardingDomainName ? (
+                    <span>Inherited from: {onboardingDomainName}</span>
+                  ) : null}
                 </div>
               </div>
             ) : (
-              <div className="hf-card-compact">
-                <div className="hf-text-sm hf-text-muted">
-                  Onboarding flow will appear here once the institution is configured.
-                </div>
+              /* ── Empty State ── */
+              <div className="hf-card-compact hf-text-center">
+                <Compass size={36} className="hf-text-tertiary hf-mb-sm" />
+                <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No student journey configured</div>
+                <p className="hf-text-xs hf-text-muted hf-mb-md">
+                  Set up the onboarding flow on the Institution page, or customise one for this course.
+                </p>
+                {isOperator && (
+                  <div className="hf-flex hf-gap-sm hf-justify-center">
+                    {detail.domain?.id && (
+                      <Link
+                        href={`/x/domains?id=${detail.domain.id}&tab=onboarding`}
+                        className="hf-btn-sm hf-btn-secondary"
+                      >
+                        Set Up on Institution
+                      </Link>
+                    )}
+                    <button
+                      className="hf-btn-sm hf-btn-primary"
+                      onClick={() => {
+                        setStructuredPhases([{
+                          _id: crypto.randomUUID(),
+                          phase: 'welcome',
+                          duration: '2min',
+                          goals: ['Greet learner and establish rapport'],
+                        }, {
+                          _id: crypto.randomUUID(),
+                          phase: 'discover',
+                          duration: '5min',
+                          goals: ['Assess prior knowledge'],
+                        }, {
+                          _id: crypto.randomUUID(),
+                          phase: 'close',
+                          duration: '2min',
+                          goals: ['Summarise and preview next session'],
+                        }]);
+                        setEditingJourney(true);
+                      }}
+                    >
+                      Customise for This Course
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1612,6 +2042,63 @@ export default function CourseDetailPage() {
                           readonly={!isOperator}
                         />
                       )}
+                      {/* Session images — editable strip with drag reorder + drop zone */}
+                      {expandedSession === i && (() => {
+                        const sm = sessionMediaMap?.sessions?.find((s) => s.session === entry.session);
+                        const hasImages = sm && sm.images.length > 0;
+                        const hasUnassigned = (sessionMediaMap?.unassigned?.length ?? 0) > 0;
+                        return (
+                          <div
+                            className={`hf-session-media-strip cd-session-media-editable${dragMediaId ? ' cd-drop-target' : ''}`}
+                            onDragOver={(e) => { if (dragMediaId) { e.preventDefault(); e.currentTarget.classList.add('cd-drop-hover'); } }}
+                            onDragLeave={(e) => e.currentTarget.classList.remove('cd-drop-hover')}
+                            onDrop={(e) => { e.currentTarget.classList.remove('cd-drop-hover'); handleDropOnSession(entry.session); }}
+                          >
+                            {hasImages ? sm.images.map((img, imgIdx) => (
+                              <div
+                                key={img.mediaId}
+                                className="hf-session-media-thumb"
+                                title={img.captionText || img.figureRef || img.fileName}
+                                draggable={isOperator}
+                                onDragStart={(e) => { e.dataTransfer.setData('text/plain', `reorder:${imgIdx}`); e.dataTransfer.effectAllowed = 'move'; }}
+                                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('cd-img-drag-over'); }}
+                                onDragLeave={(e) => e.currentTarget.classList.remove('cd-img-drag-over')}
+                                onDrop={(e) => {
+                                  e.stopPropagation();
+                                  e.currentTarget.classList.remove('cd-img-drag-over');
+                                  const data = e.dataTransfer.getData('text/plain');
+                                  if (data.startsWith('reorder:')) {
+                                    const fromIdx = parseInt(data.split(':')[1], 10);
+                                    if (!isNaN(fromIdx) && fromIdx !== imgIdx) handleReorderSessionImages(entry.session, fromIdx, imgIdx);
+                                  }
+                                }}
+                              >
+                                {img.mimeType.startsWith('image/') ? (
+                                  <img
+                                    src={`/api/media/${img.mediaId}`}
+                                    alt={img.captionText || img.figureRef || ''}
+                                    onClick={() => setLightboxImage(img)}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                ) : (
+                                  <span className="hf-session-media-icon" onClick={() => setLightboxImage(img)} style={{ cursor: 'pointer' }}>{img.figureRef || 'File'}</span>
+                                )}
+                                {isOperator && (
+                                  <button
+                                    className="hf-session-media-remove"
+                                    onClick={(e) => { e.stopPropagation(); handleRemoveSessionImage(entry.session, img.mediaId); }}
+                                    title="Remove from session"
+                                  >✕</button>
+                                )}
+                              </div>
+                            )) : isOperator && hasUnassigned ? (
+                              <span className="hf-text-xs hf-text-muted cd-no-images-hint">
+                                <Image size={12} /> No images — drag from unassigned below or use the dropdown
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -1624,6 +2111,89 @@ export default function CourseDetailPage() {
                   onMove={handleTPMove}
                 />
               )}
+              {/* Unassigned Images */}
+              {sessionMediaMap && sessionMediaMap.unassigned.length > 0 && (() => {
+                const filtered = unassignedSearch
+                  ? sessionMediaMap.unassigned.filter((img) => {
+                      const q = unassignedSearch.toLowerCase();
+                      return (img.fileName?.toLowerCase().includes(q)) ||
+                        (img.captionText?.toLowerCase().includes(q)) ||
+                        (img.figureRef?.toLowerCase().includes(q));
+                    })
+                  : sessionMediaMap.unassigned;
+                const PAGE_SIZE = 12;
+                const shown = filtered.slice(0, PAGE_SIZE);
+                const remaining = filtered.length - PAGE_SIZE;
+                return (
+                  <div className="hf-card-compact hf-mt-md cd-unassigned-images">
+                    <div className="hf-flex hf-flex-between hf-items-center hf-mb-sm">
+                      <span className="hf-section-title hf-text-sm">
+                        <Image size={14} /> Unassigned Images ({sessionMediaMap.unassigned.length})
+                      </span>
+                      <div className="hf-flex hf-gap-sm hf-items-center">
+                        {sessionMediaMap.unassigned.length > 6 && (
+                          <input
+                            type="text"
+                            className="hf-input hf-input-xs"
+                            placeholder="Filter images…"
+                            value={unassignedSearch}
+                            onChange={(e) => setUnassignedSearch(e.target.value)}
+                            style={{ width: 140 }}
+                          />
+                        )}
+                        <span className="hf-text-xs hf-text-muted">
+                          {sessionMediaMap.stats.assigned} of {sessionMediaMap.stats.total} assigned
+                        </span>
+                      </div>
+                    </div>
+                    <div className="hf-session-media-grid">
+                      {shown.map((img) => (
+                        <div
+                          key={img.mediaId}
+                          className="hf-session-media-card"
+                          draggable={isOperator}
+                          onDragStart={(e) => { setDragMediaId(img.mediaId); e.dataTransfer.setData('text/plain', `assign:${img.mediaId}`); e.dataTransfer.effectAllowed = 'move'; }}
+                          onDragEnd={() => setDragMediaId(null)}
+                        >
+                          <div className="hf-session-media-card-thumb" onClick={() => setLightboxImage(img)} style={{ cursor: 'pointer' }}>
+                            {img.mimeType.startsWith('image/') ? (
+                              <img src={`/api/media/${img.mediaId}`} alt={img.captionText || img.figureRef || ''} />
+                            ) : (
+                              <span className="hf-session-media-icon">{img.figureRef || 'File'}</span>
+                            )}
+                          </div>
+                          <div className="hf-session-media-card-label">
+                            {img.figureRef || img.captionText || img.fileName}
+                          </div>
+                          {isOperator && sessions?.plan?.entries && (
+                            <select
+                              className="hf-input hf-input-xs"
+                              defaultValue=""
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                if (val > 0) handleAssignImageToSession(img.mediaId, val);
+                                e.target.value = '';
+                              }}
+                            >
+                              <option value="" disabled>Assign to session…</option>
+                              {sessions.plan.entries.map((se) => (
+                                <option key={se.session} value={se.session}>
+                                  S{se.session}: {se.label}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {remaining > 0 && (
+                      <p className="hf-text-xs hf-text-muted hf-mt-sm">
+                        +{remaining} more — use the filter to find specific images
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </>
           ) : sessions?.modules && sessions.modules.length > 0 ? (
             /* Fallback: modules exist but no plan */

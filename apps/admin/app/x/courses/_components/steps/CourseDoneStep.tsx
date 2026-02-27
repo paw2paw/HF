@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText, Mic, Sparkles, ChevronRight, ChevronDown, MessageCircle } from 'lucide-react';
+import { OnboardingPreview } from '@/components/shared/OnboardingPreview';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { useTaskPoll, type PollableTask } from '@/hooks/useTaskPoll';
@@ -422,40 +423,12 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
 
               {previewOpen && (
                 <div style={{ paddingTop: 8 }}>
-                  {/* Greeting quote */}
-                  {welcomeMsg && (
-                    <p className="hf-greeting-text" style={{ marginBottom: flowPhases.length > 0 ? 12 : 0 }}>
-                      &ldquo;{welcomeMsg}&rdquo;
-                    </p>
-                  )}
-
-                  {/* Phase timeline */}
-                  {flowPhases.length > 0 && (
-                    <div className="hf-flow-card">
-                      {flowPhases.map((phase, i) => {
-                        const goalsSummary = phase.goals?.slice(0, 2).join(' \u00B7 ') || '';
-                        return (
-                          <div key={`${phase.phase}-${i}`} className="hf-flow-phase">
-                            <span className="hf-flow-phase-num">{i + 1}</span>
-                            <div className="hf-flow-phase-body">
-                              <div className="hf-flow-phase-header">
-                                <span className="hf-flow-phase-name">{phase.phase}</span>
-                                <span className="hf-flow-phase-dur">{phase.duration}</span>
-                              </div>
-                              {goalsSummary && (
-                                <div className="hf-flow-phase-goals">{goalsSummary}</div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Edit later hint */}
-                  <p className="hf-text-xs hf-text-muted" style={{ marginTop: 10 }}>
-                    You can edit these in {terms.domain} settings after launch.
-                  </p>
+                  <OnboardingPreview
+                    greeting={welcomeMsg}
+                    personaName={personaName || undefined}
+                    phases={flowPhases}
+                    hint={`You can edit these in ${terms.domain} settings after launch.`}
+                  />
                 </div>
               )}
             </div>

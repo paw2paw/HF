@@ -252,11 +252,15 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
   const visuals = (llmPrompt as any).visualAids;
   if (visuals?.hasVisualAids && visuals.available?.length) {
     parts.push("[VISUAL AIDS]");
+    if (visuals.sessionCount > 0) {
+      parts.push(`This session has ${visuals.sessionCount} assigned visual aid${visuals.sessionCount > 1 ? "s" : ""}. Prioritise sharing these during the session.`);
+    }
     parts.push("Teaching materials include these visual aids. You can share any of them using the share_content tool with the media_id.");
     for (const v of visuals.available.slice(0, 8)) {
       const label = v.captionText || v.figureRef || v.fileName;
       const chapterTag = v.chapter ? ` (${v.chapter})` : "";
-      parts.push(`- [${v.mediaId}] ${label}${chapterTag}`);
+      const sessionTag = v.currentSession ? " ★" : "";
+      parts.push(`- [${v.mediaId}] ${label}${chapterTag}${sessionTag}`);
     }
     parts.push("In voice calls, the content is sent to the caller's phone — tell them to check their messages.");
     parts.push("In text sessions, the content appears inline in the chat.");

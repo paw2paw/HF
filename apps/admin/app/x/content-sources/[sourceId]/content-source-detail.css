@@ -613,6 +613,23 @@
   font-weight: 600;
 }
 
+/* Trust level data-attribute colors */
+.csd-trust-badge[data-level="REGULATORY_STANDARD"],
+.csd-dropdown-dot[data-level="REGULATORY_STANDARD"] { color: var(--trust-l5-text); background-color: var(--trust-l5-bg); border: 1px solid color-mix(in srgb, var(--trust-l5-text) 20%, transparent); }
+.csd-trust-badge[data-level="ACCREDITED_MATERIAL"],
+.csd-dropdown-dot[data-level="ACCREDITED_MATERIAL"] { color: var(--trust-l4-text); background-color: var(--trust-l4-bg); border: 1px solid color-mix(in srgb, var(--trust-l4-text) 20%, transparent); }
+.csd-trust-badge[data-level="PUBLISHED_REFERENCE"],
+.csd-dropdown-dot[data-level="PUBLISHED_REFERENCE"] { color: var(--trust-l3-text); background-color: var(--trust-l3-bg); border: 1px solid color-mix(in srgb, var(--trust-l3-text) 20%, transparent); }
+.csd-trust-badge[data-level="EXPERT_CURATED"],
+.csd-dropdown-dot[data-level="EXPERT_CURATED"] { color: var(--trust-l2-text); background-color: var(--trust-l2-bg); border: 1px solid color-mix(in srgb, var(--trust-l2-text) 20%, transparent); }
+.csd-trust-badge[data-level="AI_ASSISTED"],
+.csd-dropdown-dot[data-level="AI_ASSISTED"] { color: var(--trust-l1-text); background-color: var(--trust-l1-bg); border: 1px solid color-mix(in srgb, var(--trust-l1-text) 20%, transparent); }
+.csd-trust-badge[data-level="UNVERIFIED"],
+.csd-dropdown-dot[data-level="UNVERIFIED"] { color: var(--trust-l0-text); background-color: var(--trust-l0-bg); border: 1px solid color-mix(in srgb, var(--trust-l0-text) 20%, transparent); }
+
+/* Dropdown dots only show background, no border */
+.csd-dropdown-dot[data-level] { border: none; }
+
 /* ── Category Badge ── */
 
 .csd-category-badge {
@@ -624,6 +641,8 @@
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
+  color: var(--cat-color, var(--text-muted));
+  background-color: color-mix(in srgb, var(--cat-color, var(--text-muted)) 12%, transparent);
 }
 
 .csd-category-icon {
@@ -645,6 +664,8 @@
   text-transform: uppercase;
   border: 1px solid transparent;
   cursor: pointer;
+  color: var(--cat-color, var(--text-muted));
+  background-color: color-mix(in srgb, var(--cat-color, var(--text-muted)) 12%, transparent);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath d='M0 2l4 4 4-4z' fill='%236b7280'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 5px center;
@@ -653,7 +674,7 @@
 }
 
 .csd-category-select:hover {
-  border-color: var(--border-default);
+  border-color: color-mix(in srgb, var(--cat-color, var(--text-muted)) 25%, transparent);
 }
 
 .csd-category-select:focus {
@@ -663,6 +684,7 @@
 
 .csd-category-select:disabled {
   cursor: wait;
+  opacity: 0.5;
 }
 
 /* ── Review Badge ── */

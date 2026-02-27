@@ -87,6 +87,7 @@ export default function DomainsPage() {
   const [bulkDeletePreview, setBulkDeletePreview] = useState<BulkDeletePreview | null>(null);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { addBulkDeleteJob } = useBackgroundTaskQueue();
 
   // Remove playbook state
@@ -218,10 +219,10 @@ export default function DomainsPage() {
         if (refreshData.ok) setDomain(refreshData.domain);
         fetchDomains();
       } else {
-        alert(data.error);
+        setActionError(data.error);
       }
     } catch (e: any) {
-      alert("Error removing playbook: " + e.message);
+      setActionError("Error removing playbook: " + e.message);
     } finally {
       setRemovingPlaybookId(null);
       setShowRemovePlaybookConfirm(null);
@@ -321,7 +322,7 @@ export default function DomainsPage() {
       const data = await res.json();
       if (data.ok) setDomain(data.domain);
     } catch (err: any) {
-      alert("Error reordering: " + err.message);
+      setActionError("Error reordering: " + err.message);
     } finally {
       setReorderingId(null);
     }
@@ -345,12 +346,12 @@ export default function DomainsPage() {
     <button
       onClick={onClick}
       title={tooltip}
-      className="hf-filter-pill"
+      className={`hf-filter-pill${isActive ? " dom-pill-active" : ""}`}
       style={isActive ? {
-        border: `1px solid color-mix(in srgb, ${colors.text} 25%, transparent)`,
-        background: colors.bg,
-        color: colors.text,
-      } : undefined}
+        "--pill-bg": colors.bg,
+        "--pill-text": colors.text,
+        "--pill-border": `color-mix(in srgb, ${colors.text} 25%, transparent)`,
+      } as React.CSSProperties : undefined}
     >
       {icon && <span>{icon}</span>}
       {label}
@@ -460,7 +461,7 @@ export default function DomainsPage() {
             value={sortBy}
             onChange={(v) => setSortBy(v as "name" | "callers" | "playbooks")}
             searchable={false}
-            className="dom-sort-select"
+            style={{ minWidth: 120 }}
             options={[
               { value: "name", label: "Name" },
               { value: "callers", label: plural("caller") },
@@ -1140,15 +1141,9 @@ export default function DomainsPage() {
                                   return (
                                   <div
                                     key={ss.id}
-                                    className={`hf-flex hf-gap-md hf-items-center${srcActive ? " hf-glow-active" : ""}`}
-                                    style={{
-                                      padding: "8px 4px",
-                                      borderRadius: srcActive ? 6 : 0,
-                                      border: srcActive ? "1px solid var(--border-default)" : "none",
-                                      borderTop: !srcActive && idx > 0 ? "1px solid var(--border-subtle)" : undefined,
-                                    }}
+                                    className={`hf-flex hf-gap-md hf-items-center dom-source-row${srcActive ? " hf-glow-active dom-source-row-active" : " dom-source-row-inactive"}${!srcActive && idx > 0 ? " dom-source-row-divider" : ""}`}
                                   >
-                                    <span className="hf-text-md hf-text-muted" style={{ width: 20 }}>
+                                    <span className="hf-text-md hf-text-muted dom-source-tree-char">
                                       {idx === subj.sources.length - 1 ? "└" : "├"}
                                     </span>
                                     {ss.tags?.length > 0 && (
@@ -1165,7 +1160,7 @@ export default function DomainsPage() {
                                     </Link>
                                     <TrustBadge level={ss.source.trustLevel} />
                                     <SourceStatusDots status={sourceStatusMap[ss.source.id] ?? null} />
-                                    <span className="hf-text-xs hf-text-muted hf-text-right" style={{ minWidth: 80 }}>
+                                    <span className="hf-text-xs hf-text-muted hf-text-right dom-assertion-count">
                                       {ss.source._count.assertions} assertion{ss.source._count.assertions !== 1 ? "s" : ""}
                                     </span>
                                   </div>
@@ -1173,7 +1168,7 @@ export default function DomainsPage() {
                                 })}
                               </div>
                             ) : (
-                              <div className="hf-text-sm hf-text-muted hf-text-italic" style={{ padding: "12px 16px" }}>
+                              <div className="hf-text-sm hf-text-muted hf-text-italic dom-subject-empty">
                                 No sources linked to this subject
                               </div>
                             )}
@@ -1217,11 +1212,20 @@ export default function DomainsPage() {
       {/* Success message */}
       {successMessage && (
         <div
-          className="hf-banner hf-banner-success"
-          style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", zIndex: 100, borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
+          className="hf-banner hf-banner-success dom-toast"
           onClick={() => setSuccessMessage(null)}
         >
           {successMessage}
+        </div>
+      )}
+
+      {/* Action error toast */}
+      {actionError && (
+        <div
+          className="hf-banner hf-banner-error dom-toast"
+          onClick={() => setActionError(null)}
+        >
+          {actionError}
         </div>
       )}
 

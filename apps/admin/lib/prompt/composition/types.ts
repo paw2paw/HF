@@ -251,6 +251,16 @@ export interface SharedComputedState {
     }> | null;
     /** Which learning outcomes this session covers (subset of module LOs) */
     learningOutcomeRefs?: string[] | null;
+    /** Explicit TP-to-session binding (educator-curated). Overrides learningOutcomeRefs matching. */
+    assertionIds?: string[] | null;
+    /** Images assigned to this session (auto-resolved or manually curated) */
+    media?: Array<{
+      mediaId: string;
+      fileName?: string;
+      captionText?: string | null;
+      figureRef?: string | null;
+      mimeType?: string;
+    }> | null;
   } | null;
 }
 

@@ -415,6 +415,7 @@ export async function computeSharedState(
           label: entry.label || '',
           phases: entry.phases || null,
           learningOutcomeRefs: entry.learningOutcomeRefs || null,
+          media: entry.media || null,
         };
 
         // Override nextModule if entry specifies a moduleId

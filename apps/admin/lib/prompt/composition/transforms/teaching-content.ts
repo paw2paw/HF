@@ -313,15 +313,27 @@ registerTransform("renderTeachingContent", (
   }
   let assertions = allAssertions;
 
-  // Priority 1: Session-specific LO refs from lesson plan (most precise — only TPs for THIS session)
-  const sessionLORefs = context.sharedState?.lessonPlanEntry?.learningOutcomeRefs;
-  if (sessionLORefs?.length && allAssertions.length > 0) {
-    const sessionAssertions = allAssertions.filter((a) => {
-      if (!a.learningOutcomeRef) return false;
-      return sessionLORefs.some((ref) => a.learningOutcomeRef!.includes(ref));
-    });
-    if (sessionAssertions.length > 0) {
-      assertions = sessionAssertions;
+  // Priority 0: Explicit assertionIds from lesson plan entry (educator-curated, most precise)
+  const explicitIds = context.sharedState?.lessonPlanEntry?.assertionIds;
+  if (explicitIds?.length && allAssertions.length > 0) {
+    const idSet = new Set(explicitIds as string[]);
+    const explicitAssertions = allAssertions.filter((a) => idSet.has(a.id));
+    if (explicitAssertions.length > 0) {
+      assertions = explicitAssertions;
+    }
+  }
+
+  // Priority 1: Session-specific LO refs from lesson plan (only if assertionIds didn't match)
+  if (assertions === allAssertions) {
+    const sessionLORefs = context.sharedState?.lessonPlanEntry?.learningOutcomeRefs;
+    if (sessionLORefs?.length && allAssertions.length > 0) {
+      const sessionAssertions = allAssertions.filter((a) => {
+        if (!a.learningOutcomeRef) return false;
+        return sessionLORefs.some((ref) => a.learningOutcomeRef!.includes(ref));
+      });
+      if (sessionAssertions.length > 0) {
+        assertions = sessionAssertions;
+      }
     }
   }
 

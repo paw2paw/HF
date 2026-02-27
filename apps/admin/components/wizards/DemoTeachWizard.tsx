@@ -65,6 +65,7 @@ import { useSession } from "next-auth/react";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
 import KnowledgeMapTree, { type SourceTree, type KnowledgeMapStats } from "@/components/shared/KnowledgeMapTree";
+import { OnboardingPreview } from "@/components/shared/OnboardingPreview";
 import "./demo-teach-wizard.css";
 
 // ── Types ──────────────────────────────────────────
@@ -305,7 +306,6 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
   const [loadingGreeting, setLoadingGreeting] = useState(false);
   type FlowPhase = { phase: string; duration: string; priority?: string; goals: string[]; avoid?: string[] };
   const [flowPhases, setFlowPhases] = useState<FlowPhase[]>([]);
-  const [expandedPhase, setExpandedPhase] = useState<number | null>(null);
 
   // Lesson plan model (Teach flow only — captured at TeachPlanStep, step 3)
   const [lessonPlanModel, setLessonPlanModel] = useState<LessonPlanModel>("direct_instruction");
@@ -2515,60 +2515,10 @@ export default function DemoTeachWizard({ config }: { config: DemoTeachConfig })
             </p>
 
             {flowPhases.length > 0 ? (
-              <div className="hf-flow-card">
-                {flowPhases.map((phase, i) => {
-                  const isExpanded = expandedPhase === i;
-                  const goalsSummary = phase.goals.slice(0, 2).join(" \u00B7 ");
-                  return (
-                    <div
-                      key={`${phase.phase}-${i}`}
-                      className="hf-flow-phase"
-                      onClick={() => setExpandedPhase(isExpanded ? null : i)}
-                    >
-                      <span className="hf-flow-phase-num">{i + 1}</span>
-                      <div className="hf-flow-phase-body">
-                        <div className="hf-flow-phase-header">
-                          <span className="hf-flow-phase-name">{phase.phase}</span>
-                          <span className="hf-flow-phase-dur">{phase.duration}</span>
-                        </div>
-
-                        {!isExpanded && (
-                          <div className="hf-flow-phase-goals">{goalsSummary}</div>
-                        )}
-
-                        {isExpanded && (
-                          <div className="hf-flow-phase-detail">
-                            <div className="hf-flow-phase-detail-section">
-                              <div className="hf-flow-phase-detail-label">Goals</div>
-                              <ul className="hf-flow-phase-detail-list">
-                                {phase.goals.map((g, gi) => <li key={gi}>{g}</li>)}
-                              </ul>
-                            </div>
-                            {phase.avoid && phase.avoid.length > 0 && (
-                              <div className="hf-flow-phase-detail-section">
-                                <div className="hf-flow-phase-detail-label">Avoid</div>
-                                <ul className="hf-flow-phase-detail-list hf-flow-phase-avoid">
-                                  {phase.avoid.map((a, ai) => <li key={ai}>{a}</li>)}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <ChevronRight
-                        size={14}
-                        style={{
-                          flexShrink: 0,
-                          color: "var(--text-muted)",
-                          transition: "transform 0.15s ease",
-                          transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                          marginTop: 2,
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+              <OnboardingPreview
+                phases={flowPhases}
+                hint={`Edit in ${t.domain} settings after launch.`}
+              />
             ) : loadingGreeting ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", padding: "20px 0" }}>
                 <div className="hf-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
