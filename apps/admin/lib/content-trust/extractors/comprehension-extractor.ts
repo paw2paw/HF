@@ -93,6 +93,7 @@ export class ComprehensionExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
+    // @ai-call content-trust.extract-comprehension — Extract assertions, questions, and vocabulary from comprehension docs | config: /x/ai-config
     const aiResult = await callAI(
       COMPREHENSION_EXTRACTION_PROMPT,
       userPrompt,

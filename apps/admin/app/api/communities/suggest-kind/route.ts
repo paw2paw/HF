@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
   const truncated = description.slice(0, maxInputLength);
 
   try {
+    // @ai-call community.suggest-kind — AI classifies community as topic-based or open-connection | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion(
       {
         callPoint: "community.suggest-kind",

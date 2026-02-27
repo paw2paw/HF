@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 const mockIsAllowedMimeType = vi.fn().mockReturnValue(true);
 const mockIsAllowedFileSize = vi.fn().mockReturnValue(true);
@@ -22,6 +23,7 @@ vi.mock("@/lib/permissions", () => ({
 
 const mockStorage = {
   getSignedUrl: vi.fn().mockResolvedValue("https://storage.example.com/signed-url"),
+  download: vi.fn().mockResolvedValue(Buffer.from("fake-file-content")),
   delete: vi.fn().mockResolvedValue(undefined),
   upload: vi.fn().mockResolvedValue({ storageKey: "media/ne/newhash.png" }),
 };
@@ -51,7 +53,7 @@ describe("/api/media/[id]", () => {
   });
 
   describe("GET", () => {
-    it("redirects to signed URL for GCS media", async () => {
+    it("downloads file content for stored media", async () => {
       mockPrisma.mediaAsset.findUnique.mockResolvedValue({
         id: "media-1",
         fileName: "photo.jpg",
@@ -62,14 +64,15 @@ describe("/api/media/[id]", () => {
 
       const { GET } = await import("@/app/api/media/[id]/route");
 
-      const request = new Request("http://localhost/api/media/media-1");
+      const request = new NextRequest("http://localhost/api/media/media-1");
       const response = await GET(request, {
         params: Promise.resolve({ id: "media-1" }),
       });
 
-      // NextResponse.redirect defaults to 307
-      expect([302, 307, 308]).toContain(response.status);
-      expect(response.headers.get("location")).toBe("https://storage.example.com/signed-url");
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/jpeg");
+      expect(response.headers.get("content-disposition")).toContain("photo.jpg");
+      expect(mockStorage.download).toHaveBeenCalledWith("media/ab/abcdef.jpg");
     });
 
     it("returns 404 for nonexistent media", async () => {
@@ -77,7 +80,7 @@ describe("/api/media/[id]", () => {
 
       const { GET } = await import("@/app/api/media/[id]/route");
 
-      const request = new Request("http://localhost/api/media/nonexistent");
+      const request = new NextRequest("http://localhost/api/media/nonexistent");
       const response = await GET(request, {
         params: Promise.resolve({ id: "nonexistent" }),
       });

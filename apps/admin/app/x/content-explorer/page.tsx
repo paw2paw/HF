@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { ChevronRight } from "lucide-react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 import "./content-explorer.css";
@@ -266,6 +267,10 @@ export default function ContentExplorerPage() {
                 onClick={() => handleExpand(fragment)}
                 className={`ce-row ${expandedId === fragment.id ? "ce-row-expanded" : ""}`}
               >
+                {/* Chevron */}
+                <div className={`hf-chevron--sm${expandedId === fragment.id ? " hf-chevron--open" : ""}`}>
+                  <ChevronRight size={14} />
+                </div>
                 {/* Category pill */}
                 <div>
                   <span

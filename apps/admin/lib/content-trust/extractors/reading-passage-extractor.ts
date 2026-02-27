@@ -93,6 +93,7 @@ export class ReadingPassageExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
+    // @ai-call content-trust.extract-reading-passage — Extract assertions and vocabulary from standalone reading passages | config: /x/ai-config
     const aiResult = await callAI(
       READING_PASSAGE_EXTRACTION_PROMPT,
       userPrompt,

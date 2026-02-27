@@ -14,6 +14,9 @@ const mockPrisma = {
     findMany: vi.fn(),
     findUnique: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma, db: (tx) => tx ?? mockPrisma }));
@@ -51,10 +54,10 @@ describe("POST /api/educator/classrooms/:id/artifacts", () => {
   });
 
   it("creates artifacts for all students in class", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([
-      { id: "stu-1" },
-      { id: "stu-2" },
-      { id: "stu-3" },
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
+      { callerId: "stu-1", cohortGroupId: "cohort-1", caller: { id: "stu-1", role: "LEARNER" } },
+      { callerId: "stu-2", cohortGroupId: "cohort-1", caller: { id: "stu-2", role: "LEARNER" } },
+      { callerId: "stu-3", cohortGroupId: "cohort-1", caller: { id: "stu-3", role: "LEARNER" } },
     ]);
     mockPrisma.conversationArtifact.create.mockResolvedValue({
       id: "art-new",
@@ -84,7 +87,7 @@ describe("POST /api/educator/classrooms/:id/artifacts", () => {
   });
 
   it("rejects when no students in classroom", async () => {
-    mockPrisma.caller.findMany.mockResolvedValue([]);
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([]);
 
     const request = new NextRequest("http://localhost:3000/api/educator/classrooms/cohort-1/artifacts", {
       method: "POST",

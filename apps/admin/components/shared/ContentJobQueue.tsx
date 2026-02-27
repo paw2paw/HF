@@ -718,9 +718,11 @@ export function ContentJobQueue() {
             {jobs.map((job) => (
               <div
                 key={job.taskId}
+                className={isActive(job) ? "hf-glow-active" : undefined}
                 style={{
                   padding: "12px 16px",
-                  borderBottom: "1px solid var(--border-subtle)",
+                  border: "1px solid var(--border-subtle)",
+                  borderTop: "none",
                   cursor: isDone(job) ? "pointer" : "default",
                 }}
                 onClick={() => handleClick(job)}

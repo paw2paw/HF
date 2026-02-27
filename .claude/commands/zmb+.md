@@ -6,39 +6,42 @@ Full nuclear reset: kill all zombie processes on hf-dev VM, restart the Next.js 
 
 **IMPORTANT:** Do NOT use `pkill` anywhere in this command. Use `killall` + `fuser` for process cleanup.
 
-## Step 1: Kill zombies, free ports, clean cache
+## Step 1: Kill + clean + restart (single SSH call)
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; fuser -k 3001/tcp 2>/dev/null; fuser -k 3002/tcp 2>/dev/null; fuser -k 3003/tcp 2>/dev/null; fuser -k 3004/tcp 2>/dev/null; sleep 1; rm -rf ~/HF/apps/admin/.next; rm -f /tmp/hf-dev.log; echo ZOMBIES_KILLED"
-```
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
+  echo "==> Killing zombies..."
+  killall -9 node 2>/dev/null || true
+  fuser -k 3000/tcp 2>/dev/null || true
+  fuser -k 3001/tcp 2>/dev/null || true
+  fuser -k 3002/tcp 2>/dev/null || true
+  fuser -k 3003/tcp 2>/dev/null || true
+  fuser -k 3004/tcp 2>/dev/null || true
+  sleep 1
+  rm -rf ~/HF/apps/admin/.next
+  rm -f /tmp/hf-dev.log
 
-If exit code 255, wait 5 seconds and retry once. If still failing, stop and suggest IAP troubleshooting (see bottom).
-
-Wait 5 seconds for IAP cooldown before the next SSH connection.
-
-## Step 2: Start dev server (forced port 3000)
-
-```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "nohup bash -c 'cd ~/HF/apps/admin && npx next dev --port 3000' > /tmp/hf-dev.log 2>&1 & echo DEV_STARTED"
+  echo "==> Starting dev server..."
+  nohup bash -c "cd ~/HF/apps/admin && npx next dev --port 3000" > /tmp/hf-dev.log 2>&1 &
+  sleep 2
+  echo "==> READY"
+'
 ```
 
 Using `--port 3000` ensures it fails loudly instead of silently falling back to 3001+.
 
-Wait ~5 seconds for the server to start, then proceed to step 3.
+If exit code 255, wait 3 seconds and retry once. If still failing, stop and suggest IAP troubleshooting (see bottom).
 
-## Step 3: Kill stale tunnels and open new tunnel
+## Step 2: Kill stale tunnels and open new tunnel
 
 Kill any existing SSH tunnels using `lsof` (NOT pkill), then open a fresh one:
 
 ```bash
 lsof -ti:3000 | xargs kill 2>/dev/null; sleep 1
-```
-
-Then open the tunnel:
-
-```bash
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- -L 3000:localhost:3000 -N
 ```
+
+Run the tunnel in the background.
 
 Tell the user:
 - All zombies killed, ports freed, cache cleaned, dev server restarted

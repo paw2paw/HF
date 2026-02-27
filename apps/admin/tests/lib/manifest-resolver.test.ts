@@ -19,12 +19,12 @@ describe("resolveManifestItem", () => {
   it("applies role variant when role matches", () => {
     const base = resolveManifestItem("manage-cohorts");
     expect(base?.href).toBe("/x/cohorts");
-    expect(base?.label).toBe("Cohorts");
+    expect(base?.label).toBe("Classrooms");
 
     const withRole = resolveManifestItem("manage-cohorts", "EDUCATOR");
     expect(withRole?.href).toBe("/x/educator/classrooms");
     // EDUCATOR variant only overrides href, label falls back to base
-    expect(withRole?.label).toBe("Cohorts");
+    expect(withRole?.label).toBe("Classrooms");
     expect(withRole?.icon).toBe("School");
   });
 

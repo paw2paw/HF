@@ -295,7 +295,7 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
     const hasError = !!(error || taskProgress?.error);
     return (
       <div className="hf-wizard-page">
-        <div className="hf-wizard-step hf-flex hf-flex-col hf-items-center hf-justify-center">
+        <div className={`hf-wizard-step hf-flex hf-flex-col hf-items-center hf-justify-center${!hasError ? " hf-glow-active" : ""}`}>
           <div className="hf-text-center">
             {hasError ? (
               <>

@@ -9,6 +9,7 @@ import type { ClassificationExample } from "@/lib/content-trust/classify-documen
 const mocks = vi.hoisted(() => ({
   getConfiguredMeteredAICompletion: vi.fn(),
   logAssistantCall: vi.fn(),
+  getAITimeoutSettings: vi.fn().mockResolvedValue({ classificationTimeoutMs: 30000 }),
   prisma: {
     subjectSource: { findMany: vi.fn() },
     contentSource: { findMany: vi.fn() },
@@ -27,6 +28,14 @@ vi.mock("@/lib/ai/assistant-wrapper", () => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
   db: (tx) => tx ?? mocks.prisma,
+}));
+
+vi.mock("@/lib/system-settings", () => ({
+  getAITimeoutSettings: mocks.getAITimeoutSettings,
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logAI: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -65,6 +74,7 @@ function mockAIReturn(json: Record<string, unknown>) {
 describe("classifyDocument", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.getAITimeoutSettings.mockResolvedValue({ classificationTimeoutMs: 30000 });
   });
 
   // We dynamically import so the vi.mock calls above are hoisted before the module loads

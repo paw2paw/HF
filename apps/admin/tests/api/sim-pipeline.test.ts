@@ -80,12 +80,34 @@ const mockPrisma = {
   },
   playbook: {
     findFirst: vi.fn(),
+    findMany: vi.fn(),
+  },
+  callerPlaybook: {
+    findMany: vi.fn(),
+    count: vi.fn(),
+    update: vi.fn(),
+  },
+  subjectDomain: {
+    findMany: vi.fn(),
+  },
+  playbookSpecToggle: {
+    findMany: vi.fn(),
   },
   aIConfig: {
     findUnique: vi.fn(),
   },
   systemSetting: {
     findUnique: vi.fn(),
+  },
+  onboardingSession: {
+    findUnique: vi.fn(),
+    update: vi.fn(),
+  },
+  composedPrompt: {
+    findFirst: vi.fn(),
+  },
+  curriculum: {
+    findFirst: vi.fn(),
   },
   $disconnect: vi.fn(),
 };
@@ -188,6 +210,12 @@ vi.mock("@/lib/system-settings", () => ({
     minTranscriptWords: 5,
     shortTranscriptThresholdWords: 50,
     shortTranscriptConfidenceCap: 0.3,
+  }),
+  getAITimeoutSettings: vi.fn().mockResolvedValue({
+    pipelineTimeoutMs: 30000,
+    classificationTimeoutMs: 30000,
+    agentTimeoutMs: 30000,
+    adaptTimeoutMs: 30000,
   }),
   TRUST_DEFAULTS: { weightL5Regulatory: 1.0, weightL4Accredited: 0.95, weightL3Published: 0.80, weightL2Expert: 0.60, weightL1AiAssisted: 0.30, weightL0Unverified: 0.05, certificationMinWeight: 0.80, extractionMaxChunkChars: 8000 },
   getTrustSettings: vi.fn().mockResolvedValue({ weightL5Regulatory: 1.0, weightL4Accredited: 0.95, weightL3Published: 0.80, weightL2Expert: 0.60, weightL1AiAssisted: 0.30, weightL0Unverified: 0.05, certificationMinWeight: 0.80, extractionMaxChunkChars: 8000 }),
@@ -361,6 +389,13 @@ function setupSimMocks() {
 
   // No playbook
   mockPrisma.playbook.findFirst.mockResolvedValue(null);
+  mockPrisma.playbook.findMany.mockResolvedValue([]);
+
+  // No active enrollments — forces domain-based spec loading fallback
+  mockPrisma.callerPlaybook.findMany.mockResolvedValue([]);
+  mockPrisma.callerPlaybook.count.mockResolvedValue(0);
+  mockPrisma.subjectDomain.findMany.mockResolvedValue([]);
+  mockPrisma.playbookSpecToggle.findMany.mockResolvedValue([]);
 
   // Empty prior data (count=0 ensures idempotency checks pass through)
   mockPrisma.callScore.findMany.mockResolvedValue([]);
@@ -389,6 +424,11 @@ function setupSimMocks() {
   // AI config
   mockPrisma.aIConfig.findUnique.mockResolvedValue(null);
   mockPrisma.systemSetting.findUnique.mockResolvedValue(null);
+
+  // Onboarding (trackOnboardingAfterCall)
+  mockPrisma.onboardingSession.findUnique.mockResolvedValue(null);
+  mockPrisma.composedPrompt.findFirst.mockResolvedValue(null);
+  mockPrisma.curriculum.findFirst.mockResolvedValue(null);
 
   // Re-configure mocks cleared by vi.clearAllMocks
   mockIsEngineAvailable.mockImplementation((engine: string) => engine === "mock" || engine === "claude");

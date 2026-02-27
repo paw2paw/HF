@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { StepProps } from "../types";
 
@@ -211,6 +212,9 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
                   }}
                   onClick={() => setExpandedId(isExpanded ? null : a.id)}
                 >
+                  <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+                    <ChevronRight size={14} />
+                  </div>
                   <input
                     type="checkbox"
                     checked={isSelected}

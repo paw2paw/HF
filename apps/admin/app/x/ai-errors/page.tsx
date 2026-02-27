@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ChevronRight } from "lucide-react";
 import { AdvancedBanner } from "@/components/shared/AdvancedBanner";
 import "./ai-errors.css";
 
@@ -245,6 +246,9 @@ export default function AIErrorsPage() {
                     onClick={() => setExpandedId(expandedId === f.id ? null : f.id)}
                   >
                     <div className="aie-failure-summary">
+                      <div className={`hf-chevron--sm${expandedId === f.id ? " hf-chevron--open" : ""}`}>
+                        <ChevronRight size={14} />
+                      </div>
                       <div className="aie-dot aie-dot-error" />
                       <span className="aie-callpoint-badge">
                         {f.callPoint}

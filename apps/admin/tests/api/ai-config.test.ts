@@ -237,7 +237,7 @@ describe("AI Config API", () => {
 
       expect(data.ok).toBe(false);
       expect(data.error).toContain("exceeds");
-      expect(data.error).toContain("4096");
+      expect(data.error).toContain("8192");
       expect(response.status).toBe(400);
     });
 

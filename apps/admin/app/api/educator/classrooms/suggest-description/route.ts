@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     : cohortName.slice(0, maxInputLength);
 
   try {
+    // @ai-call classroom.suggest-description — AI drafts a short cohort description | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion(
       {
         callPoint: "classroom.suggest-description",

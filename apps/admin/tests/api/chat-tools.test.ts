@@ -16,6 +16,16 @@ const mockPrisma = {
   onboardingSession: {
     findUnique: vi.fn(),
   },
+  callerPlaybook: {
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+  },
+  playbookSubject: {
+    findMany: vi.fn(),
+  },
+  assertionMedia: {
+    groupBy: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma, db: (tx) => tx ?? mockPrisma }));
@@ -30,7 +40,11 @@ vi.mock("@/lib/permissions", () => ({
 describe("chat tools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // vi.resetModules() omitted
+    // resolvePlaybookId calls callerPlaybook.findFirst + findMany — must return non-undefined
+    mockPrisma.callerPlaybook.findFirst.mockResolvedValue(null);
+    mockPrisma.callerPlaybook.findMany.mockResolvedValue([]);
+    // buildContentCatalog calls assertionMedia.groupBy for assertion context
+    mockPrisma.assertionMedia.groupBy.mockResolvedValue([]);
   });
 
   describe("executeToolCall — share_content", () => {

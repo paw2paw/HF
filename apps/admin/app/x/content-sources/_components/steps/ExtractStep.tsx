@@ -217,7 +217,7 @@ export default function ExtractStep({ setData, getData, onNext, onPrev }: StepPr
       )}
 
       {phase === "extracting" && (
-        <div style={{
+        <div className="hf-glow-active" style={{
           padding: 24, borderRadius: 12, border: "1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent)",
           background: "color-mix(in srgb, var(--accent-primary) 4%, transparent)",
         }}>

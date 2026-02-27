@@ -1081,13 +1081,18 @@ export default function DomainsPage() {
                             {/* Sources list */}
                             {subj.sources.length > 0 ? (
                               <div style={{ padding: "8px 16px" }}>
-                                {subj.sources.map((ss, idx) => (
+                                {subj.sources.map((ss, idx) => {
+                                  const srcJob = sourceStatusMap[ss.source.id]?.jobStatus;
+                                  const srcActive = srcJob === "extracting" || srcJob === "importing" || srcJob === "pending";
+                                  return (
                                   <div
                                     key={ss.id}
-                                    className="hf-flex hf-gap-md hf-items-center"
+                                    className={`hf-flex hf-gap-md hf-items-center${srcActive ? " hf-glow-active" : ""}`}
                                     style={{
-                                      padding: "8px 0",
-                                      borderTop: idx > 0 ? "1px solid var(--border-subtle)" : "none",
+                                      padding: "8px 4px",
+                                      borderRadius: srcActive ? 6 : 0,
+                                      border: srcActive ? "1px solid var(--border-default)" : "none",
+                                      borderTop: !srcActive && idx > 0 ? "1px solid var(--border-subtle)" : undefined,
                                     }}
                                   >
                                     <span className="hf-text-md hf-text-muted" style={{ width: 20 }}>
@@ -1111,7 +1116,8 @@ export default function DomainsPage() {
                                       {ss.source._count.assertions} assertion{ss.source._count.assertions !== 1 ? "s" : ""}
                                     </span>
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             ) : (
                               <div className="hf-text-sm hf-text-muted hf-text-italic" style={{ padding: "12px 16px" }}>

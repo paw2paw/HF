@@ -29,6 +29,9 @@ const mockPrisma = {
   callerPersonalityProfile: {
     findUnique: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -153,6 +156,7 @@ describe("GET /api/educator/students/[id]", () => {
     ]);
 
     mockPrisma.callerPersonalityProfile.findUnique.mockResolvedValue(null);
+    mockPrisma.callerCohortMembership.findMany.mockResolvedValue([]);
 
     const res = await GET(
       new NextRequest(new URL("http://localhost:3000"), { method: "GET" }),

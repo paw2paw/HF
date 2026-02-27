@@ -12,7 +12,7 @@ import {
 } from "@/components/shared/ExplorerTree";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { DraggableTabs } from "@/components/shared/DraggableTabs";
-import { Zap, FileJson } from "lucide-react";
+import { Zap, FileJson, ChevronRight } from "lucide-react";
 import { SpecPill, ParameterPill, DomainPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { SpecRoleBadge, getSpecEditorRoute, requiresSpecialEditor } from "@/components/shared/SpecRoleBadge";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
@@ -359,7 +359,9 @@ function SourceAuthorityPanel({
         className="hf-source-panel-header"
       >
         <span>Source Authority {primarySource ? `(${primarySource.slug})` : "(not configured)"}</span>
-        <span className="hf-text-xs">{expanded ? "▼" : "▶"}</span>
+        <div className={`hf-chevron--sm${expanded ? " hf-chevron--open" : ""}`}>
+          <ChevronRight size={14} />
+        </div>
       </button>
 
       {expanded && (

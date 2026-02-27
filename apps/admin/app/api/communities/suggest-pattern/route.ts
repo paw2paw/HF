@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     : `You are helping set up an AI community topic. Given a topic name, pick the single best interaction pattern for the AI when members discuss this topic.`;
 
   try {
+    // @ai-call community.suggest-pattern — AI suggests interaction pattern from hub or topic description | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion(
       {
         callPoint: "community.suggest-pattern",

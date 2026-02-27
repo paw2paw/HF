@@ -44,47 +44,56 @@ git push
 
 If the push is rejected, suggest `git pull --rebase` first.
 
-## 5. Pull + install on VM
+## 5. Pull + migrate + restart on VM (single SSH call)
+
+First, check locally if seed files changed in the commit:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git stash 2>/dev/null; git pull --rebase && git stash pop 2>/dev/null; cd apps/admin && npm install --prefer-offline"
+git diff --name-only HEAD~1 HEAD -- 'apps/admin/prisma/seed*.ts' 'apps/admin/prisma/schema.prisma'
 ```
 
-If the SSH command fails with exit code 255, wait 3 seconds and retry once. Report what changed.
-
-## 6. Run migrations on VM
+Then run **everything in ONE SSH connection**. Build the bash script dynamically — include the seed block only if seed files changed above. The `set -e` ensures migration failures stop execution before restarting:
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF/apps/admin && npx prisma migrate deploy"
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
+  set -e
+  echo "==> Pulling..."
+  cd ~/HF && git stash 2>/dev/null || true
+  git pull --rebase
+  git stash pop 2>/dev/null || true
+
+  echo "==> Installing deps..."
+  cd apps/admin && npm install --prefer-offline
+
+  echo "==> Running migrations..."
+  npx prisma migrate deploy
+
+  # ONLY if seed files changed — include this block:
+  # echo "==> Seeding..."
+  # npx tsx prisma/seed-full.ts
+
+  echo "==> Restarting dev server..."
+  killall -9 node 2>/dev/null || true
+  fuser -k 3000/tcp 2>/dev/null || true
+  fuser -k 3001/tcp 2>/dev/null || true
+  fuser -k 3002/tcp 2>/dev/null || true
+  sleep 1
+  rm -rf .next/dev/lock
+  nohup npx next dev --port 3000 > /tmp/hf-dev.log 2>&1 &
+  sleep 2
+  echo "==> READY"
+'
 ```
 
-Report migration results. If migrations fail, show the error and stop — do NOT proceed to restart.
+If the SSH command fails with exit code 255, wait 3 seconds and retry once.
 
-## 7. Re-seed if needed
+If migrations fail (`set -e` will cause the script to exit), report the error and stop — do NOT open a tunnel to a broken server.
 
-Check if any seed files were modified in the commit. If prisma/seed*.ts or prisma/schema.prisma changed, run:
+Report what changed: pull results, migration output, seed status.
 
-```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF/apps/admin && npx tsx prisma/seed-full.ts"
-```
+## 6. Open tunnel
 
-If no seed files changed, skip this step and tell the user.
-
-## 8. Restart dev server
-
-Kill existing server, clean .next lock, and start fresh:
-
-```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "killall -9 node 2>/dev/null; fuser -k 3000/tcp 2>/dev/null; fuser -k 3001/tcp 2>/dev/null; fuser -k 3002/tcp 2>/dev/null; sleep 1; rm -rf ~/HF/apps/admin/.next/dev/lock; echo CLEANED"
-```
-
-Wait 5 seconds for IAP cooldown, then start the server:
-
-```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "nohup bash -c 'cd ~/HF/apps/admin && npx next dev --port 3000' > /tmp/hf-dev.log 2>&1 & echo STARTED"
-```
-
-Wait 5 seconds, then kill stale local tunnels and open new one:
+Kill stale local tunnels and open a new one:
 
 ```bash
 lsof -ti:3000 | xargs kill 2>/dev/null; sleep 1

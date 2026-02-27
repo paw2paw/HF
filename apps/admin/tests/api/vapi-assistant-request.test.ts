@@ -61,6 +61,92 @@ vi.mock("@/lib/prompt/composition/renderPromptSummary", () => ({
   renderVoicePrompt: vi.fn().mockReturnValue("You are a test voice prompt."),
 }));
 
+// ── Mock resolvePlaybookId ─────────────────────────
+vi.mock("@/lib/enrollment/resolve-playbook", () => ({
+  resolvePlaybookId: vi.fn().mockResolvedValue(null),
+}));
+
+// ── Mock vapi tools route (for VAPI_TOOL_DEFINITIONS & TOOL_SETTING_KEYS) ──
+vi.mock("@/app/api/vapi/tools/route", () => ({
+  VAPI_TOOL_DEFINITIONS: [
+    {
+      type: "function",
+      function: {
+        name: "lookup_teaching_point",
+        description: "Look up teaching content",
+        parameters: { type: "object", properties: { topic: { type: "string" } }, required: ["topic"] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "check_mastery",
+        description: "Check mastery",
+        parameters: { type: "object", properties: { topic: { type: "string" } }, required: ["topic"] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "record_observation",
+        description: "Record observation",
+        parameters: { type: "object", properties: { note: { type: "string" } }, required: ["note"] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_practice_question",
+        description: "Get practice question",
+        parameters: { type: "object", properties: { topic: { type: "string" } }, required: ["topic"] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_next_module",
+        description: "Get next module",
+        parameters: { type: "object", properties: {} },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "log_activity_result",
+        description: "Log activity result",
+        parameters: { type: "object", properties: { result: { type: "string" } }, required: ["result"] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "send_text_to_caller",
+        description: "Send text",
+        parameters: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "request_artifact",
+        description: "Request artifact",
+        parameters: { type: "object", properties: { type: { type: "string" } }, required: ["type"] },
+      },
+    },
+  ],
+  TOOL_SETTING_KEYS: {
+    lookup_teaching_point: "toolLookupTeachingPoint",
+    check_mastery: "toolCheckMastery",
+    record_observation: "toolRecordObservation",
+    get_practice_question: "toolGetPracticeQuestion",
+    get_next_module: "toolGetNextModule",
+    log_activity_result: "toolLogActivityResult",
+    send_text_to_caller: "toolSendText",
+    request_artifact: "toolRequestArtifact",
+  },
+  POST: vi.fn(),
+}));
+
 // ── Import route AFTER mocks ───────────────────────
 const { POST } = await import("@/app/api/vapi/assistant-request/route");
 

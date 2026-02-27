@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ArrowRight, BookOpen, CheckCircle, FileText, Layers, RefreshCw, RotateCcw, Sparkles, Target, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle, ChevronRight, FileText, Layers, RefreshCw, RotateCcw, Sparkles, Target, Zap } from "lucide-react";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { SessionCountPicker } from "@/components/shared/SessionCountPicker";
 import { SortableList } from "@/components/shared/SortableList";
@@ -566,7 +566,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
 
   return (
     <div className="hf-wizard-page">
-      <div className="hf-wizard-step">
+      <div className={`hf-wizard-step${phase === "loading" || phase === "skeleton" ? " hf-glow-active" : ""}`}>
         <div className="hf-mb-lg">
           <h1 className="hf-page-title">Plan your sessions</h1>
           <p className="hf-page-subtitle">
@@ -684,7 +684,9 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
                   onClick={() => setKmExpanded((p) => !p)}
                   style={{ background: "none", border: "none", padding: 0, textAlign: "left" }}
                 >
-                  <span className={`hf-chevron--sm${kmExpanded ? " hf-chevron--open" : ""}`} />
+                  <span className={`hf-chevron hf-chevron--sm${kmExpanded ? " hf-chevron--open" : ""}`}>
+                    <ChevronRight size={14} />
+                  </span>
                   <span className="hf-section-title">Knowledge Map</span>
                   {kmStats && (
                     <span className="hf-km-badge">
@@ -700,35 +702,37 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
               </div>
             )}
 
-            <div className="hf-flex hf-items-center hf-gap-sm hf-mb-md">
-              <span className="hf-text-sm hf-text-muted">Teaching model:</span>
-              <span className="hf-chip hf-chip-selected hf-chip-sm" style={{ cursor: "default" }}>
-                {getLessonPlanModel(lessonPlanModel).label}
-              </span>
-            </div>
+            <div className="hf-card-compact">
+              <div className="hf-flex hf-items-center hf-gap-sm hf-mb-md">
+                <span className="hf-text-sm hf-text-muted">Teaching model:</span>
+                <span className="hf-chip hf-chip-selected hf-chip-sm" style={{ cursor: "default" }}>
+                  {getLessonPlanModel(lessonPlanModel).label}
+                </span>
+              </div>
 
-            <div className="hf-flex hf-items-center hf-gap-md hf-mb-md">
-              <span className="hf-section-title">{entries.length} sessions</span>
-              <span className="hf-text-xs hf-text-muted">
-                {SESSION_TYPES.map((t) => {
-                  const count = entries.filter((e) => e.type === t.value).length;
-                  return count > 0 ? `${count} ${t.label.toLowerCase()}` : null;
-                }).filter(Boolean).join(" \u00b7 ")}
-              </span>
-            </div>
+              <div className="hf-flex hf-items-center hf-gap-md hf-mb-md">
+                <span className="hf-section-title">{entries.length} sessions</span>
+                <span className="hf-text-xs hf-text-muted">
+                  {SESSION_TYPES.map((t) => {
+                    const count = entries.filter((e) => e.type === t.value).length;
+                    return count > 0 ? `${count} ${t.label.toLowerCase()}` : null;
+                  }).filter(Boolean).join(" \u00b7 ")}
+                </span>
+              </div>
 
-            {/* Session cards via SortableList */}
-            <SortableList
-              items={entries}
-              onReorder={handleReorder}
-              onRemove={handleRemove}
-              onDuplicate={handleDuplicate}
-              onAdd={() => setShowAdd(true)}
-              getItemId={(e) => `${e.session}-${e.label}`}
-              addLabel="+ Add Session"
-              emptyLabel="No sessions in plan."
-              renderCard={(entry, index) => renderSessionCard(entry, index)}
-            />
+              {/* Session cards via SortableList */}
+              <SortableList
+                items={entries}
+                onReorder={handleReorder}
+                onRemove={handleRemove}
+                onDuplicate={handleDuplicate}
+                onAdd={() => setShowAdd(true)}
+                getItemId={(e) => `${e.session}-${e.label}`}
+                addLabel="+ Add Session"
+                emptyLabel="No sessions in plan."
+                renderCard={(entry, index) => renderSessionCard(entry, index)}
+              />
+            </div>
 
             {/* Add session inline form */}
             {showAdd && (

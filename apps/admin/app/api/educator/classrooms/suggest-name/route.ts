@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     : `Institution: ${domainName.slice(0, maxInputLength)}`;
 
   try {
+    // @ai-call classroom.suggest-name — AI suggests cohort names from institution context | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion(
       {
         callPoint: "classroom.suggest-name",

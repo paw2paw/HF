@@ -228,6 +228,7 @@ describe("lib/auth", () => {
           role: true,
           assignedDomainId: true,
           institutionId: true,
+          avatarInitials: true,
         },
       });
     });

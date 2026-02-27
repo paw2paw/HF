@@ -4,9 +4,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 const mockPrisma = {
-  cohortGroup: { findUnique: vi.fn() },
+  cohortGroup: { findUnique: vi.fn(), findMany: vi.fn() },
 };
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma, db: (tx) => tx ?? mockPrisma }));
@@ -39,14 +40,16 @@ describe("GET /api/student/teacher", () => {
   });
 
   it("returns teacher info for authenticated student", async () => {
-    mockPrisma.cohortGroup.findUnique.mockResolvedValue({
+    mockPrisma.cohortGroup.findMany.mockResolvedValue([{
+      id: "cohort-1",
       name: "Year 9 English",
       owner: { name: "Ms Smith", email: "smith@school.com" },
       domain: { name: "English" },
       institution: { name: "Riverside Academy", logoUrl: "https://example.com/logo.png" },
-    });
+    }]);
 
-    const res = await GET();
+    const req = new NextRequest("http://localhost/api/student/teacher");
+    const res = await GET(req);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -59,14 +62,16 @@ describe("GET /api/student/teacher", () => {
   });
 
   it("returns null institution when cohort has none", async () => {
-    mockPrisma.cohortGroup.findUnique.mockResolvedValue({
+    mockPrisma.cohortGroup.findMany.mockResolvedValue([{
+      id: "cohort-1",
       name: "Year 10 Maths",
       owner: { name: "Mr Jones", email: null },
       domain: { name: "Maths" },
       institution: null,
-    });
+    }]);
 
-    const res = await GET();
+    const req = new NextRequest("http://localhost/api/student/teacher");
+    const res = await GET(req);
     const body = await res.json();
 
     expect(body.ok).toBe(true);
@@ -75,9 +80,10 @@ describe("GET /api/student/teacher", () => {
   });
 
   it("returns 404 when cohort not found", async () => {
-    mockPrisma.cohortGroup.findUnique.mockResolvedValue(null);
+    mockPrisma.cohortGroup.findMany.mockResolvedValue([]);
 
-    const res = await GET();
+    const req = new NextRequest("http://localhost/api/student/teacher");
+    const res = await GET(req);
     const body = await res.json();
 
     expect(res.status).toBe(404);

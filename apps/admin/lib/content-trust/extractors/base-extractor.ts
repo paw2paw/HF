@@ -19,6 +19,7 @@ import type { ExtractionConfig, DocumentType } from "../resolve-config";
 import type { ExtractedAssertion, ExtractionOptions, ExtractionResult, ChunkCompleteData } from "../extract-assertions";
 import crypto from "crypto";
 import { jsonrepair } from "jsonrepair";
+import pLimit from "p-limit";
 
 // ------------------------------------------------------------------
 // Extended result types for specialist extractors
@@ -90,6 +91,7 @@ export interface SpecialistChunkCompleteData extends ChunkCompleteData {
 
 const MAX_CHUNK_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 2000;
+const CHUNK_CONCURRENCY = 3;
 
 // ------------------------------------------------------------------
 // Base class
@@ -185,13 +187,14 @@ export abstract class DocumentExtractor {
       warnings.push(`Large document split into ${chunks.length} chunks — extraction may be slow`);
     }
 
-    const allAssertions: ExtractedAssertion[] = [];
-    const allQuestions: ExtractedQuestion[] = [];
-    const allVocabulary: ExtractedVocabulary[] = [];
-    const limit = options.maxAssertions || extractionConfig.extraction.maxAssertionsPerDocument;
+    const maxAssertions = options.maxAssertions || extractionConfig.extraction.maxAssertionsPerDocument;
     let failedChunks = 0;
 
-    for (let i = 0; i < chunks.length && allAssertions.length < limit; i++) {
+    // Parallel chunk extraction with bounded concurrency
+    const concurrency = pLimit(CHUNK_CONCURRENCY);
+    const chunkResults: (ChunkResult | null)[] = new Array(chunks.length).fill(null);
+
+    const chunkPromises = chunks.map((chunk, i) => {
       const context: ExtractionContext = {
         chunkIndex: i,
         totalChunks: chunks.length,
@@ -200,72 +203,85 @@ export abstract class DocumentExtractor {
         focusChapters: options.focusChapters,
       };
 
-      let chunkResult: ChunkResult | null = null;
+      return concurrency(async () => {
+        let chunkResult: ChunkResult | null = null;
 
-      // Retry with exponential backoff
-      for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
-        try {
-          chunkResult = await this.extractFromChunk(chunks[i], extractionConfig, context);
-          break;
-        } catch (err: any) {
-          const isLastAttempt = attempt === MAX_CHUNK_RETRIES - 1;
-          const errorMsg = err.message || String(err);
-
-          // Structured log so failures appear in AI Logs panel
-          // deep: true ensures full error context is captured (not truncated to 500 chars)
-          logAI(`content-trust.extract:error`, `Chunk ${i} attempt ${attempt + 1}/${MAX_CHUNK_RETRIES} for ${options.sourceSlug}`, errorMsg, {
-            chunkIndex: i,
-            attempt: attempt + 1,
-            maxAttempts: MAX_CHUNK_RETRIES,
-            documentType: this.documentType,
-            final: isLastAttempt,
-            sourceOp: "content-trust:extract",
-            deep: true,
-          });
-
-          if (isLastAttempt) {
-            console.error(`[${this.documentType}-extractor] Chunk ${i} failed after ${MAX_CHUNK_RETRIES} attempts:`, errorMsg);
-            failedChunks++;
-          } else {
-            const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
-            console.warn(`[${this.documentType}-extractor] Chunk ${i} attempt ${attempt + 1} failed, retrying in ${delayMs}ms:`, errorMsg);
-            await sleep(delayMs);
-          }
-        }
-      }
-
-      if (chunkResult) {
-        allAssertions.push(...chunkResult.assertions);
-        allQuestions.push(...chunkResult.questions);
-        allVocabulary.push(...chunkResult.vocabulary);
-        warnings.push(...chunkResult.warnings);
-
-        // Progressive persistence: emit chunk data for per-chunk DB saves
-        const hasContent = chunkResult.assertions.length > 0 || chunkResult.questions.length > 0 || chunkResult.vocabulary.length > 0;
-        if (hasContent && onChunkComplete) {
+        // Retry with exponential backoff
+        for (let attempt = 0; attempt < MAX_CHUNK_RETRIES; attempt++) {
           try {
-            await onChunkComplete({
-              assertions: chunkResult.assertions,
-              questions: chunkResult.questions,
-              vocabulary: chunkResult.vocabulary,
-              chunkIndex: i,
-              totalChunks: chunks.length,
-            });
+            chunkResult = await this.extractFromChunk(chunk, extractionConfig, context);
+            break;
           } catch (err: any) {
-            console.warn(`[${this.documentType}-extractor] onChunkComplete failed for chunk ${i}:`, err.message);
+            const isLastAttempt = attempt === MAX_CHUNK_RETRIES - 1;
+            const errorMsg = err.message || String(err);
+
+            logAI(`content-trust.extract:error`, `Chunk ${i} attempt ${attempt + 1}/${MAX_CHUNK_RETRIES} for ${options.sourceSlug}`, errorMsg, {
+              chunkIndex: i,
+              attempt: attempt + 1,
+              maxAttempts: MAX_CHUNK_RETRIES,
+              documentType: this.documentType,
+              final: isLastAttempt,
+              sourceOp: "content-trust:extract",
+              deep: true,
+            });
+
+            if (isLastAttempt) {
+              console.error(`[${this.documentType}-extractor] Chunk ${i} failed after ${MAX_CHUNK_RETRIES} attempts:`, errorMsg);
+              failedChunks++;
+            } else {
+              const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+              console.warn(`[${this.documentType}-extractor] Chunk ${i} attempt ${attempt + 1} failed, retrying in ${delayMs}ms:`, errorMsg);
+              await sleep(delayMs);
+            }
           }
         }
-      }
 
-      options.onChunkDone?.(i, chunks.length, allAssertions.length);
+        chunkResults[i] = chunkResult;
+
+        // Progressive persistence: fire onChunkComplete immediately as each chunk lands
+        if (chunkResult) {
+          const hasContent = chunkResult.assertions.length > 0 || chunkResult.questions.length > 0 || chunkResult.vocabulary.length > 0;
+          if (hasContent && onChunkComplete) {
+            try {
+              await onChunkComplete({
+                assertions: chunkResult.assertions,
+                questions: chunkResult.questions,
+                vocabulary: chunkResult.vocabulary,
+                chunkIndex: i,
+                totalChunks: chunks.length,
+              });
+            } catch (err: any) {
+              console.warn(`[${this.documentType}-extractor] onChunkComplete failed for chunk ${i}:`, err.message);
+            }
+          }
+
+          options.onChunkDone?.(i, chunks.length, chunkResult.assertions.length);
+        }
+      });
+    });
+
+    await Promise.all(chunkPromises);
+
+    // Merge results in chunk order (preserves deterministic dedup — first-seen wins)
+    const allAssertions: ExtractedAssertion[] = [];
+    const allQuestions: ExtractedQuestion[] = [];
+    const allVocabulary: ExtractedVocabulary[] = [];
+
+    for (const result of chunkResults) {
+      if (result) {
+        allAssertions.push(...result.assertions);
+        allQuestions.push(...result.questions);
+        allVocabulary.push(...result.vocabulary);
+        warnings.push(...result.warnings);
+      }
     }
 
     if (failedChunks > 0) {
       warnings.push(`${failedChunks} chunk${failedChunks > 1 ? "s" : ""} failed extraction after ${MAX_CHUNK_RETRIES} retries`);
     }
 
-    if (allAssertions.length >= limit) {
-      warnings.push(`Reached assertion limit (${limit}). Document may have more content.`);
+    if (allAssertions.length >= maxAssertions) {
+      warnings.push(`Reached assertion limit (${maxAssertions}). Document may have more content.`);
     }
 
     // Deduplicate assertions by content hash

@@ -26,6 +26,10 @@ const mockPrisma = {
     findUnique: vi.fn(),
     upsert: vi.fn(),
     update: vi.fn(),
+    count: vi.fn(),
+  },
+  caller: {
+    findUnique: vi.fn(),
   },
 };
 
@@ -154,6 +158,9 @@ describe("POST /api/educator/students/:id/enrollments", () => {
   });
 
   it("enrolls student in a PUBLISHED domain playbook", async () => {
+    mockPrisma.caller.findUnique.mockResolvedValue({
+      domain: { id: "d1" },
+    });
     mockPrisma.playbook.findFirst.mockResolvedValue({
       id: "pb-1",
       name: "English 101",
@@ -188,6 +195,9 @@ describe("POST /api/educator/students/:id/enrollments", () => {
   });
 
   it("returns 400 when playbook is not in student's domain", async () => {
+    mockPrisma.caller.findUnique.mockResolvedValue({
+      domain: { id: "d1" },
+    });
     mockPrisma.playbook.findFirst.mockResolvedValue(null);
 
     const req = makeRequest("http://localhost:3000", { playbookId: "pb-other" });

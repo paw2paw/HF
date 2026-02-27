@@ -170,7 +170,7 @@ export function PackUploadStep({
   // SSE extraction progress
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
   const [extractionTotals, setExtractionTotals] = useState({ assertions: 0, questions: 0, vocabulary: 0 });
-  const [currentFile, setCurrentFile] = useState<{ name: string; chunks: number; done: number } | null>(null);
+  const [currentFile, setCurrentFile] = useState<{ name: string; chunks: number; completedSet: Set<number> } | null>(null);
 
   // Course / subject selection
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -289,30 +289,29 @@ export function PackUploadStep({
 
     if (phase === 'init') return;
 
-    // Track per-file extraction progress
+    // Track per-file extraction progress (handles out-of-order chunk arrival)
     if (phase === 'chunk-complete' && data) {
-      setCurrentFile({
-        name: data.fileName || '',
-        chunks: data.totalChunks || 0,
-        done: (data.chunkIndex || 0) + 1,
+      setCurrentFile(prev => {
+        const completed = new Set(prev?.completedSet || []);
+        completed.add(data.chunkIndex || 0);
+        return {
+          name: data.fileName || '',
+          chunks: data.totalChunks || 0,
+          completedSet: completed,
+        };
       });
-      setExtractionTotals({
-        assertions: data.assertions || 0,
-        questions: data.questions || 0,
-        vocabulary: data.vocabulary || 0,
-      });
+      // Accumulate per-chunk deltas (not running totals — avoids double-counting)
+      setExtractionTotals(prev => ({
+        assertions: prev.assertions + (data.chunkAssertions || 0),
+        questions: prev.questions + (data.chunkQuestions || 0),
+        vocabulary: prev.vocabulary + (data.chunkVocabulary || 0),
+      }));
       return; // Don't add chunk events to timeline
     }
 
     if (phase === 'file-complete' || phase === 'file-error') {
       setCurrentFile(null);
-      if (data) {
-        setExtractionTotals(prev => ({
-          assertions: prev.assertions + (data.assertions || 0),
-          questions: prev.questions + (data.questions || 0),
-          vocabulary: prev.vocabulary + (data.vocabulary || 0),
-        }));
-      }
+      // Totals already accumulated per-chunk — no addition here to avoid double-counting
     }
 
     // Update timeline
@@ -861,17 +860,17 @@ export function PackUploadStep({
                 </div>
               ))}
 
-              {/* Per-file chunk progress bar */}
+              {/* Per-file chunk progress bar (handles out-of-order completion) */}
               {currentFile && currentFile.chunks > 0 && (
                 <div style={{ marginTop: 6, marginBottom: 2, paddingLeft: 24 }}>
                   <div className="dtw-progress-track" style={{ height: 4 }}>
                     <div
                       className="dtw-progress-fill"
-                      style={{ width: `${(currentFile.done / currentFile.chunks) * 100}%` }}
+                      style={{ width: `${(currentFile.completedSet.size / currentFile.chunks) * 100}%` }}
                     />
                   </div>
                   <span className="hf-text-xs hf-text-muted">
-                    chunk {currentFile.done}/{currentFile.chunks}
+                    chunk {currentFile.completedSet.size}/{currentFile.chunks}
                   </span>
                 </div>
               )}

@@ -74,7 +74,11 @@ describe("enrollCaller", () => {
 
   it("accepts a transaction client", async () => {
     const txMock = {
-      callerPlaybook: { upsert: vi.fn().mockResolvedValue({ id: "enr-1" }) },
+      callerPlaybook: {
+        upsert: vi.fn().mockResolvedValue({ id: "enr-1" }),
+        count: vi.fn().mockResolvedValue(1),
+        update: vi.fn().mockResolvedValue({ id: "enr-1", isDefault: true }),
+      },
     };
 
     await enrollCaller("caller-1", "pb-1", "manual", txMock as any);

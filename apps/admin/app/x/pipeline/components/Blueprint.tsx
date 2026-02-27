@@ -2,6 +2,7 @@
 
 import "./blueprint.css";
 import { useState, useEffect } from "react";
+import { ChevronRight } from "lucide-react";
 import { ArrowDownward, Code, Settings } from "@mui/icons-material";
 import {
   StepIcon,
@@ -86,9 +87,9 @@ export default function Blueprint() {
                 <span className="bp-sections-toggle-label">
                   Composition Sections ({manifest.compositionSections.length})
                 </span>
-                <span className="bp-sections-toggle-chevron">
-                  {expandedSections ? "▲" : "▼"}
-                </span>
+                <div className={`hf-chevron--sm${expandedSections ? " hf-chevron--open" : ""}`}>
+                  <ChevronRight size={14} />
+                </div>
               </button>
 
               {expandedSections && (

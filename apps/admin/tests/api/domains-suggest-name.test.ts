@@ -19,6 +19,10 @@ vi.mock("@/lib/metering/instrumented-ai", () => ({
   }),
 }));
 
+vi.mock("@/lib/system-settings", () => ({
+  getSuggestSettings: vi.fn().mockResolvedValue({ timeoutMs: 10000, maxInputLength: 2000 }),
+}));
+
 // =====================================================
 // TESTS
 // =====================================================

@@ -34,6 +34,10 @@ export interface IngestEvent {
     // Chunk events
     chunkIndex?: number;
     totalChunks?: number;
+    // Per-chunk extraction counts (for client-side accumulation)
+    chunkAssertions?: number;
+    chunkQuestions?: number;
+    chunkVocabulary?: number;
     // Extraction counts (running totals for current file)
     assertions?: number;
     questions?: number;

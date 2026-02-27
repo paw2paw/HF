@@ -488,6 +488,8 @@ async function extractSource(
       }
 
       // Stream chunk progress to client
+      // Per-chunk deltas for client-side accumulation (handles out-of-order arrival)
+      // Running totals kept for backward compat (safe: Node.js single-threaded += between awaits)
       send({
         phase: "chunk-complete",
         message: `${fileName}: chunk ${data.chunkIndex + 1}/${data.totalChunks}`,
@@ -496,6 +498,9 @@ async function extractSource(
           sourceId: source.id,
           chunkIndex: data.chunkIndex,
           totalChunks: data.totalChunks,
+          chunkAssertions: data.assertions.length,
+          chunkQuestions: data.questions.length,
+          chunkVocabulary: data.vocabulary.length,
           assertions: totalCreated,
           questions: totalQuestionsCreated,
           vocabulary: totalVocabularyCreated,

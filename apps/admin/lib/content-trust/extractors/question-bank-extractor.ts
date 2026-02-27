@@ -155,6 +155,7 @@ export class QuestionBankExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
+    // @ai-call content-trust.extract-question-bank — Extract questions with tiered model responses from question banks | config: /x/ai-config
     const aiResult = await callAI(
       QUESTION_BANK_EXTRACTION_PROMPT,
       userPrompt,

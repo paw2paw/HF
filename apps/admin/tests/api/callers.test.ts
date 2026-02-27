@@ -234,7 +234,7 @@ describe("/api/callers", () => {
         domain: null,
       };
 
-      mockPrisma.domain.findFirst.mockResolvedValue(null); // no default domain
+      mockPrisma.domain.findFirst.mockResolvedValue({ id: "d-1", slug: "default", name: "Default", isDefault: true });
       mockPrisma.caller.create.mockResolvedValue(createdCaller);
 
       const { POST } = await import("../../app/api/callers/route");
@@ -281,13 +281,13 @@ describe("/api/callers", () => {
     });
 
     it("should create caller with email and phone", async () => {
-      mockPrisma.domain.findFirst.mockResolvedValue(null);
+      mockPrisma.domain.findFirst.mockResolvedValue({ id: "d-1", slug: "default", name: "Default", isDefault: true });
       mockPrisma.caller.create.mockResolvedValue({
         id: "new-caller-3",
         name: "Eve",
         email: "eve@example.com",
         phone: "+999",
-        domain: null,
+        domain: { id: "d-1", slug: "default", name: "Default" },
       });
 
       const { POST } = await import("../../app/api/callers/route");
@@ -335,7 +335,7 @@ describe("/api/callers", () => {
     });
 
     it("should return 500 on database error during creation", async () => {
-      mockPrisma.domain.findFirst.mockResolvedValue(null);
+      mockPrisma.domain.findFirst.mockResolvedValue({ id: "d-1", slug: "default", name: "Default", isDefault: true });
       mockPrisma.caller.create.mockRejectedValue(new Error("Unique constraint failed"));
 
       const { POST } = await import("../../app/api/callers/route");

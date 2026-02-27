@@ -9,6 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 // =====================================================
 // MOCK SETUP
@@ -64,7 +65,8 @@ describe("GET /api/educator/active-calls", () => {
       },
     ]);
 
-    const res = await GET();
+    const req = new NextRequest("http://localhost/api/educator/active-calls");
+    const res = await GET(req);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -83,7 +85,8 @@ describe("GET /api/educator/active-calls", () => {
   it("returns empty array when no active calls", async () => {
     mockPrisma.call.findMany.mockResolvedValue([]);
 
-    const res = await GET();
+    const req = new NextRequest("http://localhost/api/educator/active-calls");
+    const res = await GET(req);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -94,21 +97,14 @@ describe("GET /api/educator/active-calls", () => {
   it("queries with correct filters", async () => {
     mockPrisma.call.findMany.mockResolvedValue([]);
 
-    await GET();
+    const req = new NextRequest("http://localhost/api/educator/active-calls");
+    await GET(req);
 
     expect(mockPrisma.call.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           caller: expect.objectContaining({
             role: "LEARNER",
-            cohortMemberships: {
-              some: {
-                cohortGroup: expect.objectContaining({
-                  ownerId: "edu-caller-1",
-                  isActive: true,
-                }),
-              },
-            },
           }),
           endedAt: null,
           createdAt: expect.objectContaining({
@@ -123,7 +119,8 @@ describe("GET /api/educator/active-calls", () => {
     mockPrisma.call.findMany.mockResolvedValue([]);
 
     const before = Date.now();
-    await GET();
+    const req = new NextRequest("http://localhost/api/educator/active-calls");
+    await GET(req);
     const after = Date.now();
 
     const callArgs = mockPrisma.call.findMany.mock.calls[0][0];

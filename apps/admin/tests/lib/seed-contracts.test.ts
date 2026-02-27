@@ -42,11 +42,20 @@ const mockReaddirSync = vi.fn();
 const mockReadFileSync = vi.fn();
 
 vi.mock('fs', () => ({
+  default: {
+    existsSync: (...args: any[]) => mockExistsSync(...args),
+    readdirSync: (...args: any[]) => mockReaddirSync(...args),
+    readFileSync: (...args: any[]) => mockReadFileSync(...args),
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn(),
+    appendFileSync: vi.fn(),
+  },
   existsSync: (...args: any[]) => mockExistsSync(...args),
   readdirSync: (...args: any[]) => mockReaddirSync(...args),
   readFileSync: (...args: any[]) => mockReadFileSync(...args),
   mkdirSync: vi.fn(),
   writeFileSync: vi.fn(),
+  appendFileSync: vi.fn(),
 }));
 
 // Sample contract data

@@ -172,7 +172,7 @@ function InlineUploader({
       )}
 
       {phase === "running" && (
-        <div>
+        <div className="hf-glow-active" style={{ border: "1px solid var(--border-default)", borderRadius: 8, padding: 12 }}>
           <div className="hf-flex hf-gap-sm hf-mb-sm">
             <span className="hf-pulse-dot" />
             <span className="hf-text-sm hf-text-bold hf-text-primary">
@@ -735,7 +735,7 @@ export default function ContentSourcesLibrary() {
       )}
 
       {dropStatus.phase !== "idle" && (
-        <div className={`hf-banner ${dropStatus.phase === "error" ? "hf-banner-error" : dropStatus.phase === "done" ? "hf-banner-success" : "hf-banner-info"}`}>
+        <div className={`hf-banner ${dropStatus.phase === "error" ? "hf-banner-error" : dropStatus.phase === "done" ? "hf-banner-success" : "hf-banner-info"}${dropStatus.phase === "creating" || dropStatus.phase === "classifying" ? " hf-glow-active" : ""}`}>
           {(dropStatus.phase === "creating" || dropStatus.phase === "classifying") && (
             <span className="hf-pulse-dot" style={{ background: "currentColor" }} />
           )}

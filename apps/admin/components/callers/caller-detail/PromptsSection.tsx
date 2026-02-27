@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { AdvancedSection } from "@/components/shared/AdvancedSection";
 import type { ComposedPrompt, CallerIdentity, CallerProfile, Memory } from "./types";
@@ -172,7 +173,9 @@ export function UnifiedPromptSection({
                           {new Date(p.composedAt).toLocaleString()}
                         </span>
                       </div>
-                      <span className="hf-expand-toggle">{expandedPrompt === p.id ? "−" : "+"}</span>
+                      <div className={`hf-chevron--sm${expandedPrompt === p.id ? " hf-chevron--open" : ""}`}>
+                        <ChevronRight size={14} />
+                      </div>
                     </div>
                     {expandedPrompt === p.id && (
                       <div
@@ -441,7 +444,9 @@ function PromptsSection({
                       </span>
                     )}
                   </div>
-                  <span className="hf-expand-toggle-lg">{isExpanded ? "−" : "+"}</span>
+                  <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+                    <ChevronRight size={14} />
+                  </div>
                 </div>
 
                 {/* Expanded Content */}

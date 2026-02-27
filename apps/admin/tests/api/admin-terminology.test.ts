@@ -85,13 +85,20 @@ describe('GET /api/admin/terminology', () => {
 
     // Technical terms baseline
     expect(data.technicalTerms).toEqual({
-      domain: 'Domain',
-      playbook: 'Playbook',
+      domain: 'Institution',
+      playbook: 'Subject',
       spec: 'Spec',
       caller: 'Caller',
       cohort: 'Cohort',
       instructor: 'Instructor',
-      session: 'Session',
+      session: 'Lesson',
+      session_short: 'Lesson',
+      persona: 'Persona',
+      supervisor: 'Supervisor',
+      mentor: 'Supervisor',
+      teach_action: 'Teach',
+      learning_noun: 'Learning',
+      group: 'Group',
     });
 
     // Institution types

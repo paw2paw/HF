@@ -16,6 +16,13 @@ vi.mock("@/lib/demonstrate/suggest-goals", () => ({
   suggestGoals: vi.fn(),
 }));
 
+vi.mock("@/lib/system-settings", () => ({
+  getSuggestSettings: vi.fn().mockResolvedValue({
+    timeoutMs: 10000,
+    maxInputLength: 500,
+  }),
+}));
+
 describe("GET /api/demonstrate/suggest", () => {
   let GET: any;
   let mockSuggestGoals: any;
@@ -50,6 +57,7 @@ describe("GET /api/demonstrate/suggest", () => {
       domainId: "dom-1",
       callerId: "cal-1",
       currentGoal: undefined,
+      timeoutMs: 10000,
     });
   });
 
@@ -65,6 +73,7 @@ describe("GET /api/demonstrate/suggest", () => {
       domainId: "dom-1",
       callerId: "cal-1",
       currentGoal: "Teach math",
+      timeoutMs: 10000,
     });
   });
 
@@ -80,15 +89,23 @@ describe("GET /api/demonstrate/suggest", () => {
     expect(data.error).toContain("domainId");
   });
 
-  it("returns 400 when callerId is missing", async () => {
+  it("succeeds when callerId is omitted (optional param)", async () => {
+    mockSuggestGoals.mockResolvedValue(["Goal A"]);
+
     const url = "http://localhost/api/demonstrate/suggest?domainId=dom-1";
     const request = new Request(url);
 
     const response = await GET(request);
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data.ok).toBe(false);
+    expect(data.ok).toBe(true);
+    expect(data.suggestions).toEqual(["Goal A"]);
+    expect(mockSuggestGoals).toHaveBeenCalledWith({
+      domainId: "dom-1",
+      callerId: undefined,
+      currentGoal: undefined,
+      timeoutMs: 10000,
+    });
   });
 
   it("returns empty array when no suggestions generated", async () => {

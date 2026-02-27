@@ -95,6 +95,7 @@ export class AssessmentExtractor extends DocumentExtractor {
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
 
+    // @ai-call content-trust.extract-assessment — Extract assertions and questions with rubrics from assessment docs | config: /x/ai-config
     const aiResult = await callAI(
       ASSESSMENT_EXTRACTION_PROMPT,
       userPrompt,

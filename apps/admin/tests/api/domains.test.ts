@@ -45,6 +45,12 @@ vi.mock('@/lib/permissions', () => ({
   isAuthError: vi.fn((result: any) => 'error' in result),
 }));
 
+// Mock deletePlaybookData — used by DELETE /api/playbooks/[playbookId]
+const mockDeletePlaybookData = vi.fn();
+vi.mock('@/lib/gdpr/delete-playbook-data', () => ({
+  deletePlaybookData: (...args: any[]) => mockDeletePlaybookData(...args),
+}));
+
 // =====================================================
 // HELPERS
 // =====================================================
@@ -214,8 +220,18 @@ describe('DELETE /api/playbooks/[playbookId]', () => {
       status: 'DRAFT',
       domainId: 'domain-1',
     });
-    mockPrisma.playbookItem.deleteMany.mockResolvedValue({ count: 3 });
-    mockPrisma.playbook.delete.mockResolvedValue({ id: 'pb-2' });
+    mockDeletePlaybookData.mockResolvedValue({
+      callerPlaybooks: 0,
+      cohortPlaybooks: 0,
+      goalsNullified: 0,
+      callsNullified: 0,
+      composedPromptsNullified: 0,
+      behaviorTargetsNullified: 0,
+      invitesNullified: 0,
+      childVersionsNullified: 0,
+      playbookItems: 3,
+      playbookSubjects: 0,
+    });
 
     const res = await DELETE(
       createMockRequest('DELETE'),
@@ -225,12 +241,7 @@ describe('DELETE /api/playbooks/[playbookId]', () => {
 
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(mockPrisma.playbookItem.deleteMany).toHaveBeenCalledWith({
-      where: { playbookId: 'pb-2' },
-    });
-    expect(mockPrisma.playbook.delete).toHaveBeenCalledWith({
-      where: { id: 'pb-2' },
-    });
+    expect(mockDeletePlaybookData).toHaveBeenCalledWith('pb-2');
   });
 
   it('deletes an ARCHIVED playbook', async () => {
@@ -239,8 +250,18 @@ describe('DELETE /api/playbooks/[playbookId]', () => {
       status: 'ARCHIVED',
       domainId: 'domain-1',
     });
-    mockPrisma.playbookItem.deleteMany.mockResolvedValue({ count: 0 });
-    mockPrisma.playbook.delete.mockResolvedValue({ id: 'pb-3' });
+    mockDeletePlaybookData.mockResolvedValue({
+      callerPlaybooks: 0,
+      cohortPlaybooks: 0,
+      goalsNullified: 0,
+      callsNullified: 0,
+      composedPromptsNullified: 0,
+      behaviorTargetsNullified: 0,
+      invitesNullified: 0,
+      childVersionsNullified: 0,
+      playbookItems: 0,
+      playbookSubjects: 0,
+    });
 
     const res = await DELETE(
       createMockRequest('DELETE'),

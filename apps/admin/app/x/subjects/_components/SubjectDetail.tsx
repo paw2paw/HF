@@ -878,10 +878,12 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
               {sorted.map((ss) => {
                 const awaiting = ss.source._count.assertions === 0 && ss.source.documentTypeSource?.startsWith("ai:");
                 const isExtracting = extractingSourceIds.has(ss.sourceId);
+                const sourceJob = statusMap[ss.sourceId]?.jobStatus;
+                const sourceActive = isExtracting || sourceJob === "extracting" || sourceJob === "importing" || sourceJob === "pending";
                 return (
                   <div
                     key={ss.id}
-                    className="hf-p-md"
+                    className={`hf-p-md${sourceActive ? " hf-glow-active" : ""}`}
                     style={{
                       borderRadius: 10,
                       border: awaiting

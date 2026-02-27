@@ -10,6 +10,7 @@ const mockPrisma = vi.hoisted(() => ({
     update: vi.fn(),
     updateMany: vi.fn(),
     findMany: vi.fn(),
+    count: vi.fn(),
   },
   cohortPlaybook: {
     findMany: vi.fn(),
@@ -42,6 +43,9 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // enrollCaller internally calls count for auto-isDefault logic
+  mockPrisma.callerPlaybook.count.mockResolvedValue(1);
+  mockPrisma.callerPlaybook.update.mockResolvedValue({});
 });
 
 describe("getCohortPlaybookIds", () => {

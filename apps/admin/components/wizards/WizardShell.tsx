@@ -166,14 +166,14 @@ export function WizardShell({ config, onComplete, initialData }: WizardShellProp
 
   return (
     <div className="hf-page-container hf-page-scroll">
-      {config.cancelLabel && currentStep < config.steps.length - 1 && (
-        <nav className="hf-breadcrumb">
-          <button type="button" className="hf-breadcrumb-segment" onClick={handleCancel}>
-            ← {config.cancelLabel}
-          </button>
-        </nav>
-      )}
       <div className="hf-ws-accordion">
+        {config.cancelLabel && currentStep < config.steps.length - 1 && (
+          <nav className="hf-breadcrumb">
+            <button type="button" className="hf-breadcrumb-segment" onClick={handleCancel}>
+              ← {config.cancelLabel}
+            </button>
+          </nav>
+        )}
         {config.steps.map((stepCfg, i) => {
           const status: SectionStatus =
             i < currentStep ? "done" : i === currentStep ? "active" : "locked";

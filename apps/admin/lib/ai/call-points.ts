@@ -221,6 +221,13 @@ export const CALL_POINTS: CallPointDef[] = [
     category: "content-processing",
     defaults: { provider: "claude", model: config.ai.claude.lightModel },
   },
+  {
+    id: "course-pack.analyze",
+    label: "Course Pack - Analyze",
+    description: "Groups uploaded course files into subjects by analysing content",
+    category: "content-processing",
+    defaults: { provider: "claude", model: config.ai.claude.model },
+  },
 
   // ── Course Setup ──
   {
@@ -306,6 +313,55 @@ export const CALL_POINTS: CallPointDef[] = [
     description: "Drafts a short description for a cohort from its name and institution",
     category: "course-setup",
     defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.4, maxTokens: 80 },
+  },
+  {
+    id: "community.suggest-kind",
+    label: "Community - Suggest Kind",
+    description: "Classifies community as topic-based or open-connection from its description",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 60 },
+  },
+  {
+    id: "community.suggest-pattern",
+    label: "Community - Suggest Pattern",
+    description: "Suggests an interaction pattern from a hub or topic description",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.2, maxTokens: 60 },
+  },
+  {
+    id: "courses.suggest-outcomes",
+    label: "Course - Suggest Outcomes",
+    description: "Generates learning outcomes for a course name",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel },
+  },
+  {
+    id: "courses.suggest-type",
+    label: "Course - Suggest Type",
+    description: "Classifies course name into teaching mode (recall, comprehension, practice, syllabus)",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel },
+  },
+  {
+    id: "institutions.suggest-welcome",
+    label: "Institution - Suggest Welcome",
+    description: "Generates welcome messages for a new institution",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel },
+  },
+  {
+    id: "quick-launch.auto-goals",
+    label: "Quick Launch - Auto Goals",
+    description: "Generates learning goals when user does not provide any",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 200 },
+  },
+  {
+    id: "scaffold.generate-groups",
+    label: "Scaffold - Generate Groups",
+    description: "Generates department/group structure from institution description",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2000 },
   },
 
   // ── Admin AI ──

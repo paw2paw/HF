@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { FancySelect } from "@/components/shared/FancySelect";
 import { UnifiedAssistantPanel } from "@/components/shared/UnifiedAssistantPanel";
@@ -395,6 +396,10 @@ export default function DictionaryPage() {
                           onClick={() => setExpandedId(isExpanded ? null : param.id)}
                           className={`dict-row${isExpanded ? " dict-row-expanded" : ""}`}
                         >
+                          {/* Chevron */}
+                          <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+                            <ChevronRight size={14} />
+                          </div>
                           {/* Active indicator */}
                           <div className="dict-active-cell">
                             <span

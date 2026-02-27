@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ChevronRight } from "lucide-react";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { Sparkline } from "@/components/shared/Sparkline";
 import { PersonalityRadar, type RadarTrait } from "@/components/shared/PersonalityRadar";
@@ -112,7 +113,9 @@ export function MemoriesSection({
                         return `${Math.floor(days / 30)}mo ago`;
                       })()}
                     </span>
-                    <span className="hf-text-placeholder">{isExpanded ? "▼" : "▶"}</span>
+                    <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+                      <ChevronRight size={14} />
+                    </div>
                   </div>
                 </button>
                 {isAdvanced && isExpanded && (
@@ -605,9 +608,9 @@ export function CallerSlugsSection({ callerId }: { callerId: string }) {
                   cursor: "pointer",
                 }}
               >
-                <span style={{ fontSize: 12 }} className="hf-text-muted">
-                  {isExpanded ? "▼" : "▶"}
-                </span>
+                <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+                  <ChevronRight size={14} />
+                </div>
                 <span style={{ fontSize: 16 }}>{icon}</span>
                 <span className="hf-text-bold" style={{ color: colors.text }}>{category.name}</span>
                 {category.meta?.count !== undefined && (
@@ -670,11 +673,11 @@ function SlugSpecNode({
         }}
       >
         {hasChildren ? (
-          <span className="hf-text-placeholder hf-text-xxs">
-            {isExpanded ? "▼" : "▶"}
-          </span>
+          <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
+            <ChevronRight size={14} />
+          </div>
         ) : (
-          <span style={{ width: 10 }} />
+          <span style={{ width: 20 }} />
         )}
         <span style={{ fontSize: 12 }}>📄</span>
         <span className="hf-text-sm hf-text-secondary hf-text-500">

@@ -368,7 +368,7 @@ export function TeachPlanStep({
   // ── Render ──────────────────────────────────────
 
   return (
-    <div className="hf-card" style={{ maxWidth: 680 }}>
+    <div className={`hf-card${phase === "generating" || enriching ? " hf-glow-active" : ""}`} style={{ maxWidth: 680 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <BookOpen style={{ width: 22, height: 22, color: "var(--accent-primary)" }} />
         <h2 className="hf-section-title" style={{ margin: 0 }}>
@@ -391,7 +391,7 @@ export function TeachPlanStep({
 
       {/* Extraction in progress — friendly status */}
       {extractionInProgress && !extractionDone && phase === "intents" && (
-        <div className="hf-banner hf-banner-info hf-mb-md">
+        <div className="hf-banner hf-banner-info hf-mb-md hf-glow-active">
           <RefreshCw style={{ width: 16, height: 16, flexShrink: 0, animation: "spin 2s linear infinite" }} />
           <div className="hf-flex-col hf-gap-xs">
             <span>
@@ -565,7 +565,7 @@ export function TeachPlanStep({
           </p>
 
           {enriching && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "var(--surface-secondary)", fontSize: 13, color: "var(--text-muted)" }}>
+            <div className="hf-glow-active" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border-default)", background: "var(--surface-secondary)", fontSize: 13, color: "var(--text-muted)" }}>
               <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite", flexShrink: 0 }} />
               Enriching modules with learning outcomes, assessment criteria, and key terms...
             </div>

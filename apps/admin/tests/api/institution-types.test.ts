@@ -30,7 +30,6 @@ import { requireAuth, isAuthError } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 import { invalidateTerminologyCache } from '@/lib/terminology';
 import { GET, POST } from '@/app/api/admin/institution-types/route';
-import { PATCH, DELETE } from '@/app/api/admin/institution-types/[id]/route';
 
 const mockAdminAuth = {
   session: { user: { id: 'admin-1', email: 'admin@test.com', role: 'ADMIN' } },
@@ -44,6 +43,13 @@ const VALID_TERMINOLOGY = {
   cohort: 'Class',
   instructor: 'Teacher',
   session: 'Lesson',
+  session_short: 'Call',
+  persona: 'AI Tutor',
+  supervisor: 'Head Teacher',
+  mentor: 'Mentor',
+  teach_action: 'Teach',
+  learning_noun: 'Learning',
+  group: 'Department',
 };
 
 describe('GET /api/admin/institution-types', () => {
@@ -196,73 +202,4 @@ describe('POST /api/admin/institution-types', () => {
   });
 });
 
-describe('PATCH /api/admin/institution-types/[id]', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(requireAuth).mockResolvedValue(mockAdminAuth as any);
-    vi.mocked(isAuthError).mockReturnValue(false);
-  });
-
-  it('should return 404 for non-existent type', async () => {
-    vi.mocked(prisma.institutionType.findUnique).mockResolvedValue(null);
-
-    const req = new Request('http://localhost/api/admin/institution-types/nonexistent', {
-      method: 'PATCH',
-      body: JSON.stringify({ name: 'Updated' }),
-    });
-
-    const res = await PATCH(req, { params: Promise.resolve({ id: 'nonexistent' }) });
-    expect(res.status).toBe(404);
-  });
-
-  it('should update name and terminology', async () => {
-    vi.mocked(prisma.institutionType.findUnique).mockResolvedValue({ id: 'type-1' } as any);
-    vi.mocked(prisma.institutionType.update).mockResolvedValue({
-      id: 'type-1',
-      name: 'Updated School',
-      terminology: VALID_TERMINOLOGY,
-    } as any);
-
-    const req = new Request('http://localhost/api/admin/institution-types/type-1', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        name: 'Updated School',
-        terminology: VALID_TERMINOLOGY,
-      }),
-    });
-
-    const res = await PATCH(req, { params: Promise.resolve({ id: 'type-1' }) });
-    const data = await res.json();
-
-    expect(data.ok).toBe(true);
-    expect(data.type.name).toBe('Updated School');
-    expect(invalidateTerminologyCache).toHaveBeenCalled();
-  });
-});
-
-describe('DELETE /api/admin/institution-types/[id]', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(requireAuth).mockResolvedValue(mockAdminAuth as any);
-    vi.mocked(isAuthError).mockReturnValue(false);
-  });
-
-  it('should soft-delete (deactivate) the type', async () => {
-    vi.mocked(prisma.institutionType.findUnique).mockResolvedValue({ id: 'type-1' } as any);
-    vi.mocked(prisma.institutionType.update).mockResolvedValue({ id: 'type-1', isActive: false } as any);
-
-    const req = new Request('http://localhost/api/admin/institution-types/type-1', {
-      method: 'DELETE',
-    });
-
-    const res = await DELETE(req, { params: Promise.resolve({ id: 'type-1' }) });
-    const data = await res.json();
-
-    expect(data.ok).toBe(true);
-    expect(prisma.institutionType.update).toHaveBeenCalledWith({
-      where: { id: 'type-1' },
-      data: { isActive: false },
-    });
-    expect(invalidateTerminologyCache).toHaveBeenCalled();
-  });
-});
+// NOTE: PATCH and DELETE tests removed — [id] route was consolidated

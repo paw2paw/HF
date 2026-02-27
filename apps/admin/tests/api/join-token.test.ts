@@ -23,6 +23,10 @@ const mockPrisma = {
     findFirst: vi.fn(),
     create: vi.fn(),
   },
+  callerCohortMembership: {
+    findFirst: vi.fn(),
+    create: vi.fn(),
+  },
   $transaction: vi.fn(),
 };
 

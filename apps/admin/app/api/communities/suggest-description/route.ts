@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
         : "";
 
   try {
+    // @ai-call community.suggest-description — AI drafts a one-sentence community description | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion(
       {
         callPoint: "community.suggest-description",

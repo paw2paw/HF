@@ -79,6 +79,17 @@ vi.mock("@/lib/system-settings", () => ({
   }),
 }));
 
+// ── Mock resolvePlaybookId ───────────────────────────
+vi.mock("@/lib/enrollment/resolve-playbook", () => ({
+  resolvePlaybookId: vi.fn().mockResolvedValue(null),
+}));
+
+// ── Mock domain-sources ──────────────────────────────
+vi.mock("@/lib/knowledge/domain-sources", () => ({
+  getSourceIdsForDomain: vi.fn().mockResolvedValue([]),
+  getSourceIdsForPlaybook: vi.fn().mockResolvedValue([]),
+}));
+
 import { POST } from "@/app/api/vapi/knowledge/route";
 
 function makeRequest(messages: Array<{ role: string; content: string }>) {

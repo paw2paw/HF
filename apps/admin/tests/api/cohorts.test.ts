@@ -32,6 +32,13 @@ const mockPrisma = {
   domain: {
     findUnique: vi.fn(),
   },
+  callerCohortMembership: {
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  },
   $transaction: vi.fn(),
 };
 
@@ -229,16 +236,20 @@ describe("/api/cohorts", () => {
   // ===================================================
   describe("GET /api/cohorts/:cohortId", () => {
     it("should return cohort detail with members", async () => {
-      mockPrisma.caller.findMany.mockResolvedValue([
+      mockPrisma.callerCohortMembership.findMany.mockResolvedValue([
         {
-          id: "pupil-1",
-          name: "Alice",
-          email: "alice@school.com",
-          phone: null,
-          role: "LEARNER",
-          archivedAt: null,
-          createdAt: new Date("2026-01-15"),
-          _count: { calls: 5, goals: 3, memories: 12 },
+          callerId: "pupil-1",
+          cohortGroupId: "cohort-1",
+          caller: {
+            id: "pupil-1",
+            name: "Alice",
+            email: "alice@school.com",
+            phone: null,
+            role: "LEARNER",
+            archivedAt: null,
+            createdAt: new Date("2026-01-15"),
+            _count: { calls: 5, goals: 3, memories: 12 },
+          },
         },
       ]);
 

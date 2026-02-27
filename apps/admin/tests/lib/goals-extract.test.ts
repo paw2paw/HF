@@ -68,6 +68,19 @@ vi.mock("@/lib/logger", () => ({
   logAI: vi.fn(),
 }));
 
+vi.mock("@/lib/system-settings", () => ({
+  getGoalSettings: vi.fn().mockResolvedValue({
+    transcriptLimitChars: 4000,
+    transcriptMinChars: 100,
+    confidenceThreshold: 0.5,
+    similarityThreshold: 0.8,
+  }),
+  getAITimeoutSettings: vi.fn().mockResolvedValue({
+    pipelineTimeoutMs: 30000,
+    classificationTimeoutMs: 30000,
+  }),
+}));
+
 // =====================================================
 // FIXTURES
 // =====================================================
