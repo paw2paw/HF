@@ -269,6 +269,12 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     <div className="hf-wizard-page">
       <div className="hf-wizard-step">
 
+        {/* ── Hero heading ─────────────────────────── */}
+        <div className="hf-mb-lg">
+          <h1 className="hf-page-title">Create your course</h1>
+          <p className="hf-page-subtitle">Name your course, set learning outcomes, and choose how the AI should teach</p>
+        </div>
+
         {/* ── Section 1: Institution + Course Name ─────── */}
         <div className="hf-mb-lg">
           {!loadingDomains && domains.length === 0 && (
