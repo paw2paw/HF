@@ -33,6 +33,19 @@ Both configured in `.mcp.json` — auto-connect on project open.
 
 ---
 
+## Reference Docs (read before re-reading code)
+
+These memory files are kept in sync with the codebase. Consult them first.
+
+| Doc | Contents | Update when |
+|-----|----------|-------------|
+| [memory/entities.md](~/.claude/projects/-Users-paulwander-projects-HF/memory/entities.md) | Entity hierarchy, canonical file map, terminology | Schema migration, new model or relation |
+| [memory/holographic.md](~/.claude/projects/-Users-paulwander-projects-HF/memory/holographic.md) | 8 sections, state shape, permissions, Phase 2 pattern | Section added/changed, new Phase 2 component |
+| [memory/async-patterns.md](~/.claude/projects/-Users-paulwander-projects-HF/memory/async-patterns.md) | useTaskPoll / useAsyncStep / WizardShell / spinner-vs-glow | New hook, polling pattern, wizard framework change |
+| [memory/extraction.md](~/.claude/projects/-Users-paulwander-projects-HF/memory/extraction.md) | DocumentTypes, resolution chain, ContentAssertion shape, trust levels | New DocumentType, extraction category, new resolveExtractionConfig caller |
+
+---
+
 ## Architecture
 
 Single Next.js 16 app in a monorepo. All work under `apps/admin/`.
