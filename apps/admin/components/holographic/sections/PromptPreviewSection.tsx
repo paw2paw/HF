@@ -24,7 +24,7 @@ export function PromptPreviewSection() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/domains/${domainId}/preview-prompt`)
+    fetch(`/api/domains/${domainId}/preview-prompt`, { method: "POST" })
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {

@@ -730,11 +730,16 @@ export default function CourseDetailPage() {
       const taskId = data.taskId;
       const poll = async () => {
         try {
-          const pollRes = await fetch(`/api/tasks/${taskId}`);
+          const pollRes = await fetch(`/api/tasks?taskId=${taskId}`);
+          if (!pollRes.ok) { setTimeout(poll, 2000); return; }
           const pollData = await pollRes.json();
-          if (pollData.status === 'completed') {
+          const task = pollData.task || pollData.tasks?.[0] || pollData.guidance?.task;
+          if (!task) { setTimeout(poll, 2000); return; }
+          const ctx = task.context || {};
+
+          if (task.status === 'completed') {
             // Save generated plan to curriculum
-            const plan = pollData.context?.plan;
+            const plan = ctx.plan;
             if (plan && sessions.curriculumId) {
               await fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
                 method: 'PUT',
@@ -746,16 +751,37 @@ export default function CourseDetailPage() {
             const refreshRes = await fetch(`/api/courses/${courseId}/sessions`);
             const refreshData = await refreshRes.json();
             if (refreshData.ok) setSessions(refreshData);
+            // Re-fetch TP assignments (plan changed, old assignments are stale)
+            if (sessions.curriculumId) {
+              fetch(`/api/curricula/${sessions.curriculumId}/session-assertions`)
+                .then((r) => r.json())
+                .then((tpData) => {
+                  if (tpData.ok) {
+                    const bySession: Record<number, TPItem[]> = {};
+                    if (tpData.sessions) {
+                      for (const [key, group] of Object.entries(tpData.sessions)) {
+                        bySession[Number(key)] = (group as any).assertions || [];
+                      }
+                    }
+                    setSessionTPs(bySession);
+                    setUnassignedTPs(tpData.unassigned || []);
+                  }
+                })
+                .catch(() => {});
+            }
             setRegenerating(false);
-          } else if (pollData.status === 'failed') {
-            setSessionsError(pollData.context?.error || pollData.error || 'Regeneration failed');
+          } else if (task.status === 'abandoned' || task.status === 'failed') {
+            setSessionsError(ctx.error || 'Regeneration failed');
+            setRegenerating(false);
+          } else if (task.status === 'in_progress' && ctx.error) {
+            setSessionsError(ctx.error);
             setRegenerating(false);
           } else {
             setTimeout(poll, 2000);
           }
         } catch {
-          setSessionsError('Lost connection while generating');
-          setRegenerating(false);
+          // Network error — keep polling
+          setTimeout(poll, 2000);
         }
       };
       poll();
