@@ -27,6 +27,7 @@ interface AIConfig {
   maxTokens: number | null;
   temperature: number | null;
   transcriptLimit: number | null;
+  timeoutMs: number | null;
   isActive: boolean;
   isCustomized: boolean;
   savedId: string | null;
@@ -80,12 +81,14 @@ interface InspectionResult {
     model: string;
     temperature: number | undefined;
     maxTokens: number | undefined;
+    timeoutMs: number | undefined;
   };
   sources: {
     provider: SourceAnnotation;
     model: SourceAnnotation;
     temperature: SourceAnnotation;
     maxTokens: SourceAnnotation;
+    timeoutMs: SourceAnnotation;
   };
   cascade: Array<{
     level: ConfigSource;
@@ -260,7 +263,7 @@ export default function AIConfigPage() {
   // Update a configuration
   const updateConfig = async (
     callPoint: string,
-    updates: { provider?: string; model?: string; transcriptLimit?: number | null }
+    updates: { provider?: string; model?: string; transcriptLimit?: number | null; timeoutMs?: number | null }
   ) => {
     setSaving(callPoint);
     setSuccessMessage(null);
@@ -286,6 +289,7 @@ export default function AIConfigPage() {
           provider: newProvider,
           model: newModel,
           transcriptLimit: updates.transcriptLimit !== undefined ? updates.transcriptLimit : current.transcriptLimit,
+          timeoutMs: updates.timeoutMs !== undefined ? updates.timeoutMs : current.timeoutMs,
         }),
       });
 
@@ -1033,6 +1037,42 @@ export default function AIConfigPage() {
                                 />
                               </div>
                             )}
+
+                            {/* Timeout (seconds) */}
+                            {(() => {
+                              const defaultTimeout = inspections.get(config.callPoint)?.effective?.timeoutMs;
+                              const hasCustomTimeout = defaultTimeout && defaultTimeout !== 30000;
+                              // Show timeout input if call point has a non-default timeout or if one is saved
+                              if (!hasCustomTimeout && !config.timeoutMs) return null;
+                              const src = inspections.get(config.callPoint)?.sources?.timeoutMs;
+                              return (
+                                <div className="aic-control-group">
+                                  <label className="aic-control-label">
+                                    TIMEOUT (s)
+                                    {src && (() => {
+                                      const s = SOURCE_STYLES[src.source];
+                                      return <span className="aic-source-chip" style={{ background: s.bg, color: s.text }}>{s.label}</span>;
+                                    })()}
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={config.timeoutMs ? config.timeoutMs / 1000 : (defaultTimeout ? defaultTimeout / 1000 : "")}
+                                    onChange={(e) => {
+                                      const secs = e.target.value ? parseFloat(e.target.value) : null;
+                                      const ms = secs ? Math.round(secs * 1000) : null;
+                                      updateConfig(config.callPoint, { timeoutMs: ms });
+                                    }}
+                                    disabled={isSaving}
+                                    placeholder={defaultTimeout ? String(defaultTimeout / 1000) : "30"}
+                                    min={1}
+                                    max={300}
+                                    step={5}
+                                    className="aic-transcript-input"
+                                    title={`Timeout in seconds. Default: ${defaultTimeout ? defaultTimeout / 1000 : 30}s`}
+                                  />
+                                </div>
+                              );
+                            })()}
 
                             {/* Tier Badge */}
                             {currentModel && (

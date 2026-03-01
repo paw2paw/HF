@@ -366,7 +366,6 @@ export async function callAI(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      timeoutMs: 120000, // 2 min — extraction prompts are large + structured JSON output
       maxRetries: 0, // Outer extractor loop handles retry with better backoff
     },
     { sourceOp: `content-trust:${callPoint}` },

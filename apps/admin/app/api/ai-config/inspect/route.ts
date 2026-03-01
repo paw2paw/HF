@@ -45,12 +45,14 @@ interface InspectionResult {
     model: string;
     temperature: number | undefined;
     maxTokens: number | undefined;
+    timeoutMs: number | undefined;
   };
   sources: {
     provider: SourceAnnotation;
     model: SourceAnnotation;
     temperature: SourceAnnotation;
     maxTokens: SourceAnnotation;
+    timeoutMs: SourceAnnotation;
   };
   cascade: Array<{
     level: ConfigSource;
@@ -65,7 +67,7 @@ interface InspectionResult {
 
 async function inspectCallPoint(
   cp: CallPointDef,
-  dbConfigs: Map<string, { provider: string; model: string; maxTokens: number | null; temperature: number | null; isActive: boolean }>,
+  dbConfigs: Map<string, { provider: string; model: string; maxTokens: number | null; temperature: number | null; timeoutMs: number | null; isActive: boolean }>,
   settingsConfigs: Record<string, { provider: string; model: string; maxTokens?: number; temperature?: number }>,
 ): Promise<InspectionResult> {
   const dbConfig = dbConfigs.get(cp.id);
@@ -73,23 +75,23 @@ async function inspectCallPoint(
   const defaultConfig = cp.defaults;
 
   // Resolve each parameter through the cascade
-  function resolve(param: "provider" | "model" | "temperature" | "maxTokens"): SourceAnnotation {
+  function resolve(param: "provider" | "model" | "temperature" | "maxTokens" | "timeoutMs"): SourceAnnotation {
     // 1. DB override (highest priority)
     if (dbConfig?.isActive) {
-      const dbVal = dbConfig[param];
+      const dbVal = dbConfig[param as keyof typeof dbConfig] as string | number | null;
       if (dbVal != null) {
         return { value: dbVal, source: "db-override" };
       }
     }
-    // 2. SystemSettings fallback
-    if (settingsConfig) {
-      const ssVal = settingsConfig[param];
+    // 2. SystemSettings fallback (timeoutMs not in SystemSettings — skip)
+    if (param !== "timeoutMs" && settingsConfig) {
+      const ssVal = settingsConfig[param as keyof typeof settingsConfig] as string | number | undefined;
       if (ssVal != null) {
         return { value: ssVal, source: "system-settings" };
       }
     }
     // 3. Compiled default
-    const defVal = defaultConfig[param];
+    const defVal = defaultConfig[param as keyof typeof defaultConfig] as string | number | undefined;
     if (defVal != null) {
       return { value: defVal, source: "system-default" };
     }
@@ -100,6 +102,7 @@ async function inspectCallPoint(
   const modelSource = resolve("model");
   const temperatureSource = resolve("temperature");
   const maxTokensSource = resolve("maxTokens");
+  const timeoutMsSource = resolve("timeoutMs");
 
   // Build cascade layers (only include layers that have values)
   const cascade: InspectionResult["cascade"] = [];
@@ -113,6 +116,7 @@ async function inspectCallPoint(
       model: defaultConfig.model,
       temperature: defaultConfig.temperature,
       maxTokens: defaultConfig.maxTokens,
+      timeoutMs: defaultConfig.timeoutMs,
     },
   });
 
@@ -140,6 +144,7 @@ async function inspectCallPoint(
         model: dbConfig.model,
         temperature: dbConfig.temperature ?? undefined,
         maxTokens: dbConfig.maxTokens ?? undefined,
+        timeoutMs: dbConfig.timeoutMs ?? undefined,
       },
     });
   }
@@ -154,12 +159,14 @@ async function inspectCallPoint(
       model: modelSource.value as string ?? defaultConfig.model,
       temperature: temperatureSource.value as number | undefined,
       maxTokens: maxTokensSource.value as number | undefined,
+      timeoutMs: timeoutMsSource.value as number | undefined,
     },
     sources: {
       provider: providerSource,
       model: modelSource,
       temperature: temperatureSource,
       maxTokens: maxTokensSource,
+      timeoutMs: timeoutMsSource,
     },
     cascade,
   };

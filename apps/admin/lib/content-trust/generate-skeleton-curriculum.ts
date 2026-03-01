@@ -62,7 +62,6 @@ export async function generateSkeletonCurriculum(
           content: `Subject: ${subjectName}\nStyle: ${persona}${qualificationRef ? `\nQualification: ${qualificationRef}` : ""}${goalsText}\n\nGenerate a skeleton curriculum outline.`,
         },
       ],
-      timeoutMs: 15000,
     });
 
     const content = response.content || "";

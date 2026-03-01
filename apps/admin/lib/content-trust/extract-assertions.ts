@@ -268,7 +268,6 @@ async function extractFromChunk(
           ],
           maxTokens: extraction.llmConfig.maxTokens,
           temperature: extraction.llmConfig.temperature,
-          timeoutMs: 120000, // 2 min — extraction prompts are large + structured JSON output
           maxRetries: 0, // Outer loop handles retry with better backoff
         },
         { sourceOp: "content-trust:extract" }
@@ -587,7 +586,6 @@ export async function quickExtract(
       ],
       maxTokens: 1500,
       temperature: 0.3,
-      timeoutMs: 15000, // 15s generous timeout for Haiku
     },
     { sourceOp: "content-trust:quick-extract" },
   );

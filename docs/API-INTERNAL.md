@@ -4444,6 +4444,7 @@ Trigger extraction for a classified content source.
 | subjectId | body | string | No | Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources) |
 | text | body | string | No | Optional pre-extracted text (if not provided, downloads from linked media asset) |
 | interactionPattern | body | string | No | Optional interaction pattern (socratic, directive, etc.) for pattern-specific extraction categories |
+| replace | body | boolean | No | Optional: delete existing assertions/questions/vocabulary before re-extracting (default false) |
 
 **Response** `202`
 ```json

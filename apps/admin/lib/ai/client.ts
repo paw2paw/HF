@@ -613,6 +613,8 @@ export async function getConfiguredAICompletion(
   // Merge: explicit options > DB config > app config defaults
   const finalMaxTokens = maxTokens ?? aiConfig.maxTokens ?? config.ai.defaults.maxTokens;
   const finalTemperature = temperature ?? aiConfig.temperature ?? config.ai.defaults.temperature;
+  // Timeout cascade: caller option > DB/call-point config > 30s default
+  const finalTimeoutMs = timeoutMs ?? aiConfig.timeoutMs ?? 30_000;
 
   return getAICompletion({
     engine,
@@ -621,7 +623,7 @@ export async function getConfiguredAICompletion(
     temperature: finalTemperature,
     model,
     tools,
-    timeoutMs,
+    timeoutMs: finalTimeoutMs,
   });
 }
 
@@ -647,6 +649,7 @@ export async function getConfiguredAICompletionStream(
   // Merge: explicit options > DB config > app config defaults
   const finalMaxTokens = maxTokens ?? aiConfig.maxTokens ?? config.ai.defaults.maxTokens;
   const finalTemperature = temperature ?? aiConfig.temperature ?? config.ai.defaults.temperature;
+  const finalTimeoutMs = timeoutMs ?? aiConfig.timeoutMs ?? 30_000;
 
   return getAICompletionStream({
     engine,
@@ -654,6 +657,6 @@ export async function getConfiguredAICompletionStream(
     maxTokens: finalMaxTokens,
     temperature: finalTemperature,
     model,
-    timeoutMs,
+    timeoutMs: finalTimeoutMs,
   });
 }

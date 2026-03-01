@@ -34,6 +34,7 @@ import {
   type ExtractedImage,
 } from "@/lib/content-trust/extract-images";
 import { linkFiguresToAssertions } from "@/lib/content-trust/link-figures";
+import { purgeSourceContent } from "@/lib/content-trust/purge-source-content";
 import { getImageExtractionSettings } from "@/lib/system-settings";
 import {
   startTaskTracking,
@@ -57,6 +58,7 @@ import type { DocumentType, InteractionPattern, TeachingMode } from "@/lib/conte
  * @body subjectId string - Optional Subject UUID (for auto-trigger curriculum check; omit for orphan sources)
  * @body text string - Optional pre-extracted text (if not provided, downloads from linked media asset)
  * @body interactionPattern string - Optional interaction pattern (socratic, directive, etc.) for pattern-specific extraction categories
+ * @body replace boolean - Optional: delete existing assertions/questions/vocabulary before re-extracting (default false)
  *
  * @response 202 { ok, jobId, totalChunks }
  * @response 400 { ok: false, error }
@@ -175,6 +177,7 @@ export async function POST(
     await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
     // Fire-and-forget background extraction with document type
+    const replace = body.replace === true;
     const fileName = source.mediaAssets[0]?.fileName || source.name;
     const mediaStorageKey = source.mediaAssets[0]?.storageKey;
     runBackgroundExtraction(
@@ -184,6 +187,7 @@ export async function POST(
       userId,
       text,
       fileName,
+      replace,
       {
         sourceSlug: subjectSlug,
         sourceId,
@@ -228,6 +232,7 @@ async function runBackgroundExtraction(
   userId: string,
   text: string,
   fileName: string,
+  replace: boolean,
   opts: {
     sourceSlug: string;
     sourceId: string;
@@ -241,6 +246,12 @@ async function runBackgroundExtraction(
     subjectName?: string;
   },
 ) {
+  // Replace mode: purge existing content before re-extracting
+  if (replace) {
+    const purged = await purgeSourceContent(sourceId);
+    console.log(`[extract] Replace mode — purged ${purged.assertions} assertions, ${purged.questions} questions, ${purged.vocabulary} vocabulary for source ${sourceId}`);
+  }
+
   // Track cumulative per-chunk save counts for the final job record
   let totalCreated = 0;
   let totalDuplicatesSkipped = 0;

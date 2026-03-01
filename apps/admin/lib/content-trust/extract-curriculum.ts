@@ -234,7 +234,6 @@ Generate a structured curriculum from these assertions.`;
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      timeoutMs: 90000, // Assertion-based curriculum can process 300+ assertions into modules
     });
 
     const content = response.content || "";
@@ -345,7 +344,6 @@ export async function extractSkeletonFromAssertions(
           content: `Subject: ${subjectName}${qualificationRef ? `\nQualification: ${qualificationRef}` : ""}${intentHints}\n\n${assertions.length} assertions:\n${assertionText}`,
         },
       ],
-      timeoutMs: 15000,
     });
 
     const parsed = parseAIJSON(response.content || "");
@@ -422,6 +420,7 @@ export async function generateCurriculumFromGoals(
   persona: string,
   learningGoals: string[],
   qualificationRef?: string,
+  sessionCount?: number | null,
 ): Promise<ExtractedCurriculum> {
   const warnings: string[] = [];
 
@@ -429,20 +428,33 @@ export async function generateCurriculumFromGoals(
     ? `\nLearning Goals:\n${learningGoals.map((g, i) => `${i + 1}. ${g}`).join("\n")}`
     : "\nNo specific learning goals provided — infer appropriate goals for this subject.";
 
+  // Cap modules based on session count — leave room for onboarding + consolidate
+  const maxModules = sessionCount ? Math.max(2, sessionCount - 2) : 8;
+  const moduleCountRule = sessionCount
+    ? `\nIMPORTANT: The educator has requested ${sessionCount} total sessions. Generate NO MORE than ${maxModules} modules. Merge related topics into fewer, broader modules to fit this constraint. Do NOT exceed ${maxModules} modules under any circumstances.`
+    : "";
+
   const userPrompt = `Subject: ${subjectName}
-Teaching Style: ${persona}${qualificationRef ? `\nQualification Reference: ${qualificationRef}` : ""}${goalsSection}
+Teaching Style: ${persona}${qualificationRef ? `\nQualification Reference: ${qualificationRef}` : ""}${goalsSection}${moduleCountRule}
 
 Generate a structured curriculum for this subject.`;
+
+  // Build session-aware system prompt
+  const systemPrompt = sessionCount
+    ? GOALS_CURRICULUM_SYSTEM_PROMPT.replace(
+        "1. Generate 4-8 modules progressing from foundational to advanced",
+        `1. Generate ${Math.max(2, maxModules - 1)}-${maxModules} modules progressing from foundational to advanced (HARD LIMIT: max ${maxModules} modules)`,
+      )
+    : GOALS_CURRICULUM_SYSTEM_PROMPT;
 
   try {
     // @ai-call content-trust.curriculum-from-goals — Generate curriculum from subject + goals (no document) | config: /x/ai-config
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "content-trust.curriculum-from-goals",
       messages: [
-        { role: "system", content: GOALS_CURRICULUM_SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      timeoutMs: 60000, // Curriculum generation produces large structured JSON (4-8 modules)
     });
 
     const content = response.content || "";

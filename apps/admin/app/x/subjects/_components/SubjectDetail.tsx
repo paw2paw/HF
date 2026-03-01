@@ -564,13 +564,13 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
     }
   }
 
-  async function triggerExtraction(sourceId: string, sourceName: string) {
+  async function triggerExtraction(sourceId: string, sourceName: string, replace = false) {
     setExtractingSourceIds((prev) => new Set([...prev, sourceId]));
     try {
       const res = await fetch(`/api/content-sources/${sourceId}/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subjectId }),
+        body: JSON.stringify({ subjectId, ...(replace && { replace: true }) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -926,6 +926,20 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
                           title="Keep this document for lesson use without extracting assertions"
                         >
                           Store for Lessons
+                        </button>
+                      </div>
+                    )}
+
+                    {!awaiting && ss.source._count.assertions > 0 && !sourceActive && (
+                      <div className="hf-flex hf-gap-sm hf-mt-sm hf-items-center" style={{ paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
+                        <button
+                          onClick={() => triggerExtraction(ss.sourceId, ss.source.name, true)}
+                          disabled={isExtracting}
+                          className="hf-btn hf-btn-secondary hf-text-xs"
+                          style={{ opacity: isExtracting ? 0.6 : 1 }}
+                          title="Delete existing assertions and re-extract from source file"
+                        >
+                          {isExtracting ? "Re-extracting..." : "Re-extract"}
                         </button>
                       </div>
                     )}

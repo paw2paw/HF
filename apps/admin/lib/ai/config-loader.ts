@@ -50,6 +50,8 @@ export interface AIConfigResult {
   model: string;
   maxTokens?: number;
   temperature?: number;
+  /** Timeout in milliseconds. Resolved from DB → call-point defaults → 30_000. */
+  timeoutMs?: number;
   isCustomized: boolean;
 }
 
@@ -128,11 +130,14 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
         dbConfig.model
       );
 
+      // Resolve timeoutMs: DB → call-point default
+      const hardcodedDefaults = DEFAULT_CONFIGS[callPoint];
       const result: AIConfigResult = {
         provider,
         model: fallbackUsed ? model : dbConfig.model,
         maxTokens: dbConfig.maxTokens ?? undefined,
         temperature: dbConfig.temperature ?? undefined,
+        timeoutMs: dbConfig.timeoutMs ?? hardcodedDefaults?.timeoutMs ?? undefined,
         isCustomized: !fallbackUsed, // Not really customized if we had to fall back
       };
 
@@ -163,6 +168,7 @@ export async function getAIConfig(callPoint: string): Promise<AIConfigResult> {
       model,
       maxTokens: fallbackConfig?.maxTokens ?? hardcodedConfig?.maxTokens,
       temperature: fallbackConfig?.temperature ?? hardcodedConfig?.temperature,
+      timeoutMs: hardcodedConfig?.timeoutMs,
       isCustomized: false,
     };
     configCache.set(callPoint, { config: result, fetchedAt: Date.now() });
@@ -197,11 +203,13 @@ export async function preloadAIConfigs(): Promise<void> {
     });
 
     for (const dbEntry of allConfigs) {
+      const hardcodedDefaults = DEFAULT_CONFIGS[dbEntry.callPoint];
       const result: AIConfigResult = {
         provider: dbEntry.provider as AIEngine,
         model: dbEntry.model,
         maxTokens: dbEntry.maxTokens ?? undefined,
         temperature: dbEntry.temperature ?? undefined,
+        timeoutMs: dbEntry.timeoutMs ?? hardcodedDefaults?.timeoutMs ?? undefined,
         isCustomized: true,
       };
       configCache.set(dbEntry.callPoint, { config: result, fetchedAt: Date.now() });
@@ -216,6 +224,7 @@ export async function preloadAIConfigs(): Promise<void> {
             model: defaultConfig.model,
             maxTokens: defaultConfig.maxTokens,
             temperature: defaultConfig.temperature,
+            timeoutMs: defaultConfig.timeoutMs,
             isCustomized: false,
           },
           fetchedAt: Date.now(),

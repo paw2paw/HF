@@ -159,6 +159,7 @@ export async function GET() {
         maxTokens: saved?.maxTokens ?? null,
         temperature: saved?.temperature ?? null,
         transcriptLimit: saved?.transcriptLimit ?? null,
+        timeoutMs: saved?.timeoutMs ?? null,
         isActive: saved?.isActive ?? true,
         // Metadata
         isCustomized: !!saved,
@@ -201,6 +202,7 @@ interface UpdateConfigBody {
   maxTokens?: number | null;
   temperature?: number | null;
   transcriptLimit?: number | null;
+  timeoutMs?: number | null;
   isActive?: boolean;
 }
 
@@ -217,6 +219,7 @@ interface UpdateConfigBody {
  * @body maxTokens number|null - Optional max token limit
  * @body temperature number|null - Optional temperature setting
  * @body transcriptLimit number|null - Optional transcript character limit
+ * @body timeoutMs number|null - Optional timeout in milliseconds (1000–300000)
  * @body isActive boolean - Whether this config is active (default true)
  * @response 200 { ok: true, config: {...}, message: "Updated AI config for ..." }
  * @response 400 { ok: false, error: "Invalid callPoint: ..." }
@@ -268,6 +271,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate timeoutMs bounds
+    if (body.timeoutMs != null && (body.timeoutMs < 1000 || body.timeoutMs > 300000)) {
+      return NextResponse.json(
+        { ok: false, error: `timeoutMs must be between 1000 and 300000 (1s–5min)` },
+        { status: 400 }
+      );
+    }
+
     // Upsert the configuration
     const aiConfig = await prisma.aIConfig.upsert({
       where: { callPoint: body.callPoint },
@@ -279,6 +290,7 @@ export async function POST(request: NextRequest) {
         maxTokens: body.maxTokens ?? null,
         temperature: body.temperature ?? null,
         transcriptLimit: body.transcriptLimit ?? null,
+        timeoutMs: body.timeoutMs ?? null,
         isActive: body.isActive ?? true,
         description: callPointDef.description,
       },
@@ -288,6 +300,7 @@ export async function POST(request: NextRequest) {
         maxTokens: body.maxTokens ?? null,
         temperature: body.temperature ?? null,
         transcriptLimit: body.transcriptLimit ?? null,
+        timeoutMs: body.timeoutMs ?? null,
         isActive: body.isActive ?? true,
       },
     });

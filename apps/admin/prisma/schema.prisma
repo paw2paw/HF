@@ -3137,6 +3137,7 @@ model AIConfig {
   maxTokens       Int?
   temperature     Float?
   transcriptLimit Int? // Max chars of transcript to include in prompt (cost optimization)
+  timeoutMs       Int? // AI call timeout in milliseconds (null = use call-point default)
 
   // Whether this config is active (allows disabling without deleting)
   isActive Boolean @default(true)

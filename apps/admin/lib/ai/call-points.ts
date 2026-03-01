@@ -16,6 +16,10 @@
  *   1. DB AIConfig table (admin overrides via /x/ai-config)
  *   2. SystemSettings fallback (fallback:ai.default_models)
  *   3. These compiled defaults (code-level safety net)
+ *
+ * timeoutMs: AI call timeout in milliseconds.
+ *   Default: 30_000 (30s) when not specified.
+ *   Cascades: caller option > DB AIConfig > call-point default > 30_000.
  */
 
 import { config } from "@/lib/config";
@@ -46,6 +50,8 @@ export interface CallPointDefaults {
   model: string;
   temperature?: number;
   maxTokens?: number;
+  /** Timeout in milliseconds. Default: 30_000 when omitted. */
+  timeoutMs?: number;
 }
 
 export interface CallPointDef {
@@ -163,42 +169,42 @@ export const CALL_POINTS: CallPointDef[] = [
     label: "Content Trust - Quick Extract",
     description: "Fast first-pass extraction of key teaching points (shown as preview while full extraction runs)",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 1500 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 1500, timeoutMs: 15_000 },
   },
   {
     id: "content-trust.extract",
     label: "Content Trust - Extraction",
     description: "Extracts assertions from training materials (generic + curriculum extractor)",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.1, maxTokens: 4000 },
+    defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.1, maxTokens: 4000, timeoutMs: 120_000 },
   },
   {
     id: "content-trust.extract-comprehension",
     label: "Content Trust - Comprehension Extraction",
     description: "Specialist extractor for comprehension docs (3 arrays: assertions + questions + vocabulary)",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8192 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8192, timeoutMs: 120_000 },
   },
   {
     id: "content-trust.extract-assessment",
     label: "Content Trust - Assessment Extraction",
     description: "Specialist extractor for assessment docs (assertions + questions with rubrics)",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8192 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8192, timeoutMs: 120_000 },
   },
   {
     id: "content-trust.extract-reading-passage",
     label: "Content Trust - Reading Passage Extraction",
     description: "Specialist extractor for standalone reading passages (assertions + vocabulary)",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 4000 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 4000, timeoutMs: 120_000 },
   },
   {
     id: "content-trust.extract-question-bank",
     label: "Content Trust - Question Bank Extraction",
     description: "Specialist extractor for tutor question banks (3 arrays + tiered model responses)",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8192 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.1, maxTokens: 8192, timeoutMs: 120_000 },
   },
   {
     id: "content-trust.segment",
@@ -212,7 +218,7 @@ export const CALL_POINTS: CallPointDef[] = [
     label: "Content Trust - Structure",
     description: "Structures extracted assertions into hierarchical topics and modules",
     category: "content-processing",
-    defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.2, maxTokens: 8000 },
+    defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.2, maxTokens: 8000, timeoutMs: 120_000 },
   },
   {
     id: "content-sources.suggest",
@@ -235,35 +241,35 @@ export const CALL_POINTS: CallPointDef[] = [
     label: "Content Trust - Curriculum",
     description: "Generates structured curriculum from extracted assertions",
     category: "course-setup",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 8000 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 8000, timeoutMs: 90_000 },
   },
   {
     id: "content-trust.curriculum-from-goals",
     label: "Content Trust - Curriculum from Goals",
     description: "Generates structured curriculum from subject + persona + learning goals (no document upload)",
     category: "course-setup",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 8000 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 8000, timeoutMs: 60_000 },
   },
   {
     id: "content-trust.curriculum-skeleton",
     label: "Content Trust - Curriculum Skeleton",
     description: "Fast skeleton curriculum (titles + descriptions only) using lightweight model",
     category: "course-setup",
-    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2000 },
+    defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2000, timeoutMs: 15_000 },
   },
   {
     id: "content-trust.lesson-plan",
     label: "Content Trust - Lesson Plan",
     description: "Generates lesson plan structure from curriculum assertions",
     category: "course-setup",
-    defaults: { provider: "claude", model: config.ai.claude.model },
+    defaults: { provider: "claude", model: config.ai.claude.model, timeoutMs: 90_000 },
   },
   {
     id: "lesson-plan.generate",
     label: "Lesson Plan - Generate",
     description: "AI-generates a structured lesson plan with per-session phases from curriculum modules using a pedagogical model (Direct Instruction, 5E, Spiral, Mastery, Project-Based)",
     category: "course-setup",
-    defaults: { provider: "claude", model: config.ai.claude.model },
+    defaults: { provider: "claude", model: config.ai.claude.model, timeoutMs: 90_000 },
   },
   {
     id: "targets.suggest",

@@ -112,7 +112,6 @@ async function runGeneratePlan(
     });
 
     // Inject document context into learning outcomes to enrich AI generation
-    // (avoids changing generateCurriculumFromGoals signature which is shared)
     let enrichedOutcomes = learningOutcomes;
     if (documentText) {
       const truncatedDoc = documentText.substring(0, 8000);
@@ -127,6 +126,7 @@ async function runGeneratePlan(
       teachingStyle,
       enrichedOutcomes,
       undefined, // no qualificationRef
+      sessionCount,
     );
 
     if (!curriculum.ok || curriculum.modules.length === 0) {
@@ -222,7 +222,7 @@ async function runGeneratePlan(
       .join("\n");
 
     const targetHint = sessionCount
-      ? `The educator has requested approximately ${sessionCount} sessions total.`
+      ? `HARD LIMIT: The educator has requested exactly ${sessionCount} sessions. You MUST produce exactly ${sessionCount} sessions — no more, no fewer. If there are more modules than sessions allow, merge multiple modules into single sessions. If there are fewer modules, split larger modules across sessions. The session count of ${sessionCount} is NON-NEGOTIABLE.`
       : "Propose a reasonable number of sessions based on the content depth.";
 
     const durationHint = durationMins
@@ -250,13 +250,23 @@ async function runGeneratePlan(
     // Load pedagogical model definition
     const modelDef = getLessonPlanModel(lessonPlanModel);
 
+    const sessionCountOverride = sessionCount
+      ? `\n\nCRITICAL SESSION COUNT CONSTRAINT:
+The educator has set a HARD LIMIT of ${sessionCount} sessions. This overrides the model's default expansion rules above.
+- You MUST output EXACTLY ${sessionCount} entries in the "entries" array.
+- If there are more modules than available sessions, MERGE related modules into combined sessions (e.g. "Origins & Spread + Human Impact").
+- DO NOT add extra deepen, review, or assess sessions beyond what fits in ${sessionCount} total.
+- Session 1 is always onboarding. The remaining ${sessionCount - 1} sessions must cover all modules plus any review/assess/consolidate.
+- Prioritise coverage over depth — every module must appear in at least one session, even if merged.`
+      : "";
+
     const systemPrompt = `You are a curriculum planning assistant. Given a set of teaching modules, propose a structured lesson plan — an ordered sequence of call sessions that covers all modules effectively.
 
 You are using the "${modelDef.label}" pedagogical framework.
 ${modelDef.description}
 
 Session sequencing rules for this model:
-${modelDef.sessionPatternRules}
+${modelDef.sessionPatternRules}${sessionCountOverride}
 
 Phase structure:
 Each session MUST include a "phases" array — ordered activities within the session.
@@ -319,7 +329,6 @@ Total modules: ${curriculum.modules.length}${documentExcerpt}`;
       ],
       temperature: 0.4,
       maxTokens: 4000,
-      timeoutMs: 90_000, // Large structured JSON (8+ modules with phases) needs more than default 30s
     });
 
     const content = typeof result === "string" ? result : result?.content || "";
@@ -335,7 +344,7 @@ Total modules: ${curriculum.modules.length}${documentExcerpt}`;
       return;
     }
 
-    const entries: LessonPlanEntry[] = (parsed.entries || []).map(
+    let entries: LessonPlanEntry[] = (parsed.entries || []).map(
       (e: any, i: number) => ({
         session: i + 1,
         type: VALID_SESSION_TYPES.includes(e.type) ? e.type : "introduce",
@@ -356,6 +365,14 @@ Total modules: ${curriculum.modules.length}${documentExcerpt}`;
         learningOutcomeRefs: Array.isArray(e.learningOutcomeRefs) ? e.learningOutcomeRefs : undefined,
       }),
     );
+
+    // Hard-cap: if AI still exceeded session count, truncate to fit
+    if (sessionCount && entries.length > sessionCount) {
+      console.warn(`[courses/generate-plan] AI returned ${entries.length} sessions but limit is ${sessionCount} — truncating`);
+      entries = entries.slice(0, sessionCount);
+      // Re-number sessions
+      entries = entries.map((e, i) => ({ ...e, session: i + 1 }));
+    }
 
     // Save result to task context
     await updateTaskProgress(taskId, {
