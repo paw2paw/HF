@@ -96,6 +96,9 @@ export function CourseBuilderStep({
   const [contentMode, setContentMode] = useState<"none" | "uploading" | "done">("none");
   const [packResult, setPackResult] = useState<PackUploadResult | null>(null);
   const [showUploader, setShowUploader] = useState(false);
+  const [seedFiles, setSeedFiles] = useState<File[]>([]);
+  const [seedDragOver, setSeedDragOver] = useState(false);
+  const seedFileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Teaching Style state ───────────────────────────
   const [pattern, setPattern] = useState<InteractionPattern | undefined>();
@@ -317,6 +320,11 @@ export function CourseBuilderStep({
     const name = courseName.trim();
     fireOutcomeSuggestions(name);
 
+    // Auto-show uploader if files were dropped in seed zone
+    if (seedFiles.length > 0) {
+      setShowUploader(true);
+    }
+
     // Store seed data in the data bag
     setData("courseName", name);
     setData("domainId", selectedDomainId);
@@ -493,20 +501,62 @@ export function CourseBuilderStep({
         {!buildFired && (
           <div
             style={{
-              border: "2px dashed var(--border-default)",
+              border: `2px dashed ${seedDragOver ? "var(--accent-primary)" : "var(--border-default)"}`,
               borderRadius: 12,
               padding: "20px 16px",
               textAlign: "center",
-              color: "var(--text-muted)",
+              color: seedDragOver ? "var(--accent-primary)" : "var(--text-muted)",
               fontSize: 13,
               marginBottom: 16,
               cursor: "pointer",
+              background: seedDragOver ? "color-mix(in srgb, var(--accent-primary) 6%, transparent)" : "transparent",
+              transition: "all 0.15s ease",
             }}
-            onClick={() => setShowUploader(true)}
+            onClick={() => seedFileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setSeedDragOver(true); }}
+            onDragLeave={() => setSeedDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setSeedDragOver(false);
+              if (e.dataTransfer.files.length > 0) {
+                const valid = Array.from(e.dataTransfer.files).filter((f) => {
+                  const name = f.name.toLowerCase();
+                  return [".pdf", ".docx", ".txt", ".md", ".json"].some((ext) => name.endsWith(ext));
+                });
+                if (valid.length > 0) setSeedFiles((prev) => [...prev, ...valid]);
+              }
+            }}
           >
+            <input
+              ref={seedFileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt,.md,.json"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  setSeedFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                  e.target.value = "";
+                }
+              }}
+            />
             <Upload size={20} style={{ marginBottom: 4, opacity: 0.5 }} />
-            <div>Drop course files here (optional)</div>
-            <div style={{ fontSize: 11, marginTop: 4 }}>PDF, DOCX, TXT</div>
+            {seedFiles.length > 0 ? (
+              <div>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                  {seedFiles.length} file{seedFiles.length !== 1 ? "s" : ""} ready
+                </div>
+                <div style={{ fontSize: 11, marginTop: 4 }}>
+                  {seedFiles.map((f) => f.name).join(", ")}
+                </div>
+                <div style={{ fontSize: 11, marginTop: 2 }}>Drop more or click to add</div>
+              </div>
+            ) : (
+              <div>
+                <div>Drop course files here (optional)</div>
+                <div style={{ fontSize: 11, marginTop: 4 }}>PDF, DOCX, TXT</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -618,6 +668,8 @@ export function CourseBuilderStep({
                 domainId={selectedDomainId}
                 courseName={courseName.trim()}
                 interactionPattern={effectivePattern || undefined}
+                teachingMode={lessonPlanModel}
+                initialFiles={seedFiles.length > 0 ? seedFiles : undefined}
                 onResult={handlePackResult}
               />
             ) : (

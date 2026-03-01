@@ -10,7 +10,7 @@
  * Shared between Teach wizard and Course Setup wizard.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, FileText, BookOpen, X, Edit3, Check, Plus } from 'lucide-react';
 import type { IngestEvent } from '@/lib/content-trust/ingest-events';
 import { DocTypeBadge } from '@/app/x/content-sources/_components/shared/badges';
@@ -101,6 +101,8 @@ interface PackUploadStepProps {
   existingCourses?: ExistingCourse[];
   /** When provided, shows subject picker instead of course picker */
   existingSubjects?: ExistingSubject[];
+  /** Pre-loaded files (e.g. from seed zone drop). Seeded into internal state on mount. */
+  initialFiles?: File[];
   onResult: (result: PackUploadResult) => void;
   onBack?: () => void;
 }
@@ -121,13 +123,14 @@ export function PackUploadStep({
   subjectDiscipline,
   existingCourses = [],
   existingSubjects = [],
+  initialFiles,
   onResult,
   onBack,
 }: PackUploadStepProps) {
   const hasExistingItems = existingCourses.length > 0 || existingSubjects.length > 0;
 
-  // File state
-  const [files, setFiles] = useState<File[]>([]);
+  // File state — seeded from initialFiles if provided
+  const [files, setFiles] = useState<File[]>(() => initialFiles ?? []);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -223,6 +226,15 @@ export function PackUploadStep({
       setAnalyzing(false);
     }
   }, [files, courseName, domainId, onResult]);
+
+  // Auto-analyze when initialFiles are provided (e.g. from seed zone drop)
+  const didAutoAnalyze = useRef(false);
+  useEffect(() => {
+    if (!didAutoAnalyze.current && initialFiles && initialFiles.length > 0 && files.length > 0 && !analyzing && !manifest) {
+      didAutoAnalyze.current = true;
+      handleAnalyze();
+    }
+  }, [initialFiles, files, analyzing, manifest, handleAnalyze]);
 
   // ── SSE event handler ────────────────────────────────
 
