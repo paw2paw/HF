@@ -11,6 +11,7 @@ import { AgentTuningPanel, type AgentTuningPanelOutput } from "@/components/shar
 import type { MatrixPosition } from "@/lib/domain/agent-tuning";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
+import { OnboardingChatPreview } from "@/components/shared/OnboardingChatPreview";
 
 export function OnboardingTabContent({
   domain,
@@ -48,6 +49,15 @@ export function OnboardingTabContent({
   const [onboardingSaveError, setOnboardingSaveError] = useState<string | null>(null);
   const [onboardingSaveSuccess, setOnboardingSaveSuccess] = useState(false);
   const [availableSpecs, setAvailableSpecs] = useState<Array<{ id: string; slug: string; name: string }>>([]);
+  const [personaName, setPersonaName] = useState<string | null>(null);
+
+  // Computed preview values — read from edit state when editing, domain data when viewing
+  const previewPhases = editingOnboarding
+    ? structuredPhases.map(({ _id, ...rest }) => rest)
+    : (domain.onboardingFlowPhases as any)?.phases || [];
+  const previewGreeting = editingOnboarding
+    ? onboardingForm.welcomeMessage
+    : domain.onboardingWelcome || '';
 
   // Scaffolding task tracking
   const [scaffoldingTasks, setScaffoldingTasks] = useState<Array<{
@@ -109,6 +119,11 @@ export function OnboardingTabContent({
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
+          // Extract persona name from identity spec
+          const specName = data.domain?.onboardingIdentitySpec?.name;
+          if (specName) {
+            setPersonaName(specName.replace(/ Identity$/i, ''));
+          }
           // Notify parent to refresh domain with onboarding data
           onDomainRefresh();
         }
@@ -389,7 +404,9 @@ export function OnboardingTabContent({
                   )}
 
                   {editingOnboarding ? (
-                    /* Edit Mode */
+                    /* Edit Mode — two-column layout */
+                    <div className="ob-tab-layout">
+                    <div className="ob-tab-edit-col">
                     <div className="hf-card hf-p-20" style={{ borderRadius: 8 }}>
                       {/* Welcome Message */}
                       <div className="hf-mb-lg" style={{ marginBottom: 20 }}>
@@ -865,9 +882,23 @@ export function OnboardingTabContent({
                         </button>
                       </div>
                     </div>
+                    </div>
+                    <div className="ob-tab-preview-col">
+                      <div className="ob-tab-preview-sticky">
+                        <div className="ob-tab-preview-label">First Call Preview</div>
+                        <OnboardingChatPreview
+                          greeting={previewGreeting}
+                          personaName={personaName || undefined}
+                          phases={previewPhases}
+                          maxHeight={540}
+                        />
+                      </div>
+                    </div>
+                    </div>
                   ) : (
-                    /* View Mode */
-                    <div>
+                    /* View Mode — two-column layout */
+                    <div className="ob-tab-layout">
+                    <div className="ob-tab-content-col">
 
                   {/* Compact entity rows */}
                   <div className="hf-card hf-mb-lg" style={{ padding: 0, overflow: "hidden" }}>
@@ -918,11 +949,16 @@ export function OnboardingTabContent({
                             {"\u201c"}{domain.onboardingWelcome}{"\u201d"}
                           </div>
                         ) : (
-                          <div className="hf-text-xs hf-text-muted">Using default</div>
+                          <div className="hf-text-xs hf-text-muted">
+                            Not configured &mdash;{" "}
+                            <button className="hf-link-inline" onClick={() => setEditingOnboarding(true)}>
+                              add a welcome message
+                            </button>
+                          </div>
                         )}
                       </div>
                       <span className={`hf-badge ${domain.onboardingWelcome ? "hf-badge-success" : ""}`} style={{ flexShrink: 0 }}>
-                        {domain.onboardingWelcome ? "Set" : "Default"}
+                        {domain.onboardingWelcome ? "Set" : "Missing"}
                       </span>
                     </div>
 
@@ -934,11 +970,11 @@ export function OnboardingTabContent({
                         <div className="hf-text-xs hf-text-muted">
                           {domain.onboardingFlowPhases
                             ? `${(domain.onboardingFlowPhases as any).phases?.length || 0} phases defined`
-                            : "Using default flow"}
+                            : "Not configured"}
                         </div>
                       </div>
                       <span className={`hf-badge ${domain.onboardingFlowPhases ? "hf-badge-success" : ""}`} style={{ flexShrink: 0 }}>
-                        {domain.onboardingFlowPhases ? "Set" : "Default"}
+                        {domain.onboardingFlowPhases ? "Set" : "Missing"}
                       </span>
                     </div>
 
@@ -950,11 +986,11 @@ export function OnboardingTabContent({
                         <div className="hf-text-xs hf-text-muted">
                           {domain.onboardingDefaultTargets
                             ? `${Object.keys(domain.onboardingDefaultTargets as object).filter(k => !k.startsWith("_")).length} parameters`
-                            : "Using default targets"}
+                            : "Using system defaults"}
                         </div>
                       </div>
                       <span className={`hf-badge ${domain.onboardingDefaultTargets ? "hf-badge-success" : ""}`} style={{ flexShrink: 0 }}>
-                        {domain.onboardingDefaultTargets ? "Set" : "Default"}
+                        {domain.onboardingDefaultTargets ? "Set" : "System"}
                       </span>
                     </div>
                   </div>
@@ -1075,6 +1111,18 @@ export function OnboardingTabContent({
                       </div>
                     </div>
                   )}
+                </div>
+                    <div className="ob-tab-preview-col">
+                      <div className="ob-tab-preview-sticky">
+                        <div className="ob-tab-preview-label">First Call Preview</div>
+                        <OnboardingChatPreview
+                          greeting={previewGreeting}
+                          personaName={personaName || undefined}
+                          phases={previewPhases}
+                          maxHeight={540}
+                        />
+                      </div>
+                    </div>
                 </div>
                   )}
                 </div>

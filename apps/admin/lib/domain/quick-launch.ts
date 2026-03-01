@@ -941,6 +941,49 @@ export async function loadPersonaArchetype(persona: string): Promise<string | nu
   return personaConfig?.identitySpec || null;
 }
 
+/**
+ * Load persona-specific welcome template from INIT-001 spec.
+ * Returns null if persona or spec not found.
+ *
+ * Checks both `welcomeTemplates` (nested under personas) and
+ * `styleWelcomeTemplates` (top-level, keyed by communication style).
+ *
+ * Exported for use by other wizards (e.g., course-setup.ts).
+ */
+export async function loadPersonaWelcomeTemplate(persona: string): Promise<string | null> {
+  const onboardingSlug = config.specs.onboarding.toLowerCase();
+
+  const spec = await prisma.analysisSpec.findFirst({
+    where: {
+      OR: [
+        { slug: { contains: onboardingSlug, mode: "insensitive" } },
+        { slug: { contains: "onboarding" } },
+        { domain: "onboarding" },
+      ],
+      isActive: true,
+    },
+    select: { config: true },
+  });
+
+  if (!spec?.config) return null;
+
+  const specConfig = spec.config as SpecConfig;
+
+  // Check persona-specific welcomeTemplate first, then top-level styleWelcomeTemplates
+  const personaConfig = specConfig.personas?.[persona];
+  if (personaConfig?.welcomeTemplate) return personaConfig.welcomeTemplate;
+
+  const styleTemplates = (specConfig as any).styleWelcomeTemplates;
+  if (styleTemplates?.[persona]) return styleTemplates[persona];
+
+  // Fall back to the nested welcomeTemplates map on the welcome_quality parameter
+  const welcomeParam = specConfig.parameters?.find?.((p: any) => p.id === "welcome_quality");
+  const templates = welcomeParam?.config?.welcomeTemplates;
+  if (templates?.[persona]) return templates[persona];
+
+  return null;
+}
+
 // ── Main Executor ──────────────────────────────────────
 
 /**

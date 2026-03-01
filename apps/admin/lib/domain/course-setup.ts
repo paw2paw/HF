@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { logSystem } from "@/lib/logger";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
-import { loadPersonaFlowPhases, loadPersonaArchetype } from "@/lib/domain/quick-launch";
+import { loadPersonaFlowPhases, loadPersonaArchetype, loadPersonaWelcomeTemplate } from "@/lib/domain/quick-launch";
 import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { enrollCaller, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 import { updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
@@ -346,15 +346,13 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
 
     ctx.results.warnings = [...(ctx.results.warnings || []), ...scaffoldResult.skipped];
 
-    // 5. Configure onboarding (welcome message + behavior targets + custom flow phases)
-    if (ctx.input.welcomeMessage || ctx.input.behaviorTargets || ctx.input.onboardingFlowPhases?.length) {
-      try {
-        ctx.onProgress({ phase: "onboarding", message: "Configuring onboarding..." });
-        await stepExecutors.configure_onboarding(ctx, step);
-      } catch (err: any) {
-        console.error("[course-setup] Onboarding configuration failed:", err.message);
-        ctx.results.warnings!.push(`Onboarding config: ${err.message}`);
-      }
+    // 5. Configure onboarding (always — persist user overrides or persona defaults)
+    try {
+      ctx.onProgress({ phase: "onboarding", message: "Configuring onboarding..." });
+      await stepExecutors.configure_onboarding(ctx, step);
+    } catch (err: any) {
+      console.error("[course-setup] Onboarding configuration failed:", err.message);
+      ctx.results.warnings!.push(`Onboarding config: ${err.message}`);
     }
 
     // 6. Enroll students (emails + cohorts + individual callers)
@@ -406,11 +404,16 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
       ? { phases: customPhases }
       : await loadPersonaFlowPhases(ctx.input.teachingStyle);
 
+    // Resolve welcome message: prefer user-provided, fall back to persona template
+    const resolvedWelcome = ctx.input.welcomeMessage
+      || await loadPersonaWelcomeTemplate(ctx.input.teachingStyle)
+      || null;
+
     // Update onboarding config
     await prisma.domain.update({
       where: { id: domainId },
       data: {
-        onboardingWelcome: ctx.input.welcomeMessage,
+        onboardingWelcome: resolvedWelcome,
         onboardingFlowPhases: resolvedFlowPhases,
         ...(Object.keys(mergedForDomain).length > 0 && {
           onboardingDefaultTargets: mergedForDomain,

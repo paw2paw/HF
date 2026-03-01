@@ -116,6 +116,109 @@
   margin-top: 2px;
 }
 
+/* ── Chat conversation preview (enhanced) ──────────── */
+
+/* AI message bubble — white, left-aligned, with tail */
+.ob-chat-ai {
+  max-width: 82%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-top-left-radius: 2px;
+  background: #fff;
+  align-self: flex-start;
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.1);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #111B21;
+}
+
+.ob-chat-persona {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: 3px;
+}
+
+.ob-chat-text {
+  white-space: pre-wrap;
+}
+
+.ob-chat-goals {
+  font-style: italic;
+  color: #4b5563;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ob-chat-avoid {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Caller message bubble — green, right-aligned, with tail */
+.ob-chat-caller {
+  max-width: 72%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-top-right-radius: 2px;
+  background: #DCF8C6;
+  align-self: flex-end;
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.1);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #111B21;
+}
+
+/* Phase separator — WhatsApp date-separator style */
+.ob-chat-sep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+
+.ob-chat-sep-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(0,0,0,0.08);
+}
+
+.ob-chat-sep-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #54656F;
+  background: rgba(255,255,255,0.88);
+  padding: 3px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.06);
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.ob-chat-sep-dur {
+  font-weight: 400;
+  color: #8696A0;
+}
+
+/* Empty state */
+.ob-chat-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.ob-chat-empty-text {
+  font-size: 13px;
+  color: #8696A0;
+  text-align: center;
+  padding: 24px;
+  max-width: 260px;
+  line-height: 1.5;
+}
+
 /* ── Dark mode ───────────────────────────────────────── */
 
 .dark .ob-preview-chat {
@@ -144,4 +247,35 @@
 .dark .ob-hint {
   background: rgba(32,44,51,0.8);
   color: #8696A0;
+}
+
+.dark .ob-chat-ai {
+  background: #202C33;
+  color: #E9EDEF;
+}
+
+.dark .ob-chat-goals {
+  color: #8696A0;
+}
+
+.dark .ob-chat-avoid {
+  color: #667781;
+}
+
+.dark .ob-chat-caller {
+  background: #005C4B;
+  color: #E9EDEF;
+}
+
+.dark .ob-chat-sep-line {
+  background: rgba(255,255,255,0.08);
+}
+
+.dark .ob-chat-sep-label {
+  background: rgba(32,44,51,0.88);
+  color: #8696A0;
+}
+
+.dark .ob-chat-empty-text {
+  color: #667781;
 }
