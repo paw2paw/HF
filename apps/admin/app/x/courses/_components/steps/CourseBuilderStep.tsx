@@ -8,6 +8,8 @@ import {
   Loader2,
   CheckCircle,
   Info,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
@@ -132,6 +134,18 @@ export function CourseBuilderStep({
   const [taskSummary, setTaskSummary] = useState<TaskSummary | null>(null);
   const launchAbortRef = useRef<AbortController | null>(null);
 
+  // ── Domain reset state ───────────────────────────
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetPreview, setResetPreview] = useState<{
+    domainName: string;
+    isSeedDomain: boolean;
+    counts: { callers: number; playbooks: number; cohortGroups: number };
+    totalRecords: number;
+  } | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+
   // ── Resolved defaults ──────────────────────────────
   const [resolvedDefaults, setResolvedDefaults] = useState<{
     sessionCount: number;
@@ -182,6 +196,55 @@ export function CourseBuilderStep({
         // Falls back to hardcoded defaults
       }
     })();
+  }, [selectedDomainId]);
+
+  // ── Domain reset handlers ─────────────────────────
+  const handleResetClick = useCallback(async () => {
+    if (!selectedDomainId) return;
+    setResetLoading(true);
+    setResetResult(null);
+    try {
+      const res = await fetch(`/api/domains/${selectedDomainId}/reset`);
+      const data = await res.json();
+      if (data.ok) {
+        setResetPreview(data.preview);
+        setShowResetConfirm(true);
+      } else {
+        setResetResult({ ok: false, message: data.error || "Failed to load preview" });
+      }
+    } catch {
+      setResetResult({ ok: false, message: "Failed to load preview" });
+    } finally {
+      setResetLoading(false);
+    }
+  }, [selectedDomainId]);
+
+  const handleResetConfirm = useCallback(async () => {
+    if (!selectedDomainId) return;
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/domains/${selectedDomainId}/reset`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        const r = data.result;
+        const parts = [];
+        if (r.purged.callers > 0) parts.push(`${r.purged.callers} callers`);
+        if (r.purged.playbooks > 0) parts.push(`${r.purged.playbooks} courses`);
+        const msg = parts.length > 0
+          ? `Purged ${parts.join(", ")}${r.reseeded ? " and re-seeded with demo data" : ""}.`
+          : `Domain cleared${r.reseeded ? " and re-seeded with demo data" : ""}.`;
+        setResetResult({ ok: true, message: msg });
+        setTimeout(() => setResetResult(null), 5000);
+      } else {
+        setResetResult({ ok: false, message: data.error || "Reset failed" });
+      }
+    } catch {
+      setResetResult({ ok: false, message: "Reset failed" });
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
+      setResetPreview(null);
+    }
   }, [selectedDomainId]);
 
   // ── Auto-suggest pattern from course name ──────────
@@ -526,7 +589,34 @@ export function CourseBuilderStep({
               ))}
             </select>
           )}
+
+          {/* Reset button — shown when domain selected, before Build fires */}
+          {selectedDomainId && !buildFired && (
+            <button
+              className="hf-btn hf-btn-destructive"
+              onClick={handleResetClick}
+              disabled={resetLoading || resetting}
+              style={{ marginTop: 8, fontSize: 12, padding: "4px 10px" }}
+            >
+              {resetLoading ? (
+                <Loader2 size={12} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
+              ) : (
+                <RotateCcw size={12} style={{ marginRight: 4 }} />
+              )}
+              Reset to Seed Data
+            </button>
+          )}
         </div>
+
+        {/* Reset result banner */}
+        {resetResult && (
+          <div
+            className={`hf-banner ${resetResult.ok ? "hf-banner-success" : "hf-banner-error"}`}
+            style={{ marginBottom: 12 }}
+          >
+            {resetResult.message}
+          </div>
+        )}
 
         {/* Course name */}
         <div style={{ marginBottom: 16 }}>
@@ -996,6 +1086,72 @@ export function CourseBuilderStep({
                 "Launch Course"
               )}
             </button>
+          </div>
+        </div>
+      )}
+      {/* ── RESET CONFIRM MODAL ───────────────────── */}
+      {showResetConfirm && resetPreview && (
+        <div
+          className="hf-modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget && !resetting) { setShowResetConfirm(false); setResetPreview(null); } }}
+        >
+          <div className="hf-card" style={{ maxWidth: 420, padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <AlertTriangle size={20} style={{ color: "var(--status-error-text)" }} />
+              <h3 className="hf-section-title" style={{ margin: 0 }}>
+                Reset {resetPreview.domainName}
+              </h3>
+            </div>
+
+            <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 12 }}>
+              This will permanently delete:
+            </p>
+            <ul style={{ fontSize: 14, color: "var(--text-primary)", margin: "0 0 16px 20px", padding: 0 }}>
+              {resetPreview.counts.callers > 0 && (
+                <li>{resetPreview.counts.callers} callers (+ calls, memories, scores)</li>
+              )}
+              {resetPreview.counts.playbooks > 0 && (
+                <li>{resetPreview.counts.playbooks} courses (+ items, enrollments)</li>
+              )}
+              {resetPreview.counts.cohortGroups > 0 && (
+                <li>{resetPreview.counts.cohortGroups} cohort groups</li>
+              )}
+              {resetPreview.totalRecords === 0 && (
+                <li style={{ color: "var(--text-muted)" }}>No data to purge</li>
+              )}
+            </ul>
+
+            {resetPreview.isSeedDomain && (
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+                Demo callers and a playbook will be re-seeded after purge.
+              </p>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                className="hf-btn hf-btn-secondary"
+                onClick={() => { setShowResetConfirm(false); setResetPreview(null); }}
+                disabled={resetting}
+              >
+                Cancel
+              </button>
+              <button
+                className="hf-btn hf-btn-destructive"
+                onClick={handleResetConfirm}
+                disabled={resetting}
+              >
+                {resetting ? (
+                  <>
+                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
+                    Resetting...
+                  </>
+                ) : resetPreview.isSeedDomain ? (
+                  "Reset & Re-seed"
+                ) : (
+                  "Purge All Data"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

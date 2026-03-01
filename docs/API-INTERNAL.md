@@ -6010,6 +6010,42 @@ Check if a domain is ready to receive calls. Evaluates checks defined in DOMAIN-
 
 ---
 
+### `GET` /api/domains/:domainId/reset
+
+**Auth**: session (ADMIN) · **Scope**: `domains:admin`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| domainId | path | string | Yes | Domain UUID |
+| domainId | path | string | Yes | Domain UUID |
+
+**Response** `200`
+```json
+{ ok: true, preview: DomainResetPreview }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Domain not found" }
+```
+
+**Response** `200`
+```json
+{ ok: true, result: DomainResetResult }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Domain not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ### `POST` /api/domains/:domainId/scaffold
 
 Auto-scaffold minimum viable domain setup: identity spec, playbook, publish, onboarding config.
@@ -12766,8 +12802,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 372 |
-| Files with annotations | 371 |
+| Route files found | 373 |
+| Files with annotations | 372 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

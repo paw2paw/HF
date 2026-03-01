@@ -219,6 +219,190 @@ const DOMAIN_DEMOS: DomainDemoData[] = [
   },
 ];
 
+// ── Single-domain seeder (used by domain reset API) ──
+
+/**
+ * Seed demo data for a single domain by slug.
+ * Extracted from main() for use by the domain reset API.
+ *
+ * @returns true if seeded, false if slug not found in DOMAIN_DEMOS
+ */
+export async function seedSingleDomain(slug: string, externalPrisma: PrismaClient): Promise<boolean> {
+  const client = externalPrisma;
+  const domainData = DOMAIN_DEMOS.find((d) => d.slug === slug);
+  if (!domainData) return false;
+
+  const domain = await client.domain.findUnique({ where: { slug } });
+  if (!domain) return false;
+
+  const identitySpec = await client.analysisSpec.findFirst({ where: { specRole: "IDENTITY" } });
+  const extractSpecs = await client.analysisSpec.findMany({ where: { specRole: "EXTRACT" }, take: 3, orderBy: { slug: "asc" } });
+  const synthesiseSpecs = await client.analysisSpec.findMany({ where: { specRole: "SYNTHESISE" }, take: 2, orderBy: { slug: "asc" } });
+
+  if (!identitySpec) return false;
+
+  await seedDomainData(client, domain, domainData, identitySpec, extractSpecs, synthesiseSpecs);
+  return true;
+}
+
+// ── Shared per-domain seeding logic ──────────────────
+
+async function seedDomainData(
+  client: PrismaClient,
+  domain: { id: string; name: string },
+  domainData: DomainDemoData,
+  identitySpec: { id: string },
+  extractSpecs: Array<{ id: string }>,
+  synthesiseSpecs: Array<{ id: string }>,
+) {
+  console.log(`  Domain: ${domain.name}`);
+
+  // ── Create callers ──
+  for (const callerDef of domainData.callers) {
+    const caller = await client.caller.upsert({
+      where: { externalId: callerDef.externalId },
+      create: {
+        externalId: callerDef.externalId,
+        name: callerDef.name,
+        email: callerDef.email,
+        phone: callerDef.phone,
+        domainId: domain.id,
+      },
+      update: {
+        name: callerDef.name,
+        email: callerDef.email,
+        domainId: domain.id,
+      },
+    });
+
+    // Personality profile
+    await client.callerPersonalityProfile.upsert({
+      where: { callerId: caller.id },
+      create: {
+        callerId: caller.id,
+        parameterValues: callerDef.personality,
+        callsUsed: 3,
+        specsUsed: 2,
+        lastUpdatedAt: new Date(),
+      },
+      update: {
+        parameterValues: callerDef.personality,
+        callsUsed: 3,
+        specsUsed: 2,
+        lastUpdatedAt: new Date(),
+      },
+    });
+
+    // Memories
+    await client.callerMemory.deleteMany({
+      where: { callerId: caller.id, extractedBy: "demo-domain-seed" },
+    });
+    for (const mem of callerDef.memories) {
+      await client.callerMemory.create({
+        data: {
+          callerId: caller.id,
+          category: mem.category,
+          source: mem.source,
+          key: mem.key,
+          value: mem.value,
+          confidence: mem.confidence,
+          extractedBy: "demo-domain-seed",
+        },
+      });
+    }
+
+    // Memory summary
+    const facts = callerDef.memories
+      .filter((m) => m.category === "FACT")
+      .map((m) => ({ key: m.key, value: m.value, confidence: m.confidence }));
+    const topics = callerDef.memories
+      .filter((m) => m.category === "TOPIC")
+      .map((m) => ({ topic: m.value, frequency: 3, lastMentioned: new Date().toISOString() }));
+
+    await client.callerMemorySummary.upsert({
+      where: { callerId: caller.id },
+      create: {
+        callerId: caller.id,
+        factCount: facts.length,
+        preferenceCount: callerDef.memories.filter((m) => m.category === "PREFERENCE").length,
+        eventCount: 0,
+        topicCount: topics.length,
+        keyFacts: facts,
+        topTopics: topics,
+        lastMemoryAt: new Date(),
+        lastAggregatedAt: new Date(),
+      },
+      update: {
+        factCount: facts.length,
+        topicCount: topics.length,
+        keyFacts: facts,
+        topTopics: topics,
+        lastMemoryAt: new Date(),
+        lastAggregatedAt: new Date(),
+      },
+    });
+
+    console.log(`    Caller: ${caller.name} (${callerDef.email})`);
+  }
+
+  // ── Create playbook ──
+  // Archive any existing published playbooks for this domain
+  await client.playbook.updateMany({
+    where: { domainId: domain.id, status: "PUBLISHED" },
+    data: { status: "ARCHIVED" },
+  });
+
+  const playbook = await client.playbook.create({
+    data: {
+      name: domainData.playbookName,
+      description: domainData.playbookDescription,
+      domainId: domain.id,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+    },
+  });
+
+  // Add specs: identity first, then extract, then synthesise
+  let sortOrder = 0;
+
+  await client.playbookItem.create({
+    data: {
+      playbookId: playbook.id,
+      itemType: "SPEC",
+      specId: identitySpec.id,
+      sortOrder: sortOrder++,
+      groupLabel: "Identity",
+    },
+  });
+
+  for (const spec of extractSpecs) {
+    await client.playbookItem.create({
+      data: {
+        playbookId: playbook.id,
+        itemType: "SPEC",
+        specId: spec.id,
+        sortOrder: sortOrder++,
+        groupLabel: "Measurement",
+      },
+    });
+  }
+
+  for (const spec of synthesiseSpecs) {
+    await client.playbookItem.create({
+      data: {
+        playbookId: playbook.id,
+        itemType: "SPEC",
+        specId: spec.id,
+        sortOrder: sortOrder++,
+        groupLabel: "Synthesis",
+      },
+    });
+  }
+
+  console.log(`    Playbook: ${playbook.name} (PUBLISHED, ${sortOrder} specs)`);
+  console.log("");
+}
+
 // ── Main ────────────────────────────────────────────
 
 export async function main(externalPrisma?: PrismaClient) {
@@ -257,161 +441,7 @@ export async function main(externalPrisma?: PrismaClient) {
       continue;
     }
 
-    console.log(`  Domain: ${domain.name}`);
-
-    // ── Create callers ──
-    for (const callerDef of domainData.callers) {
-      const caller = await prisma.caller.upsert({
-        where: { externalId: callerDef.externalId },
-        create: {
-          externalId: callerDef.externalId,
-          name: callerDef.name,
-          email: callerDef.email,
-          phone: callerDef.phone,
-          domainId: domain.id,
-        },
-        update: {
-          name: callerDef.name,
-          email: callerDef.email,
-          domainId: domain.id,
-        },
-      });
-
-      // Personality profile
-      await prisma.callerPersonalityProfile.upsert({
-        where: { callerId: caller.id },
-        create: {
-          callerId: caller.id,
-          parameterValues: callerDef.personality,
-          callsUsed: 3,
-          specsUsed: 2,
-          lastUpdatedAt: new Date(),
-        },
-        update: {
-          parameterValues: callerDef.personality,
-          callsUsed: 3,
-          specsUsed: 2,
-          lastUpdatedAt: new Date(),
-        },
-      });
-
-      // Memories
-      await prisma.callerMemory.deleteMany({
-        where: { callerId: caller.id, extractedBy: "demo-domain-seed" },
-      });
-      for (const mem of callerDef.memories) {
-        await prisma.callerMemory.create({
-          data: {
-            callerId: caller.id,
-            category: mem.category,
-            source: mem.source,
-            key: mem.key,
-            value: mem.value,
-            confidence: mem.confidence,
-            extractedBy: "demo-domain-seed",
-          },
-        });
-      }
-
-      // Memory summary
-      const facts = callerDef.memories
-        .filter((m) => m.category === "FACT")
-        .map((m) => ({ key: m.key, value: m.value, confidence: m.confidence }));
-      const topics = callerDef.memories
-        .filter((m) => m.category === "TOPIC")
-        .map((m) => ({ topic: m.value, frequency: 3, lastMentioned: new Date().toISOString() }));
-
-      await prisma.callerMemorySummary.upsert({
-        where: { callerId: caller.id },
-        create: {
-          callerId: caller.id,
-          factCount: facts.length,
-          preferenceCount: callerDef.memories.filter((m) => m.category === "PREFERENCE").length,
-          eventCount: 0,
-          topicCount: topics.length,
-          keyFacts: facts,
-          topTopics: topics,
-          lastMemoryAt: new Date(),
-          lastAggregatedAt: new Date(),
-        },
-        update: {
-          factCount: facts.length,
-          topicCount: topics.length,
-          keyFacts: facts,
-          topTopics: topics,
-          lastMemoryAt: new Date(),
-          lastAggregatedAt: new Date(),
-        },
-      });
-
-      console.log(`    Caller: ${caller.name} (${callerDef.email})`);
-    }
-
-    // ── Create playbook ──
-    let playbook = await prisma.playbook.findFirst({
-      where: { domainId: domain.id, name: domainData.playbookName },
-    });
-
-    if (!playbook) {
-      // Archive any existing published playbooks for this domain
-      await prisma.playbook.updateMany({
-        where: { domainId: domain.id, status: "PUBLISHED" },
-        data: { status: "ARCHIVED" },
-      });
-
-      playbook = await prisma.playbook.create({
-        data: {
-          name: domainData.playbookName,
-          description: domainData.playbookDescription,
-          domainId: domain.id,
-          status: "PUBLISHED",
-          publishedAt: new Date(),
-        },
-      });
-
-      // Add specs: identity first, then extract, then synthesise
-      let sortOrder = 0;
-
-      await prisma.playbookItem.create({
-        data: {
-          playbookId: playbook.id,
-          itemType: "SPEC",
-          specId: identitySpec.id,
-          sortOrder: sortOrder++,
-          groupLabel: "Identity",
-        },
-      });
-
-      for (const spec of extractSpecs) {
-        await prisma.playbookItem.create({
-          data: {
-            playbookId: playbook.id,
-            itemType: "SPEC",
-            specId: spec.id,
-            sortOrder: sortOrder++,
-            groupLabel: "Measurement",
-          },
-        });
-      }
-
-      for (const spec of synthesiseSpecs) {
-        await prisma.playbookItem.create({
-          data: {
-            playbookId: playbook.id,
-            itemType: "SPEC",
-            specId: spec.id,
-            sortOrder: sortOrder++,
-            groupLabel: "Synthesis",
-          },
-        });
-      }
-
-      console.log(`    Playbook: ${playbook.name} (PUBLISHED, ${sortOrder} specs)`);
-    } else {
-      console.log(`    Playbook: ${playbook.name} (already exists)`);
-    }
-
-    console.log("");
+    await seedDomainData(prisma, domain, domainData, identitySpec, extractSpecs, synthesiseSpecs);
   }
 
   // Summary
