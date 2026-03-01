@@ -31,7 +31,7 @@
  *   10. seed-educator-demo      → 3 schools, 10 teachers, 210 pupils   [full only]
  *   11. seed-school-institutions → School institution records           [full only]
  *   12. seed-demo-fixtures      → "Paul" demo caller, QM overlay       [full only]
- *   13. seed-holographic-demo   → 2 school domains for Holographic UI  [full only]
+ *   13. seed-holographic-demo   → 3 domains (2 schools + 1 community) for Holographic UI  [full only]
  *   14. seed-demo-logins        → 6 demo login accounts (non-PROD)     [test, full]
  */
 

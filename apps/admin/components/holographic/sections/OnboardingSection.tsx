@@ -15,6 +15,14 @@ interface FlowPhase {
   duration?: string;
 }
 
+function formatTargetValue(v: unknown): string {
+  if (v == null) return "—";
+  if (typeof v === "object" && v !== null && "value" in v) {
+    return String((v as { value: unknown }).value);
+  }
+  return String(v);
+}
+
 export function OnboardingSection() {
   const { state } = useHolo();
   const domain = state.domainDetail as Record<string, any> | null;
@@ -26,7 +34,7 @@ export function OnboardingSection() {
   const welcome: string | null = domain.onboardingWelcome;
   const flowPhases: FlowPhase[] = domain.onboardingFlowPhases || [];
   const defaultTargets: Record<string, unknown> = domain.onboardingDefaultTargets || {};
-  const targetKeys = Object.keys(defaultTargets);
+  const targetKeys = Object.keys(defaultTargets).filter((k) => !k.startsWith("_"));
 
   const hasAnyConfig = welcome || flowPhases.length > 0 || targetKeys.length > 0;
 
@@ -93,7 +101,7 @@ export function OnboardingSection() {
               <div key={key} className="hp-target-item">
                 <span className="hp-target-key">{key}</span>
                 <span className="hp-target-value">
-                  {String(defaultTargets[key])}
+                  {formatTargetValue(defaultTargets[key])}
                 </span>
               </div>
             ))}
