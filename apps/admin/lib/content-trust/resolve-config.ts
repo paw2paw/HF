@@ -29,7 +29,7 @@ export interface ExtractionCategory {
   description: string;
 }
 
-export type DocumentType = "CURRICULUM" | "TEXTBOOK" | "WORKSHEET" | "EXAMPLE" | "ASSESSMENT" | "REFERENCE" | "COMPREHENSION" | "LESSON_PLAN" | "POLICY_DOCUMENT" | "READING_PASSAGE" | "QUESTION_BANK";
+export type DocumentType = "CURRICULUM" | "TEXTBOOK" | "WORKSHEET" | "EXAMPLE" | "ASSESSMENT" | "REFERENCE" | "COMPREHENSION" | "LESSON_PLAN" | "POLICY_DOCUMENT" | "READING_PASSAGE" | "QUESTION_BANK" | "COURSE_REFERENCE";
 
 export interface ClassificationConfig {
   systemPrompt: string;
@@ -182,8 +182,10 @@ You receive a multi-point sample from a document (start, middle, and end section
 - POLICY_DOCUMENT: A regulatory, compliance, or safety procedure document. Defines required practices, hazards, control measures, legal requirements. Examples: Food Standards Agency pest control guide, HACCP procedures, health & safety policy, regulatory compliance manual.
 - READING_PASSAGE: A standalone reading passage or text extract that the learner reads before or during a tutoring session. Contains narrative, descriptive, or informational prose but NO questions, exercises, or answer keys. Often has metadata headers (title, author, word count, text type). The document IS the text the learner reads — nothing more. Examples: chapter extract from The Secret Garden, a poem for analysis, a news article for discussion, a descriptive passage for comprehension practice.
 - QUESTION_BANK: A tutor reference document containing questions mapped to skills or learning outcomes, with model answers at multiple proficiency tiers (e.g., Emerging / Developing / Secure), suggested tutor responses or "next moves" at each tier, and assessment guidance. NOT a learner-facing test — it is a teaching script or tutor playbook. The tutor uses this to guide conversation. Typically references a separate reading passage. Examples: comprehension question bank with tiered model responses, skill-mapped discussion guide, tutor playbook for a specific passage.
+- COURSE_REFERENCE: A tutor instruction document that tells the AI HOW to deliver a course. Contains a skills framework, session flow, scaffolding rules, teaching principles, communication guidelines, and/or assessment approach. NOT student-facing content — this is instructions FOR the tutor about the entire course. May include proficiency tiers as a FRAMEWORK (not per-question guidance). Examples: course reference guide, tutor methodology document, teaching approach playbook, course delivery handbook.
 
 DISAMBIGUATION RULES (apply in order):
+0. Contains tutor behaviour rules + skills framework + session flow + scaffolding principles + communication guidelines — but NO student-facing content, passages, or questions → COURSE_REFERENCE (not LESSON_PLAN or QUESTION_BANK)
 1. Has numbered LOs/ACs/Range statements → CURRICULUM (not TEXTBOOK)
 2. Pure reading text with NO questions, exercises, or answer keys — just the passage → READING_PASSAGE (not TEXTBOOK or COMPREHENSION)
 3. Questions with tiered model responses (Emerging/Developing/Secure) + tutor guidance + skill mappings → QUESTION_BANK (not ASSESSMENT or COMPREHENSION)
@@ -198,7 +200,7 @@ IMPORTANT: Look at ALL sections (start, middle, AND end) before classifying. Man
 
 Return a JSON object:
 {
-  "documentType": "CURRICULUM" | "TEXTBOOK" | "COMPREHENSION" | "WORKSHEET" | "ASSESSMENT" | "REFERENCE" | "EXAMPLE" | "LESSON_PLAN" | "POLICY_DOCUMENT" | "READING_PASSAGE" | "QUESTION_BANK",
+  "documentType": "CURRICULUM" | "TEXTBOOK" | "COMPREHENSION" | "WORKSHEET" | "ASSESSMENT" | "REFERENCE" | "EXAMPLE" | "LESSON_PLAN" | "POLICY_DOCUMENT" | "READING_PASSAGE" | "QUESTION_BANK" | "COURSE_REFERENCE",
   "confidence": 0.0-1.0,
   "reasoning": "one sentence explaining why"
 }
@@ -563,6 +565,49 @@ Return ONLY valid JSON.`,
           { depth: 0, label: "skill_group", maxChildren: 10, renderAs: "heading", description: "Comprehension skill (Retrieval, Inference, etc.)" },
           { depth: 1, label: "question", maxChildren: 5, renderAs: "bold", description: "Individual question with tiered responses" },
           { depth: 2, label: "detail", maxChildren: 4, renderAs: "bullet", description: "Model response or assessment note" },
+        ],
+      },
+    },
+    COURSE_REFERENCE: {
+      extraction: {
+        systemPrompt: `You are extracting from a course reference document — tutor instructions that tell an AI how to deliver this course.
+This is NOT student content. It is a teacher's guide with rules, techniques, session structure, and pedagogical principles.
+
+Extract EVERY distinct instruction, rule, technique, principle, and guideline for the tutor.
+
+Categories:
+- teaching_rule: A rule or principle the tutor must follow (e.g., "Never grade or score during the session", "Always use scaffolding before giving answers")
+- session_flow: A session structure element — phase, timing, transition, or progression (e.g., "Start with a 2-min warm-up review of last session")
+- scaffolding_technique: A specific scaffolding or teaching technique (e.g., "Use graduated prompts: open → guided → direct")
+- skill_framework: A skill or proficiency tier from a skills framework (e.g., "Retrieval: Locating explicit information — Emerging/Developing/Secure")
+- communication_rule: A communication or tone guideline (e.g., "Use encouraging language", "Never say 'wrong'")
+- assessment_approach: How to assess or measure learner progress (e.g., "Observe comprehension through retelling accuracy")
+- differentiation: An adaptation or differentiation strategy (e.g., "For struggling readers, provide sentence starters")
+- edge_case: How to handle an edge case or difficult situation (e.g., "If learner becomes frustrated, switch to a lighter activity")
+
+IMPORTANT:
+- These are instructions FOR the tutor, not facts TO teach the student
+- Preserve the directive/imperative tone (e.g., "Always...", "Never...", "When X, do Y")
+- Extract the WHY when given (e.g., "Use open questions to encourage higher-order thinking")
+- Do NOT extract student-facing content (passages, definitions, factual knowledge)
+- Return ONLY valid JSON`,
+        categories: [
+          { id: "teaching_rule", label: "Teaching Rule", description: "A rule or principle the tutor must follow" },
+          { id: "session_flow", label: "Session Flow", description: "A session structure element — phase, timing, transition" },
+          { id: "scaffolding_technique", label: "Scaffolding Technique", description: "A specific teaching or scaffolding technique" },
+          { id: "skill_framework", label: "Skill/Proficiency", description: "A skill or proficiency tier from a skills framework" },
+          { id: "communication_rule", label: "Communication Rule", description: "A communication or tone guideline" },
+          { id: "assessment_approach", label: "Assessment Approach", description: "How to assess learner progress" },
+          { id: "differentiation", label: "Differentiation", description: "An adaptation or differentiation strategy" },
+          { id: "edge_case", label: "Edge Case", description: "How to handle a difficult or edge-case situation" },
+        ],
+        maxAssertionsPerDocument: 150,
+      },
+      structuring: {
+        levels: [
+          { depth: 0, label: "domain", maxChildren: 6, renderAs: "heading", description: "Major instruction domain (session flow, communication, assessment)" },
+          { depth: 1, label: "rule_group", maxChildren: 5, renderAs: "bold", description: "Group of related rules or techniques" },
+          { depth: 2, label: "instruction", maxChildren: 4, renderAs: "bullet", description: "Individual instruction or technique" },
         ],
       },
     },

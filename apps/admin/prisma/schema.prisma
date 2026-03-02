@@ -49,6 +49,8 @@ enum DocumentType {
   POLICY_DOCUMENT // Regulatory/compliance/safety procedure (Pest Control, HACCP)
   READING_PASSAGE // Standalone reading text — learner reads before/during session (no questions)
   QUESTION_BANK // Tutor reference: skill-mapped questions with tiered model responses + guidance
+  // --- Course Reference (1) ---
+  COURSE_REFERENCE // Tutor instruction doc: skills framework, session flow, scaffolding rules. NOT student content.
 }
 
 // Question types for ContentQuestion model

@@ -1,0 +1,280 @@
+"use client";
+
+/**
+ * Step 4: Ready to Test — Break Point
+ *
+ * Offers two paths:
+ * - "Create & Try Call" — creates DRAFT entities, sim call works immediately
+ * - "Continue Setup" — advances to step 5 without creating
+ */
+
+import { useState } from "react";
+import { Loader2, Check, Rocket, ArrowRight } from "lucide-react";
+import { StepFooter } from "@/components/wizards/StepFooter";
+import type { StepRenderProps } from "@/components/wizards/types";
+
+type Phase = "idle" | "creating" | "done" | "error";
+
+interface TimelineItem {
+  label: string;
+  status: "pending" | "active" | "done" | "error";
+}
+
+export function CheckpointStep({ getData, setData, onNext, onPrev }: StepRenderProps) {
+  const [phase, setPhase] = useState<Phase>(getData<string>("draftDomainId") ? "done" : "idle");
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const institutionName = getData<string>("institutionName") || getData<string>("existingInstitutionName") || "Your organisation";
+  const courseName = getData<string>("courseName") || "Your course";
+  const hasContent = !!(getData<string[]>("packSubjectIds")?.length || getData<string>("sourceId"));
+  const contentSkipped = getData<boolean>("contentSkipped");
+  const extractionTotals = getData<{ assertions: number }>("extractionTotals");
+
+  const handleCreateAndTry = async () => {
+    setPhase("creating");
+    setError(null);
+
+    const steps: TimelineItem[] = [
+      { label: "Creating organisation", status: "active" },
+      { label: "Setting up course", status: "pending" },
+      { label: "Scaffolding AI tutor", status: "pending" },
+      { label: "Composing first prompt", status: "pending" },
+    ];
+    setTimeline([...steps]);
+
+    try {
+      // Step 1: Create institution + domain via launch SSE
+      const isExisting = !!getData<string>("existingInstitutionId");
+
+      let domainId: string;
+      let institutionId: string | undefined;
+
+      if (isExisting) {
+        domainId = getData<string>("existingDomainId") || "";
+        institutionId = getData<string>("existingInstitutionId") || undefined;
+        steps[0] = { ...steps[0], status: "done", label: "Using existing organisation" };
+        setTimeline([...steps]);
+      } else {
+        const launchRes = await fetch("/api/institutions/launch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: getData<string>("institutionName"),
+            typeSlug: getData<string>("typeSlug"),
+            typeId: getData<string>("typeId"),
+            websiteUrl: getData<string>("websiteUrl"),
+            logoUrl: getData<string>("logoUrl"),
+            primaryColor: getData<string>("primaryColor"),
+            secondaryColor: getData<string>("secondaryColor"),
+          }),
+        });
+
+        // Read SSE stream
+        const reader = launchRes.body?.getReader();
+        const decoder = new TextDecoder();
+        let result = { institutionId: "", domainId: "" };
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const text = decoder.decode(value);
+            const lines = text.split("\n").filter((l) => l.startsWith("data: "));
+            for (const line of lines) {
+              try {
+                const event = JSON.parse(line.slice(6));
+                if (event.type === "complete" && event.data) {
+                  result = event.data;
+                }
+              } catch {
+                // Skip malformed lines
+              }
+            }
+          }
+        }
+
+        if (!result.domainId) {
+          throw new Error("Failed to create institution");
+        }
+
+        domainId = result.domainId;
+        institutionId = result.institutionId;
+        steps[0] = { ...steps[0], status: "done" };
+        setTimeline([...steps]);
+      }
+
+      // Step 2: Create course via courseSetup
+      steps[1] = { ...steps[1], status: "active" };
+      setTimeline([...steps]);
+
+      const setupRes = await fetch("/api/courses/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseName: getData<string>("courseName"),
+          domainId,
+          interactionPattern: getData<string>("interactionPattern"),
+          teachingMode: getData<string>("teachingMode"),
+          subjectDiscipline: getData<string>("subjectDiscipline"),
+          packSubjectIds: getData<string[]>("packSubjectIds"),
+          sourceId: getData<string>("sourceId"),
+          learningOutcomes: [],
+          teachingStyle: getData<string>("interactionPattern") || "socratic",
+          sessionCount: 5,
+          durationMins: 30,
+          emphasis: "balanced",
+          welcomeMessage: "",
+          studentEmails: [],
+        }),
+      });
+
+      const setupData = await setupRes.json();
+      if (!setupData.ok) throw new Error(setupData.error || "Failed to set up course");
+
+      steps[1] = { ...steps[1], status: "done" };
+      steps[2] = { ...steps[2], status: "done" };
+      steps[3] = { ...steps[3], status: "done" };
+      setTimeline([...steps]);
+
+      // Store results in data bag for later steps
+      setData("draftDomainId", setupData.domainId || domainId);
+      setData("draftPlaybookId", setupData.playbookId);
+      setData("draftCallerId", setupData.callerId);
+      if (institutionId) setData("draftInstitutionId", institutionId);
+
+      setPhase("done");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+      setPhase("error");
+      // Mark current active step as error
+      const updated = timeline.map((t) =>
+        t.status === "active" ? { ...t, status: "error" as const } : t,
+      );
+      setTimeline(updated);
+    }
+  };
+
+  return (
+    <div className="hf-wizard-page">
+      <div className="hf-wizard-step">
+        {phase === "idle" && (
+          <>
+            <div className="hf-mb-lg">
+              <h1 className="hf-page-title hf-mb-xs">
+                <Rocket size={20} style={{ display: "inline", verticalAlign: "middle", marginRight: 8 }} />
+                Ready to test
+              </h1>
+              <p className="hf-page-subtitle">
+                {institutionName} + {courseName}
+                {extractionTotals ? ` + ${extractionTotals.assertions} teaching points` : ""}
+              </p>
+            </div>
+
+            {!hasContent && !contentSkipped && (
+              <div className="hf-banner hf-banner-warning hf-mb-lg">
+                No content uploaded yet. The AI will use a generic prompt without subject-specific teaching points.
+              </div>
+            )}
+
+            <div className="hf-card hf-mb-lg" style={{ padding: 20 }}>
+              <p style={{ margin: 0, color: "var(--text-primary)", lineHeight: 1.6 }}>
+                The AI tutor can already hold a conversation
+                {hasContent ? " about your subject using the content you uploaded" : ""}.
+                You can create it now and try a sim call, or continue setting up.
+              </p>
+            </div>
+
+            <div className="hf-mb-lg" style={{ display: "flex", gap: 12 }}>
+              <button
+                type="button"
+                className="hf-btn hf-btn-primary"
+                onClick={handleCreateAndTry}
+                style={{ flex: 1 }}
+              >
+                <Rocket size={16} />
+                Create &amp; Try a Call
+              </button>
+              <button
+                type="button"
+                className="hf-btn hf-btn-secondary"
+                onClick={onNext}
+                style={{ flex: 1 }}
+              >
+                Continue Setup
+                <ArrowRight size={16} />
+              </button>
+            </div>
+
+            <p className="hf-text-sm hf-text-muted">
+              Continuing adds: welcome message, session plan, tutor personality.
+            </p>
+          </>
+        )}
+
+        {(phase === "creating" || phase === "error") && (
+          <>
+            <div className="hf-mb-lg">
+              <h1 className="hf-page-title hf-mb-xs">Setting up your course</h1>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {timeline.map((item, i) => (
+                <div key={i} className="hf-flex hf-items-center hf-gap-sm">
+                  {item.status === "done" && <Check size={16} style={{ color: "var(--status-success-text)" }} />}
+                  {item.status === "active" && <Loader2 size={16} className="hf-spinner" />}
+                  {item.status === "pending" && <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid var(--border-default)" }} />}
+                  {item.status === "error" && <div style={{ width: 16, height: 16, borderRadius: "50%", background: "var(--status-error-text)" }} />}
+                  <span style={{ color: item.status === "pending" ? "var(--text-muted)" : "var(--text-primary)" }}>
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <div className="hf-banner hf-banner-error hf-mt-lg">
+                {error}
+                <button
+                  type="button"
+                  className="hf-btn hf-btn-secondary hf-mt-sm"
+                  onClick={handleCreateAndTry}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {phase === "done" && (
+          <>
+            <div className="hf-mb-lg">
+              <h1 className="hf-page-title hf-mb-xs">
+                <Check size={20} style={{ display: "inline", verticalAlign: "middle", marginRight: 8, color: "var(--status-success-text)" }} />
+                Course created
+              </h1>
+              <p className="hf-page-subtitle">Your AI tutor is ready to test.</p>
+            </div>
+
+            <div className="hf-mb-lg" style={{ display: "flex", gap: 12 }}>
+              <a
+                href={`/x/sim/${getData<string>("draftCallerId") || ""}`}
+                className="hf-btn hf-btn-primary"
+                style={{ flex: 1, textAlign: "center" }}
+              >
+                Try a Sim Call
+              </a>
+            </div>
+
+            <StepFooter
+              onBack={onPrev}
+              onNext={onNext}
+              nextLabel="Continue Setup"
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

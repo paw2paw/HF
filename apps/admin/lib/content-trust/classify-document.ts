@@ -42,6 +42,7 @@ export interface ClassificationExample {
 const VALID_TYPES: DocumentType[] = [
   "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT", "REFERENCE",
   "COMPREHENSION", "LESSON_PLAN", "POLICY_DOCUMENT", "READING_PASSAGE", "QUESTION_BANK",
+  "COURSE_REFERENCE",
 ];
 
 // ------------------------------------------------------------------

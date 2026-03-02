@@ -20,7 +20,7 @@ type ContentScope = {
   subjects: Array<{
     id: string;
     teachingDepth: number | null;
-    sources: Array<{ sourceId: string }>;
+    sources: Array<{ sourceId: string; documentType: string | null }>;
   }>;
   scoped: boolean;
 } | null;
@@ -70,6 +70,7 @@ export async function loadAllData(
     curriculumAssertions,
     curriculumQuestions,
     curriculumVocabulary,
+    courseInstructions,
     openActions,
     visualAids,
   ] = await Promise.all([
@@ -91,6 +92,7 @@ export async function loadAllData(
     loaderRegistry.get("curriculumAssertions")!(callerId, { contentScope }),
     loaderRegistry.get("curriculumQuestions")!(callerId, { contentScope }),
     loaderRegistry.get("curriculumVocabulary")!(callerId, { contentScope }),
+    loaderRegistry.get("courseInstructions")!(callerId, { contentScope }),
     loaderRegistry.get("openActions")!(callerId),
     loaderRegistry.get("visualAids")!(callerId, { contentScope }),
   ]);
@@ -114,6 +116,7 @@ export async function loadAllData(
     curriculumAssertions: curriculumAssertions || [],
     curriculumQuestions: curriculumQuestions || [],
     curriculumVocabulary: curriculumVocabulary || [],
+    courseInstructions: courseInstructions || [],
     openActions: openActions || [],
     visualAids: visualAids || [],
   };
@@ -149,7 +152,12 @@ async function resolveContentScope(callerId: string): Promise<ContentScope> {
         select: {
           id: true,
           teachingDepth: true,
-          sources: { select: { sourceId: true } },
+          sources: {
+            select: {
+              sourceId: true,
+              source: { select: { documentType: true } },
+            },
+          },
         },
       },
     },
@@ -158,7 +166,13 @@ async function resolveContentScope(callerId: string): Promise<ContentScope> {
   return {
     domainId: caller.domainId,
     subjectIds: subjectDomains.map((sd) => sd.subject.id),
-    subjects: subjectDomains.map((sd) => sd.subject),
+    subjects: subjectDomains.map((sd) => ({
+      ...sd.subject,
+      sources: sd.subject.sources.map((s) => ({
+        sourceId: s.sourceId,
+        documentType: s.source?.documentType ?? null,
+      })),
+    })),
     scoped: false,
   };
 }
@@ -635,7 +649,11 @@ registerLoader("curriculumAssertions", async (_callerId, loaderConfig) => {
   const scope: ContentScope = loaderConfig?.contentScope ?? null;
   if (!scope) return [];
 
-  const sourceIds = scope.subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId));
+  const sourceIds = scope.subjects.flatMap((s) =>
+    s.sources
+      .filter((ss) => ss.documentType !== "COURSE_REFERENCE")
+      .map((ss) => ss.sourceId)
+  );
   if (sourceIds.length === 0) return [];
 
   // Extract teachingDepth from first subject that has one
@@ -714,7 +732,11 @@ registerLoader("curriculumQuestions", async (_callerId, loaderConfig) => {
   const scope: ContentScope = loaderConfig?.contentScope ?? null;
   if (!scope) return [];
 
-  const sourceIds = scope.subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId));
+  const sourceIds = scope.subjects.flatMap((s) =>
+    s.sources
+      .filter((ss) => ss.documentType !== "COURSE_REFERENCE")
+      .map((ss) => ss.sourceId)
+  );
   if (sourceIds.length === 0) return [];
 
   return prisma.contentQuestion.findMany({
@@ -742,7 +764,11 @@ registerLoader("curriculumVocabulary", async (_callerId, loaderConfig) => {
   const scope: ContentScope = loaderConfig?.contentScope ?? null;
   if (!scope) return [];
 
-  const sourceIds = scope.subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId));
+  const sourceIds = scope.subjects.flatMap((s) =>
+    s.sources
+      .filter((ss) => ss.documentType !== "COURSE_REFERENCE")
+      .map((ss) => ss.sourceId)
+  );
   if (sourceIds.length === 0) return [];
 
   return prisma.contentVocabulary.findMany({
@@ -758,6 +784,62 @@ registerLoader("curriculumVocabulary", async (_callerId, loaderConfig) => {
       topic: true,
     },
   });
+});
+
+/**
+ * Course instructions — tutor rules from COURSE_REFERENCE documents.
+ * These are instructions for HOW to teach, not WHAT to teach.
+ * Filtered to ONLY COURSE_REFERENCE sources (inverse of curriculumAssertions).
+ */
+registerLoader("courseInstructions", async (_callerId, loaderConfig) => {
+  const scope: ContentScope = loaderConfig?.contentScope ?? null;
+  if (!scope) return [];
+
+  // Filter to ONLY COURSE_REFERENCE sources
+  const courseRefSourceIds = scope.subjects.flatMap((s) =>
+    s.sources
+      .filter((ss) => ss.documentType === "COURSE_REFERENCE")
+      .map((ss) => ss.sourceId)
+  );
+  if (courseRefSourceIds.length === 0) return [];
+
+  const assertions = await prisma.contentAssertion.findMany({
+    where: {
+      sourceId: { in: [...new Set(courseRefSourceIds)] },
+    },
+    orderBy: [
+      { depth: "asc" },
+      { orderIndex: "asc" },
+    ],
+    take: 200,
+    select: {
+      id: true,
+      assertion: true,
+      category: true,
+      chapter: true,
+      section: true,
+      tags: true,
+      depth: true,
+      parentId: true,
+      orderIndex: true,
+      source: {
+        select: { name: true },
+      },
+    },
+  });
+
+  return assertions.map((a) => ({
+    id: a.id,
+    assertion: a.assertion,
+    category: a.category,
+    chapter: a.chapter,
+    section: a.section,
+    tags: a.tags,
+    sourceName: a.source.name,
+    depth: a.depth,
+    parentId: a.parentId,
+    orderIndex: a.orderIndex,
+  }));
 });
 
 /**

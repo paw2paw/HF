@@ -53,7 +53,7 @@ const VALID_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".markdown", ".json"];
 const VALID_DOC_TYPES = [
   "CURRICULUM", "TEXTBOOK", "WORKSHEET", "EXAMPLE", "ASSESSMENT",
   "REFERENCE", "COMPREHENSION", "LESSON_PLAN", "POLICY_DOCUMENT",
-  "READING_PASSAGE", "QUESTION_BANK",
+  "READING_PASSAGE", "QUESTION_BANK", "COURSE_REFERENCE",
 ];
 
 // ── Helpers ────────────────────────────────────────────
@@ -68,6 +68,7 @@ function roleFromType(docType: string): PackFile["role"] {
     WORKSHEET: "questions",
     LESSON_PLAN: "pedagogy",
     POLICY_DOCUMENT: "pedagogy",
+    COURSE_REFERENCE: "pedagogy",
     REFERENCE: "reference",
     CURRICULUM: "reference",
     EXAMPLE: "reference",
@@ -216,6 +217,7 @@ Your task:
 Document types: ${VALID_DOC_TYPES.join(", ")}
 
 Type disambiguation:
+- COURSE_REFERENCE — tutor instruction document: skills framework, session flow, scaffolding rules, teaching principles. NOT student content. Governs HOW to teach the course.
 - READING_PASSAGE — standalone prose the learner reads (stories, articles, chapters). Contains NO questions.
 - QUESTION_BANK — structured tutor questions with skill refs, model responses, or tiered guidance. NOT a test — it's a teaching tool.
 - COMPREHENSION — combined text + questions in the SAME document (e.g., "Read this passage then answer...")
@@ -250,7 +252,7 @@ Respond with valid JSON matching this schema:
     {
       "fileIndex": 6,
       "fileName": "course-ref.md",
-      "documentType": "LESSON_PLAN",
+      "documentType": "COURSE_REFERENCE",
       "role": "pedagogy",
       "confidence": 0.85,
       "reasoning": "Brief explanation"

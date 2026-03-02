@@ -276,4 +276,65 @@ export const WIZARD_HINTS: Record<string, FieldHintContent> = {
     effect: "Different personas have different tones — a tutor explains patiently, a coach pushes for goals, a companion listens.",
     examples: ["TUT-001 (patient tutor)", "COACH-001 (goal-driven coach)", "COMPANION-001 (warm companion)"],
   },
+
+  // ── Get Started wizard ──────────────────────────────
+
+  "get-started.welcome": {
+    why: "The welcome message is the first thing students hear — it sets the tone for the entire experience.",
+    effect: "The AI delivers this message at the start of the first call before adapting to the learner.",
+    examples: [
+      "Welcome! I'm here to help you learn at your own pace.",
+      "Hi there — let's get started on your biology journey!",
+    ],
+  },
+
+  "get-started.sessions": {
+    why: "More sessions means more time to cover your content in depth.",
+    effect: "The AI distributes teaching points across this many sessions, adjusting depth per session.",
+    examples: ["3 for a short revision course", "8 for a full module", "12 for a term-long programme"],
+  },
+
+  "get-started.duration": {
+    why: "Session length affects how deep each lesson can go.",
+    effect: "Shorter sessions cover less per call; longer sessions allow deeper exploration and practice.",
+    examples: ["15 min (quick check-in)", "30 min (standard lesson)", "60 min (deep dive)"],
+  },
+
+  "get-started.planEmphasis": {
+    why: "Controls whether the AI prioritises covering all topics or going deep on fewer.",
+    effect: "Breadth covers all topics at surface level; depth goes deep before moving on; balanced mixes both.",
+    examples: ["Breadth for revision courses", "Depth for mastery-focused modules", "Balanced for general teaching"],
+  },
+
+  "get-started.discipline": {
+    why: "Helps the AI understand the subject area and tailor its approach.",
+    effect: "Influences how the AI structures content, selects vocabulary, and aligns with domain conventions.",
+    examples: ["Biology", "Food Safety", "English Literature", "Mathematics"],
+  },
+
+  "get-started.emphasis": {
+    why: "Tells the AI what kind of content to emphasise and how to quiz the learner.",
+    effect: "Recall = facts and quizzes. Comprehension = reading and discussion. Practice = worked examples. Syllabus = structured coverage.",
+    examples: [
+      "History → Recall (dates, events, key people)",
+      "English Literature → Comprehension (passages, analysis)",
+      "Maths → Practice (worked examples, exercises)",
+    ],
+  },
+
+  "get-started.model": {
+    why: "Different teaching models structure sessions differently — choosing one shapes how knowledge is sequenced.",
+    effect: "Direct Instruction gives clear linear progression; 5E encourages exploration; Spiral revisits topics at increasing depth.",
+    examples: [
+      "Direct Instruction — maths, languages",
+      "5E Inquiry — science, investigation-based",
+      "Spiral — broad curricula with interconnected topics",
+    ],
+  },
+
+  "get-started.tune": {
+    why: "The personality sliders let you fine-tune how the AI communicates.",
+    effect: "Adjusts warmth, directiveness, pace, and encouragement — changes take effect on the next call.",
+    examples: ["Warmer + less directive for anxious students", "More structured for exam prep"],
+  },
 };

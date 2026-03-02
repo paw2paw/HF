@@ -94,6 +94,8 @@ export interface LoadedDataContext {
   openActions?: OpenActionData[];
   /** Visual aids (extracted images) linked to the caller's domain subjects */
   visualAids?: VisualAidData[];
+  /** Course instructions (tutor rules) from COURSE_REFERENCE document type */
+  courseInstructions?: CourseInstructionData[];
 }
 
 /** Visual aid data loaded for prompt and content catalog */
@@ -138,6 +140,20 @@ export interface CurriculumAssertionData {
   topicSlug: string | null;
   /** Teach method tag from extraction (recall_quiz, definition_matching, etc.) */
   teachMethod?: string | null;
+}
+
+/** Course instruction data from COURSE_REFERENCE documents (tutor rules, not student content) */
+export interface CourseInstructionData {
+  id: string;
+  assertion: string;
+  category: string;
+  chapter: string | null;
+  section: string | null;
+  tags: string[];
+  sourceName: string;
+  depth: number | null;
+  parentId: string | null;
+  orderIndex: number;
 }
 
 export interface CurriculumQuestionData {

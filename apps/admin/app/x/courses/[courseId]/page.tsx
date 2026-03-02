@@ -9,7 +9,7 @@ import {
   Settings as SettingsIcon, ChevronRight, CheckCircle2,
   School, GraduationCap, Users2, Image, Upload,
   ListOrdered, Zap, RefreshCw, Target, BookOpen,
-  Layers,
+  Layers, PlayCircle,
 } from 'lucide-react';
 import { StudentJourneyTab } from './StudentJourneyTab';
 import { useSession } from 'next-auth/react';
@@ -32,6 +32,7 @@ import { TEACH_METHOD_CONFIG } from '@/lib/content-trust/resolve-config';
 import { SESSION_TYPES, SESSION_TYPE_ICONS, getSessionTypeColor, getSessionTypeLabel } from '@/lib/lesson-plan/session-ui';
 import { getLessonPlanModel } from '@/lib/lesson-plan/models';
 import { PlanSummary, type PlanSession } from '@/app/x/courses/_components/PlanSummary';
+import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
 import './course-detail.css';
 
 // ── Types ──────────────────────────────────────────────
@@ -252,6 +253,7 @@ export default function CourseDetailPage() {
   const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSimModal, setShowSimModal] = useState(false);
 
   // Content breakdown
   const [contentMethods, setContentMethods] = useState<MethodBreakdown[]>([]);
@@ -990,13 +992,22 @@ export default function CourseDetailPage() {
             <span className="hf-text-xs hf-text-placeholder">v{detail.version}</span>
           </div>
         </div>
-        <Link
-          href={`/x/playbooks/${detail.id}`}
-          className="hf-btn hf-btn-secondary hf-nowrap"
-        >
-          <ExternalLink size={14} />
-          Open Editor
-        </Link>
+        <div className="hf-flex hf-gap-sm">
+          <button
+            className="hf-btn hf-btn-secondary hf-nowrap"
+            onClick={() => setShowSimModal(true)}
+          >
+            <PlayCircle size={14} />
+            Try It
+          </button>
+          <Link
+            href={`/x/playbooks/${detail.id}`}
+            className="hf-btn hf-btn-secondary hf-nowrap"
+          >
+            <ExternalLink size={14} />
+            Open Editor
+          </Link>
+        </div>
       </div>
 
       {/* Editable description */}
@@ -2202,6 +2213,15 @@ export default function CourseDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showSimModal && detail && (
+        <SimLaunchModal
+          playbookId={detail.id}
+          domainId={detail.domain.id}
+          domainName={detail.domain.name}
+          onClose={() => setShowSimModal(false)}
+        />
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { verifyVapiRequest } from "@/lib/vapi/auth";
 import { embedText } from "@/lib/embeddings";
 import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
-import { getSourceIdsForDomain, getSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
+import { getTeachingSourceIdsForDomain, getTeachingSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import {
   searchAssertionsHybrid,
@@ -81,10 +81,10 @@ export async function POST(request: NextRequest) {
         // Resolve active playbook for course-scoped content retrieval
         const playbookId = await resolvePlaybookId(callerId);
         if (playbookId) {
-          sourceIds = await getSourceIdsForPlaybook(playbookId);
+          sourceIds = await getTeachingSourceIdsForPlaybook(playbookId);
         } else if (caller?.domainId) {
           // No single playbook resolved — fall back to domain-wide
-          sourceIds = await getSourceIdsForDomain(caller.domainId);
+          sourceIds = await getTeachingSourceIdsForDomain(caller.domainId);
         }
       }
     }

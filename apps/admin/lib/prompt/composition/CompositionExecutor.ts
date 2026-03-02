@@ -39,6 +39,7 @@ import "./transforms/teaching-content";
 import "./transforms/activities";
 import "./transforms/actions";
 import "./transforms/visual-aids";
+import "./transforms/course-instructions";
 
 /**
  * Execute the full composition pipeline.
@@ -447,6 +448,12 @@ function buildCallerContext(context: AssembledContext): string {
     }
   }
 
+  // Course instructions (tutor rules)
+  if (sections.courseInstructions?.hasCourseInstructions) {
+    parts.push("\n## Course Instructions");
+    parts.push(`- ${sections.courseInstructions.totalInstructions} tutor instructions from course reference documents`);
+  }
+
   return parts.join("\n");
 }
 
@@ -622,6 +629,16 @@ export function getDefaultSections(): CompositionSectionDef[] {
       dependsOn: ["content_trust"],
     },
     {
+      id: "course_instructions",
+      name: "Course Instructions",
+      priority: 12.62,
+      dataSource: "courseInstructions",
+      activateWhen: { condition: "dataExists" },
+      fallback: { action: "null" },
+      transform: "renderCourseInstructions",
+      outputKey: "courseInstructions",
+    },
+    {
       id: "visual_aids",
       name: "Visual Aids",
       priority: 12.65,
@@ -684,7 +701,7 @@ export function getDefaultSections(): CompositionSectionDef[] {
       fallback: { action: "emptyObject" },
       transform: "computeInstructions",
       outputKey: "instructions",
-      dependsOn: ["memories", "personality", "behavior_targets", "curriculum", "learner_goals", "identity", "content", "content_trust", "teaching_content", "instructions_pedagogy", "instructions_voice"],
+      dependsOn: ["memories", "personality", "behavior_targets", "curriculum", "learner_goals", "identity", "content", "content_trust", "teaching_content", "course_instructions", "instructions_pedagogy", "instructions_voice"],
     },
     {
       id: "quick_start",

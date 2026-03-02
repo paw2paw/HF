@@ -81,10 +81,17 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
   subjects: Array<{
     id: string;
     teachingDepth: number | null;
-    sources: Array<{ sourceId: string }>;
+    sources: Array<{ sourceId: string; documentType: string | null }>;
   }>;
   scoped: boolean;
 }> {
+  const sourceSelect = {
+    select: {
+      sourceId: true,
+      source: { select: { documentType: true } },
+    },
+  } as const;
+
   // 1. Try course-scoped
   const playbookSubjects = await prisma.playbookSubject.findMany({
     where: { playbookId },
@@ -93,7 +100,7 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
         select: {
           id: true,
           teachingDepth: true,
-          sources: { select: { sourceId: true } },
+          sources: sourceSelect,
         },
       },
     },
@@ -101,7 +108,13 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
 
   if (playbookSubjects.length > 0) {
     return {
-      subjects: playbookSubjects.map((ps) => ps.subject),
+      subjects: playbookSubjects.map((ps) => ({
+        ...ps.subject,
+        sources: ps.subject.sources.map((s) => ({
+          sourceId: s.sourceId,
+          documentType: s.source?.documentType ?? null,
+        })),
+      })),
       scoped: true,
     };
   }
@@ -114,14 +127,54 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
         select: {
           id: true,
           teachingDepth: true,
-          sources: { select: { sourceId: true } },
+          sources: sourceSelect,
         },
       },
     },
   });
 
   return {
-    subjects: subjectDomains.map((sd) => sd.subject),
+    subjects: subjectDomains.map((sd) => ({
+      ...sd.subject,
+      sources: sd.subject.sources.map((s) => ({
+        sourceId: s.sourceId,
+        documentType: s.source?.documentType ?? null,
+      })),
+    })),
     scoped: false,
   };
+}
+
+/**
+ * Get teaching source IDs for a domain, EXCLUDING COURSE_REFERENCE documents.
+ * Used by VAPI knowledge retrieval to prevent tutor instructions from
+ * being served as student content during calls.
+ */
+export async function getTeachingSourceIdsForDomain(domainId: string): Promise<string[]> {
+  const allSourceIds = await getSourceIdsForDomain(domainId);
+  if (allSourceIds.length === 0) return [];
+
+  const courseRefSources = await prisma.contentSource.findMany({
+    where: { id: { in: allSourceIds }, documentType: "COURSE_REFERENCE" as any },
+    select: { id: true },
+  });
+  const courseRefIds = new Set(courseRefSources.map((s) => s.id));
+  return allSourceIds.filter((id) => !courseRefIds.has(id));
+}
+
+/**
+ * Get teaching source IDs for a playbook, EXCLUDING COURSE_REFERENCE documents.
+ * Used by VAPI knowledge retrieval to prevent tutor instructions from
+ * being served as student content during calls.
+ */
+export async function getTeachingSourceIdsForPlaybook(playbookId: string): Promise<string[]> {
+  const allSourceIds = await getSourceIdsForPlaybook(playbookId);
+  if (allSourceIds.length === 0) return [];
+
+  const courseRefSources = await prisma.contentSource.findMany({
+    where: { id: { in: allSourceIds }, documentType: "COURSE_REFERENCE" as any },
+    select: { id: true },
+  });
+  const courseRefIds = new Set(courseRefSources.map((s) => s.id));
+  return allSourceIds.filter((id) => !courseRefIds.has(id));
 }

@@ -86,8 +86,8 @@ vi.mock("@/lib/enrollment/resolve-playbook", () => ({
 
 // ── Mock domain-sources ──────────────────────────────
 vi.mock("@/lib/knowledge/domain-sources", () => ({
-  getSourceIdsForDomain: vi.fn().mockResolvedValue([]),
-  getSourceIdsForPlaybook: vi.fn().mockResolvedValue([]),
+  getTeachingSourceIdsForDomain: vi.fn().mockResolvedValue([]),
+  getTeachingSourceIdsForPlaybook: vi.fn().mockResolvedValue([]),
 }));
 
 import { POST } from "@/app/api/vapi/knowledge/route";

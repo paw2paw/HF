@@ -248,6 +248,19 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
   if (qs?.curriculum_progress) parts.push(qs.curriculum_progress);
   parts.push("");
 
+  // --- COURSE RULES ---
+  const courseInstr = (llmPrompt as any).courseInstructions;
+  if (courseInstr?.hasCourseInstructions && courseInstr.courseRules) {
+    parts.push("[COURSE RULES]");
+    parts.push("These are course-specific teaching instructions. Follow them in every session.");
+    // Render rules body (strip the ## heading since we have [COURSE RULES] already)
+    const rulesBody = (courseInstr.courseRules as string)
+      .replace(/^## COURSE RULES\n.*\n?/, "")
+      .trim();
+    if (rulesBody) parts.push(rulesBody);
+    parts.push("");
+  }
+
   // --- VISUAL AIDS ---
   const visuals = (llmPrompt as any).visualAids;
   if (visuals?.hasVisualAids && visuals.available?.length) {
@@ -447,6 +460,19 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     }
     if (trust.referenceCard) {
       parts.push("\n" + trust.referenceCard);
+    }
+    parts.push("");
+  }
+
+  // Course Instructions (tutor rules from COURSE_REFERENCE documents)
+  const courseInstr2 = (llmPrompt as any).courseInstructions;
+  if (courseInstr2?.hasCourseInstructions) {
+    parts.push("## Course Instructions\n");
+    parts.push(`**${courseInstr2.totalInstructions}** teaching instructions from course reference documents\n`);
+    if (courseInstr2.categories) {
+      for (const [cat, count] of Object.entries(courseInstr2.categories)) {
+        parts.push(`- ${cat.replace(/_/g, " ")}: ${count}`);
+      }
     }
     parts.push("");
   }

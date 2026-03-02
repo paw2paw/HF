@@ -258,6 +258,13 @@ registerTransform("computeInstructions", (
       return tc.teachingPoints;
     })(),
 
+    // Course instructions — tutor rules from COURSE_REFERENCE documents
+    course_instructions: (() => {
+      const ci = sections.courseInstructions;
+      if (!ci?.hasCourseInstructions) return null;
+      return ci.courseRules;
+    })(),
+
     // Session pedagogy — delegates to separate transform (already computed)
     session_pedagogy: sections.instructions_pedagogy || null,
 

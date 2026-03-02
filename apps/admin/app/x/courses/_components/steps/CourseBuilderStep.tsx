@@ -33,6 +33,7 @@ import { useBackgroundTaskQueue } from "@/components/shared/ContentJobQueue";
 import { WizardSummary } from "@/components/shared/WizardSummary";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepRenderProps } from "@/components/wizards/types";
+import { SimLaunchModal } from "@/components/shared/SimLaunchModal";
 import { DraftSection, DraftBadge } from "../DraftSection";
 import { OutcomesEditor } from "../OutcomesEditor";
 import { PlanSummary, type PlanSession, type PlanSummaryState } from "../PlanSummary";
@@ -135,6 +136,7 @@ export function CourseBuilderStep({
   const [completed, setCompleted] = useState(false);
   const [taskSummary, setTaskSummary] = useState<TaskSummary | null>(null);
   const launchAbortRef = useRef<AbortController | null>(null);
+  const [showSimModal, setShowSimModal] = useState(false);
 
   // ── Domain reset state ───────────────────────────
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -564,9 +566,19 @@ export function CourseBuilderStep({
           }}
           primaryAction={{ label: "View Course", onClick: handleGoToCourse }}
           secondaryActions={[
+            { label: "Try It", onClick: () => setShowSimModal(true) },
             { label: "Back to Courses", onClick: () => { endFlow(); router.push("/x/courses"); } },
           ]}
         />
+        {showSimModal && taskSummary.playbook && taskSummary.domain && (
+          <SimLaunchModal
+            playbookId={taskSummary.playbook.id}
+            domainId={taskSummary.domain.id}
+            domainName={taskSummary.domain.name}
+            onClose={() => setShowSimModal(false)}
+            onBeforeNavigate={endFlow}
+          />
+        )}
       </div>
     );
   }
