@@ -214,7 +214,9 @@ export function ConversationWizard() {
   // ── Restore from data bag on mount ─────────────────────
 
   useEffect(() => {
-    if (!isActive || messages.length > 0) return;
+    // Wait for flow to be active AND institutions to finish loading
+    // (institutions needed for typeahead restore + showWhen evaluation)
+    if (!isActive || instLoading || messages.length > 0) return;
 
     // Build messages from already-answered questions in the data bag
     const restored: ConversationMessage[] = [];
@@ -223,7 +225,7 @@ export function ConversationWizard() {
     for (let i = 0; i < CONVERSATION_SCRIPT.length; i++) {
       const q = CONVERSATION_SCRIPT[i];
 
-      // Check condition
+      // Check condition — skip hidden questions
       if (q.showWhen && !q.showWhen(getData)) continue;
 
       // Check if this question has been answered
@@ -269,7 +271,7 @@ export function ConversationWizard() {
 
         lastAnsweredIndex = i;
       } else {
-        // First unanswered question — this is where we resume
+        // First unanswered visible question — this is where we resume
         break;
       }
     }
@@ -285,6 +287,10 @@ export function ConversationWizard() {
       if (inst) {
         setSelectedInst(inst);
         setTypeaheadQuery(inst.name);
+      } else {
+        // Institution was in data bag but not in loaded list — restore name from saved data
+        const savedName = getData<string>("existingInstitutionName");
+        if (savedName) setTypeaheadQuery(savedName);
       }
     } else {
       const name = getData<string>("institutionName");
@@ -293,7 +299,33 @@ export function ConversationWizard() {
 
     if (restored.length > 0) {
       setMessages(restored);
-      setActiveQIndex(lastAnsweredIndex + 1);
+      // Find the next visible question after the last answered one
+      let resumeIdx = lastAnsweredIndex + 1;
+      while (resumeIdx < CONVERSATION_SCRIPT.length) {
+        const q = CONVERSATION_SCRIPT[resumeIdx];
+        if (!q.showWhen || q.showWhen(getData)) break;
+        resumeIdx++;
+      }
+      setActiveQIndex(resumeIdx);
+
+      // Sync ScaffoldPanel to the step we're resuming at
+      const resumeStepId = resumeIdx < CONVERSATION_SCRIPT.length
+        ? CONVERSATION_SCRIPT[resumeIdx].stepId
+        : CONVERSATION_SCRIPT[lastAnsweredIndex].stepId;
+      const stepNum = STEP_INDEX[resumeStepId];
+      if (stepNum !== undefined) setStep(stepNum);
+
+      // Push the resume question's AI bubble so the user sees what to answer next
+      if (resumeIdx < CONVERSATION_SCRIPT.length) {
+        const nextQ = CONVERSATION_SCRIPT[resumeIdx];
+        const nextMsgs: ConversationMessage[] = [];
+        if (nextQ.groupLabel) {
+          nextMsgs.push({ id: `sep-${nextQ.id}`, role: "system", content: nextQ.groupLabel });
+        }
+        const text = typeof nextQ.message === "function" ? nextQ.message(getData) : nextQ.message;
+        nextMsgs.push({ id: `ai-${nextQ.id}`, role: "assistant", content: text, questionId: nextQ.id });
+        setMessages((prev) => [...prev, ...nextMsgs]);
+      }
     } else {
       // Start fresh — show first question
       pushFirstQuestion();
@@ -348,12 +380,18 @@ export function ConversationWizard() {
   // ── Advance to next question ───────────────────────────
 
   const advanceToQuestion = useCallback(
-    (fromIndex: number) => {
+    (fromIndex: number, pendingData?: Record<string, unknown>) => {
+      // Build a getData that sees pending (not-yet-flushed) writes
+      const getDataNow: DataGetter = <T = unknown,>(key: string): T | undefined => {
+        if (pendingData && key in pendingData) return pendingData[key] as T;
+        return getData<T>(key);
+      };
+
       // Find next visible question
       let nextIdx = fromIndex + 1;
       while (nextIdx < CONVERSATION_SCRIPT.length) {
         const q = CONVERSATION_SCRIPT[nextIdx];
-        if (!q.showWhen || q.showWhen(getData)) break;
+        if (!q.showWhen || q.showWhen(getDataNow)) break;
         nextIdx++;
       }
 
@@ -378,7 +416,7 @@ export function ConversationWizard() {
           newMsgs.push({ id: `sep-${nextQ.id}`, role: "system", content: nextQ.groupLabel });
         }
 
-        const text = typeof nextQ.message === "function" ? nextQ.message(getData) : nextQ.message;
+        const text = typeof nextQ.message === "function" ? nextQ.message(getDataNow) : nextQ.message;
         newMsgs.push({ id: `ai-${nextQ.id}`, role: "assistant", content: text, questionId: nextQ.id });
 
         setMessages((prev) => [...prev, ...newMsgs]);
@@ -432,20 +470,28 @@ export function ConversationWizard() {
         },
       ]);
 
-      // Handle special post-answer logic
+      // Handle special post-answer logic — collect pending data for immediate visibility
+      let pendingData: Record<string, unknown> | undefined;
+
       if (q.id === "inst.name" && selectedInst) {
         // Existing institution selected — store selection data
-        setData("existingInstitutionId", selectedInst.id);
-        setData("existingInstitutionName", selectedInst.name);
-        setData("existingDomainId", selectedInst.domainId || "");
-        setData("typeSlug", selectedInst.typeSlug);
-        setData("institutionName", undefined);
+        pendingData = {
+          existingInstitutionId: selectedInst.id,
+          existingInstitutionName: selectedInst.name,
+          existingDomainId: selectedInst.domainId || "",
+          typeSlug: selectedInst.typeSlug,
+          institutionName: undefined,
+        };
+        for (const [k, v] of Object.entries(pendingData)) setData(k, v);
       } else if (q.id === "inst.name") {
         // New institution
-        setData("institutionName", String(value).trim());
-        setData("existingInstitutionId", undefined);
-        setData("existingInstitutionName", undefined);
-        setData("existingDomainId", undefined);
+        pendingData = {
+          institutionName: String(value).trim(),
+          existingInstitutionId: undefined,
+          existingInstitutionName: undefined,
+          existingDomainId: undefined,
+        };
+        for (const [k, v] of Object.entries(pendingData)) setData(k, v);
       }
 
       if (q.id === "course.discipline" && !value) {
@@ -453,8 +499,8 @@ export function ConversationWizard() {
         setData("subjectDiscipline", getData<string>("courseName")?.trim() || "");
       }
 
-      // Advance
-      advanceToQuestion(qIdx);
+      // Advance — pass pendingData so showWhen sees not-yet-flushed writes
+      advanceToQuestion(qIdx, pendingData);
     },
     [advanceToQuestion, getData, setData, selectedInst],
   );
@@ -863,10 +909,23 @@ export function ConversationWizard() {
       steps[3] = { ...steps[3], status: "done" };
       setSseTimeline([...steps]);
 
-      setData("draftDomainId", setupData.domainId || domainId);
-      setData("draftPlaybookId", setupData.playbookId);
-      setData("draftCallerId", setupData.callerId);
+      setData("draftDomainId", domainId);
       if (institutionId) setData("draftInstitutionId", institutionId);
+
+      // Create a test caller so "Try a Sim Call" works
+      try {
+        const callerRes = await fetch("/api/callers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ domainId, autoName: true }),
+        });
+        const callerData = await callerRes.json();
+        if (callerData.ok && callerData.caller?.id) {
+          setData("draftCallerId", callerData.caller.id);
+        }
+      } catch {
+        // Non-fatal — sim link just won't show
+      }
 
       setSsePhase("done");
 
@@ -878,7 +937,6 @@ export function ConversationWizard() {
       );
 
       // Push success message
-      const callerId = setupData.callerId;
       setMessages((prev) => [
         ...prev,
         {
@@ -955,9 +1013,27 @@ export function ConversationWizard() {
         });
         const data = await setupRes.json();
         if (!data.ok) throw new Error(data.error || "Failed to create course");
-        setData("draftDomainId", data.domainId);
-        setData("draftPlaybookId", data.playbookId);
-        setData("draftCallerId", data.callerId);
+        setData("draftDomainId", getData<string>("existingDomainId") || "");
+      }
+
+      // Ensure a test caller exists for "Try a Sim Call"
+      if (!getData<string>("draftCallerId")) {
+        const domainId = getData<string>("draftDomainId") || getData<string>("existingDomainId");
+        if (domainId) {
+          try {
+            const callerRes = await fetch("/api/callers", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ domainId, autoName: true }),
+            });
+            const callerData = await callerRes.json();
+            if (callerData.ok && callerData.caller?.id) {
+              setData("draftCallerId", callerData.caller.id);
+            }
+          } catch {
+            // Non-fatal
+          }
+        }
       }
 
       setData("launched", true);
@@ -1031,8 +1107,8 @@ export function ConversationWizard() {
               <div className="gs-chat-success-sub">Your AI tutor is ready to test.</div>
               <div className="gs-chat-success-actions">
                 {callerId && (
-                  <a href={`/x/sim/${callerId}`} className="hf-btn hf-btn-primary">
-                    <Rocket size={14} /> Try a Sim Call
+                  <a href={`/x/sim/${callerId}`} target="_blank" rel="noopener noreferrer" className="hf-btn hf-btn-primary">
+                    <Rocket size={14} /> Try a Sim Call <ExternalLink size={12} />
                   </a>
                 )}
                 <button
@@ -1376,8 +1452,8 @@ export function ConversationWizard() {
           </div>
           <div className="gs-chat-success-actions">
             {callerId && (
-              <a href={`/x/sim/${callerId}`} className="hf-btn hf-btn-primary">
-                <Rocket size={14} /> Try a Sim Call
+              <a href={`/x/sim/${callerId}`} target="_blank" rel="noopener noreferrer" className="hf-btn hf-btn-primary">
+                <Rocket size={14} /> Try a Sim Call <ExternalLink size={12} />
               </a>
             )}
             <button
