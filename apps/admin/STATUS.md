@@ -1,6 +1,6 @@
 # HF Admin System - Status & Roadmap
 
-**Last Updated:** 2026-02-12
+**Last Updated:** 2026-03-01
 
 ## System Vision
 
@@ -33,10 +33,10 @@ Specs are further classified by **SpecRole** (what they contribute architectural
 - `CONTENT` - Curriculum material (WNF-CONTENT-001)
 - `VOICE` - Voice guidance (VOICE-001)
 
-**Primary Prompt Composition:** `/api/prompt/compose-from-specs`
-- Renders Mustache-style templates with user's parameter values
-- Injects memories based on conversation history
-- Evaluates conditionals (high/medium/low thresholds)
+**Primary Prompt Composition:** `lib/prompt/composition/SectionDataLoader.ts` + `PromptTemplateCompiler`
+- 20 parallel data loaders feed section transforms
+- Spec-driven composition with narrative memory framing
+- Voice prompt rendered via `renderVoicePrompt()`
 
 ---
 
@@ -135,9 +135,9 @@ Specs are further classified by **SpecRole** (what they contribute architectural
 - 89 tests across 5 test files, all passing
 
 ### 15. **RBAC & Authentication (Feb 2026)**
-- 176/184 API routes protected via `requireAuth()` from `lib/permissions.ts`
-- 8 routes intentionally public (auth, health, invite)
-- 3-role hierarchy: ADMIN > OPERATOR > VIEWER with inheritance
+- ~315 API routes protected via `requireAuth()` from `lib/permissions.ts`
+- 12 routes intentionally public (auth, health, invite, VAPI webhook-secret)
+- 8-role hierarchy: SUPERADMIN > ADMIN > OPERATOR/EDUCATOR > SUPER_TESTER > TESTER/STUDENT/VIEWER > DEMO
 - Discriminated union type guard: `isAuthError()` for type-safe route handlers
 - Coverage test (`tests/lib/route-auth-coverage.test.ts`) — scans all routes, fails CI if any missing auth
 - 17 unit tests for permissions helper

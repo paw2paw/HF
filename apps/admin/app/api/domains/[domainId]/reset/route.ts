@@ -29,7 +29,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { previewDomainReset, executeDomainReset } from "@/lib/admin/domain-reset";
+import { previewDomainReset, executeDomainReset, type ResetMode } from "@/lib/admin/domain-reset";
 
 export async function GET(
   _request: NextRequest,
@@ -57,7 +57,7 @@ export async function GET(
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ domainId: string }> }
 ) {
   try {
@@ -65,7 +65,9 @@ export async function POST(
     if (isAuthError(authResult)) return authResult.error;
 
     const { domainId } = await params;
-    const result = await executeDomainReset(domainId);
+    const body = await request.json().catch(() => ({}));
+    const mode: ResetMode = body.mode === "courses" ? "courses" : "everything";
+    const result = await executeDomainReset(domainId, mode);
 
     if (!result) {
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });

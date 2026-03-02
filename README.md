@@ -31,7 +31,7 @@ All technical artefacts live here:
 The system always flows like this:
 
 ```
-Call → Transcript → Pipeline (Measure → Aggregate → Adapt → Compose) → Next Prompt
+Call → Transcript → Pipeline (EXTRACT → AGGREGATE → REWARD → ADAPT → SUPERVISE → COMPOSE) → Next Prompt
 ```
 
 Every feature, service, and change must respect this loop.
@@ -60,8 +60,8 @@ Every feature, service, and change must respect this loop.
 
 ### Security
 
-- **RBAC**: 176/184 API routes protected via `requireAuth()`, 8 intentionally public
-- **3 roles**: ADMIN > OPERATOR > VIEWER with inheritance
+- **RBAC**: ~315 API routes protected via `requireAuth()`, 12 intentionally public (incl. 4 VAPI webhook-secret routes)
+- **8 roles**: SUPERADMIN (5) > ADMIN (4) > OPERATOR/EDUCATOR (3) > SUPER_TESTER (2) > TESTER/STUDENT/VIEWER (1) > DEMO (0)
 - **Invite system**: Controlled onboarding with domain-locked invites
 - **Coverage test**: CI fails if any new route is missing auth
 
@@ -71,7 +71,7 @@ Every feature, service, and change must respect this loop.
 
 ```
 apps/admin/           # Next.js 16 application (main app)
-├── app/api/          # 184 API routes
+├── app/api/          # ~315 API routes
 ├── app/x/            # Admin UI pages
 ├── lib/              # Core business logic
 ├── prisma/           # Schema + seeds
@@ -119,5 +119,4 @@ CI runs 4 jobs: **Lint & Type Check → Unit Tests → Integration Tests → Bui
 
 ---
 
-**Version**: 0.6
-**Last Updated**: 2026-02-12
+**Last Updated**: 2026-03-01

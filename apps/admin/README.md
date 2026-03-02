@@ -29,21 +29,25 @@ Open [http://localhost:3000](http://localhost:3000) to view the admin UI.
 | [ANALYSIS_SPECS.md](ANALYSIS_SPECS.md) | Behavior specifications |
 | [STATUS.md](STATUS.md) | Current status and roadmap |
 
-## Interactive Guide
-
-Navigate to `/guide` in the admin UI for an interactive browser-embedded documentation.
-
 ## Key Pages
 
-- `/cockpit` - System status dashboard
-- `/flow` - Visual pipeline
-- `/ops` - Operations execution
-- `/guide` - Interactive documentation
+All admin pages are served under the `/x/` prefix:
+
+- `/x/domains` - Institution/domain management
+- `/x/courses` - Course setup wizard
+- `/x/specs` - Spec browser and editor
+- `/x/pipeline` - Pipeline execution and monitoring
+- `/x/callers` - Caller profiles and personality data
+- `/x/content-sources` - Content source management (trust levels, extraction)
+- `/x/sim` - Call simulator
+- `/x/settings` - System settings
+- `/x/ai-config` - AI provider configuration and cascade inspector
 
 ## Environment Variables
 
 ```bash
 DATABASE_URL="postgresql://..."     # Database connection
-HF_KB_PATH="/path/to/kb"            # Knowledge base root
-HF_OPS_ENABLED="true"               # Enable ops API
+AUTH_SECRET="..."                   # NextAuth session encryption
+HF_SUPERADMIN_TOKEN="..."          # Admin auth token
+AUTH_TRUST_HOST=true                # Required for production
 ```

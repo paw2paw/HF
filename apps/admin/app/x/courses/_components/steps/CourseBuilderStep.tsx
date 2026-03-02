@@ -136,6 +136,7 @@ export function CourseBuilderStep({
 
   // ── Domain reset state ───────────────────────────
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetMode, setResetMode] = useState<"courses" | "everything">("courses");
   const [resetPreview, setResetPreview] = useState<{
     domainName: string;
     isSeedDomain: boolean;
@@ -199,8 +200,9 @@ export function CourseBuilderStep({
   }, [selectedDomainId]);
 
   // ── Domain reset handlers ─────────────────────────
-  const handleResetClick = useCallback(async () => {
+  const handleResetClick = useCallback(async (mode: "courses" | "everything") => {
     if (!selectedDomainId) return;
+    setResetMode(mode);
     setResetLoading(true);
     setResetResult(null);
     try {
@@ -223,7 +225,11 @@ export function CourseBuilderStep({
     if (!selectedDomainId) return;
     setResetting(true);
     try {
-      const res = await fetch(`/api/domains/${selectedDomainId}/reset`, { method: "POST" });
+      const res = await fetch(`/api/domains/${selectedDomainId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: resetMode }),
+      });
       const data = await res.json();
       if (data.ok) {
         const r = data.result;
@@ -245,7 +251,7 @@ export function CourseBuilderStep({
       setShowResetConfirm(false);
       setResetPreview(null);
     }
-  }, [selectedDomainId]);
+  }, [selectedDomainId, resetMode]);
 
   // ── Auto-suggest pattern from course name ──────────
   useEffect(() => {
@@ -590,21 +596,36 @@ export function CourseBuilderStep({
             </select>
           )}
 
-          {/* Reset button — shown when domain selected, before Build fires */}
+          {/* Reset buttons — shown when domain selected, before Build fires */}
           {selectedDomainId && !buildFired && (
-            <button
-              className="hf-btn hf-btn-destructive"
-              onClick={handleResetClick}
-              disabled={resetLoading || resetting}
-              style={{ marginTop: 8, fontSize: 12, padding: "4px 10px" }}
-            >
-              {resetLoading ? (
-                <Loader2 size={12} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
-              ) : (
-                <RotateCcw size={12} style={{ marginRight: 4 }} />
-              )}
-              Reset to Seed Data
-            </button>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button
+                className="hf-btn hf-btn-secondary"
+                onClick={() => handleResetClick("courses")}
+                disabled={resetLoading || resetting}
+                style={{ fontSize: 12, padding: "4px 10px" }}
+              >
+                {resetLoading && resetMode === "courses" ? (
+                  <Loader2 size={12} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
+                ) : (
+                  <RotateCcw size={12} style={{ marginRight: 4 }} />
+                )}
+                Reset Courses
+              </button>
+              <button
+                className="hf-btn hf-btn-destructive"
+                onClick={() => handleResetClick("everything")}
+                disabled={resetLoading || resetting}
+                style={{ fontSize: 12, padding: "4px 10px" }}
+              >
+                {resetLoading && resetMode === "everything" ? (
+                  <Loader2 size={12} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
+                ) : (
+                  <RotateCcw size={12} style={{ marginRight: 4 }} />
+                )}
+                Reset Everything
+              </button>
+            </div>
           )}
         </div>
 
@@ -1097,33 +1118,43 @@ export function CourseBuilderStep({
         >
           <div className="hf-card" style={{ maxWidth: 420, padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-              <AlertTriangle size={20} style={{ color: "var(--status-error-text)" }} />
+              <AlertTriangle size={20} style={{ color: resetMode === "everything" ? "var(--status-error-text)" : "var(--status-warning-text, #d97706)" }} />
               <h3 className="hf-section-title" style={{ margin: 0 }}>
-                Reset {resetPreview.domainName}
+                {resetMode === "courses" ? "Reset Courses" : "Reset Everything"} — {resetPreview.domainName}
               </h3>
             </div>
 
             <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 12 }}>
-              This will permanently delete:
+              {resetMode === "courses"
+                ? "This will permanently delete all courses:"
+                : "This will permanently delete all data:"}
             </p>
             <ul style={{ fontSize: 14, color: "var(--text-primary)", margin: "0 0 16px 20px", padding: 0 }}>
-              {resetPreview.counts.callers > 0 && (
-                <li>{resetPreview.counts.callers} callers (+ calls, memories, scores)</li>
-              )}
               {resetPreview.counts.playbooks > 0 && (
                 <li>{resetPreview.counts.playbooks} courses (+ items, enrollments)</li>
               )}
-              {resetPreview.counts.cohortGroups > 0 && (
+              {resetMode === "everything" && resetPreview.counts.callers > 0 && (
+                <li>{resetPreview.counts.callers} callers (+ calls, memories, scores)</li>
+              )}
+              {resetMode === "everything" && resetPreview.counts.cohortGroups > 0 && (
                 <li>{resetPreview.counts.cohortGroups} cohort groups</li>
               )}
-              {resetPreview.totalRecords === 0 && (
+              {resetMode === "courses" && resetPreview.counts.playbooks === 0 && (
+                <li style={{ color: "var(--text-muted)" }}>No courses to purge</li>
+              )}
+              {resetMode === "everything" && resetPreview.totalRecords === 0 && (
                 <li style={{ color: "var(--text-muted)" }}>No data to purge</li>
               )}
             </ul>
 
-            {resetPreview.isSeedDomain && (
+            {resetMode === "everything" && resetPreview.isSeedDomain && (
               <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
                 Demo callers and a playbook will be re-seeded after purge.
+              </p>
+            )}
+            {resetMode === "courses" && (
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+                Callers, cohorts, and other domain data will be kept.
               </p>
             )}
 
@@ -1136,7 +1167,7 @@ export function CourseBuilderStep({
                 Cancel
               </button>
               <button
-                className="hf-btn hf-btn-destructive"
+                className={`hf-btn ${resetMode === "everything" ? "hf-btn-destructive" : "hf-btn-primary"}`}
                 onClick={handleResetConfirm}
                 disabled={resetting}
               >
@@ -1145,6 +1176,8 @@ export function CourseBuilderStep({
                     <Loader2 size={14} style={{ animation: "spin 1s linear infinite", marginRight: 4 }} />
                     Resetting...
                   </>
+                ) : resetMode === "courses" ? (
+                  "Reset Courses"
                 ) : resetPreview.isSeedDomain ? (
                   "Reset & Re-seed"
                 ) : (

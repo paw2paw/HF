@@ -1,53 +1,36 @@
 # HF Project TODO List
 
-**Last Updated**: 2026-02-13
+**Last Updated**: 2026-03-01
 
 ---
 
-## CRITICAL - Cloud Deployment (Market Test)
+## ~~CRITICAL - Cloud Deployment (Market Test)~~
 
-### Cloud Deploy to Google Cloud Run
-**Status**: IN PROGRESS
-**Priority**: CRITICAL — blocks everything else
-**Target**: Feb 2026
+### ~~Cloud Deploy to Google Cloud Run~~
+**Status**: DONE (Feb 13-14, 2026)
 
-**Checklist:**
-- [ ] GCP project configured (`hf-admin-prod`)
-- [ ] Cloud SQL PostgreSQL instance running
-- [ ] VPC Connector created (Cloud Run → Cloud SQL)
-- [ ] Artifact Registry repo created
-- [ ] Docker image built & pushed (runner target)
-- [ ] Secrets stored in Secret Manager (DATABASE_URL, AUTH_SECRET, HF_SUPERADMIN_TOKEN)
-- [ ] Cloud Run service deployed
-- [ ] Database migrations run
-- [ ] Database seeded (specs, contracts, domains)
-- [ ] First admin user created
-- [ ] Email configured (Resend) for invites
-- [ ] End-to-end smoke test passing
-- [ ] Custom domain mapped (optional, can use Cloud Run URL)
-
-**Architecture:**
-```
-[Internet] → [Cloud Run (port 8080)] → [Cloud SQL (PostgreSQL 16)]
-                    ↓
-              [Resend API (email)]
-```
-
-**Cost:** ~$17/mo (Cloud SQL db-f1-micro + VPC connector)
+All 3 environments deployed:
+- [x] DEV: `dev.humanfirstfoundation.com` → `hf-admin-dev`
+- [x] TEST: `test.humanfirstfoundation.com` → `hf-admin-test`
+- [x] PROD: `lab.humanfirstfoundation.com` → `hf-admin`
+- [x] Cloudflare Tunnel routing
+- [x] CI/CD via GitHub Actions with Workload Identity Federation
+- [x] Seed/migrate jobs per environment
+- [x] Email configured (Resend)
+- [x] `/deploy` slash command handles all 3 environments
 
 ---
 
-## CRITICAL - Email Configuration
+## ~~CRITICAL - Email Configuration~~
 
-### Resend Setup for Invite Emails
-**Status**: NOT STARTED
-**Priority**: CRITICAL — blocks tester onboarding
+### ~~Resend Setup for Invite Emails~~
+**Status**: DONE (Feb 2026)
 
-- [ ] Sign up at resend.com (free: 100 emails/day)
-- [ ] Verify domain (DNS records)
-- [ ] Store RESEND_API_KEY in Secret Manager
-- [ ] Set EMAIL_FROM env var on Cloud Run
-- [ ] Test invite email delivery end-to-end
+- [x] Resend configured with API key
+- [x] Domain verified
+- [x] RESEND_API_KEY in Secret Manager
+- [x] EMAIL_FROM set on Cloud Run
+- [x] Invite email delivery working
 
 ---
 
@@ -69,97 +52,19 @@
 
 ---
 
-## CRITICAL - Make.com/VAPI Integration
+## ~~CRITICAL - VAPI Integration~~
 
-### 📞 Live Call Integration with Make.com/VAPI
-**Status**: NOT STARTED - HIGH PRIORITY
-**Priority**: CRITICAL
-**Estimated Effort**: 3-5 days
+### ~~Live Call Integration with VAPI~~
+**Status**: DONE (Feb 2026)
 
-**Goal:** Connect HF Admin to real call transcripts from Make.com/VAPI for live analysis.
-
-**Architecture Overview:**
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   VAPI       │────▶│   Make.com   │────▶│  HF Admin    │
-│  (Voice AI)  │     │  (Webhook)   │     │  /api/ingest │
-└──────────────┘     └──────────────┘     └──────────────┘
-                                                  │
-                                                  ▼
-                                          ┌──────────────┐
-                                          │  Pipeline    │
-                                          │  (Analyze)   │
-                                          └──────────────┘
-```
-
-**Phase 1: Webhook Endpoint**
-- [ ] Create `POST /api/ingest/vapi` - receive call data from Make.com
-- [ ] Parse VAPI transcript format (speaker segments, timestamps)
-- [ ] Create Call record with transcript
-- [ ] Link to Caller (by phone number or external ID)
-- [ ] Handle authentication (API key or webhook signature)
-
-**Phase 2: Auto-Pipeline Trigger**
-- [ ] Option to auto-run pipeline on new call ingestion
-- [ ] Queue system for high-volume (Bull/BullMQ or simple DB queue)
-- [ ] Rate limiting to prevent API cost spikes
-
-**Phase 3: Make.com Scenario Setup**
-- [ ] Document Make.com scenario configuration
-- [ ] VAPI "Call Ended" trigger → HTTP POST to HF
-- [ ] Data mapping (call ID, transcript, caller info, metadata)
-- [ ] Error handling and retry logic
-
-**Phase 4: Domain-Specific Processing**
-- [ ] Map incoming calls to correct Domain (by phone number, VAPI config, etc.)
-- [ ] Apply domain-specific playbook for analysis
-- [ ] Route results to appropriate dashboards
-
-**API Contract (Draft):**
-```typescript
-POST /api/ingest/vapi
-Authorization: Bearer <API_KEY>
-Content-Type: application/json
-
-{
-  "callId": "vapi_call_123",
-  "callerPhone": "+1234567890",
-  "agentId": "vapi_agent_xyz",
-  "startedAt": "2026-02-08T10:00:00Z",
-  "endedAt": "2026-02-08T10:15:00Z",
-  "duration": 900,
-  "transcript": [
-    { "speaker": "agent", "text": "Hello, how can I help?", "start": 0, "end": 2.5 },
-    { "speaker": "caller", "text": "I need help with...", "start": 2.8, "end": 5.1 }
-  ],
-  "metadata": {
-    "vapiAssistantId": "...",
-    "customFields": {}
-  }
-}
-
-Response: { "ok": true, "callId": "uuid", "pipelineTriggered": true }
-```
-
-**Files to Create:**
-- `app/api/ingest/vapi/route.ts` - Main webhook endpoint
-- `lib/ingest/vapi-parser.ts` - Parse VAPI transcript format
-- `lib/ingest/caller-matcher.ts` - Match caller by phone/ID
-- `app/x/integrations/page.tsx` - UI to manage integrations
-- `docs/VAPI-INTEGRATION.md` - Setup guide for Make.com
-
-**Environment Variables Needed:**
-```
-VAPI_WEBHOOK_SECRET=xxx        # Verify webhook signatures
-INGEST_AUTO_PIPELINE=true      # Auto-run pipeline on ingest
-INGEST_RATE_LIMIT=100          # Max calls per minute
-```
-
-**Why This Is Critical:**
-- Currently no live data flowing into the system
-- All analysis is on manually imported transcripts
-- Need real calls to validate and tune the pipeline
-- Make.com already in use for other automations
+VAPI integration is live with 4 endpoints:
+- [x] `POST /api/vapi/assistant-request` — dynamic assistant config
+- [x] `POST /api/vapi/webhook` — call lifecycle events
+- [x] `POST /api/vapi/knowledge` — per-turn knowledge retrieval
+- [x] `POST /api/vapi/tools` — tool use during calls
+- [x] All endpoints validated via webhook-secret (`lib/vapi/auth.ts`)
+- [x] Auto-pipeline trigger on call end
+- [x] Voice prompt uses `renderVoicePrompt()` with narrative memory framing
 
 ---
 
@@ -378,7 +283,8 @@ model PersonaConfig {
 - [x] Invite system for controlled signup (domain-locked)
 - [x] Team management page at `/x/users`
 - [x] `lib/permissions.ts`: `requireAuth(role)` + `isAuthError()` discriminated union
-- [x] 176/184 API routes call `requireAuth()`, 8 intentionally public
+- [x] ~315 API routes call `requireAuth()`, 12 intentionally public (incl. VAPI webhook-secret)
+- [x] 8-role hierarchy: SUPERADMIN > ADMIN > OPERATOR/EDUCATOR > SUPER_TESTER > TESTER/STUDENT/VIEWER > DEMO
 - [x] Coverage test: `tests/lib/route-auth-coverage.test.ts` (fails CI if any route missing auth)
 - [x] 17 unit tests for permissions helper
 - [x] Sim auth integrated: access code system removed, invite → user → session flow
