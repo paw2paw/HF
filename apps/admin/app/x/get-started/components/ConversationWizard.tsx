@@ -1263,7 +1263,7 @@ export function ConversationWizard() {
                 msg.content
               )}
             </div>
-            {subText && <div className="gs-chat-sub">{subText}</div>}
+            {subText && !hintData && <div className="gs-chat-sub">{subText}</div>}
           </div>
         </div>
       );

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { extractTextFromBuffer } from "@/lib/content-trust/extract-assertions";
-import { classifyDocument, fetchFewShotExamples } from "@/lib/content-trust/classify-document";
+import { classifyDocument, fetchFewShotExamples, buildMultiPointSample } from "@/lib/content-trust/classify-document";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 
 /**
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
         fileSummaries.push({
           index: i,
           fileName: file.name,
-          textSample: text.substring(0, TEXT_SAMPLE_LIMIT),
+          textSample: buildMultiPointSample(text, TEXT_SAMPLE_LIMIT),
         });
       } catch {
         fileSummaries.push({
