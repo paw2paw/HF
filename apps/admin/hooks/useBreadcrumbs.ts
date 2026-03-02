@@ -9,6 +9,7 @@ import type { TermKey } from "@/lib/terminology/types";
 import {
   ROUTE_LABELS,
   DYNAMIC_ROUTES,
+  PARENT_ROUTES,
   ENTITY_API_MAP,
   ENTITY_NAME_PATH,
   slugToTitle,
@@ -151,6 +152,11 @@ export function useBreadcrumbs(): BreadcrumbSegment[] {
     // Check for exact static match first (for leaf pages like /x/settings)
     const exactLabel = ROUTE_LABELS[pathname];
     if (exactLabel && !isUuid(parts[parts.length - 1])) {
+      // Prepend parent breadcrumb if one is defined (e.g. wizard pages)
+      const parent = PARENT_ROUTES[pathname];
+      if (parent) {
+        result.push({ label: parent.label, href: parent.href });
+      }
       result.push({
         label: resolveLabel(exactLabel, terminology),
         href: pathname,

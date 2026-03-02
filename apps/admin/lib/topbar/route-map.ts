@@ -141,8 +141,17 @@ export const ROUTE_LABELS: Record<string, string | { termKey: TermKey; plural?: 
   "/x/wizard-lab": "Wizard Lab",
 
   // Launch wizards
+  "/x/get-started": "Get Started",
   "/x/teach": "Teach",
   "/x/demonstrate": "Demonstrate",
+};
+
+/**
+ * Parent breadcrumb for wizard/leaf pages that should show a back-trail in the topbar.
+ * e.g. /x/get-started → "Dashboard > Get Started"
+ */
+export const PARENT_ROUTES: Record<string, { label: string; href: string }> = {
+  "/x/get-started": { label: "Dashboard", href: "/x" },
 };
 
 /**

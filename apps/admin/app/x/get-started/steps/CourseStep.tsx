@@ -62,16 +62,14 @@ export function CourseStep({ getData, setData, onNext, onPrev }: StepRenderProps
     <div className="hf-wizard-page">
       <div className="hf-wizard-step">
         <div className="hf-mb-lg">
-          <h1 className="hf-page-title hf-mb-xs">Your course</h1>
-          <p className="hf-page-subtitle">What will the AI tutor teach?</p>
+          <FieldHint
+            label="What will the AI tutor teach?"
+            hint={WIZARD_HINTS["course.name"] || WIZARD_HINTS["get-started.course"]}
+            labelClass="hf-page-title hf-mb-xs"
+          />
         </div>
 
         <div className="hf-mb-lg">
-          <FieldHint
-            label="Course name"
-            hint={WIZARD_HINTS["course.name"] || WIZARD_HINTS["get-started.course"]}
-            labelClass="hf-label"
-          />
           <input
             type="text"
             value={courseName}
@@ -85,9 +83,9 @@ export function CourseStep({ getData, setData, onNext, onPrev }: StepRenderProps
           <>
             <div className="hf-mb-lg">
               <FieldHint
-                label="Subject discipline (optional)"
+                label="What subject area is this?"
                 hint={WIZARD_HINTS["get-started.discipline"]}
-                labelClass="hf-label"
+                labelClass="hf-page-subtitle"
               />
               <input
                 type="text"
@@ -105,7 +103,7 @@ export function CourseStep({ getData, setData, onNext, onPrev }: StepRenderProps
               <FieldHint
                 label="How should the AI teach?"
                 hint={WIZARD_HINTS["course.interactionPattern"] || WIZARD_HINTS["get-started.approach"]}
-                labelClass="hf-label"
+                labelClass="hf-page-subtitle"
               />
               <ChipSelect
                 options={APPROACH_OPTIONS}
@@ -119,7 +117,7 @@ export function CourseStep({ getData, setData, onNext, onPrev }: StepRenderProps
               <FieldHint
                 label="What should the AI emphasise?"
                 hint={WIZARD_HINTS["get-started.emphasis"]}
-                labelClass="hf-label"
+                labelClass="hf-page-subtitle"
               />
               <ChipSelect
                 options={EMPHASIS_OPTIONS}

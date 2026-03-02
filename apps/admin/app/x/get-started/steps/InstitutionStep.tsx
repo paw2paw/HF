@@ -1,15 +1,14 @@
 "use client";
 
 /**
- * Step 1: Your Organisation
+ * Step 1: Your Organisation — Conversational Typeahead
  *
- * Two modes:
- * A) Create new — name + type chips + optional website import
- * B) Select existing — institution picker (when user has 1+ institutions)
+ * Single text input: type to filter existing institutions or create new.
+ * No mode toggle — the system infers intent from the user's input.
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Loader2, Check, Globe, Lightbulb, Building2 } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Loader2, Check, Globe, X } from "lucide-react";
 import { TypePicker } from "@/components/shared/TypePicker";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
@@ -19,8 +18,8 @@ import type { StepRenderProps } from "@/components/wizards/types";
 interface ExistingInstitution {
   id: string;
   name: string;
-  typeSlug: string;
-  domainId: string;
+  typeSlug: string | null;
+  domainId: string | null;
 }
 
 interface UrlImportResult {
@@ -42,12 +41,21 @@ function suggestTypeFromName(name: string): string | null {
 }
 
 export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRenderProps) {
-  const [mode, setMode] = useState<"new" | "existing">(getData<string>("existingInstitutionId") ? "existing" : "new");
-  const [existingInstitutions, setExistingInstitutions] = useState<ExistingInstitution[]>([]);
+  // ── Existing institutions ──
+  const [institutions, setInstitutions] = useState<ExistingInstitution[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(true);
 
-  // New institution fields
-  const [name, setName] = useState(getData<string>("institutionName") ?? "");
+  // ── Core state ──
+  const initialSelected = getData<string>("existingInstitutionId");
+  const initialName = getData<string>("institutionName") || getData<string>("existingInstitutionName") || "";
+
+  const [query, setQuery] = useState(initialName);
+  const [selectedInst, setSelectedInst] = useState<ExistingInstitution | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+
+  // ── New institution fields ──
   const [typeSlug, setTypeSlug] = useState<string | null>(getData<string>("typeSlug") ?? null);
   const [typeId, setTypeId] = useState<string | undefined>(getData<string>("typeId") ?? undefined);
   const [websiteUrl, setWebsiteUrl] = useState(getData<string>("websiteUrl") ?? "");
@@ -57,45 +65,158 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
   );
   const urlImportAttempted = useRef(!!urlImportResult);
 
-  // Existing institution selection
-  const [selectedExisting, setSelectedExisting] = useState<string | null>(
-    getData<string>("existingInstitutionId") ?? null,
-  );
+  // ── Refs ──
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load existing institutions
+  // ── Load existing institutions ──
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/institutions");
+        const res = await fetch("/api/user/institutions");
         const data = await res.json();
         if (data.ok && data.institutions?.length > 0) {
-          setExistingInstitutions(
-            data.institutions.map((i: any) => ({
-              id: i.id,
-              name: i.name,
-              typeSlug: i.type?.slug || "school",
-              domainId: i.domains?.[0]?.id || "",
-            })),
-          );
-          // If user has no institutions, default to "new" mode
-          if (data.institutions.length === 0) setMode("new");
-        } else {
-          setMode("new");
+          const mapped: ExistingInstitution[] = data.institutions.map((i: any) => ({
+            id: i.id,
+            name: i.name,
+            typeSlug: i.typeSlug || null,
+            domainId: i.domainId || null,
+          }));
+          setInstitutions(mapped);
+
+          // Restore selection if returning to this step
+          if (initialSelected) {
+            const match = mapped.find((i) => i.id === initialSelected);
+            if (match) {
+              setSelectedInst(match);
+              setQuery(match.name);
+              setIsLocked(true);
+            }
+          }
         }
       } catch {
-        setMode("new");
+        // Silent — just means no existing institutions to show
       } finally {
         setLoadingExisting(false);
       }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const suggestedType = !typeSlug ? suggestTypeFromName(name) : null;
+  // ── Derived ──
+  const isCreatingNew = !isLocked && query.trim().length > 0;
+  const suggestedType = !typeSlug ? suggestTypeFromName(query) : null;
   const effectiveType = typeSlug ?? suggestedType;
 
-  const canContinueNew = name.trim().length > 0 && !!effectiveType;
-  const canContinueExisting = !!selectedExisting;
+  const filteredInstitutions = useMemo(() => {
+    if (!query.trim() || isLocked) return [];
+    const q = query.toLowerCase();
+    return institutions.filter((i) => i.name.toLowerCase().includes(q));
+  }, [query, institutions, isLocked]);
 
+  const hasExactMatch = filteredInstitutions.some(
+    (i) => i.name.toLowerCase() === query.trim().toLowerCase(),
+  );
+  const showCreateAction = query.trim().length > 0 && !hasExactMatch && !isLocked;
+
+  // Total dropdown items (for keyboard nav bounds)
+  const dropdownItemCount = filteredInstitutions.length + (showCreateAction ? 1 : 0);
+  const isDropdownVisible = showDropdown && !isLocked && dropdownItemCount > 0;
+
+  // ── Handlers ──
+  const handleSelectInstitution = useCallback((inst: ExistingInstitution) => {
+    setSelectedInst(inst);
+    setQuery(inst.name);
+    setIsLocked(true);
+    setShowDropdown(false);
+    setHighlightIndex(-1);
+  }, []);
+
+  const handleCreateNew = useCallback(() => {
+    setShowDropdown(false);
+    setHighlightIndex(-1);
+    // Just close dropdown — "creating new" is implicit when no selection
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setSelectedInst(null);
+    setIsLocked(false);
+    setQuery("");
+    setShowDropdown(false);
+    setHighlightIndex(-1);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleInputChange = useCallback((value: string) => {
+    setQuery(value);
+    setShowDropdown(true);
+    setHighlightIndex(-1);
+    // Clear any prior selection data when user changes the name
+    if (selectedInst) {
+      setSelectedInst(null);
+      setIsLocked(false);
+    }
+  }, [selectedInst]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!isDropdownVisible) {
+        if (e.key === "ArrowDown" && dropdownItemCount > 0) {
+          setShowDropdown(true);
+          setHighlightIndex(0);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightIndex((prev) => Math.min(prev + 1, dropdownItemCount - 1));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (highlightIndex >= 0 && highlightIndex < filteredInstitutions.length) {
+            handleSelectInstitution(filteredInstitutions[highlightIndex]);
+          } else if (highlightIndex === filteredInstitutions.length && showCreateAction) {
+            handleCreateNew();
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setShowDropdown(false);
+          setHighlightIndex(-1);
+          break;
+      }
+    },
+    [isDropdownVisible, dropdownItemCount, highlightIndex, filteredInstitutions, showCreateAction, handleSelectInstitution, handleCreateNew],
+  );
+
+  // ── Click outside to close ──
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+        setHighlightIndex(-1);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // ── Scroll highlighted into view ──
+  useEffect(() => {
+    if (isDropdownVisible && dropdownRef.current && highlightIndex >= 0) {
+      const el = dropdownRef.current.querySelector(`[data-index="${highlightIndex}"]`);
+      if (el) el.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightIndex, isDropdownVisible]);
+
+  // ── URL import ──
   const handleUrlImport = useCallback(
     async (url: string) => {
       if (!url.trim() || urlImportAttempted.current) return;
@@ -111,7 +232,7 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
         if (data.ok && data.meta) {
           setUrlImportResult(data.meta);
           setData("urlImportResult", data.meta);
-          if (!name.trim() && data.meta.name) setName(data.meta.name);
+          if (!query.trim() && data.meta.name) setQuery(data.meta.name);
           if (data.meta.logoUrl) setData("logoUrl", data.meta.logoUrl);
           if (data.meta.primaryColor) setData("primaryColor", data.meta.primaryColor);
           if (data.meta.secondaryColor) setData("secondaryColor", data.meta.secondaryColor);
@@ -122,26 +243,27 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
         setUrlImporting(false);
       }
     },
-    [name, setData],
+    [query, setData],
   );
 
+  // ── Validation ──
+  const canContinue = isLocked
+    ? true // Existing selection is always valid
+    : query.trim().length > 0 && !!effectiveType;
+
+  // ── Submit ──
   const handleNext = () => {
-    if (mode === "existing" && selectedExisting) {
-      const inst = existingInstitutions.find((i) => i.id === selectedExisting);
-      if (inst) {
-        setData("existingInstitutionId", inst.id);
-        setData("existingInstitutionName", inst.name);
-        setData("existingDomainId", inst.domainId);
-        setData("typeSlug", inst.typeSlug);
-        // Clear new-institution fields
-        setData("institutionName", undefined);
-      }
+    if (selectedInst && isLocked) {
+      setData("existingInstitutionId", selectedInst.id);
+      setData("existingInstitutionName", selectedInst.name);
+      setData("existingDomainId", selectedInst.domainId || "");
+      setData("typeSlug", selectedInst.typeSlug);
+      setData("institutionName", undefined);
     } else {
-      setData("institutionName", name.trim());
+      setData("institutionName", query.trim());
       setData("typeSlug", effectiveType);
       if (typeId) setData("typeId", typeId);
       setData("websiteUrl", websiteUrl);
-      // Clear existing-institution fields
       setData("existingInstitutionId", undefined);
       setData("existingInstitutionName", undefined);
       setData("existingDomainId", undefined);
@@ -149,6 +271,7 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
     onNext();
   };
 
+  // ── Loading state ──
   if (loadingExisting) {
     return (
       <div className="hf-wizard-page">
@@ -166,73 +289,96 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
     <div className="hf-wizard-page">
       <div className="hf-wizard-step">
         <div className="hf-mb-lg">
-          <h1 className="hf-page-title hf-mb-xs">Your organisation</h1>
-          <p className="hf-page-subtitle">Where will the AI tutor be used?</p>
+          <FieldHint
+            label="What's your school or organisation called?"
+            hint={WIZARD_HINTS["institution.name"]}
+            labelClass="hf-page-title hf-mb-xs"
+          />
         </div>
 
-        {/* Mode toggle — only show if user has existing institutions */}
-        {existingInstitutions.length > 0 && (
-          <div className="hf-mb-lg">
-            <div className="hf-flex" style={{ gap: 6 }}>
+        {/* ── Typeahead input ── */}
+        <div className="hf-mb-lg">
+          <div className="gs-typeahead-wrap" ref={wrapRef}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              readOnly={isLocked}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={() => {
+                if (!isLocked && query.trim()) setShowDropdown(true);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Just start typing..."
+              className={`hf-input${isLocked ? " gs-typeahead-locked" : ""}`}
+            />
+            {isLocked && (
               <button
                 type="button"
-                className={"hf-chip" + (mode === "existing" ? " hf-chip-selected" : "")}
-                onClick={() => setMode("existing")}
+                className="gs-typeahead-clear"
+                onClick={handleClear}
+                aria-label="Clear selection"
               >
-                Select existing
+                <X size={16} />
               </button>
-              <button
-                type="button"
-                className={"hf-chip" + (mode === "new" ? " hf-chip-selected" : "")}
-                onClick={() => setMode("new")}
-              >
-                Create new
-              </button>
-            </div>
-          </div>
-        )}
+            )}
 
-        {mode === "existing" ? (
-          <div className="hf-mb-lg">
-            <div className="hf-label" style={{ marginBottom: 8 }}>Select institution</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {existingInstitutions.map((inst) => (
-                <button
-                  key={inst.id}
-                  type="button"
-                  className={"hf-list-row" + (selectedExisting === inst.id ? " hf-list-row-selected" : "")}
-                  onClick={() => setSelectedExisting(inst.id)}
-                  style={{
-                    padding: "12px 16px",
-                    textAlign: "left",
-                    border: selectedExisting === inst.id
-                      ? "2px solid var(--accent-primary)"
-                      : "1px solid var(--border-default)",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    background: selectedExisting === inst.id
-                      ? "var(--accent-primary-light, rgba(37, 99, 235, 0.05))"
-                      : "var(--surface-primary)",
-                  }}
-                >
-                  <div className="hf-flex hf-items-center hf-gap-sm">
-                    <Building2 size={16} className="hf-text-muted" />
-                    <span style={{ fontWeight: 500 }}>{inst.name}</span>
-                    <span className="hf-text-sm hf-text-muted" style={{ marginLeft: "auto" }}>
-                      {inst.typeSlug}
-                    </span>
+            {/* ── Dropdown ── */}
+            {isDropdownVisible && (
+              <div className="gs-typeahead-dropdown" ref={dropdownRef}>
+                {filteredInstitutions.map((inst, index) => (
+                  <div
+                    key={inst.id}
+                    data-index={index}
+                    data-highlighted={highlightIndex === index || undefined}
+                    className="gs-typeahead-row"
+                    onClick={() => handleSelectInstitution(inst)}
+                    onMouseEnter={() => setHighlightIndex(index)}
+                  >
+                    <span className="gs-typeahead-row-name">{inst.name}</span>
+                    {inst.typeSlug && (
+                      <span className="gs-typeahead-row-meta">{inst.typeSlug}</span>
+                    )}
                   </div>
-                </button>
-              ))}
-            </div>
+                ))}
+                {showCreateAction && (
+                  <div
+                    data-index={filteredInstitutions.length}
+                    data-highlighted={highlightIndex === filteredInstitutions.length || undefined}
+                    className="gs-typeahead-row gs-typeahead-create"
+                    onClick={handleCreateNew}
+                    onMouseEnter={() => setHighlightIndex(filteredInstitutions.length)}
+                  >
+                    + Create &ldquo;{query.trim()}&rdquo; as new organisation
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ) : (
+
+          {/* ── Locked badge (existing selected) ── */}
+          {isLocked && selectedInst && (
+            <div className="gs-locked-badge">
+              <Check size={14} />
+              <span>Using existing</span>
+              {selectedInst.typeSlug && (
+                <>
+                  <span className="gs-locked-badge-sep" />
+                  <span>{selectedInst.typeSlug}</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── New institution fields (only when creating new) ── */}
+        {isCreatingNew && !isLocked && (
           <>
             <div className="hf-mb-lg">
               <FieldHint
-                label="What type of organisation?"
+                label="What kind of place is this?"
                 hint={WIZARD_HINTS["institution.type"]}
-                labelClass="hf-label"
+                labelClass="hf-page-subtitle"
               />
               <TypePicker
                 value={typeSlug}
@@ -246,24 +392,9 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
 
             <div className="hf-mb-lg">
               <FieldHint
-                label="Organisation name"
-                hint={WIZARD_HINTS["institution.name"]}
-                labelClass="hf-label"
-              />
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Oakwood Primary School"
-                className="hf-input"
-              />
-            </div>
-
-            <div className="hf-mb-lg">
-              <FieldHint
-                label="Website (optional)"
+                label="Got a website? We can grab your logo and colours."
                 hint={WIZARD_HINTS["institution.website"]}
-                labelClass="hf-label"
+                labelClass="hf-page-subtitle"
               />
               <div className="hf-flex hf-items-center hf-gap-sm">
                 <Globe size={16} className="hf-text-muted hf-flex-shrink-0" />
@@ -300,7 +431,7 @@ export function InstitutionStep({ getData, setData, onNext, onPrev }: StepRender
         onBack={onPrev}
         onNext={handleNext}
         nextLabel="Continue"
-        nextDisabled={mode === "existing" ? !canContinueExisting : !canContinueNew}
+        nextDisabled={!canContinue}
       />
     </div>
   );

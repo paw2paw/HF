@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import slugify from "slugify";
 import { Loader2, Check, Rocket, ExternalLink } from "lucide-react";
 import { StepFooter } from "@/components/wizards/StepFooter";
 import type { StepRenderProps } from "@/components/wizards/types";
@@ -81,39 +82,47 @@ export function LaunchStep({ getData, setData, onNext, onPrev, endFlow }: StepRe
         if (isExisting) {
           domainId = getData<string>("existingDomainId");
         } else {
-          // Create institution first
-          const launchRes = await fetch("/api/institutions/launch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: getData<string>("institutionName"),
-              typeSlug: getData<string>("typeSlug"),
-              typeId: getData<string>("typeId"),
-              websiteUrl: getData<string>("websiteUrl"),
-              logoUrl: getData<string>("logoUrl"),
-              primaryColor: getData<string>("primaryColor"),
-              secondaryColor: getData<string>("secondaryColor"),
-            }),
-          });
-          const reader = launchRes.body?.getReader();
-          const decoder = new TextDecoder();
-          if (reader) {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              const text = decoder.decode(value);
-              const lines = text.split("\n").filter((l) => l.startsWith("data: "));
-              for (const line of lines) {
-                try {
-                  const event = JSON.parse(line.slice(6));
-                  if (event.type === "complete" && event.data) {
-                    domainId = event.data.domainId;
-                  }
-                } catch { /* skip */ }
+          // Check if domain was already created at ContentStep
+          const earlyDomainId = getData<string>("draftDomainId");
+          if (earlyDomainId) {
+            domainId = earlyDomainId;
+          } else {
+            // Fallback: create institution (shouldn't normally happen with eager creation)
+            const instName = getData<string>("institutionName") || "";
+            const launchRes = await fetch("/api/institutions/launch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                institutionName: instName,
+                slug: slugify(instName, { lower: true, strict: true }),
+                typeSlug: getData<string>("typeSlug"),
+                typeId: getData<string>("typeId"),
+                websiteUrl: getData<string>("websiteUrl"),
+                logoUrl: getData<string>("logoUrl"),
+                primaryColor: getData<string>("primaryColor"),
+                secondaryColor: getData<string>("secondaryColor"),
+              }),
+            });
+            const reader = launchRes.body?.getReader();
+            const decoder = new TextDecoder();
+            if (reader) {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const text = decoder.decode(value);
+                const lines = text.split("\n").filter((l) => l.startsWith("data: "));
+                for (const line of lines) {
+                  try {
+                    const event = JSON.parse(line.slice(6));
+                    if (event.phase === "complete" && event.detail) {
+                      domainId = event.detail.domainId as string;
+                    }
+                  } catch { /* skip */ }
+                }
               }
             }
+            if (!domainId) throw new Error("Failed to create institution");
           }
-          if (!domainId) throw new Error("Failed to create institution");
         }
 
         // Full course setup with all data

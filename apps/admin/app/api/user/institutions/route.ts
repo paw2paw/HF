@@ -13,7 +13,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * - ADMIN/OPERATOR: their assigned institution only
  * - EDUCATOR/TESTER: their assigned institution
  * - Others: their assigned institution
- * @response { institutions: Array<{ id, name, slug, logoUrl, primaryColor }> }
+ * @response { institutions: Array<{ id, name, slug, logoUrl, primaryColor, typeSlug, domainId }> }
  */
 export async function GET() {
   const authResult = await requireAuth("VIEWER");
@@ -28,39 +28,44 @@ export async function GET() {
 
   const isSuperAdmin = (roleLevel[session.user.role] ?? 0) >= 5;
 
-  let institutions;
+  const select = {
+    id: true,
+    name: true,
+    slug: true,
+    logoUrl: true,
+    primaryColor: true,
+    type: { select: { slug: true } },
+    domains: { select: { id: true }, take: 1 },
+  } as const;
+
+  let raw;
 
   if (isSuperAdmin) {
-    // SUPERADMIN sees all active institutions
-    institutions = await prisma.institution.findMany({
+    raw = await prisma.institution.findMany({
       where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        primaryColor: true,
-      },
+      select,
       orderBy: { name: "asc" },
     });
   } else {
-    // Other users see only their assigned institution
     if (!session.user.institutionId) {
-      // No institution assigned — return empty list
       return NextResponse.json({ ok: true, institutions: [] });
     }
 
-    institutions = await prisma.institution.findMany({
+    raw = await prisma.institution.findMany({
       where: { id: session.user.institutionId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        primaryColor: true,
-      },
+      select,
     });
   }
+
+  const institutions = raw.map((i) => ({
+    id: i.id,
+    name: i.name,
+    slug: i.slug,
+    logoUrl: i.logoUrl,
+    primaryColor: i.primaryColor,
+    typeSlug: i.type?.slug ?? null,
+    domainId: i.domains[0]?.id ?? null,
+  }));
 
   return NextResponse.json({ ok: true, institutions });
 }

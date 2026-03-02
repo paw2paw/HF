@@ -97,6 +97,112 @@ function FormCard({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ── Scaffold Panel (right sidebar preview) ────────
+
+function ScaffoldPanel({
+  subjectName, persona, goals, matrixTraits, canLaunch,
+  completedSteps, totalRequired, onLaunch,
+}: {
+  subjectName: string;
+  persona: { name: string; description: string | null } | null;
+  goals: string[];
+  matrixTraits: string[];
+  canLaunch: boolean;
+  completedSteps: number;
+  totalRequired: number;
+  onLaunch: () => void;
+}) {
+  return (
+    <div className="ql-scaffold">
+      <div className="ql-scaffold-card">
+        <div className="ql-scaffold-title">What you&apos;re building</div>
+
+        {/* Community name */}
+        <div className="ql-scaffold-row">
+          <div className={`ql-scaffold-icon ${subjectName.trim() ? "ql-scaffold-icon-accent" : "ql-scaffold-icon-muted"}`}>
+            {subjectName.trim() ? <Building2 size={14} /> : "1"}
+          </div>
+          <div>
+            <div className="ql-scaffold-label">Community</div>
+            {subjectName.trim()
+              ? <div className="ql-scaffold-value">{subjectName}</div>
+              : <div className="ql-scaffold-value-empty">Name your community</div>
+            }
+          </div>
+        </div>
+
+        {/* Persona */}
+        <div className="ql-scaffold-row">
+          <div className={`ql-scaffold-icon ${persona ? "ql-scaffold-icon-accent" : "ql-scaffold-icon-muted"}`}>
+            {persona ? <User size={14} /> : "2"}
+          </div>
+          <div>
+            <div className="ql-scaffold-label">Persona</div>
+            {persona
+              ? <div className="ql-scaffold-value">{persona.name}</div>
+              : <div className="ql-scaffold-value-empty">Choose a persona</div>
+            }
+          </div>
+        </div>
+
+        {/* Goals */}
+        <div className="ql-scaffold-row">
+          <div className={`ql-scaffold-icon ${goals.length > 0 ? "ql-scaffold-icon-accent" : "ql-scaffold-icon-muted"}`}>
+            {goals.length > 0 ? <Target size={14} /> : "3"}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="ql-scaffold-label">Goals {goals.length > 0 && `(${goals.length})`}</div>
+            {goals.length > 0
+              ? (
+                <div className="ql-scaffold-goals">
+                  {goals.map((g, i) => (
+                    <span key={i} className="ql-scaffold-goal">{g}</span>
+                  ))}
+                </div>
+              )
+              : <div className="ql-scaffold-value-empty">Optional</div>
+            }
+          </div>
+        </div>
+
+        {/* Teaching style traits */}
+        {matrixTraits.length > 0 && (
+          <>
+            <div className="ql-scaffold-divider" />
+            <div className="ql-scaffold-label" style={{ marginBottom: 6 }}>Teaching style</div>
+            <div className="ql-scaffold-goals">
+              {matrixTraits.map((t, i) => (
+                <span key={i} className="ql-scaffold-goal">{t}</span>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Build button + progress */}
+        <div className="ql-scaffold-divider" />
+        <button
+          onClick={onLaunch}
+          disabled={!canLaunch}
+          className={`ql-build-btn ${canLaunch ? "ql-build-btn-active" : "ql-build-btn-disabled"}`}
+        >
+          Build It
+        </button>
+        <div style={{ marginTop: 10 }}>
+          <div className="ql-form-progress-bar">
+            <span>{completedSteps} of {totalRequired} required</span>
+          </div>
+          <div className="ql-thin-track">
+            <div
+              className={`ql-thin-fill ${completedSteps === totalRequired ? "ql-thin-fill-success" : "ql-thin-fill-accent"}`}
+              style={{ width: `${(completedSteps / totalRequired) * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────
 
 export default function QuickLaunchPage() {
@@ -1199,7 +1305,8 @@ export default function QuickLaunchPage() {
 
       {/* ── Phase: Form ── */}
       {phase === "form" && (
-        <>
+        <div className="ql-split">
+          <div className="ql-main">
           {/* Step 1: Describe what you're building */}
           <FormCard>
             <StepMarker number={1} label={selectedDomainId ? "Add a topic to existing community" : "Describe your community"} completed={!!subjectName.trim()} />
@@ -1465,43 +1572,20 @@ export default function QuickLaunchPage() {
             )}
           </div>
 
-          {/* ── Build Button ── */}
-          <div style={{ padding: "32px 0 0" }}>
-            <button
-              onClick={handleLaunch}
-              disabled={!canLaunch}
-              className={`ql-build-btn ${canLaunch ? "ql-build-btn-active" : "ql-build-btn-disabled"}`}
-            >
-              Build It
-            </button>
+          </div>{/* end ql-main */}
 
-            {/* Progress bar showing form completion */}
-            <div className="hf-mt-md">
-              <div className="ql-form-progress-bar">
-                <span>{completedSteps} of {totalRequired} required</span>
-                {!canLaunch && (
-                  <span>
-                    {!subjectName.trim()
-                      ? "Enter a community name"
-                      : !persona
-                        ? "Select a persona"
-                        : ""}
-                  </span>
-                )}
-              </div>
-              <div className="ql-thin-track">
-                <div
-                  className={`ql-thin-fill ${completedSteps === totalRequired ? "ql-thin-fill-success" : "ql-thin-fill-accent"}`}
-                  style={{ width: `${(completedSteps / totalRequired) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            <p className="ql-form-footer">
-              Creates a community, configures the guide persona, and sets up a test member.
-            </p>
-          </div>
-        </>
+          {/* ── Scaffold (right panel) ── */}
+          <ScaffoldPanel
+            subjectName={subjectName}
+            persona={selectedPersona ? { name: selectedPersona.name, description: selectedPersona.description } : null}
+            goals={goals}
+            matrixTraits={matrixTraits}
+            canLaunch={canLaunch}
+            completedSteps={completedSteps}
+            totalRequired={totalRequired}
+            onLaunch={handleLaunch}
+          />
+        </div>
       )}
 
       {/* Spinner animation */}

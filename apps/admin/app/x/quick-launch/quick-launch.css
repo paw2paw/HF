@@ -1,7 +1,30 @@
 /* ─── Quick Launch ─────────────────────────────────────── */
 /* Extracted from globals.css — imported by quick-launch/page.tsx */
 
-.ql-page { margin: 0 auto; padding: 0 40px 64px; width: 100%; max-width: 1400px; }
+.ql-page { margin: 0 auto; padding: 0 40px 64px; width: 100%; }
+
+/* ─── Two-column split layout ────────────────────── */
+.ql-split { display: grid; grid-template-columns: 2fr 1fr; gap: 28px; align-items: start; }
+.ql-main { min-width: 0; }
+.ql-scaffold { position: sticky; top: 24px; }
+.ql-scaffold-card { padding: 24px; background: var(--surface-primary); border: 1px solid var(--border-default); border-radius: 16px; }
+.ql-scaffold-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 16px; }
+.ql-scaffold-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.ql-scaffold-row + .ql-scaffold-row { border-top: 1px solid var(--border-subtle); }
+.ql-scaffold-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; font-size: 14px; }
+.ql-scaffold-icon-accent { background: var(--accent-primary); }
+.ql-scaffold-icon-muted { background: var(--surface-tertiary); color: var(--text-muted); }
+.ql-scaffold-label { font-size: 12px; color: var(--text-muted); }
+.ql-scaffold-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.ql-scaffold-value-empty { font-size: 13px; font-weight: 400; color: var(--text-placeholder); font-style: italic; }
+.ql-scaffold-divider { height: 1px; background: var(--border-subtle); margin: 12px 0; }
+.ql-scaffold-goals { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ql-scaffold-goal { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-secondary)); color: var(--text-secondary); border: 1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent); }
+
+@media (max-width: 900px) {
+  .ql-split { grid-template-columns: 1fr; }
+  .ql-scaffold { position: static; }
+}
 .ql-hero { margin-bottom: 24px; text-align: center; padding: 16px 24px 14px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, var(--surface-primary)), color-mix(in srgb, var(--accent-primary) 3%, var(--surface-primary))); border: 1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent); }
 .ql-hero-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-hover)); margin-bottom: 8px; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent); }
 .ql-hero-icon span { font-size: 18px; color: white; }
