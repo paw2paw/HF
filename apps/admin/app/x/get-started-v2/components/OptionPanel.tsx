@@ -103,9 +103,10 @@ function OptionsContent({ panel, onSubmit }: { panel: OptionsPanel; onSubmit: Op
   }, []);
 
   const handleSelect = useCallback(
-    (value: string, label: string) => {
+    (value: string, label: string, description?: string) => {
       if (isRadio) {
-        onSubmit(panel.dataKey, value, label);
+        const displayText = description ? `${label} — ${description}` : label;
+        onSubmit(panel.dataKey, value, displayText);
       } else {
         setSelected((prev) => {
           const next = new Set(prev);
@@ -122,8 +123,8 @@ function OptionsContent({ panel, onSubmit }: { panel: OptionsPanel; onSubmit: Op
     const values = Array.from(selected);
     const labels = panel.options
       .filter((o) => selected.has(o.value))
-      .map((o) => o.label)
-      .join(", ");
+      .map((o) => `${o.label} — ${o.description}`)
+      .join("\n");
     onSubmit(panel.dataKey, values, labels);
   }, [selected, onSubmit, panel.dataKey, panel.options]);
 
@@ -145,7 +146,7 @@ function OptionsContent({ panel, onSubmit }: { panel: OptionsPanel; onSubmit: Op
         case " ": {
           e.preventDefault();
           const opt = panel.options[focusedIndex];
-          if (opt) handleSelect(opt.value, opt.label);
+          if (opt) handleSelect(opt.value, opt.label, opt.description);
           break;
         }
         case "Enter": {
@@ -154,7 +155,7 @@ function OptionsContent({ panel, onSubmit }: { panel: OptionsPanel; onSubmit: Op
             handleConfirm();
           } else if (isRadio) {
             const opt = panel.options[focusedIndex];
-            if (opt) handleSelect(opt.value, opt.label);
+            if (opt) handleSelect(opt.value, opt.label, opt.description);
           }
           break;
         }
@@ -189,7 +190,7 @@ function OptionsContent({ panel, onSubmit }: { panel: OptionsPanel; onSubmit: Op
               }
               onClick={() => {
                 setFocusedIndex(idx);
-                handleSelect(opt.value, opt.label);
+                handleSelect(opt.value, opt.label, opt.description);
               }}
               onMouseEnter={() => setFocusedIndex(idx)}
             >

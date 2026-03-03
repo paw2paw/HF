@@ -574,17 +574,26 @@ async function handleWizardModeWithTools(
       content: response.rawContentBlocks || [{ type: "text", text: response.content }],
     });
 
-    // Execute each tool and collect results
+    // Execute each tool and collect results.
+    // mergedSetupData accumulates fields from earlier tools so later tools (e.g. show_upload)
+    // see the latest state — not just the client's stale snapshot.
+    const mergedSetupData: Record<string, unknown> = { ...(setupData ?? {}) };
     const toolResultBlocks: ContentBlock[] = [];
     for (const toolUse of response.toolUses) {
       console.log(`[wizard-tools] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
-      const result = await executeWizardTool(toolUse.name, toolUse.input, userId, setupData);
+      const result = await executeWizardTool(toolUse.name, toolUse.input, userId, mergedSetupData);
       toolResultBlocks.push({
         type: "tool_result",
         tool_use_id: toolUse.id,
         content: result.content,
         ...(result.is_error ? { is_error: true } : {}),
       });
+
+      // Merge update_setup fields into running state so subsequent tools see them
+      if (toolUse.name === "update_setup") {
+        const fields = toolUse.input.fields as Record<string, unknown> | undefined;
+        if (fields) Object.assign(mergedSetupData, fields);
+      }
 
       // Auto-inject update_setup so the client always gets resolved IDs
       // (don't rely on the AI remembering to call update_setup after creation/resolution)
@@ -595,20 +604,26 @@ async function handleWizardModeWithTools(
             name: "update_setup",
             input: { fields: result.autoInjectFields },
           });
+          // Also merge into running state for later tools in this iteration
+          Object.assign(mergedSetupData, result.autoInjectFields);
         }
         // 2. Creation tools: extract IDs from JSON result
         try {
           const data = JSON.parse(result.content);
           if (data.ok && toolUse.name === "create_institution") {
+            const creationFields = { draftDomainId: data.domainId, draftInstitutionId: data.institutionId };
             allToolCalls.push({
               name: "update_setup",
-              input: { fields: { draftDomainId: data.domainId, draftInstitutionId: data.institutionId } },
+              input: { fields: creationFields },
             });
+            Object.assign(mergedSetupData, creationFields);
           } else if (data.ok && toolUse.name === "create_course") {
+            const creationFields = { draftPlaybookId: data.playbookId, draftCallerId: data.callerId };
             allToolCalls.push({
               name: "update_setup",
-              input: { fields: { draftPlaybookId: data.playbookId, draftCallerId: data.callerId } },
+              input: { fields: creationFields },
             });
+            Object.assign(mergedSetupData, creationFields);
           }
         } catch { /* non-JSON result — no injection needed */ }
       }

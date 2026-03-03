@@ -20,8 +20,7 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowUp, Loader2, Undo2, X } from "lucide-react";
+import { ArrowUp, Loader2, Undo2 } from "lucide-react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
@@ -108,7 +107,6 @@ const REVIEW_MESSAGES: Record<string, string> = {
 };
 
 export function AIConversationWizard() {
-  const router = useRouter();
   const { getData, setData, isActive, startFlow } = useStepFlow();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -473,27 +471,16 @@ export function AIConversationWizard() {
     setTimeout(() => inputRef.current?.focus(), 150);
   }, [undoState, startFlow, scrollToBottom]);
 
-  // ── Dismiss wizard (X button / Esc) ──────────────────────
-
-  const handleDismiss = useCallback(() => {
-    abortRef.current?.abort();
-    router.push("/x");
-  }, [router]);
-
-  // Esc: close panel first, then dismiss wizard
+  // Esc: close active panel
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (activePanel) {
-          setActivePanel(null);
-          return;
-        }
-        handleDismiss();
+      if (e.key === "Escape" && activePanel) {
+        setActivePanel(null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activePanel, handleDismiss]);
+  }, [activePanel]);
 
   // ── Scaffold panel item click → review message ──────────
 
@@ -569,18 +556,6 @@ export function AIConversationWizard() {
     <div className="gs-layout">
       <div className="gs-main">
         <div className="gs-chat-container">
-          {/* Dismiss button */}
-          <div className="gs-chat-header">
-            <button
-              type="button"
-              className="gs-chat-dismiss-btn"
-              onClick={handleDismiss}
-              aria-label="Close wizard"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
           {/* Messages */}
           <div className="gs-chat-messages">
             {messages.map((msg) => (
@@ -662,6 +637,7 @@ export function AIConversationWizard() {
                     interactionPattern={getData<string>("interactionPattern") || undefined}
                     teachingMode={getData<string>("teachingMode") || undefined}
                     subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
+                    institutionName={getData<string>("institutionName") || undefined}
                     onResult={handleUploadComplete}
                   />;
                 })()}

@@ -8827,6 +8827,12 @@ Returns resolved terminology for the current user.
 
 ---
 
+### `POST` /api/wizard/resolve-institution
+
+**Auth**: OPERATOR+
+
+---
+
 ## Parameters
 
 ### `GET` /api/parameters
@@ -12816,8 +12822,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 374 |
-| Files with annotations | 373 |
+| Route files found | 375 |
+| Files with annotations | 374 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

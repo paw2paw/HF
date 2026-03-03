@@ -106,6 +106,8 @@ interface PackUploadStepProps {
   initialFiles?: File[];
   /** When true, automatically starts ingest after classify completes (skips manifest review). Used by v3 builder. */
   autoIngest?: boolean;
+  /** Fallback institution name for auto-resolving domainId when it arrives empty. */
+  institutionName?: string;
   onResult: (result: PackUploadResult) => void;
   onBack?: () => void;
 }
@@ -128,6 +130,7 @@ export function PackUploadStep({
   existingSubjects = [],
   initialFiles,
   autoIngest = false,
+  institutionName,
   onResult,
   onBack,
 }: PackUploadStepProps) {
@@ -362,9 +365,33 @@ export function PackUploadStep({
     if (!manifest) return;
 
     // Read latest domainId from ref (avoids stale closure from useCallback)
-    const effectiveDomainId = domainIdRef.current;
+    let effectiveDomainId = domainIdRef.current;
+
+    // Client-side fallback: if domainId is still empty but we have an institution name,
+    // auto-resolve it via API. This handles race conditions where the server-side safety
+    // net in show_upload couldn't see the institutionName in the stale setupData.
+    if (!effectiveDomainId && institutionName) {
+      console.warn('[PackUploadStep] domainId empty at ingest — auto-resolving from institutionName:', institutionName);
+      try {
+        const res = await fetch('/api/wizard/resolve-institution', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ institutionName }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.domainId) {
+            effectiveDomainId = data.domainId;
+            domainIdRef.current = effectiveDomainId;
+          }
+        }
+      } catch (err) {
+        console.error('[PackUploadStep] Auto-resolve institution failed:', err);
+      }
+    }
+
     if (!effectiveDomainId) {
-      console.warn('[PackUploadStep] domainId empty at ingest time — prop was:', domainId);
+      console.warn('[PackUploadStep] domainId empty at ingest time — prop was:', domainId, 'institutionName:', institutionName);
       setIngestError('Organisation not ready yet. Please go back and ensure your institution is set up, then try again.');
       return;
     }
