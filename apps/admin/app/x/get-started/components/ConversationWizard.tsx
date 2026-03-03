@@ -39,6 +39,7 @@ import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
 import { TypePicker } from "@/components/shared/TypePicker";
 import { SECTOR_CONFIG, type SectorSlug } from "@/lib/institution-types/sector-config";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
+import { randomFakeName } from "@/lib/fake-names";
 import type { PackUploadResult } from "@/components/wizards/PackUploadStep";
 import { FieldHint } from "@/components/shared/FieldHint";
 import { WIZARD_HINTS } from "@/lib/wizard-hints";
@@ -1032,12 +1033,7 @@ export function ConversationWizard() {
       // Without it, enrollCallerInDomainPlaybooks would enrol in ALL domain playbooks (wrong course).
       if (playbookId) {
         try {
-          const FRIENDLY_NAMES = [
-            "Alex", "Jordan", "Sam", "Taylor", "Morgan",
-            "Riley", "Casey", "Jamie", "Quinn", "Avery",
-            "Charlie", "Reese", "Skyler", "Finley", "Rowan",
-          ];
-          const simName = FRIENDLY_NAMES[Math.floor(Math.random() * FRIENDLY_NAMES.length)];
+          const simName = randomFakeName();
           const callerRes = await fetch("/api/callers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

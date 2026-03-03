@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { extractTextFromBuffer } from "@/lib/content-trust/extract-assertions";
-import { classifyDocument, fetchFewShotExamples, buildMultiPointSample } from "@/lib/content-trust/classify-document";
+import { classifyDocument, fetchFewShotExamples, buildMultiPointSample, filenameTypeHint } from "@/lib/content-trust/classify-document";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 
 /**
@@ -346,6 +346,32 @@ Analyze these files and group them by subject. Return JSON only.`;
         });
       }
     }
+
+    // ── Filename-based overrides ──
+    // When a filename explicitly names its type (e.g. "course-reference.md")
+    // but the AI returned something generic, override and relocate if needed.
+    for (const g of manifest.groups) {
+      const toMove: number[] = [];
+      for (let fi = 0; fi < g.files.length; fi++) {
+        const f = g.files[fi];
+        const hint = filenameTypeHint(f.fileName);
+        if (hint && hint.type !== f.documentType) {
+          console.log(`[course-pack/analyze] Filename override: ${f.fileName} AI=${f.documentType} → ${hint.type}`);
+          f.documentType = hint.type;
+          f.role = hint.role;
+          f.reasoning = `${f.reasoning} [Filename signal → ${hint.type}]`;
+          f.confidence = Math.max(f.confidence, 0.85);
+          if (hint.role === "pedagogy") toMove.push(fi);
+        }
+      }
+      // Move pedagogy-typed files from content groups to pedagogyFiles
+      for (const idx of toMove.reverse()) {
+        manifest.pedagogyFiles.push({ ...g.files[idx], role: "pedagogy" });
+        g.files.splice(idx, 1);
+      }
+    }
+    // Drop empty groups after migration
+    manifest.groups = manifest.groups.filter((g) => g.files.length > 0);
 
     return NextResponse.json({ ok: true, manifest });
   } catch (error: unknown) {

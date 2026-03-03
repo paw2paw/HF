@@ -561,6 +561,8 @@ export function AIConversationWizard() {
   if (!isActive) return null;
 
   const draftCallerId = getData<string>("draftCallerId");
+  const draftPlaybookId = getData<string>("draftPlaybookId");
+  const draftDomainId = getData<string>("draftDomainId") || getData<string>("existingDomainId");
 
   return (
     <div className="gs-layout">
@@ -609,7 +611,7 @@ export function AIConversationWizard() {
                     <div className="gs-chat-success-title">Your AI tutor is ready!</div>
                     <div className="gs-chat-success-sub">Try a sim call to see it in action.</div>
                     <div className="gs-chat-success-actions">
-                      <a href={`/x/sim/${draftCallerId}`} className="hf-btn hf-btn-primary">
+                      <a href={`/x/sim/${draftCallerId}?${new URLSearchParams({ ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}), ...(draftDomainId ? { domainId: draftDomainId } : {}) }).toString()}`} className="hf-btn hf-btn-primary">
                         Try a Sim Call
                       </a>
                     </div>

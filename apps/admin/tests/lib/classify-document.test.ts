@@ -286,6 +286,63 @@ describe("classifyDocument", () => {
       expect.anything(),
     );
   });
+
+  it("overrides AI classification when filename strongly signals a different type", async () => {
+    // AI says TEXTBOOK, but the filename says course-reference
+    mockAIReturn({
+      documentType: "TEXTBOOK",
+      confidence: 0.75,
+      reasoning: "contains educational content",
+    });
+
+    const result = await classify(
+      "The tutor should always use scaffolding before giving answers",
+      "11plus-english-course-reference.md",
+      makeConfig(),
+    );
+
+    expect(result.documentType).toBe("COURSE_REFERENCE");
+    expect(result.confidence).toBeGreaterThanOrEqual(0.85);
+    expect(result.reasoning).toContain("Filename signal");
+  });
+
+  it("does NOT override when AI classification matches filename hint", async () => {
+    // AI correctly says COURSE_REFERENCE — no override needed
+    mockAIReturn({
+      documentType: "COURSE_REFERENCE",
+      confidence: 0.92,
+      reasoning: "tutor instruction document",
+    });
+
+    const result = await classify(
+      "The tutor should always use scaffolding",
+      "11plus-english-course-reference.md",
+      makeConfig(),
+    );
+
+    expect(result.documentType).toBe("COURSE_REFERENCE");
+    expect(result.confidence).toBe(0.92);
+    expect(result.reasoning).toBe("tutor instruction document");
+    // No "[Filename signal" annotation since AI got it right
+    expect(result.reasoning).not.toContain("Filename signal");
+  });
+
+  it("overrides question-bank filename when AI says TEXTBOOK", async () => {
+    mockAIReturn({
+      documentType: "TEXTBOOK",
+      confidence: 0.7,
+      reasoning: "has questions and answers",
+    });
+
+    const result = await classify(
+      "Question 1: What happened to Mary?",
+      "P1_SecretGarden_QuestionBank.docx",
+      makeConfig(),
+    );
+
+    expect(result.documentType).toBe("QUESTION_BANK");
+    expect(result.reasoning).toContain("Filename signal");
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -45,6 +45,7 @@ export default function SimConversationPage() {
 
   const [caller, setCaller] = useState<CallerInfo | null>(null);
   const [playbookName, setPlaybookName] = useState<string | undefined>(undefined);
+  const [subjectDiscipline, setSubjectDiscipline] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,12 +81,16 @@ export default function SimConversationPage() {
             pastCalls: calls,
           });
 
-          // Fetch playbook name if scoped to a specific course
+          // Fetch playbook name + subject discipline if scoped to a specific course
           if (playbookId) {
             fetch(`/api/playbooks/${playbookId}`)
               .then(r => r.json())
               .then(pbData => {
-                if (!cancelled && pbData.ok) setPlaybookName(pbData.playbook?.name);
+                if (!cancelled && pbData.ok) {
+                  setPlaybookName(pbData.playbook?.name);
+                  const disc = (pbData.playbook?.config as any)?.subjectDiscipline;
+                  if (disc) setSubjectDiscipline(disc);
+                }
               })
               .catch(() => {}); // Non-critical — falls back to domainName
           }
@@ -129,6 +134,7 @@ export default function SimConversationPage() {
       domainName={caller.domain?.name}
       playbookId={playbookId}
       playbookName={communityName ?? playbookName}
+      subjectDiscipline={subjectDiscipline}
       pastCalls={caller.pastCalls}
       mode="standalone"
       sessionGoal={sessionGoal}

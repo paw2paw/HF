@@ -329,7 +329,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
         <div className="gs-try-call">
           {canTryCall ? (
             <a
-              href={`/x/sim/${getData<string>("draftCallerId") || ""}`}
+              href={`/x/sim/${getData<string>("draftCallerId") || ""}?${new URLSearchParams({ ...(getData<string>("draftPlaybookId") ? { playbookId: getData<string>("draftPlaybookId")! } : {}), ...(getData<string>("draftDomainId") || getData<string>("existingDomainId") ? { domainId: (getData<string>("draftDomainId") || getData<string>("existingDomainId"))! } : {}) }).toString()}`}
               className="gs-sim-btn gs-sim-btn-ready"
             >
               Try a Sim Call

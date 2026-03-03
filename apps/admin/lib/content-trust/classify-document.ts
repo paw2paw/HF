@@ -46,6 +46,51 @@ const VALID_TYPES: DocumentType[] = [
 ];
 
 // ------------------------------------------------------------------
+// Filename-based classification hints
+// ------------------------------------------------------------------
+
+/**
+ * Strong filename signals that override AI classification when it returns
+ * a generic type (e.g. TEXTBOOK) for a file explicitly named "course-reference".
+ *
+ * Only fires on unambiguous filename patterns — not meant to catch every case,
+ * just prevent obvious misclassifications.
+ */
+const FILENAME_TYPE_HINTS: Array<{
+  pattern: RegExp;
+  type: DocumentType;
+  role: "passage" | "questions" | "reference" | "pedagogy";
+}> = [
+  { pattern: /course[_-]?ref(erence)?/i, type: "COURSE_REFERENCE", role: "pedagogy" },
+  { pattern: /tutor[_-]?(guide|instruction|playbook|handbook|manual)/i, type: "COURSE_REFERENCE", role: "pedagogy" },
+  { pattern: /teaching[_-]?(guide|approach|method(ology)?)/i, type: "COURSE_REFERENCE", role: "pedagogy" },
+  { pattern: /delivery[_-]?(guide|handbook)/i, type: "COURSE_REFERENCE", role: "pedagogy" },
+  { pattern: /question[_-]?bank/i, type: "QUESTION_BANK", role: "questions" },
+  { pattern: /reading[_-]?passage/i, type: "READING_PASSAGE", role: "passage" },
+  { pattern: /lesson[_-]?plan/i, type: "LESSON_PLAN", role: "pedagogy" },
+  { pattern: /mark[_-]?scheme/i, type: "ASSESSMENT", role: "questions" },
+  { pattern: /past[_-]?paper/i, type: "ASSESSMENT", role: "questions" },
+];
+
+/**
+ * Check if a filename contains a strong document-type signal.
+ *
+ * Returns the hinted type + role if found, or null if no strong signal detected.
+ * Used as a post-classification sanity check — overrides AI when it conflicts
+ * with an unambiguous filename.
+ */
+export function filenameTypeHint(
+  fileName: string,
+): { type: DocumentType; role: "passage" | "questions" | "reference" | "pedagogy" } | null {
+  for (const hint of FILENAME_TYPE_HINTS) {
+    if (hint.pattern.test(fileName)) {
+      return { type: hint.type, role: hint.role };
+    }
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------
 // Few-shot example retrieval
 // ------------------------------------------------------------------
 
@@ -289,6 +334,20 @@ export async function classifyDocument(
     const confidence = typeof parsed.confidence === "number"
       ? Math.max(0, Math.min(1, parsed.confidence))
       : 0.5;
+
+    // Post-classification filename sanity check — override when the filename
+    // explicitly names a type but the AI returned something generic (e.g. TEXTBOOK).
+    const hint = filenameTypeHint(fileName);
+    if (hint && hint.type !== documentType) {
+      console.log(
+        `[classify-document] Filename hint override: ${fileName} AI=${documentType} → ${hint.type}`,
+      );
+      return {
+        documentType: hint.type,
+        confidence: Math.max(confidence, 0.85),
+        reasoning: `${parsed.reasoning || "No reasoning provided"} [Filename signal: "${fileName}" → ${hint.type}]`,
+      };
+    }
 
     return {
       documentType,

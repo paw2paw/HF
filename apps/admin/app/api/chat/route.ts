@@ -624,6 +624,8 @@ async function handleWizardModeWithTools(
               input: { fields: creationFields },
             });
             Object.assign(mergedSetupData, creationFields);
+            // Auto-inject mark_complete so the success card reliably appears
+            allToolCalls.push({ name: "mark_complete", input: {} });
           }
         } catch { /* non-JSON result — no injection needed */ }
       }

@@ -29,6 +29,7 @@ export interface SimChatProps {
   domainName?: string;
   playbookId?: string;
   playbookName?: string;
+  subjectDiscipline?: string;
   pastCalls?: { transcript: string; createdAt: string }[];
   mode: 'standalone' | 'embedded';
   sessionGoal?: string;
@@ -95,6 +96,7 @@ export function SimChat({
   domainName,
   playbookId,
   playbookName,
+  subjectDiscipline,
   pastCalls,
   mode,
   sessionGoal,
@@ -618,7 +620,13 @@ export function SimChat({
       {/* Header */}
       <WhatsAppHeader
         title={callerName}
-        subtitle={playbookName || domainName}
+        subtitle={(() => {
+          // Breadcrumb: "Subject: Course" when both exist and differ, else best available
+          if (subjectDiscipline && playbookName && subjectDiscipline !== playbookName) {
+            return `${subjectDiscipline}: ${playbookName}`;
+          }
+          return playbookName || subjectDiscipline || domainName;
+        })()}
         onBack={onBack}
         onEndCall={() => setShowEndSheet(true)}
         onMediaLibrary={() => {

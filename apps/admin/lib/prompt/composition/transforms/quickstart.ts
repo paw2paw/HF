@@ -38,6 +38,11 @@ registerTransform("computeQuickStart", (
   // Get deduplicated memories from the memories section
   const deduplicated = sections.memories?._deduplicated || sections.memories?.all || [];
 
+  // Subject/course context for greeting and session orientation
+  const playbook = loadedData.playbooks?.[0];
+  const subjectDiscipline = (playbook?.config as any)?.subjectDiscipline as string | undefined;
+  const subjectRef = subjectDiscipline || playbook?.name || null;
+
   return {
     you_are: (() => {
       let role = getRoleStatement();
@@ -84,6 +89,7 @@ registerTransform("computeQuickStart", (
       }
       if (nextModule) return `Continue with ${nextModule.name}`;
       if (moduleToReview) return `Deepen mastery of ${moduleToReview.name}`;
+      if (subjectRef) return `${isFirstCall ? "First session" : "Continue"} — explore ${subjectRef} based on the caller's interests`;
       return "Open conversation - follow the caller's interests. Do not assume or invent specific academic topics.";
     })(),
 
@@ -141,8 +147,14 @@ registerTransform("computeQuickStart", (
     first_line: (() => {
       const identityOpening = (identitySpec?.config as SpecConfig)?.sessionStructure?.opening?.instruction;
       if (identityOpening) return identityOpening;
-      if (isFirstCall) return "Good to have you. Let's just ease into this... no rush.";
-      return "Good to reconnect. Let's pick up where we left off.";
+      if (isFirstCall) {
+        return subjectRef
+          ? `Good to have you. We're going to be working on ${subjectRef} together — let's ease into this, no rush.`
+          : "Good to have you. Let's just ease into this... no rush.";
+      }
+      return subjectRef
+        ? `Good to reconnect. Ready to pick up where we left off with ${subjectRef}?`
+        : "Good to reconnect. Let's pick up where we left off.";
     })(),
   };
 });

@@ -239,6 +239,9 @@
 .wa-header-subtitle {
   font-size: 12px;
   opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wa-back-btn {

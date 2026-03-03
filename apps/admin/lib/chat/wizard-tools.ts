@@ -22,6 +22,9 @@ export const WIZARD_TOOLS: AITool[] = [
     description:
       "Save one or more extracted data fields from the conversation. " +
       "Call this EVERY time you learn new information — even from a casual mention. " +
+      "IMPORTANT: subjectDiscipline = broad discipline (English Language, Biology, Maths). " +
+      "courseName = specific course within that subject (GCSE Biology, 11+ Comprehension). " +
+      "NEVER put a broad discipline into courseName or a specific course into subjectDiscipline. " +
       "Valid field keys: institutionName, typeSlug, websiteUrl, courseName, subjectDiscipline, " +
       "interactionPattern, teachingMode, welcomeMessage, sessionCount, durationMins, " +
       "planEmphasis, behaviorTargets, lessonPlanModel, existingInstitutionId, existingDomainId, defaultDomainKind.",
@@ -309,6 +312,11 @@ export async function executeWizardTool(
         if (resolved) {
           // Build subjects/courses context for the AI
           let subjectContext = "";
+          // Check if the user already specified a subject in this same update_setup call
+          const userProvidedSubject = fields.subjectDiscipline && typeof fields.subjectDiscipline === "string"
+            ? (fields.subjectDiscipline as string)
+            : null;
+
           if (resolved.subjects.length > 0) {
             const subjectLines = resolved.subjects.map((s) => {
               const courseList = s.courses.length > 0
@@ -316,10 +324,17 @@ export async function executeWizardTool(
                 : "no courses yet";
               return `  - ${s.name} (${courseList})`;
             });
-            subjectContext = `\nSubjects in this domain:\n${subjectLines.join("\n")}`;
+            subjectContext = `\nExisting subjects in this institution:\n${subjectLines.join("\n")}`;
 
-            // Smart auto-commit: if only 1 subject with only 1 course, include full chain
-            if (resolved.subjects.length === 1 && resolved.subjects[0].courses.length === 1) {
+            // If the user already provided a subject in this call, don't auto-commit from DB —
+            // the user's input takes priority. Just list existing subjects for context.
+            if (userProvidedSubject) {
+              subjectContext +=
+                `\nThe user specified subject "${userProvidedSubject}" in this message. ` +
+                `Use the user's subject — do NOT override it with an existing subject from the database. ` +
+                `Proceed to the Course phase.`;
+            } else if (resolved.subjects.length === 1 && resolved.subjects[0].courses.length === 1) {
+              // Smart auto-commit: if only 1 subject with only 1 course, include full chain
               const sub = resolved.subjects[0];
               const course = sub.courses[0];
               subjectContext +=
@@ -663,6 +678,7 @@ export async function executeWizardTool(
         const { loadPersonaFlowPhases, loadPersonaArchetype, loadPersonaWelcomeTemplate } = await import("@/lib/domain/quick-launch");
         const { applyBehaviorTargets } = await import("@/lib/domain/agent-tuning");
         const { enrollCaller } = await import("@/lib/enrollment");
+        const { randomFakeName } = await import("@/lib/fake-names");
         const slugify = (await import("slugify")).default;
 
         const domainId = input.domainId as string;
@@ -670,6 +686,84 @@ export async function executeWizardTool(
         const interactionPattern = input.interactionPattern as string;
         const subjectDiscipline = (input.subjectDiscipline as string) || courseName;
         const packSubjectIds = input.packSubjectIds as string[] | undefined;
+
+        // ── Guard: existing course resolved via entity resolution ──
+        // If draftPlaybookId is already set, skip scaffolding — just apply config tweaks
+        // and create a test caller enrolled in the existing course.
+        const existingPlaybookId = setupData?.draftPlaybookId as string | undefined;
+        if (existingPlaybookId) {
+          const existingPb = await prisma.playbook.findUnique({
+            where: { id: existingPlaybookId },
+            select: { id: true, domainId: true, config: true },
+          });
+
+          if (existingPb) {
+            // Apply any config updates the user changed during the wizard
+            const existingConfig = (existingPb.config as Record<string, unknown>) || {};
+            const configUpdate: Record<string, unknown> = { ...existingConfig };
+            if (interactionPattern) configUpdate.interactionPattern = interactionPattern;
+            if (input.teachingMode) configUpdate.teachingMode = input.teachingMode;
+            if (subjectDiscipline) configUpdate.subjectDiscipline = subjectDiscipline;
+            if (input.welcomeMessage) configUpdate.welcomeMessage = input.welcomeMessage;
+            if (input.sessionCount) configUpdate.sessionCount = Number(input.sessionCount);
+            if (input.durationMins) configUpdate.durationMins = Number(input.durationMins);
+            if (input.planEmphasis) configUpdate.planEmphasis = input.planEmphasis;
+            if (input.lessonPlanModel) configUpdate.lessonPlanModel = input.lessonPlanModel;
+
+            await prisma.playbook.update({
+              where: { id: existingPlaybookId },
+              data: { config: JSON.parse(JSON.stringify(configUpdate)) },
+            });
+
+            // Apply behavior targets if provided
+            const behaviorTargets = input.behaviorTargets as Record<string, number> | undefined;
+            if (behaviorTargets && Object.keys(behaviorTargets).length > 0) {
+              await applyBehaviorTargets(existingPlaybookId, behaviorTargets);
+            }
+
+            // Apply welcome message to domain
+            const resolvedDomainId = existingPb.domainId || domainId;
+            if (input.welcomeMessage && resolvedDomainId) {
+              await prisma.domain.update({
+                where: { id: resolvedDomainId },
+                data: { onboardingWelcome: input.welcomeMessage as string },
+              });
+            }
+
+            // If test caller already exists, return it (no duplicates)
+            const existingCallerId = setupData?.draftCallerId as string | undefined;
+            if (existingCallerId) {
+              return {
+                ...base,
+                content: JSON.stringify({
+                  ok: true,
+                  playbookId: existingPlaybookId,
+                  callerId: existingCallerId,
+                  existingCourse: true,
+                }),
+              };
+            }
+
+            // Create test caller enrolled in existing course
+            const callerName = randomFakeName();
+            const caller = await prisma.caller.create({
+              data: { name: callerName, domainId: resolvedDomainId },
+            });
+            await enrollCaller(caller.id, existingPlaybookId, "wizard-v2");
+
+            return {
+              ...base,
+              content: JSON.stringify({
+                ok: true,
+                playbookId: existingPlaybookId,
+                callerId: caller.id,
+                callerName,
+                existingCourse: true,
+              }),
+            };
+          }
+          // Playbook was deleted — fall through to normal creation
+        }
 
         // 1. Create or find Subject
         const subjectSlug = slugify(subjectDiscipline, { lower: true, strict: true });
@@ -778,11 +872,10 @@ export async function executeWizardTool(
         }
 
         // 9. Create test caller with proper enrollment
-        const friendlyNames = ["Alex", "Sam", "Jordan", "Taylor", "Morgan", "Riley", "Casey", "Quinn"];
-        const callerName = friendlyNames[Math.floor(Math.random() * friendlyNames.length)];
+        const callerName = randomFakeName();
 
         const caller = await prisma.caller.create({
-          data: { name: `${callerName} (Test)`, domainId },
+          data: { name: callerName, domainId },
         });
 
         await enrollCaller(caller.id, playbookId, "wizard-v2");
@@ -793,7 +886,7 @@ export async function executeWizardTool(
             ok: true,
             playbookId,
             callerId: caller.id,
-            callerName: `${callerName} (Test)`,
+            callerName,
           }),
         };
       } catch (err) {
