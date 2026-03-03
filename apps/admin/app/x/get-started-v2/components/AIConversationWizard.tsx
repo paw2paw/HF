@@ -20,7 +20,7 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { ArrowUp, Loader2, Undo2 } from "lucide-react";
+import { ArrowUp, Loader2, Paperclip, Undo2 } from "lucide-react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
@@ -718,6 +718,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
   const draftCallerId = getData<string>("draftCallerId");
   const draftPlaybookId = getData<string>("draftPlaybookId");
   const draftDomainId = getData<string>("draftDomainId") || getData<string>("existingDomainId");
+  const resolvedDomainId = draftDomainId || "";
 
   return (
     <div className="gs-layout">
@@ -794,19 +795,8 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
                 panel={activePanel}
                 onSubmit={handlePanelSubmit}
                 onAction={handleAction}
-                uploadComponent={(() => {
-                  const resolvedDomainId = getData<string>("draftDomainId") || getData<string>("existingDomainId") || "";
-                  if (!resolvedDomainId && activePanel?.type === "upload") {
-                    console.warn("[wizard-v2] Upload panel visible but domainId empty!", {
-                      draftDomainId: getData<string>("draftDomainId"),
-                      existingDomainId: getData<string>("existingDomainId"),
-                      allData: JSON.stringify(Object.fromEntries(
-                        ["draftDomainId", "existingDomainId", "draftInstitutionId", "existingInstitutionId", "institutionName"]
-                          .map(k => [k, getData(k)])
-                      )),
-                    });
-                  }
-                  return <PackUploadStep
+                uploadComponent={
+                  <PackUploadStep
                     domainId={resolvedDomainId}
                     courseName={getData<string>("courseName") || "Course"}
                     interactionPattern={getData<string>("interactionPattern") || undefined}
@@ -814,8 +804,8 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
                     subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
                     institutionName={getData<string>("institutionName") || undefined}
                     onResult={handleUploadComplete}
-                  />;
-                })()}
+                  />
+                }
               />
             )}
 
@@ -865,6 +855,15 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
             {/* Zone 2: Controls bar */}
             <div className="gs-chat-controls-bar">
               <div className="gs-chat-controls-left">
+                <button
+                  type="button"
+                  className={`gs-chat-attach-btn${activePanel?.type === "upload" ? " gs-chat-attach-btn--active" : ""}`}
+                  onClick={() => setActivePanel({ type: "upload", question: "Upload teaching materials" })}
+                  disabled={!resolvedDomainId}
+                  title={resolvedDomainId ? "Upload teaching materials" : "Set up your organisation first"}
+                >
+                  <Paperclip size={16} />
+                </button>
                 {isLoading && (
                   <span className="gs-chat-step-counter">
                     <Loader2 size={12} className="hf-spinner" style={{ display: "inline" }} />

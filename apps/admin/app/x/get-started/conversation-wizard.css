@@ -336,6 +336,37 @@
   white-space: nowrap;
 }
 
+/* Attach (paperclip) button */
+.gs-chat-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.gs-chat-attach-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
+.gs-chat-attach-btn--active {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.gs-chat-attach-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* Send button (compact for controls bar) */
 .gs-chat-send-btn {
   width: 32px;
