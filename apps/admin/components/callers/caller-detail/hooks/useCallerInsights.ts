@@ -106,9 +106,10 @@ export function useCallerInsights(data: CallerData | null): CallerInsights | nul
     }).sort((a, b) => (a as any).sequence - (b as any).sequence);
 
     const completedModules = modules.filter((m) => m.status === "mastered").length;
-    const overallMastery = modules.length > 0
+    const rawMastery = modules.length > 0
       ? modules.reduce((sum, m) => sum + m.mastery, 0) / modules.length
       : curriculum?.estimatedProgress || 0;
+    const overallMastery = Math.max(0, Math.min(1, rawMastery));
 
     // ── Learnings (LO-level — approximated from module data for now) ──
     // TODO: When TOPIC_MASTERED artifacts exist (TODO #16), use real LO data

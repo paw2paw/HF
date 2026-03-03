@@ -468,7 +468,7 @@ const EMPTY_CONTENT_SECTION: ContentSection = {
   coveredModules: [],
   currentProgress: [],
   completedModules: [],
-  estimatedProgress: -1,
+  estimatedProgress: 0,
 };
 
 /**

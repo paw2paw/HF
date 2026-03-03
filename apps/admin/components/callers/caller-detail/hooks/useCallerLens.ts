@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 // ─── Lens Types ──────────────────────────────────────────────
-export type LensType = "guide" | "grow" | "explore" | "showcase";
+export type LensType = "guide" | "explore";
 
 export type LensConfig = {
   id: LensType;
@@ -16,9 +16,7 @@ export type LensConfig = {
 
 export const LENSES: LensConfig[] = [
   { id: "guide", label: "Guide", icon: "🧭", description: "Educator view — progress, focus areas, recommendations" },
-  { id: "grow", label: "Grow", icon: "🌱", description: "Learner view — achievements, journey, next steps" },
   { id: "explore", label: "Explore", icon: "🔍", description: "Admin view — full data, technical detail" },
-  { id: "showcase", label: "Showcase", icon: "✨", description: "Demo view — curated highlights" },
 ];
 
 // ─── Role → Default Lens Mapping ─────────────────────────────
@@ -28,15 +26,6 @@ function getDefaultLens(role: string | undefined): LensType {
     case "ADMIN":
     case "SUPER_TESTER":
       return "explore";
-    case "EDUCATOR":
-    case "OPERATOR":
-      return "guide";
-    case "STUDENT":
-    case "TESTER":
-    case "VIEWER":
-      return "grow";
-    case "DEMO":
-      return "showcase";
     default:
       return "guide";
   }
@@ -48,18 +37,9 @@ function getPermittedLenses(role: string | undefined): LensType[] {
     case "SUPERADMIN":
     case "ADMIN":
     case "SUPER_TESTER":
-      return ["guide", "grow", "explore", "showcase"];
-    case "EDUCATOR":
-    case "OPERATOR":
-      return ["guide", "grow"];
-    case "STUDENT":
-    case "TESTER":
-    case "VIEWER":
-      return ["grow"];
-    case "DEMO":
-      return ["showcase"];
+      return ["guide", "explore"];
     default:
-      return ["guide", "grow"];
+      return ["guide", "explore"];
   }
 }
 

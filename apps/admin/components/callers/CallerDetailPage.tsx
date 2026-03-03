@@ -28,7 +28,6 @@ import { useCallerLens } from "./caller-detail/hooks/useCallerLens";
 import { useCallerInsights } from "./caller-detail/hooks/useCallerInsights";
 import { LensBar } from "./caller-detail/lenses/LensBar";
 import { GuideLens } from "./caller-detail/lenses/GuideLens";
-import { ExploreLens } from "./caller-detail/lenses/ExploreLens";
 
 // Shared types
 import type { CallerData, CallerProfile, CallerRole, Domain, ComposedPrompt, SectionId, ParamConfig } from "./caller-detail/types";
@@ -71,7 +70,7 @@ export default function CallerDetailPage() {
   // Lens system
   const { activeLens, setActiveLens, visibleLenses } = useCallerLens();
   const insights = useCallerInsights(data);
-  const isLensView = activeLens === "guide" || activeLens === "grow" || activeLens === "showcase";
+  const isLensView = activeLens === "guide";
 
   // Section visibility for consolidated tabs (persisted to localStorage)
   const [profileVis, toggleProfileVis] = useSectionVisibility("caller-profile", {
@@ -873,7 +872,7 @@ export default function CallerDetailPage() {
         onLensChange={setActiveLens}
       />
 
-      {/* Guide/Grow Lens — replaces tabs with card layout */}
+      {/* Guide Lens — replaces tabs with card layout */}
       {isLensView && data && insights && (
         <div className="cdp-content">
           <GuideLens

@@ -1,0 +1,199 @@
+/* ── Extraction Summary ────────────────────────── */
+/* Post-extraction results card used in wizards */
+
+.es-root {
+  animation: wiz-fade-up 0.5s ease-out;
+}
+
+/* Hero (full mode only) */
+.es-hero {
+  text-align: center;
+  padding: 24px 0 20px;
+}
+.es-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.es-hero-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Compact hero (inline in chat) */
+.es-root--compact .es-hero {
+  padding: 0 0 12px;
+  text-align: left;
+}
+.es-root--compact .es-hero-title {
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.es-root--compact .es-hero-subtitle {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Stat bar — mirrors wiz-stat-bar */
+.es-stat-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 0;
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  margin-bottom: 20px;
+  animation: wiz-fade-up 0.5s ease-out both;
+  animation-delay: 0.1s;
+}
+.es-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 10px;
+  border-right: 1px solid var(--border-default);
+}
+.es-stat:last-child {
+  border-right: none;
+}
+.es-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.es-stat-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Compact stat bar */
+.es-root--compact .es-stat-bar {
+  margin-bottom: 12px;
+}
+.es-root--compact .es-stat {
+  padding: 10px 8px;
+}
+.es-root--compact .es-stat-value {
+  font-size: 18px;
+}
+
+/* Section labels */
+.es-section {
+  margin-bottom: 16px;
+  animation: wiz-fade-up 0.5s ease-out both;
+}
+.es-section:nth-child(3) { animation-delay: 0.2s; }
+.es-section:nth-child(4) { animation-delay: 0.3s; }
+.es-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+/* File list */
+.es-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+}
+.es-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.es-file-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.es-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Category pills */
+.es-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.es-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  transition: background 0.15s ease;
+}
+.es-category-count {
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+/* Actions bar */
+.es-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--border-default);
+  margin-top: 8px;
+}
+.es-actions-spacer {
+  flex: 1;
+}
+
+/* Warning state */
+.es-warning {
+  text-align: center;
+  padding: 32px 0;
+}
+.es-warning-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--status-warning-text) 12%, transparent);
+  color: var(--status-warning-text);
+}
+.es-warning-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+.es-warning-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}

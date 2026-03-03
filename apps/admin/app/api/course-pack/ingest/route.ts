@@ -27,7 +27,7 @@ import pLimit from "p-limit";
  * @body interactionPattern string (optional) — e.g. "socratic", "directive"
  *
  * @response 200 text/event-stream — SSE progress events, final "complete" event includes
- *   { subjects, sourceCount, totalAssertions, totalQuestions, totalVocabulary }
+ *   { subjects, sourceCount, totalAssertions, totalQuestions, totalVocabulary, totalImages, categoryCounts }
  */
 
 export const maxDuration = 300; // 5 min — large packs with multiple files
@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
         send({ phase: "init", message: "" });
 
         const createdSubjects: Array<{ id: string; name: string }> = [];
+        const allSourceIds: string[] = [];
         let sourceCount = 0;
         let grandTotalAssertions = 0;
         let grandTotalQuestions = 0;
@@ -227,6 +228,7 @@ export async function POST(req: NextRequest) {
           for (const result of fileResults) {
             if (!result) continue;
             groupSources.push({ sourceId: result.sourceId, role: result.role, fileName: result.fileName });
+            allSourceIds.push(result.sourceId);
             sourceCount++;
             grandTotalAssertions += result.totals.assertions;
             grandTotalQuestions += result.totals.questions;
@@ -312,17 +314,32 @@ export async function POST(req: NextRequest) {
                 teachingMode, send, pedMediaKey, subjectDiscipline, pedSubject.name,
               );
 
-              return fileTotals;
+              return { sourceId, ...fileTotals };
             }))
           );
 
           for (const result of pedResults) {
             if (!result) continue;
+            allSourceIds.push(result.sourceId);
             sourceCount++;
             grandTotalAssertions += result.assertions;
             grandTotalQuestions += result.questions;
             grandTotalVocabulary += result.vocabulary;
             grandTotalImages += result.images;
+          }
+        }
+
+        // ── Category breakdown ──
+
+        const categoryCounts: Record<string, number> = {};
+        if (allSourceIds.length > 0) {
+          const groups = await prisma.contentAssertion.groupBy({
+            by: ["category"],
+            where: { sourceId: { in: allSourceIds } },
+            _count: { id: true },
+          });
+          for (const g of groups) {
+            if (g.category) categoryCounts[g.category] = g._count.id;
           }
         }
 
@@ -338,6 +355,7 @@ export async function POST(req: NextRequest) {
             totalQuestions: grandTotalQuestions,
             totalVocabulary: grandTotalVocabulary,
             totalImages: grandTotalImages,
+            categoryCounts,
           },
         });
       } catch (err: unknown) {

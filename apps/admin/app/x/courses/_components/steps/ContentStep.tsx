@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 import { PackUploadStep } from '@/components/wizards/PackUploadStep';
 import type { PackUploadResult } from '@/components/wizards/PackUploadStep';
+import { ExtractionSummary } from '@/components/shared/ExtractionSummary';
 import { FieldHint } from '@/components/shared/FieldHint';
 import { WIZARD_HINTS } from '@/lib/wizard-hints';
 import type { StepProps } from '../CourseSetupWizard';
@@ -12,6 +13,7 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
   const [packComplete, setPackComplete] = useState(false);
   const [packSummary, setPackSummary] = useState<string | null>(null);
   const [packTimedOut, setPackTimedOut] = useState(false);
+  const [uploadResult, setUploadResult] = useState<PackUploadResult | null>(null);
   const packTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const domainId = getData<string>('domainId') || '';
@@ -53,10 +55,14 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
       if (result.extractionTotals) {
         setData('extractionTotals', result.extractionTotals);
       }
+      if (result.categoryCounts) {
+        setData('categoryCounts', result.categoryCounts);
+      }
       setPackComplete(true);
       const subjectNames = (result.subjects || []).map((s) => s.name).join(', ');
       setPackSummary(`${result.subjects?.length || 0} subject${(result.subjects?.length || 0) !== 1 ? 's' : ''} · ${result.sourceCount || 0} files uploaded (${subjectNames})`);
-      onNext();
+      // Show extraction summary instead of auto-advancing
+      setUploadResult(result);
     }
     if (result.mode === 'existing-course') {
       setData('existingCourseId', result.courseId);
@@ -80,7 +86,13 @@ export function ContentStep({ setData, getData, onNext, onPrev }: StepProps) {
         </div>
 
         <div className="hf-mb-lg">
-          {packComplete && packSummary ? (
+          {uploadResult ? (
+            <ExtractionSummary
+              result={uploadResult}
+              onContinue={onNext}
+              onReUpload={() => { setUploadResult(null); setPackComplete(false); }}
+            />
+          ) : packComplete && packSummary ? (
             <div className="hf-banner hf-banner-success">
               <CheckCircle className="hf-icon-sm hf-flex-shrink-0" />
               <span>{packSummary}</span>

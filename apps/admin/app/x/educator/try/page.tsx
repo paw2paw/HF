@@ -55,8 +55,9 @@ function TryItContent() {
     const setupInfo = await fetchApi("/api/sim/setup-info");
 
     if (setupInfo?.caller) {
-      // Already has a caller — go directly to sim
-      router.push(`/x/sim/${setupInfo.caller.id}`);
+      // Already has a caller — open sim in new tab
+      window.open(`/x/sim/${setupInfo.caller.id}`, "_blank");
+      setStarting(false);
       return;
     }
 
@@ -67,11 +68,12 @@ function TryItContent() {
     });
 
     if (res?.ok && res.caller) {
-      router.push(`/x/sim/${res.caller.id}`);
+      window.open(`/x/sim/${res.caller.id}`, "_blank");
     } else {
-      // Fallback: go to sim setup page
-      router.push("/x/sim/setup");
+      // Fallback: open sim setup in new tab
+      window.open("/x/sim/setup", "_blank");
     }
+    setStarting(false);
   };
 
   if (loading) {

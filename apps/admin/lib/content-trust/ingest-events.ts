@@ -57,6 +57,8 @@ export interface IngestEvent {
     totalQuestions?: number;
     totalVocabulary?: number;
     totalImages?: number;
+    // Per-category breakdown (e.g. { fact: 12, definition: 8, rule: 3 })
+    categoryCounts?: Record<string, number>;
     // Error
     error?: string;
   };

@@ -25,9 +25,10 @@ import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
 import type { PackUploadResult } from "@/components/wizards/PackUploadStep";
+import { ExtractionSummary } from "@/components/shared/ExtractionSummary";
 import { ScaffoldPanel } from "../../get-started/components/ScaffoldPanel";
 import { OptionPanel, type PanelConfig, type OptionDef, type SlidersPanel } from "./OptionPanel";
-import { computeCurrentPhase } from "./wizard-schema";
+import { computeCurrentPhase, PERSONALITY_SLIDERS } from "./wizard-schema";
 import "../get-started-v2.css";
 
 // ── Types ────────────────────────────────────────────────
@@ -50,7 +51,7 @@ interface Message {
   id: string;
   role: "assistant" | "user" | "system";
   content: string;
-  systemType?: "timeline" | "success" | "error";
+  systemType?: "timeline" | "success" | "error" | "extraction-summary";
 }
 
 interface WizardToolCall {
@@ -85,6 +86,31 @@ function contextToInitialData(ctx: WizardInitialContext): Record<string, unknown
 }
 
 const ESCAPE_HATCH_LABELS = ["Different institution", "New institution"];
+
+// ── Personality Card — visual summary after slider config ──
+
+function PersonalityCard({ values }: { values: Record<string, number> }) {
+  return (
+    <div className="gs-personality-card">
+      <div className="gs-personality-title">Your AI&apos;s personality</div>
+      <div className="gs-personality-bars">
+        {PERSONALITY_SLIDERS.map((s) => {
+          const pct = values[s.key] ?? 50;
+          return (
+            <div key={s.key} className="gs-personality-row">
+              <span className="gs-personality-low">{s.low}</span>
+              <div className="gs-personality-track">
+                <div className="gs-personality-fill" style={{ width: `${pct}%` }} />
+                <div className="gs-personality-thumb" style={{ left: `${pct}%` }} />
+              </div>
+              <span className="gs-personality-high">{s.high}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ── Step defs for StepFlowContext ────────────────────────
 
@@ -148,6 +174,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
   const [currentPhaseId, setCurrentPhaseId] = useState("institution");
   const [undoState, setUndoState] = useState<UndoState | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [lastUploadResult, setLastUploadResult] = useState<PackUploadResult | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -489,8 +516,17 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
         setData("packSubjectIds", result.subjects.map((s) => s.id));
       }
       if (result.extractionTotals) setData("extractionTotals", result.extractionTotals);
+      if (result.categoryCounts) setData("categoryCounts", result.categoryCounts);
       if (result.taskId) setData("uploadTaskId", result.taskId);
+      setLastUploadResult(result);
       setActivePanel(null);
+      // Inject extraction summary card before the AI response
+      setMessages(prev => [...prev, {
+        id: `es-${Date.now()}`,
+        role: "system" as const,
+        content: "",
+        systemType: "extraction-summary" as const,
+      }]);
       handleSend("Teaching materials uploaded");
     },
     [setData, handleSend],
@@ -690,12 +726,20 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
                     <span className="gs-chat-group-sep-label">{msg.content}</span>
                     <div className="gs-chat-group-sep-line" />
                   </div>
+                ) : msg.systemType === "extraction-summary" && lastUploadResult ? (
+                  <div className="gs-chat-bubble gs-chat-bubble--system">
+                    <ExtractionSummary result={lastUploadResult} compact />
+                  </div>
                 ) : msg.systemType === "error" ? (
                   <div className="gs-chat-bubble gs-chat-bubble--system" style={{ borderColor: "var(--status-error-text)" }}>
                     {msg.content}
                   </div>
                 ) : msg.role === "system" ? (
                   <div className="gs-chat-bubble gs-chat-bubble--system">{msg.content}</div>
+                ) : msg.role === "user" && msg.content === "Personality configured" && getData<Record<string, number>>("behaviorTargets") ? (
+                  <div className="gs-chat-bubble gs-chat-bubble--user">
+                    <PersonalityCard values={getData<Record<string, number>>("behaviorTargets")!} />
+                  </div>
                 ) : (
                   <div className={`gs-chat-bubble gs-chat-bubble--${msg.role}`}>
                     {msg.content}

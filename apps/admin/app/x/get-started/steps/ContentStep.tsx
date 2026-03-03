@@ -13,6 +13,7 @@ import { Loader2, Check } from "lucide-react";
 import slugify from "slugify";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
 import type { PackUploadResult } from "@/components/wizards/PackUploadStep";
+import { ExtractionSummary } from "@/components/shared/ExtractionSummary";
 import { StepFooter } from "@/components/wizards/StepFooter";
 import type { StepRenderProps } from "@/components/wizards/types";
 
@@ -27,6 +28,9 @@ export function ContentStep({ getData, setData, onNext, onPrev }: StepRenderProp
   const interactionPattern = getData<string>("interactionPattern");
   const teachingMode = getData<string>("teachingMode");
   const subjectDiscipline = getData<string>("subjectDiscipline");
+
+  // ── Extraction summary state ──
+  const [uploadResult, setUploadResult] = useState<PackUploadResult | null>(null);
 
   // ── Eager creation state ──
   const [creationPhase, setCreationPhase] = useState<"creating" | "done" | "error" | null>(null);
@@ -164,14 +168,18 @@ export function ContentStep({ getData, setData, onNext, onPrev }: StepRenderProp
   const handleResult = (result: PackUploadResult) => {
     if (result.mode === "skip") {
       setData("contentSkipped", true);
-    } else {
-      setData("contentSkipped", false);
-      if (result.subjects) setData("packSubjectIds", result.subjects.map((s) => s.id));
-      if (result.sourceCount) setData("sourceCount", result.sourceCount);
-      if (result.extractionTotals) setData("extractionTotals", result.extractionTotals);
-      if (result.classifications) setData("classifications", result.classifications);
+      onNext();
+      return;
     }
-    onNext();
+    // Store data in wizard bag
+    setData("contentSkipped", false);
+    if (result.subjects) setData("packSubjectIds", result.subjects.map((s) => s.id));
+    if (result.sourceCount) setData("sourceCount", result.sourceCount);
+    if (result.extractionTotals) setData("extractionTotals", result.extractionTotals);
+    if (result.classifications) setData("classifications", result.classifications);
+    if (result.categoryCounts) setData("categoryCounts", result.categoryCounts);
+    // Show extraction summary instead of auto-advancing
+    setUploadResult(result);
   };
 
   const handleRetry = () => {
@@ -221,6 +229,21 @@ export function ContentStep({ getData, setData, onNext, onPrev }: StepRenderProp
           nextLabel={creationPhase === "error" ? "Retry" : "Setting up..."}
           nextDisabled={creationPhase === "creating"}
         />
+      </div>
+    );
+  }
+
+  // ── Extraction complete: show summary ──
+  if (effectiveDomainId && uploadResult) {
+    return (
+      <div className="hf-wizard-page">
+        <div className="hf-wizard-step">
+          <ExtractionSummary
+            result={uploadResult}
+            onContinue={onNext}
+            onReUpload={() => setUploadResult(null)}
+          />
+        </div>
       </div>
     );
   }

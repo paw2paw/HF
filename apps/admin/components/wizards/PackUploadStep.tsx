@@ -87,6 +87,8 @@ export interface PackUploadResult {
     vocabulary: number;
     images: number;
   };
+  /** Per-category breakdown (e.g. { fact: 12, definition: 8, rule: 3 }) */
+  categoryCounts?: Record<string, number>;
 }
 
 interface PackUploadStepProps {
@@ -292,6 +294,7 @@ export function PackUploadStep({
           vocabulary: data?.totalVocabulary || 0,
           images: data?.totalImages || 0,
         },
+        categoryCounts: data?.categoryCounts,
       });
       return;
     }

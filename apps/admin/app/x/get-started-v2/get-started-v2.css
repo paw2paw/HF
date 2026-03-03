@@ -347,6 +347,83 @@
   50% { opacity: 1; }
 }
 
+/* ── Personality Card (inline chat summary) ──────────── */
+
+.gs-personality-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+}
+
+.gs-personality-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.gs-personality-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gs-personality-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px;
+  align-items: center;
+  gap: 8px;
+}
+
+.gs-personality-low {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gs-personality-high {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gs-personality-track {
+  position: relative;
+  height: 6px;
+  background: var(--border-default);
+  border-radius: 3px;
+  overflow: visible;
+}
+
+.gs-personality-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.gs-personality-thumb {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  border: 2px solid var(--surface-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+  transform: translate(-50%, -50%);
+  transition: left 0.3s ease;
+}
+
 /* ── Responsive ──────────────────────────────────────── */
 
 @media (max-width: 1023px) {
@@ -361,5 +438,15 @@
 
   .gs-option-item {
     padding: 8px 10px;
+  }
+
+  .gs-personality-row {
+    grid-template-columns: 70px 1fr 70px;
+    gap: 6px;
+  }
+
+  .gs-personality-low,
+  .gs-personality-high {
+    font-size: 10px;
   }
 }
