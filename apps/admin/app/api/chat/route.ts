@@ -12,8 +12,9 @@ import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
 import { WIZARD_TOOLS, executeWizardTool } from "@/lib/chat/wizard-tools";
-import { buildWizardSystemPrompt } from "@/lib/chat/wizard-system-prompt";
+import { buildWizardSystemPrompt, buildGraphSystemPrompt } from "@/lib/chat/wizard-system-prompt";
 import { computeCurrentPhase } from "@/app/x/get-started-v2/components/wizard-schema";
+import { evaluateGraph, buildGraphFallback } from "@/lib/wizard/graph-evaluator";
 import { embedText } from "@/lib/embeddings";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { getKnowledgeRetrievalSettings, getSubjectsCatalog } from "@/lib/system-settings";
@@ -99,13 +100,24 @@ export async function POST(request: NextRequest) {
     // WIZARD mode: handle early (has its own system prompt, no slash commands)
     if (mode === "WIZARD") {
       const userId = authResult.session.user.id;
-      const isCommunity = setupData?.defaultDomainKind === "COMMUNITY";
-      const { phase: currentPhase, phaseIndex, phaseFields } = computeCurrentPhase(
-        setupData || {},
-        !!isCommunity,
-      );
+      const isV3 = setupData?._wizardVersion === "v3";
       const subjectsCatalog = await getSubjectsCatalog();
-      const wizardPrompt = buildWizardSystemPrompt(setupData || {}, currentPhase, phaseIndex, phaseFields, subjectsCatalog);
+      let wizardPrompt: string;
+
+      if (isV3) {
+        // V3: Graph-based non-linear prompt
+        const graphEval = evaluateGraph(setupData || {});
+        wizardPrompt = buildGraphSystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
+      } else {
+        // V2: Linear phase-based prompt
+        const isCommunity = setupData?.defaultDomainKind === "COMMUNITY";
+        const { phase: currentPhase, phaseIndex, phaseFields } = computeCurrentPhase(
+          setupData || {},
+          !!isCommunity,
+        );
+        wizardPrompt = buildWizardSystemPrompt(setupData || {}, currentPhase, phaseIndex, phaseFields, subjectsCatalog);
+      }
+
       // Deduplicate: client includes the current message in conversationHistory
       const lastHist = conversationHistory[conversationHistory.length - 1];
       const msgInHistory = lastHist?.role === "user" && lastHist?.content === message.trim();
@@ -714,13 +726,24 @@ async function handleWizardModeWithTools(
     ["show_options", "show_sliders", "show_upload", "show_actions", "show_suggestions"].includes(tc.name)
   );
   if (!finalContent && !hasInteractivePanel) {
-    const isCommunity = mergedSetupData.defaultDomainKind === "COMMUNITY";
-    const { phase: updatedPhase, phaseIndex: updatedIdx, phaseFields: updatedFields } =
-      computeCurrentPhase(mergedSetupData, !!isCommunity);
+    const isV3 = mergedSetupData._wizardVersion === "v3";
     const freshSubjectsCatalog = await getSubjectsCatalog();
-    const continuationPrompt = buildWizardSystemPrompt(
-      mergedSetupData, updatedPhase, updatedIdx, updatedFields, freshSubjectsCatalog,
-    );
+    let continuationPrompt: string;
+    let logPhase: string;
+
+    if (isV3) {
+      const graphEval = evaluateGraph(mergedSetupData);
+      continuationPrompt = buildGraphSystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
+      logPhase = `graph:${graphEval.readinessPct}%`;
+    } else {
+      const isCommunity = mergedSetupData.defaultDomainKind === "COMMUNITY";
+      const { phase: updatedPhase, phaseIndex: updatedIdx, phaseFields: updatedFields } =
+        computeCurrentPhase(mergedSetupData, !!isCommunity);
+      continuationPrompt = buildWizardSystemPrompt(
+        mergedSetupData, updatedPhase, updatedIdx, updatedFields, freshSubjectsCatalog,
+      );
+      logPhase = `${updatedPhase.id}:${updatedFields.join(",")}`;
+    }
 
     // Replace system message with updated phase context
     loopMessages[0] = { role: "system", content: continuationPrompt };
@@ -730,7 +753,7 @@ async function handleWizardModeWithTools(
       content: "[System: phase advanced — continue the conversation naturally. Ask about the next field.]",
     });
 
-    console.log(`[wizard] Continuation re-prompt: phase=${updatedPhase.id}, fields=${updatedFields.join(",")}`);
+    console.log(`[wizard] Continuation re-prompt: ${logPhase}`);
 
     // @ai-call wizard.get-started — Continuation after tool-only loop | config: /x/ai-config
     const contResponse = await getConfiguredMeteredAICompletion(
@@ -761,8 +784,13 @@ async function handleWizardModeWithTools(
   }
 
   if (!finalContent) {
-    // Last-resort fallback — phase-aware version
-    finalContent = buildWizardFallback(allToolCalls, mergedSetupData);
+    // Last-resort fallback — version-aware
+    if (mergedSetupData._wizardVersion === "v3") {
+      const graphEval = evaluateGraph(mergedSetupData);
+      finalContent = buildGraphFallback(graphEval, mergedSetupData);
+    } else {
+      finalContent = buildWizardFallback(allToolCalls, mergedSetupData);
+    }
   }
 
   logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext, toolCallCount);

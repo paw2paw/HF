@@ -1,0 +1,408 @@
+/**
+ * Wizard Graph Evaluator — the Control Component of the Blackboard Architecture.
+ *
+ * Evaluates the wizard graph against the current blackboard (data bag) state.
+ * Called on EVERY API turn to compute which nodes are available, blocked,
+ * satisfied, or skipped — and a priority-ordered suggestion list for the AI.
+ *
+ * Pure functions — no side effects, no DB calls, no React.
+ * ~O(N*D) where N = nodes, D = max deps per node. Trivial for 17 nodes.
+ */
+
+import type {
+  WizardGraphNode,
+  NodeStatus,
+  SkipCondition,
+  GraphEvaluation,
+  NodeGroup,
+} from "./graph-schema";
+import { ALL_NODES, WIZARD_GRAPH_NODES } from "./graph-nodes";
+
+// ── Helpers ───────────────────────────────────────────────
+
+function hasValue(blackboard: Record<string, unknown>, key: string): boolean {
+  const v = blackboard[key];
+  return v !== undefined && v !== null && v !== "";
+}
+
+/**
+ * Evaluate a skip condition against the blackboard.
+ */
+export function evaluateSkipCondition(
+  cond: SkipCondition,
+  blackboard: Record<string, unknown>,
+): boolean {
+  switch (cond.type) {
+    case "community":
+      return blackboard.defaultDomainKind === "COMMUNITY";
+    case "equals":
+      return blackboard[cond.key] === cond.value;
+    case "not-equals":
+      return blackboard[cond.key] !== cond.value;
+    case "truthy":
+      return !!blackboard[cond.key];
+    case "falsy":
+      return !blackboard[cond.key];
+  }
+}
+
+/**
+ * Check if all dependencies are met.
+ * Supports OR operator: "existingDomainId|draftDomainId" means
+ * the dependency is satisfied if EITHER key has a value.
+ */
+export function checkDependencies(
+  deps: string[],
+  blackboard: Record<string, unknown>,
+): boolean {
+  for (const dep of deps) {
+    if (dep.includes("|")) {
+      const alternatives = dep.split("|");
+      const anyMet = alternatives.some((alt) => hasValue(blackboard, alt));
+      if (!anyMet) return false;
+    } else {
+      if (!hasValue(blackboard, dep)) return false;
+    }
+  }
+  return true;
+}
+
+// ── Priority heuristic ────────────────────────────────────
+
+const WEIGHT_PRIORITY_TIER = 100;
+const WEIGHT_UNLOCK = 30;
+const WEIGHT_AFFINITY = 20;
+const WEIGHT_EFFORT = 10;
+
+const EFFORT_SCORES: Record<string, number> = {
+  "options": 5,
+  "free-text": 3,
+  "sliders": 2,
+  "file-upload": 1,
+  "auto-resolved": 0,
+  "derived": 0,
+};
+
+/**
+ * Priority-order available nodes for natural conversation flow.
+ *
+ * Scoring:
+ * 1. Priority tier (tier 1 = 400, tier 4 = 100)
+ * 2. Unlock potential — nodes that unblock the most other nodes
+ * 3. Conversational affinity — same group as the most recently satisfied node
+ * 4. Effort ease — easy input types first within same priority
+ */
+function prioritize(
+  available: WizardGraphNode[],
+  satisfied: WizardGraphNode[],
+  allNodes: WizardGraphNode[],
+): WizardGraphNode[] {
+  // What group was the last satisfied node in?
+  const lastGroup = satisfied.length > 0 ? satisfied[satisfied.length - 1].group : null;
+
+  // Count how many blocked nodes each available node would unblock
+  const unlockScores = new Map<string, number>();
+  for (const node of available) {
+    const wouldUnblock = allNodes.filter(
+      (n) =>
+        !available.includes(n) &&
+        n.dependsOn.some((dep) => {
+          if (dep.includes("|")) return dep.split("|").includes(node.key);
+          return dep === node.key;
+        }),
+    ).length;
+    unlockScores.set(node.key, wouldUnblock);
+  }
+
+  const scored = available.map((node) => {
+    let score = 0;
+    score += (5 - node.priority) * WEIGHT_PRIORITY_TIER;
+    score += (unlockScores.get(node.key) || 0) * WEIGHT_UNLOCK;
+    if (lastGroup && node.group === lastGroup) score += WEIGHT_AFFINITY;
+    score += (EFFORT_SCORES[node.inputType] || 0) * WEIGHT_EFFORT;
+    return { node, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.node);
+}
+
+// ── Main evaluator ────────────────────────────────────────
+
+/**
+ * Evaluate the wizard graph against the current blackboard.
+ *
+ * @param nodes - Graph node definitions (default: ALL_NODES)
+ * @param blackboard - Current wizard data bag
+ * @returns Full evaluation with statuses, suggestions, readiness
+ */
+export function evaluateGraph(
+  blackboard: Record<string, unknown>,
+  nodes: WizardGraphNode[] = ALL_NODES,
+): GraphEvaluation {
+  const statuses = new Map<string, NodeStatus>();
+  const isPostScaffold = hasValue(blackboard, "draftPlaybookId");
+
+  // ── Pass 1: Determine status of each node ──────────────
+  for (const node of nodes) {
+    // Skip condition?
+    if (node.skipWhen && evaluateSkipCondition(node.skipWhen, blackboard)) {
+      statuses.set(node.key, "skipped");
+      continue;
+    }
+
+    // Already has a value?
+    if (hasValue(blackboard, node.key)) {
+      if (isPostScaffold && !node.mutablePostScaffold) {
+        statuses.set(node.key, "locked");
+      } else {
+        statuses.set(node.key, "satisfied");
+      }
+      continue;
+    }
+
+    // Dependencies met?
+    if (!checkDependencies(node.dependsOn, blackboard)) {
+      statuses.set(node.key, "blocked");
+      continue;
+    }
+
+    // Available
+    statuses.set(node.key, "available");
+  }
+
+  // ── Pass 2: Partition nodes ────────────────────────────
+  const available: WizardGraphNode[] = [];
+  const blocked: WizardGraphNode[] = [];
+  const satisfied: WizardGraphNode[] = [];
+  const skipped: WizardGraphNode[] = [];
+
+  for (const node of nodes) {
+    const status = statuses.get(node.key)!;
+    switch (status) {
+      case "available":
+        available.push(node);
+        break;
+      case "blocked":
+        blocked.push(node);
+        break;
+      case "satisfied":
+      case "locked":
+        satisfied.push(node);
+        break;
+      case "skipped":
+        skipped.push(node);
+        break;
+    }
+  }
+
+  // ── Pass 3: Priority-ordered suggestions ───────────────
+  // Only suggest user-facing nodes (not auto-resolved/derived)
+  const userFacingAvailable = available.filter(
+    (n) => n.inputType !== "auto-resolved" && n.inputType !== "derived",
+  );
+  const suggested = prioritize(userFacingAvailable, satisfied, nodes);
+
+  // ── Pass 4: Readiness ──────────────────────────────────
+  const userFacingNodes = nodes.filter(
+    (n) => n.inputType !== "auto-resolved" && n.inputType !== "derived",
+  );
+  const activeNonSkipped = userFacingNodes.filter(
+    (n) => statuses.get(n.key) !== "skipped",
+  );
+  const satisfiedCount = activeNonSkipped.filter((n) => {
+    const s = statuses.get(n.key);
+    return s === "satisfied" || s === "locked";
+  }).length;
+  const readinessPct =
+    activeNonSkipped.length > 0
+      ? Math.round((satisfiedCount / activeNonSkipped.length) * 100)
+      : 100;
+
+  // Required nodes still missing
+  const requiredNodes = userFacingNodes.filter((n) => n.required);
+  const missingRequired = requiredNodes.filter((n) => {
+    const s = statuses.get(n.key);
+    return s === "available" || s === "blocked";
+  });
+
+  return {
+    nodeStatuses: statuses,
+    available,
+    suggested,
+    blocked,
+    satisfied,
+    skipped,
+    readinessPct,
+    missingRequired,
+    canLaunch: missingRequired.length === 0,
+    activeGroup: suggested[0]?.group ?? null,
+  };
+}
+
+/**
+ * Build the graph-aware section for the wizard system prompt.
+ *
+ * Replaces the linear formatPhaseRoadmap + "Fields still needed" pattern.
+ * The AI sees: collected values, priority-ordered suggestions with hints,
+ * required-for-launch list, and resolver context.
+ */
+export function buildGraphPromptSection(
+  evaluation: GraphEvaluation,
+  blackboard: Record<string, unknown>,
+  resolverContext: string[] = [],
+): string {
+  const lines: string[] = [];
+
+  lines.push("## Wizard Status");
+  lines.push(
+    `Readiness: ${evaluation.readinessPct}% | Can launch: ${evaluation.canLaunch ? "YES" : "NO"}`,
+  );
+  lines.push("");
+
+  // Collected
+  if (evaluation.satisfied.length > 0) {
+    lines.push("### Already collected");
+    for (const node of evaluation.satisfied) {
+      if (node.inputType === "auto-resolved") continue; // Don't show IDs
+      const val = blackboard[node.key];
+      const display =
+        typeof val === "object" ? JSON.stringify(val) : String(val);
+      lines.push(`  ✓ ${node.label}: ${display}`);
+    }
+    lines.push("");
+  }
+
+  // Skipped
+  if (evaluation.skipped.length > 0) {
+    const userFacingSkipped = evaluation.skipped.filter(
+      (n) => n.inputType !== "auto-resolved" && n.inputType !== "derived",
+    );
+    if (userFacingSkipped.length > 0) {
+      lines.push("### Skipped (not applicable)");
+      for (const node of userFacingSkipped) {
+        lines.push(`  ○ ${node.label}`);
+      }
+      lines.push("");
+    }
+  }
+
+  // What to ask next
+  lines.push("### What to ask next (priority order)");
+  if (evaluation.suggested.length === 0) {
+    if (evaluation.canLaunch) {
+      lines.push(
+        "  All fields collected! Offer to review the setup and create the course.",
+      );
+    } else {
+      lines.push(
+        "  No fields available — waiting for dependencies to resolve.",
+      );
+    }
+  } else {
+    const top = evaluation.suggested.slice(0, 3);
+    for (let i = 0; i < top.length; i++) {
+      const node = top[i];
+      const marker = i === 0 ? " → (ASK THIS NEXT)" : "";
+      lines.push(`  ${i + 1}. ${node.label} [${node.inputType}]${marker}`);
+      lines.push(`     ${node.promptHint}`);
+      if (node.required) lines.push("     [REQUIRED for launch]");
+    }
+    const rest = evaluation.suggested.slice(3);
+    if (rest.length > 0) {
+      lines.push(`  ... and ${rest.length} more optional fields available`);
+    }
+  }
+  lines.push("");
+
+  // Resolver context
+  if (resolverContext.length > 0) {
+    lines.push("### Just resolved");
+    for (const msg of resolverContext) {
+      lines.push(`  ${msg}`);
+    }
+    lines.push("");
+  }
+
+  // Missing required
+  if (evaluation.missingRequired.length > 0) {
+    lines.push("### Still required for launch");
+    for (const node of evaluation.missingRequired) {
+      lines.push(`  ✗ ${node.label}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Build a graph-aware fallback when the AI produces no text.
+ * Uses the evaluation to generate a natural continuation prompt.
+ */
+export function buildGraphFallback(
+  evaluation: GraphEvaluation,
+  blackboard: Record<string, unknown>,
+): string {
+  // Acknowledge what was just collected
+  const parts: string[] = [];
+  const fields = blackboard as Record<string, unknown>;
+  if (fields.institutionName) parts.push(String(fields.institutionName));
+  if (fields.courseName) parts.push(`${fields.courseName} course`);
+  if (fields.interactionPattern) parts.push(`${fields.interactionPattern} approach`);
+
+  const ack = parts.length > 0 ? `Got it — ${parts.join(", ")}.` : "Got it.";
+
+  if (evaluation.canLaunch) {
+    return `${ack} Ready to review your setup and create your course?`;
+  }
+
+  // Use the top suggestion's prompt hint for continuation
+  const next = evaluation.suggested[0];
+  if (next) {
+    const FIELD_PROMPTS: Record<string, string> = {
+      institutionName: "What's the name of your organisation or school?",
+      courseName: "What would you like to name your course?",
+      subjectDiscipline: "What subject will you be teaching?",
+      interactionPattern: "What teaching approach would you like?",
+      teachingMode: "What's the teaching emphasis for this course?",
+      welcomeMessage: "Now let's set up your **welcome message** — this is what students hear when they first call in.",
+      sessionCount: "How many sessions would you like in your course?",
+      durationMins: "How long should each session be?",
+      planEmphasis: "Would you like to focus on breadth or depth?",
+      behaviorTargets: "Let's fine-tune your AI tutor's **personality**.",
+      lessonPlanModel: "What lesson plan model works best for your course?",
+    };
+    const prompt = FIELD_PROMPTS[next.key];
+    if (prompt) return `${ack} ${prompt}`;
+  }
+
+  return ack;
+}
+
+/** Convenience: get the display groups and their aggregate status */
+export function getGroupStatuses(
+  evaluation: GraphEvaluation,
+): Map<NodeGroup, "complete" | "active" | "waiting"> {
+  const groups: NodeGroup[] = ["institution", "course", "content", "welcome", "tune"];
+  const result = new Map<NodeGroup, "complete" | "active" | "waiting">();
+
+  for (const group of groups) {
+    const userFacingInGroup = WIZARD_GRAPH_NODES.filter((n) => n.group === group);
+    const statuses = userFacingInGroup.map((n) => evaluation.nodeStatuses.get(n.key));
+
+    const allDone = statuses.every(
+      (s) => s === "satisfied" || s === "locked" || s === "skipped",
+    );
+    const anyAvailable = statuses.some((s) => s === "available");
+
+    if (allDone) {
+      result.set(group, "complete");
+    } else if (anyAvailable) {
+      result.set(group, "active");
+    } else {
+      result.set(group, "waiting");
+    }
+  }
+
+  return result;
+}
