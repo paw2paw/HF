@@ -7,7 +7,7 @@
  * with status indicators. Labels adapt via terminology when available.
  */
 
-import { Check, Loader2, Circle, Disc, RotateCcw } from "lucide-react";
+import { Check, Loader2, Circle, Disc, RotateCcw, ChevronRight } from "lucide-react";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "building" | "draft" | "done";
 
@@ -35,6 +35,8 @@ interface ScaffoldPanelProps {
   };
   /** Called when user clicks "Start Afresh" — clears all wizard state */
   onReset?: () => void;
+  /** Called when user clicks a scaffold item to review/amend it */
+  onItemClick?: (itemKey: string) => void;
 }
 
 /** Map scaffold item keys to wizard phase IDs */
@@ -111,7 +113,7 @@ function StatusIcon({ status }: { status: ScaffoldStatus }) {
   }
 }
 
-export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms, onReset }: ScaffoldPanelProps) {
+export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms, onReset, onItemClick }: ScaffoldPanelProps) {
   const t = terms ?? DEFAULT_TERMS;
   const draftCreated = !!getData<string>("draftDomainId");
   const launched = !!getData<boolean>("launched");
@@ -217,7 +219,18 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
 
         <ul className="gs-scaffold-list">
           {items.map((item) => (
-            <li key={item.key} className={`gs-scaffold-item${currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : ""}`}>
+            <li
+              key={item.key}
+              className={
+                "gs-scaffold-item" +
+                (currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : "") +
+                (onItemClick ? " gs-scaffold-item--clickable" : "")
+              }
+              onClick={onItemClick ? () => onItemClick(item.key) : undefined}
+              role={onItemClick ? "button" : undefined}
+              tabIndex={onItemClick ? 0 : undefined}
+              onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
+            >
               <StatusIcon status={item.status} />
               <div className="gs-scaffold-item-content">
                 <div className="gs-scaffold-item-row">
@@ -232,13 +245,25 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
                   </div>
                 )}
               </div>
+              {onItemClick && <ChevronRight size={14} className="gs-scaffold-item-chevron" />}
             </li>
           ))}
         </ul>
 
         <ul className="gs-scaffold-list">
           {extraItems.map((item) => (
-            <li key={item.key} className={`gs-scaffold-item${currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : ""}`}>
+            <li
+              key={item.key}
+              className={
+                "gs-scaffold-item" +
+                (currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : "") +
+                (onItemClick ? " gs-scaffold-item--clickable" : "")
+              }
+              onClick={onItemClick ? () => onItemClick(item.key) : undefined}
+              role={onItemClick ? "button" : undefined}
+              tabIndex={onItemClick ? 0 : undefined}
+              onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
+            >
               <StatusIcon status={item.status} />
               <div className="gs-scaffold-item-content">
                 <div className="gs-scaffold-item-row">
@@ -253,6 +278,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
                   </div>
                 )}
               </div>
+              {onItemClick && <ChevronRight size={14} className="gs-scaffold-item-chevron" />}
             </li>
           ))}
         </ul>

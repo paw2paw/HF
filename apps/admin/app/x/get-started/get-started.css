@@ -92,6 +92,30 @@
   background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }
 
+.gs-scaffold-item--clickable {
+  cursor: pointer;
+}
+
+.gs-scaffold-item--clickable:hover {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.gs-scaffold-item--clickable:active {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.gs-scaffold-item-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.gs-scaffold-item--clickable:hover .gs-scaffold-item-chevron {
+  opacity: 1;
+}
+
 .gs-scaffold-icon {
   width: 20px;
   height: 20px;

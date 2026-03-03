@@ -20,7 +20,8 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { ArrowUp, Loader2, Undo2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUp, Loader2, Undo2, X } from "lucide-react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
@@ -96,7 +97,18 @@ function uid(): string {
 
 // ── Component ───────────────────────────────────────────
 
+/** Maps scaffold item keys to human-readable review request messages */
+const REVIEW_MESSAGES: Record<string, string> = {
+  institution: "I'd like to review my organisation setup",
+  course: "I'd like to review my course details",
+  content: "I'd like to review my content",
+  welcome: "I'd like to change the welcome message",
+  lessons: "I'd like to adjust the lesson plan",
+  personality: "I'd like to fine-tune the AI tutor",
+};
+
 export function AIConversationWizard() {
+  const router = useRouter();
   const { getData, setData, isActive, startFlow } = useStepFlow();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -410,22 +422,35 @@ export function AIConversationWizard() {
     abortRef.current?.abort();
     abortRef.current = null;
 
-    // Clear chat history
+    // Clear chat history from storage
     try { sessionStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ }
 
     // Clear undo timer
     if (undoState?.timerId) clearTimeout(undoState.timerId);
 
     // Reset local state
-    setMessages([]);
     setInputValue("");
     setIsLoading(false);
     setActivePanel(null);
     setCurrentStep(0);
     setCurrentPhaseId("institution");
     setUndoState(null);
-    initialised.current = false;
     lastPhaseRef.current = "institution";
+
+    // Show welcome greeting directly — the init effect won't re-fire because
+    // isActive stays true (its deps don't change), so we handle it here.
+    initialised.current = true;
+    const greeting: Message = {
+      id: uid(),
+      role: "assistant",
+      content:
+        "Welcome! I'll help you set up your AI tutor in just a few minutes.\n\n" +
+        "Let's start with the basics — type the name of your organisation or school below, " +
+        "or tell me a bit about what you'd like to set up and I'll guide you through it.",
+    };
+    setMessages([greeting]);
+    saveHistory([greeting]);
+    scrollToBottom();
 
     // Re-start flow with fresh data (overwrites existing StepFlowContext state)
     startFlow({
@@ -433,7 +458,44 @@ export function AIConversationWizard() {
       steps: WIZARD_STEPS,
       returnPath: "/x/get-started-v2",
     });
-  }, [undoState, startFlow]);
+
+    // Focus input after render settles
+    setTimeout(() => inputRef.current?.focus(), 150);
+  }, [undoState, startFlow, scrollToBottom]);
+
+  // ── Dismiss wizard (X button / Esc) ──────────────────────
+
+  const handleDismiss = useCallback(() => {
+    abortRef.current?.abort();
+    router.push("/x");
+  }, [router]);
+
+  // Esc: close panel first, then dismiss wizard
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (activePanel) {
+          setActivePanel(null);
+          return;
+        }
+        handleDismiss();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activePanel, handleDismiss]);
+
+  // ── Scaffold panel item click → review message ──────────
+
+  const handleScaffoldItemClick = useCallback(
+    (itemKey: string) => {
+      const reviewMsg = REVIEW_MESSAGES[itemKey];
+      if (reviewMsg && !isLoading) {
+        handleSend(reviewMsg);
+      }
+    },
+    [isLoading, handleSend],
+  );
 
   // ── Keyboard handler ────────────────────────────────────
 
@@ -497,6 +559,18 @@ export function AIConversationWizard() {
     <div className="gs-layout">
       <div className="gs-main">
         <div className="gs-chat-container">
+          {/* Dismiss button */}
+          <div className="gs-chat-header">
+            <button
+              type="button"
+              className="gs-chat-dismiss-btn"
+              onClick={handleDismiss}
+              aria-label="Close wizard"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
           {/* Messages */}
           <div className="gs-chat-messages">
             {messages.map((msg) => (
@@ -629,7 +703,7 @@ export function AIConversationWizard() {
       </div>
 
       {/* Scaffold panel */}
-      <ScaffoldPanel getData={getData} currentStepIndex={currentStep} currentPhaseId={currentPhaseId} onReset={handleReset} />
+      <ScaffoldPanel getData={getData} currentStepIndex={currentStep} currentPhaseId={currentPhaseId} onReset={handleReset} onItemClick={handleScaffoldItemClick} />
     </div>
   );
 }
