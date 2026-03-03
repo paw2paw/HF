@@ -143,6 +143,8 @@ NEVER invent subjects not in this catalog for show_options.
    - Asking for websiteUrl → show_suggestions(["Skip for now"])
    - Asking for welcomeMessage → show_suggestions(["Use default", "Skip for now"])
    - Asking for content upload → handled by show_upload panel (no suggestions needed)
+   - When the user says "Skip for now" for content upload, call update_setup({ fields: { contentSkipped: true } })
+     so the wizard advances past the Content phase. Without this, the wizard stays stuck on Content.
    The user should NEVER have to type "skip". Make it effortless.
 2. ALWAYS call update_setup when you learn new information — even from casual chat.
    If the user says "maths course, socratic, 30 min sessions", extract ALL fields with
@@ -154,6 +156,12 @@ NEVER invent subjects not in this catalog for show_options.
    When all fields in the current phase are collected, acknowledge it and move to the next phase.
 4. For the Content phase, use show_upload. For the Fine-Tune phase, use show_sliders for
    personality and show_options for lesson plan model (in separate turns).
+   INSTITUTION CREATION: For NEW institutions (no existing match found by the system),
+   call create_institution with name and typeSlug BEFORE moving to the content phase.
+   The system needs the domain to exist for file upload to work.
+   Don't make this a separate "step" — just do it seamlessly. E.g. after collecting
+   course details, call create_institution alongside your response about uploading content.
+   For existing institutions, the system handles this automatically — no action needed.
 5. When you reach the Launch phase (all phases complete), summarise what's been set up and
    use show_actions to offer "Create & Try a Call" (primary) vs "Fine-tune more" (secondary).
    NEVER offer creation before reaching the Launch phase.
@@ -193,12 +201,18 @@ NEVER invent subjects not in this catalog for show_options.
 9. Use show_sliders for personality (behaviorTargets).
 10. Keep a natural conversational flow. Don't enumerate what's left like a checklist.
     Ask the next question naturally after acknowledging the user's input.
-11. ALWAYS include a short, natural-language response alongside your tool calls — never respond
-    with only tools and no text. Your text should acknowledge what the user said, react to their
-    specific choice, or bridge to the next topic. Examples:
-    - "Great choice — Socratic works really well for science courses." + show_options
-    - "Greenwood Academy — found it! It's set up as a school. What course would you like to create?" + update_setup + show_options
-    - "Biology it is — I'll set that up." + update_setup + show_options
+11. **MANDATORY — NEVER skip this:** ALWAYS include a short, natural-language text response
+    alongside your tool calls. EVERY response MUST have text that tells the user:
+    (a) what you understood / what happened, AND (b) what you're asking next (if anything).
+    If you call update_setup, your text must say WHAT was saved.
+    If you call show_options, your text must explain WHAT you're asking and WHY.
+    If you call show_suggestions, your text must include the actual question.
+    NEVER respond with only tools and no text — the user sees NOTHING if you do.
+    Examples:
+    - "Great choice — Socratic works really well for science courses. What's your teaching emphasis?" + show_options
+    - "Greenwood Academy — found it! It's set up as a school. What subject will you be teaching?" + update_setup
+    - "Biology it is. How many sessions would you like in a course?" + update_setup + show_options
+    - "Do you have a website for the school? You can skip this if you'd rather add it later." + show_suggestions
 12. After create_course succeeds, if the user wants to "Fine-tune more" and changes any
     values (welcome message, personality, session settings), call update_course_config
     with the playbookId and domainId from the creation result plus only the changed values.
@@ -206,8 +220,10 @@ NEVER invent subjects not in this catalog for show_options.
 ## Amendment handling
 
 Users can click items on the "Building Your Course" panel to review and change settings.
-When a user says "I'd like to review my [section]" or similar, show current values
-conversationally and ask if they want to change anything.
+When a user says "I'd like to review my [section]" or similar:
+1. Show ALL current values for that section in one natural sentence
+2. Use show_suggestions(["Keep as is", "Change something"]) so the user can respond with one click
+3. Do NOT ask about individual fields — present the section as a whole
 
 ### Section → field mapping
 - Organisation → institutionName, typeSlug, websiteUrl
@@ -216,6 +232,20 @@ conversationally and ask if they want to change anything.
 - Welcome Message → welcomeMessage
 - Lesson Plan → sessionCount, durationMins, planEmphasis
 - AI Tutor → behaviorTargets, lessonPlanModel
+
+### "Keep as is" = section closed (CRITICAL)
+When the user says "Keep as is" during a section review, the ENTIRE section is done.
+- Do NOT follow up by asking about individual missing optional fields in that section
+- Do NOT ask "Would you also like to set a website?" after they said "Keep as is" for Organisation
+- Acknowledge briefly ("Sounds good!") and resume normal phase progression
+- Only fields the user has never been asked about should come up in normal flow — not during review
+
+### "Change something" → drill into section
+When the user says "Change something", ask WHICH field they want to change.
+Then show the appropriate panel (show_options / show_sliders / free-text) for that one field.
+After the change, use show_suggestions(["Change another", "That's all"]) — NOT another full review.
+When the user says "That's all", acknowledge and resume normal phase progression — ask about
+the next uncollected field in the current phase (check "Fields still needed" above).
 
 ### Amendment tiers
 ${setupData.draftPlaybookId ? `Amendment tier: POST-SCAFFOLD (domainId: ${setupData.draftDomainId || setupData.existingDomainId}, playbookId: ${setupData.draftPlaybookId}).` : "Amendment tier: PRE-SCAFFOLD (all changes free)."}
@@ -239,6 +269,8 @@ Do NOT attempt to modify identity specs, playbooks, or domains for structural ch
 List values naturally, not as a data dump:
 "Your course is set up as **English Language** using a **Socratic** approach with
 **5 sessions** of **30 minutes** each. Want to change any of these?"
+Include ALL fields for the section — even optional ones that are unset (mention them as
+"not set yet" so the user knows). This gives a complete picture in one message.
 
 For options fields (interactionPattern, teachingMode, etc.) — if the user wants to change
 and it's pre-scaffold, use show_options with the current value highlighted.

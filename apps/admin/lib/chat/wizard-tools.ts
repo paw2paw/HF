@@ -475,8 +475,86 @@ export async function executeWizardTool(
 
     case "show_options":
     case "show_sliders":
-    case "show_upload":
     case "show_actions": {
+      return { ...base, content: `Panel displayed to user. Wait for their response.` };
+    }
+
+    case "show_upload": {
+      // Safety net: auto-create institution if domainId is missing but we have enough data.
+      // This handles the case where the AI skips create_institution before the content phase.
+      const existingDomainId = (setupData?.existingDomainId || setupData?.draftDomainId) as string | undefined;
+      if (!existingDomainId && setupData?.institutionName) {
+        try {
+          const name = setupData.institutionName as string;
+
+          // 1. Check if it already exists (maybe created earlier in a different turn)
+          const resolved = await resolveInstitutionByName(name);
+          if (resolved) {
+            return {
+              ...base,
+              autoInjectFields: {
+                existingDomainId: resolved.domainId,
+                existingInstitutionId: resolved.institutionId,
+                defaultDomainKind: resolved.domainKind,
+              },
+              content: "Panel displayed to user. Wait for their response.",
+            };
+          }
+
+          // 2. Not found — create institution + domain on-the-fly
+          const { prisma } = await import("@/lib/prisma");
+          const slugify = (await import("slugify")).default;
+          const typeSlug = setupData.typeSlug as string | undefined;
+
+          let typeId: string | undefined;
+          let domainKind: "INSTITUTION" | "COMMUNITY" = "INSTITUTION";
+          if (typeSlug) {
+            const instType = await prisma.institutionType.findFirst({
+              where: { slug: typeSlug },
+              select: { id: true, defaultDomainKind: true },
+            });
+            typeId = instType?.id;
+            if (instType?.defaultDomainKind === "COMMUNITY") domainKind = "COMMUNITY";
+          }
+
+          const institution = await prisma.institution.create({
+            data: {
+              name,
+              slug: slugify(name, { lower: true, strict: true }),
+              ...(typeId ? { typeId } : {}),
+            },
+          });
+
+          const domain = await prisma.domain.create({
+            data: {
+              name,
+              slug: slugify(name, { lower: true, strict: true }),
+              institutionId: institution.id,
+              kind: domainKind,
+            },
+          });
+
+          await prisma.user.update({
+            where: { id: userId },
+            data: { activeInstitutionId: institution.id },
+          });
+
+          console.log(`[wizard-tools] Auto-created institution "${name}" (${institution.id}) + domain (${domain.id}) for show_upload`);
+
+          return {
+            ...base,
+            autoInjectFields: {
+              draftDomainId: domain.id,
+              draftInstitutionId: institution.id,
+              defaultDomainKind: domainKind,
+            },
+            content: "Panel displayed to user. Wait for their response.",
+          };
+        } catch (err) {
+          console.error("[wizard-tools] Auto-create institution for show_upload failed:", err);
+          // Fall through — show upload anyway, PackUploadStep will show a clear error
+        }
+      }
       return { ...base, content: `Panel displayed to user. Wait for their response.` };
     }
 

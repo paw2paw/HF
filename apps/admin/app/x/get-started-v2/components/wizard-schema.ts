@@ -222,7 +222,13 @@ export const WIZARD_PHASES: WizardPhase[] = [
 
 /**
  * Compute the current wizard phase based on collected data.
- * Returns the first phase with uncollected fields, or "launch" if all done.
+ *
+ * Phase advancement rules:
+ * - Phases WITH required fields: advance once all required fields are filled
+ *   (optional fields are listed but don't block)
+ * - Phases with ONLY optional fields: advance once at least one field is collected
+ *   (i.e., the user has visited the phase)
+ * - Content phase: advance if content uploaded OR explicitly skipped (contentSkipped flag)
  */
 export function computeCurrentPhase(
   setupData: Record<string, unknown>,
@@ -232,16 +238,19 @@ export function computeCurrentPhase(
     ? WIZARD_FIELDS.filter((f) => f.skipForCommunity).map((f) => f.key)
     : [];
 
+  const hasValue = (v: unknown) => v !== undefined && v !== null && v !== "";
+
   for (let i = 0; i < WIZARD_PHASES.length; i++) {
     const phase = WIZARD_PHASES[i];
     const fields = phase.fields.filter((f) => !skipFields.includes(f));
 
-    // Content phase: check for packSubjectIds or sourceId
+    // Content phase: check for packSubjectIds, sourceId, or explicit skip
     if (phase.id === "content") {
       if (isCommunity) continue;
       const hasContent = !!(
         (setupData.packSubjectIds as string[] | undefined)?.length ||
-        setupData.sourceId
+        setupData.sourceId ||
+        setupData.contentSkipped
       );
       if (!hasContent) return { phase, phaseIndex: i, phaseFields: fields };
       continue;
@@ -252,12 +261,22 @@ export function computeCurrentPhase(
       return { phase, phaseIndex: i, phaseFields: [] };
     }
 
-    // Check for uncollected fields in this phase
-    const uncollected = fields.filter(
-      (f) => setupData[f] === undefined || setupData[f] === null || setupData[f] === "",
-    );
-    if (uncollected.length > 0) {
-      return { phase, phaseIndex: i, phaseFields: uncollected };
+    const requiredFields = fields.filter((f) => {
+      const def = WIZARD_FIELDS.find((wf) => wf.key === f);
+      return def?.required;
+    });
+    const uncollectedRequired = requiredFields.filter((f) => !hasValue(setupData[f]));
+    const collectedAny = fields.some((f) => hasValue(setupData[f]));
+
+    // Phase blocks if:
+    // (a) it has uncollected required fields, OR
+    // (b) it has NO required fields and NO fields collected yet (unvisited)
+    const shouldBlock = uncollectedRequired.length > 0
+      || (requiredFields.length === 0 && !collectedAny);
+
+    if (shouldBlock) {
+      const allUncollected = fields.filter((f) => !hasValue(setupData[f]));
+      return { phase, phaseIndex: i, phaseFields: allUncollected };
     }
   }
 

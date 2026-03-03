@@ -146,7 +146,7 @@ export function AIConversationWizard() {
       "welcomeMessage", "sessionCount", "durationMins", "planEmphasis",
       "behaviorTargets", "lessonPlanModel",
       "draftDomainId", "draftInstitutionId", "draftPlaybookId", "draftCallerId",
-      "launched", "sourceId", "packSubjectIds", "extractionTotals",
+      "launched", "sourceId", "packSubjectIds", "extractionTotals", "contentSkipped",
     ];
     const data: Record<string, unknown> = {};
     for (const k of keys) {

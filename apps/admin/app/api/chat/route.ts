@@ -461,12 +461,40 @@ async function handleCallModeWithTools(
 /** Contextual fallback when the AI tool loop ends without producing text. */
 function buildWizardFallback(toolCalls: Array<{ name: string; input: Record<string, unknown> }>): string {
   const names = new Set(toolCalls.map((tc) => tc.name));
+
   if (names.has("show_actions")) return "Everything's set up — ready when you are!";
-  if (names.has("show_upload")) return "Go ahead and upload your materials when you're ready.";
-  if (names.has("show_sliders")) return "Adjust the sliders to set the personality.";
-  if (names.has("show_options")) return ""; // Panel has its own header — no bubble needed
-  if (names.has("update_setup")) return "Got it, saved that.";
-  return ""; // Client skips empty content — no bubble rendered
+  if (names.has("show_upload")) return "Now let's add some teaching content.";
+  if (names.has("show_sliders")) return "Let's fine-tune the AI tutor's personality.";
+
+  if (names.has("show_options")) {
+    // Use the question header from the show_options tool so the user knows what's being asked
+    const optionCall = toolCalls.find((tc) => tc.name === "show_options");
+    const question = optionCall?.input?.question as string | undefined;
+    return question ? `Choose your **${question.toLowerCase()}** below.` : "Pick an option below.";
+  }
+
+  if (names.has("update_setup")) {
+    // Summarise what was actually saved using field values
+    const updateCalls = toolCalls.filter((tc) => tc.name === "update_setup");
+    const allFields: Record<string, unknown> = {};
+    for (const tc of updateCalls) {
+      const fields = tc.input.fields as Record<string, unknown> | undefined;
+      if (fields) Object.assign(allFields, fields);
+    }
+    const parts: string[] = [];
+    if (allFields.institutionName) parts.push(String(allFields.institutionName));
+    if (allFields.courseName) parts.push(`${allFields.courseName} course`);
+    if (allFields.interactionPattern) parts.push(`${allFields.interactionPattern} approach`);
+    if (allFields.teachingMode) parts.push(`${allFields.teachingMode} emphasis`);
+    if (allFields.sessionCount) parts.push(`${allFields.sessionCount} sessions`);
+    if (allFields.durationMins) parts.push(`${allFields.durationMins} min each`);
+    if (allFields.welcomeMessage) parts.push("welcome message");
+    if (parts.length > 0) return `Got it — ${parts.join(", ")}. What's next?`;
+    return "Got it, saved that. What would you like to do next?";
+  }
+
+  if (names.has("show_suggestions")) return "";
+  return "";
 }
 
 /**
@@ -511,9 +539,9 @@ async function handleWizardModeWithTools(
 
     // Capture text from responses that also include tool calls — the AI often
     // sends a conversational acknowledgment alongside tools (e.g. "Great choice —
-    // Socratic works well for science!" + show_options). Without this, the text
-    // is lost and the client only sees a generic fallback.
-    if (response.content && !finalContent) {
+    // Socratic works well for science!" + show_options). Always take the LATEST
+    // text so multi-round entity resolution doesn't lose the final contextual reply.
+    if (response.content) {
       finalContent = response.content;
     }
 
