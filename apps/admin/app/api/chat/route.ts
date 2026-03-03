@@ -13,6 +13,7 @@ import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
 import { WIZARD_TOOLS, executeWizardTool } from "@/lib/chat/wizard-tools";
 import { buildWizardSystemPrompt } from "@/lib/chat/wizard-system-prompt";
+import { computeCurrentPhase } from "@/app/x/get-started-v2/components/wizard-schema";
 import { embedText } from "@/lib/embeddings";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
@@ -98,7 +99,12 @@ export async function POST(request: NextRequest) {
     // WIZARD mode: handle early (has its own system prompt, no slash commands)
     if (mode === "WIZARD") {
       const userId = authResult.session.user.id;
-      const wizardPrompt = buildWizardSystemPrompt(setupData || {});
+      const isCommunity = setupData?.defaultDomainKind === "COMMUNITY";
+      const { phase: currentPhase, phaseIndex, phaseFields } = computeCurrentPhase(
+        setupData || {},
+        !!isCommunity,
+      );
+      const wizardPrompt = buildWizardSystemPrompt(setupData || {}, currentPhase, phaseIndex, phaseFields);
       const wizardMessages: AIMessage[] = [
         { role: "system", content: wizardPrompt },
         ...conversationHistory.slice(-20).map((m) => ({
@@ -489,8 +495,17 @@ async function handleWizardModeWithTools(
     // Model wants to use tools
     toolCallCount += response.toolUses.length;
 
-    // Collect tool calls for the client
+    // Collect tool calls for the client — enforce ONE show_* per response
+    const showToolNames = new Set(["show_options", "show_sliders", "show_upload", "show_actions"]);
+    let sawShowTool = false;
     for (const tu of response.toolUses) {
+      if (showToolNames.has(tu.name)) {
+        if (sawShowTool) {
+          console.warn(`[wizard-tools] Dropping duplicate show_* tool: ${tu.name}`);
+          continue;
+        }
+        sawShowTool = true;
+      }
       allToolCalls.push({ name: tu.name, input: tu.input });
     }
 

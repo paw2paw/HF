@@ -201,3 +201,65 @@ export const SCAFFOLD_STEPS = [
   "welcome",
   "tune",
 ] as const;
+
+// ── Phase definitions (conversational form scaffold) ────
+
+export interface WizardPhase {
+  id: string;
+  label: string;
+  /** Field keys that belong to this phase (empty = special step like content/launch) */
+  fields: string[];
+}
+
+export const WIZARD_PHASES: WizardPhase[] = [
+  { id: "institution", label: "Organisation", fields: ["institutionName", "typeSlug", "websiteUrl"] },
+  { id: "course", label: "Course", fields: ["courseName", "subjectDiscipline", "interactionPattern", "teachingMode"] },
+  { id: "content", label: "Content", fields: [] },
+  { id: "welcome", label: "Welcome", fields: ["welcomeMessage", "sessionCount", "durationMins", "planEmphasis"] },
+  { id: "tune", label: "Fine-Tune", fields: ["behaviorTargets", "lessonPlanModel"] },
+  { id: "launch", label: "Launch", fields: [] },
+];
+
+/**
+ * Compute the current wizard phase based on collected data.
+ * Returns the first phase with uncollected fields, or "launch" if all done.
+ */
+export function computeCurrentPhase(
+  setupData: Record<string, unknown>,
+  isCommunity: boolean,
+): { phase: WizardPhase; phaseIndex: number; phaseFields: string[] } {
+  const skipFields = isCommunity
+    ? WIZARD_FIELDS.filter((f) => f.skipForCommunity).map((f) => f.key)
+    : [];
+
+  for (let i = 0; i < WIZARD_PHASES.length; i++) {
+    const phase = WIZARD_PHASES[i];
+    const fields = phase.fields.filter((f) => !skipFields.includes(f));
+
+    // Content phase: check for packSubjectIds or sourceId
+    if (phase.id === "content") {
+      if (isCommunity) continue;
+      const hasContent = !!(
+        (setupData.packSubjectIds as string[] | undefined)?.length ||
+        setupData.sourceId
+      );
+      if (!hasContent) return { phase, phaseIndex: i, phaseFields: fields };
+      continue;
+    }
+
+    // Launch phase: we've reached the end
+    if (phase.id === "launch") {
+      return { phase, phaseIndex: i, phaseFields: [] };
+    }
+
+    // Check for uncollected fields in this phase
+    const uncollected = fields.filter(
+      (f) => setupData[f] === undefined || setupData[f] === null || setupData[f] === "",
+    );
+    if (uncollected.length > 0) {
+      return { phase, phaseIndex: i, phaseFields: uncollected };
+    }
+  }
+
+  return { phase: WIZARD_PHASES[5], phaseIndex: 5, phaseFields: [] };
+}

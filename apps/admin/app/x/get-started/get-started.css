@@ -51,6 +51,14 @@
   gap: 10px;
   font-size: 13px;
   color: var(--text-primary);
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.gs-scaffold-item--active {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }
 
 .gs-scaffold-icon {

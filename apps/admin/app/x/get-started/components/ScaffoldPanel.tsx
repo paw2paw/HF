@@ -21,6 +21,8 @@ interface ScaffoldItem {
 interface ScaffoldPanelProps {
   getData: <T = unknown>(key: string) => T | undefined;
   currentStepIndex: number;
+  /** Current wizard phase ID for highlighting (e.g. "institution", "course") */
+  currentPhaseId?: string;
   /** Terminology-resolved labels (or generic defaults) */
   terms?: {
     institution: string;
@@ -31,6 +33,16 @@ interface ScaffoldPanelProps {
     personality: string;
   };
 }
+
+/** Map scaffold item keys to wizard phase IDs */
+const ITEM_TO_PHASE: Record<string, string> = {
+  institution: "institution",
+  course: "course",
+  content: "content",
+  welcome: "welcome",
+  lessons: "welcome",      // lessons belong to "welcome" phase
+  personality: "tune",
+};
 
 const DEFAULT_TERMS = {
   institution: "Organisation",
@@ -83,7 +95,7 @@ function StatusIcon({ status }: { status: ScaffoldStatus }) {
   }
 }
 
-export function ScaffoldPanel({ getData, currentStepIndex, terms }: ScaffoldPanelProps) {
+export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms }: ScaffoldPanelProps) {
   const t = terms ?? DEFAULT_TERMS;
   const draftCreated = !!getData<string>("draftDomainId");
   const launched = !!getData<boolean>("launched");
@@ -161,7 +173,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, terms }: ScaffoldPane
 
         <ul className="gs-scaffold-list">
           {items.map((item) => (
-            <li key={item.key} className="gs-scaffold-item">
+            <li key={item.key} className={`gs-scaffold-item${currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : ""}`}>
               <StatusIcon status={item.status} />
               <span className="gs-scaffold-label">{item.label}</span>
               {item.value && <span className="gs-scaffold-value">{item.value}</span>}
@@ -171,7 +183,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, terms }: ScaffoldPane
 
         <ul className="gs-scaffold-list">
           {extraItems.map((item) => (
-            <li key={item.key} className="gs-scaffold-item">
+            <li key={item.key} className={`gs-scaffold-item${currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : ""}`}>
               <StatusIcon status={item.status} />
               <span className="gs-scaffold-label">{item.label}</span>
               {item.value && <span className="gs-scaffold-value">{item.value}</span>}

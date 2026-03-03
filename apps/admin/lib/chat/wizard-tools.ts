@@ -43,8 +43,7 @@ export const WIZARD_TOOLS: AITool[] = [
       "Present a set of options as radio buttons (single-select) or checkboxes (multi-select) " +
       "above the chat input bar. The user clicks to select. " +
       "Use mode='radio' for mutually exclusive choices, mode='checklist' for multi-select. " +
-      "Set recommended=true on ONE option if you have a suggestion. " +
-      "Use the tab parameter to group multiple show_* calls into tabs.",
+      "Set recommended=true on ONE option if you have a suggestion.",
     input_schema: {
       type: "object",
       properties: {
@@ -75,10 +74,6 @@ export const WIZARD_TOOLS: AITool[] = [
           },
           description: "The options to present. 2-6 options.",
         },
-        tab: {
-          type: "string",
-          description: "Optional tab label. When multiple show_* tools have a tab, they render as tabbed panels.",
-        },
       },
       required: ["question", "dataKey", "mode", "options"],
     },
@@ -87,8 +82,7 @@ export const WIZARD_TOOLS: AITool[] = [
     name: "show_sliders",
     description:
       "Present personality sliders above the chat input bar. " +
-      "Each slider is 0-100 with labelled low/high ends. " +
-      "Use the tab parameter to group with other show_* calls.",
+      "Each slider is 0-100 with labelled low/high ends.",
     input_schema: {
       type: "object",
       properties: {
@@ -109,7 +103,6 @@ export const WIZARD_TOOLS: AITool[] = [
             required: ["key", "label", "low", "high"],
           },
         },
-        tab: { type: "string" },
       },
       required: ["question", "sliders"],
     },

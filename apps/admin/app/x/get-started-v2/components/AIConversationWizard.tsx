@@ -3,13 +3,15 @@
 /**
  * AIConversationWizard — AI-driven conversational onboarding for Get Started V2.
  *
- * The AI drives the conversation via tool calls:
+ * Uses the "Conversational Form" pattern: system controls the phase sequence,
+ * AI controls the phrasing. One panel per turn. Phase separators in chat.
+ * Undo toast for radio auto-submit. Send button becomes spinner during loading.
+ *
+ * Tool calls from /api/chat mode=WIZARD:
  *   - update_setup → saves data, updates ScaffoldPanel
  *   - show_options / show_sliders / show_upload / show_actions → renders OptionPanel above input bar
  *   - create_institution / create_course → triggers server-side creation
  *   - mark_complete → signals done
- *
- * Uses /api/chat with mode=WIZARD (non-streaming, returns JSON with content + toolCalls).
  */
 
 import {
@@ -18,13 +20,14 @@ import {
   useRef,
   useCallback,
 } from "react";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp, Loader2, Undo2 } from "lucide-react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
 import type { PackUploadResult } from "@/components/wizards/PackUploadStep";
 import { ScaffoldPanel } from "../../get-started/components/ScaffoldPanel";
-import { OptionPanel, type PanelConfig, type TabDef, type OptionDef, type SlidersPanel } from "./OptionPanel";
+import { OptionPanel, type PanelConfig, type OptionDef, type SlidersPanel } from "./OptionPanel";
+import { computeCurrentPhase } from "./wizard-schema";
 import "../get-started-v2.css";
 
 // ── Types ────────────────────────────────────────────────
@@ -45,6 +48,13 @@ interface WizardResponse {
   content: string;
   toolCalls: WizardToolCall[];
   toolCallCount: number;
+}
+
+interface UndoState {
+  dataKey: string;
+  previousValue: unknown;
+  displayText: string;
+  timerId: ReturnType<typeof setTimeout>;
 }
 
 // ── Step defs for StepFlowContext ────────────────────────
@@ -92,20 +102,24 @@ export function AIConversationWizard() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [activePanel, setActivePanel] = useState<PanelConfig[] | null>(null);
-  const [activeTabs, setActiveTabs] = useState<TabDef[] | null>(null);
+  const [activePanel, setActivePanel] = useState<PanelConfig | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [currentPhaseId, setCurrentPhaseId] = useState("institution");
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialised = useRef(false);
+  const lastPhaseRef = useRef("institution");
 
-  // ── Scroll to bottom ────────────────────────────────────
+  // ── Scroll to bottom (with slight delay for layout settle) ──
 
   const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
+    }, 50);
   }, []);
 
   // ── Derive setup data from StepFlowContext ──────────────
@@ -166,9 +180,9 @@ export function AIConversationWizard() {
   // ── Process tool calls from AI response ─────────────────
 
   const processToolCalls = useCallback(
-    (toolCalls: WizardToolCall[]) => {
-      const panels: PanelConfig[] = [];
-      const tabs: TabDef[] = [];
+    (toolCalls: WizardToolCall[]): Message[] => {
+      let panel: PanelConfig | null = null;
+      const phaseSeparators: Message[] = [];
 
       for (const tc of toolCalls) {
         switch (tc.name) {
@@ -177,70 +191,71 @@ export function AIConversationWizard() {
             for (const [k, v] of Object.entries(fields)) {
               setData(k, v);
             }
-            // Update step estimate based on what we know
-            if (fields.courseName || fields.interactionPattern) setCurrentStep(1);
-            if (fields.welcomeMessage || fields.sessionCount) setCurrentStep(3);
-            if (fields.behaviorTargets || fields.lessonPlanModel) setCurrentStep(4);
+
+            // Compute new phase and check for transition
+            const updatedData = { ...getSetupData(), ...fields };
+            const isCommunity = updatedData.defaultDomainKind === "COMMUNITY";
+            const { phase, phaseIndex } = computeCurrentPhase(updatedData, !!isCommunity);
+
+            if (phase.id !== lastPhaseRef.current) {
+              lastPhaseRef.current = phase.id;
+              setCurrentPhaseId(phase.id);
+              setCurrentStep(phaseIndex);
+
+              // Add phase separator message
+              phaseSeparators.push({
+                id: uid(),
+                role: "system",
+                content: phase.label,
+                systemType: "timeline",
+              });
+            }
             break;
           }
 
           case "show_options": {
-            const panel: PanelConfig = {
-              type: "options",
-              question: tc.input.question as string,
-              dataKey: tc.input.dataKey as string,
-              mode: (tc.input.mode as "radio" | "checklist") || "radio",
-              options: (tc.input.options as OptionDef[]) || [],
-            };
-            const tab = tc.input.tab as string | undefined;
-            if (tab) {
-              tabs.push({ id: tab, label: tab, panel });
-            } else {
-              panels.push(panel);
+            if (!panel) {
+              panel = {
+                type: "options",
+                question: tc.input.question as string,
+                dataKey: tc.input.dataKey as string,
+                mode: (tc.input.mode as "radio" | "checklist") || "radio",
+                options: (tc.input.options as OptionDef[]) || [],
+              };
             }
             break;
           }
 
           case "show_sliders": {
-            const panel: PanelConfig = {
-              type: "sliders",
-              question: tc.input.question as string,
-              sliders: (tc.input.sliders as SlidersPanel["sliders"]) || [],
-            };
-            const tab = tc.input.tab as string | undefined;
-            if (tab) {
-              tabs.push({ id: tab, label: tab, panel });
-            } else {
-              panels.push(panel);
+            if (!panel) {
+              panel = {
+                type: "sliders",
+                question: tc.input.question as string,
+                sliders: (tc.input.sliders as SlidersPanel["sliders"]) || [],
+              };
             }
             break;
           }
 
           case "show_upload": {
-            panels.push({
-              type: "upload",
-              question: tc.input.question as string || "Upload teaching materials",
-            });
+            if (!panel) {
+              panel = {
+                type: "upload",
+                question: tc.input.question as string || "Upload teaching materials",
+              };
+            }
             break;
           }
 
           case "show_actions": {
-            panels.push({
-              type: "actions",
-              question: tc.input.question as string,
-              primary: tc.input.primary as { label: string; icon?: string },
-              secondary: tc.input.secondary as { label: string; icon?: string },
-            });
-            break;
-          }
-
-          case "create_institution": {
-            // Result already handled server-side — parse result for IDs
-            // (The tool result comes back in the AI's tool loop, not here)
-            break;
-          }
-
-          case "create_course": {
+            if (!panel) {
+              panel = {
+                type: "actions",
+                question: tc.input.question as string,
+                primary: tc.input.primary as { label: string; icon?: string },
+                secondary: tc.input.secondary as { label: string; icon?: string },
+              };
+            }
             break;
           }
 
@@ -252,25 +267,10 @@ export function AIConversationWizard() {
         }
       }
 
-      // Set panels (tabs take priority)
-      if (tabs.length > 0) {
-        setActiveTabs(tabs);
-        setActivePanel(null);
-      } else if (panels.length > 0) {
-        setActivePanel(panels);
-        setActiveTabs(null);
-      }
-
-      // Extract creation results from tool calls
-      for (const tc of toolCalls) {
-        if (tc.name === "create_institution" || tc.name === "create_course") {
-          // These are processed server-side and fed back to the AI.
-          // We need to check if the AI's response text mentions success
-          // and parse any IDs from the content.
-        }
-      }
+      setActivePanel(panel);
+      return phaseSeparators;
     },
-    [setData],
+    [setData, getSetupData],
   );
 
   // ── Send user message ───────────────────────────────────
@@ -282,7 +282,12 @@ export function AIConversationWizard() {
 
       setInputValue("");
       setActivePanel(null);
-      setActiveTabs(null);
+
+      // Clear undo if active
+      if (undoState) {
+        clearTimeout(undoState.timerId);
+        setUndoState(null);
+      }
 
       // Add user message
       const userMsg: Message = { id: uid(), role: "user", content: msg };
@@ -310,45 +315,63 @@ export function AIConversationWizard() {
         return;
       }
 
-      // Process tool calls (updates data, sets panels)
+      // Process tool calls (updates data, sets panel, returns phase separators)
+      let phaseSeparators: Message[] = [];
       if (response.toolCalls?.length > 0) {
-        processToolCalls(response.toolCalls);
+        phaseSeparators = processToolCalls(response.toolCalls);
       }
 
-      // Add AI response
+      // Build final message list: existing + phase separators + AI response
+      let finalMessages = [...newMessages, ...phaseSeparators];
       if (response.content) {
         const aiMsg: Message = { id: uid(), role: "assistant", content: response.content };
-        const withAi = [...newMessages, aiMsg];
-        setMessages(withAi);
-        saveHistory(withAi);
-        scrollToBottom();
+        finalMessages = [...finalMessages, aiMsg];
       }
+      setMessages(finalMessages);
+      saveHistory(finalMessages);
+      scrollToBottom();
 
       // Focus input
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus(), 150);
     },
-    [inputValue, isLoading, messages, sendToAPI, processToolCalls, scrollToBottom],
+    [inputValue, isLoading, messages, sendToAPI, processToolCalls, scrollToBottom, undoState],
   );
 
-  // ── Handle option panel submission ──────────────────────
+  // ── Handle option panel submission (with undo for radio) ──
 
   const handlePanelSubmit = useCallback(
     (dataKey: string, value: unknown, displayText: string) => {
+      // Clear any existing undo timer
+      if (undoState?.timerId) clearTimeout(undoState.timerId);
+
+      const previousValue = getData(dataKey);
       setData(dataKey, value);
       setActivePanel(null);
-      setActiveTabs(null);
-      // Send the selection as a user message so the AI knows
+
+      // Set up undo toast (3s)
+      const timerId = setTimeout(() => setUndoState(null), 3000);
+      setUndoState({ dataKey, previousValue, displayText, timerId });
+
+      // Send selection as user message
       handleSend(displayText);
     },
-    [setData, handleSend],
+    [setData, getData, handleSend, undoState],
   );
+
+  // ── Handle undo ─────────────────────────────────────────
+
+  const handleUndo = useCallback(() => {
+    if (!undoState) return;
+    clearTimeout(undoState.timerId);
+    setData(undoState.dataKey, undoState.previousValue);
+    setUndoState(null);
+  }, [undoState, setData]);
 
   // ── Handle action buttons ───────────────────────────────
 
   const handleAction = useCallback(
     (action: "primary" | "secondary") => {
       setActivePanel(null);
-      setActiveTabs(null);
       const text = action === "primary" ? "Create & Try a Call" : "Continue Setup";
       handleSend(text);
     },
@@ -433,7 +456,6 @@ export function AIConversationWizard() {
 
   if (!isActive) return null;
 
-  const setupData = getSetupData();
   const draftCallerId = getData<string>("draftCallerId");
 
   return (
@@ -444,7 +466,13 @@ export function AIConversationWizard() {
           <div className="gs-chat-messages">
             {messages.map((msg) => (
               <div key={msg.id} className={`gs-chat-row gs-chat-row--${msg.role}`}>
-                {msg.systemType === "error" ? (
+                {msg.systemType === "timeline" ? (
+                  <div className="gs-chat-group-sep">
+                    <div className="gs-chat-group-sep-line" />
+                    <span className="gs-chat-group-sep-label">{msg.content}</span>
+                    <div className="gs-chat-group-sep-line" />
+                  </div>
+                ) : msg.systemType === "error" ? (
                   <div className="gs-chat-bubble gs-chat-bubble--system" style={{ borderColor: "var(--status-error-text)" }}>
                     {msg.content}
                   </div>
@@ -491,28 +519,10 @@ export function AIConversationWizard() {
 
           {/* Input bar */}
           <div className="gs-chat-input-bar">
-            {/* Zone 0: Option Panel (above input) */}
-            {activeTabs && (
+            {/* Zone 0: Single Option Panel (above input) */}
+            {activePanel && (
               <OptionPanel
-                panels={activeTabs}
-                tabbed
-                onSubmit={handlePanelSubmit}
-                onAction={handleAction}
-                uploadComponent={
-                  <PackUploadStep
-                    domainId={getData<string>("draftDomainId") || getData<string>("existingDomainId") || ""}
-                    courseName={getData<string>("courseName") || "Course"}
-                    interactionPattern={getData<string>("interactionPattern") || undefined}
-                    teachingMode={getData<string>("teachingMode") || undefined}
-                    subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
-                    onResult={handleUploadComplete}
-                  />
-                }
-              />
-            )}
-            {activePanel && !activeTabs && (
-              <OptionPanel
-                panels={activePanel}
+                panel={activePanel}
                 onSubmit={handlePanelSubmit}
                 onAction={handleAction}
                 uploadComponent={
@@ -528,6 +538,17 @@ export function AIConversationWizard() {
               />
             )}
 
+            {/* Undo toast */}
+            {undoState && (
+              <div className="gs-undo-toast">
+                <span>Selected: {undoState.displayText}</span>
+                <button type="button" className="gs-undo-btn" onClick={handleUndo}>
+                  <Undo2 size={12} />
+                  {" "}Undo
+                </button>
+              </div>
+            )}
+
             {/* Zone 1: Typing area */}
             <div className="gs-chat-input-zone">
               <textarea
@@ -538,7 +559,6 @@ export function AIConversationWizard() {
                 placeholder="Type a message..."
                 rows={1}
                 className="gs-chat-textarea"
-                disabled={isLoading}
               />
             </div>
 
@@ -553,14 +573,20 @@ export function AIConversationWizard() {
                 )}
               </div>
               <div className="gs-chat-controls-right">
-                <button
-                  type="button"
-                  className="gs-chat-send-btn"
-                  disabled={!inputValue.trim() || isLoading}
-                  onClick={() => handleSend()}
-                >
-                  <ArrowUp size={16} />
-                </button>
+                {isLoading ? (
+                  <div className="gs-chat-send-btn gs-chat-send-btn--loading">
+                    <Loader2 size={16} className="hf-spinner" />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="gs-chat-send-btn"
+                    disabled={!inputValue.trim()}
+                    onClick={() => handleSend()}
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -568,7 +594,7 @@ export function AIConversationWizard() {
       </div>
 
       {/* Scaffold panel */}
-      <ScaffoldPanel getData={getData} currentStepIndex={currentStep} />
+      <ScaffoldPanel getData={getData} currentStepIndex={currentStep} currentPhaseId={currentPhaseId} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * OptionPanel — Claude-style radio/checklist panel that appears above the chat input bar.
+ * OptionPanel — single panel that appears above the chat input bar.
  *
  * Supports:
  *   - Radio mode (single-select) — user clicks an option → auto-submits
@@ -9,10 +9,11 @@
  *   - Sliders mode — personality slider controls
  *   - Upload mode — delegates to PackUploadStep
  *   - Actions mode — primary/secondary action buttons
- *   - Tabbed layout — multiple panels grouped in tabs
+ *
+ * One panel at a time — no tabs. The system enforces one show_* tool per AI turn.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Check, ArrowRight, Rocket, Upload } from "lucide-react";
 import type { SliderDef } from "./wizard-schema";
 
@@ -53,17 +54,9 @@ export interface ActionsPanel {
 
 export type PanelConfig = OptionsPanel | SlidersPanel | UploadPanel | ActionsPanel;
 
-export interface TabDef {
-  id: string;
-  label: string;
-  panel: PanelConfig;
-}
-
 interface OptionPanelProps {
-  /** Single panel or multiple tabs */
-  panels: PanelConfig[] | TabDef[];
-  /** Whether the panels are tabbed */
-  tabbed?: boolean;
+  /** Single panel to render */
+  panel: PanelConfig;
   /** Called when user selects an option / submits */
   onSubmit: (dataKey: string, value: unknown, displayText: string) => void;
   /** Called for action buttons */
@@ -72,50 +65,26 @@ interface OptionPanelProps {
   uploadComponent?: React.ReactNode;
 }
 
-export function OptionPanel({ panels, tabbed, onSubmit, onAction, uploadComponent }: OptionPanelProps) {
-  const [activeTab, setActiveTab] = useState(0);
-
-  const tabs = tabbed ? (panels as TabDef[]) : null;
-  const activePanels = tabs ? [tabs[activeTab].panel] : (panels as PanelConfig[]);
-
+export function OptionPanel({ panel, onSubmit, onAction, uploadComponent }: OptionPanelProps) {
   return (
     <div className="gs-option-panel">
-      {/* Tab bar */}
-      {tabs && tabs.length > 1 && (
-        <div className="gs-option-tabs">
-          {tabs.map((tab, i) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`gs-option-tab${i === activeTab ? " gs-option-tab--active" : ""}`}
-              onClick={() => setActiveTab(i)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Panel content */}
-      {activePanels.map((panel, i) => (
-        <div key={i} className="gs-option-panel-content">
-          {panel.type === "options" && (
-            <OptionsContent panel={panel} onSubmit={onSubmit} />
-          )}
-          {panel.type === "sliders" && (
-            <SlidersContent panel={panel} onSubmit={onSubmit} />
-          )}
-          {panel.type === "upload" && (
-            <div className="gs-option-upload">
-              <div className="gs-option-header">{panel.question}</div>
-              {uploadComponent}
-            </div>
-          )}
-          {panel.type === "actions" && (
-            <ActionsContent panel={panel} onAction={onAction} />
-          )}
-        </div>
-      ))}
+      <div className="gs-option-panel-content">
+        {panel.type === "options" && (
+          <OptionsContent panel={panel} onSubmit={onSubmit} />
+        )}
+        {panel.type === "sliders" && (
+          <SlidersContent panel={panel} onSubmit={onSubmit} />
+        )}
+        {panel.type === "upload" && (
+          <div className="gs-option-upload">
+            <div className="gs-option-header">{panel.question}</div>
+            {uploadComponent}
+          </div>
+        )}
+        {panel.type === "actions" && (
+          <ActionsContent panel={panel} onAction={onAction} />
+        )}
+      </div>
     </div>
   );
 }
