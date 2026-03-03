@@ -36,8 +36,8 @@ import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { useChatContext } from "@/contexts/ChatContext";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
-import { ChipSelect } from "@/components/shared/ChipSelect";
 import { TypePicker } from "@/components/shared/TypePicker";
+import { SECTOR_CONFIG, type SectorSlug } from "@/lib/institution-types/sector-config";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
 import type { PackUploadResult } from "@/components/wizards/PackUploadStep";
 import { FieldHint } from "@/components/shared/FieldHint";
@@ -149,6 +149,9 @@ export function ConversationWizard() {
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [selectedInst, setSelectedInst] = useState<ExistingInstitution | null>(null);
 
+  // Institution types (for auto-inference of type from name)
+  const [institutionTypes, setInstitutionTypes] = useState<Array<{ id: string; slug: string; defaultDomainKind?: string | null }>>([]);
+
   // URL import state
   const [urlImporting, setUrlImporting] = useState(false);
   const urlImportAttempted = useRef(false);
@@ -216,6 +219,25 @@ export function ConversationWizard() {
         setInstLoading(false);
       }
     })();
+  }, []);
+
+  // ── Load institution types (for auto-inference) ────────
+
+  useEffect(() => {
+    fetch("/api/admin/institution-types")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.types?.length) {
+          setInstitutionTypes(
+            data.types.map((t: any) => ({
+              id: t.id,
+              slug: t.slug,
+              defaultDomainKind: t.defaultDomainKind || null,
+            })),
+          );
+        }
+      })
+      .catch(() => {}); // Silent — auto-inference still works without typeId
   }, []);
 
   // ── Restore from data bag on mount ─────────────────────
@@ -398,11 +420,24 @@ export function ConversationWizard() {
         return getData<T>(key);
       };
 
-      // Find next visible question
+      // Find next visible question, collecting acknowledgments for auto-inferred skips
+      const inferAcks: ConversationMessage[] = [];
       let nextIdx = fromIndex + 1;
       while (nextIdx < CONVERSATION_SCRIPT.length) {
         const q = CONVERSATION_SCRIPT[nextIdx];
         if (!q.showWhen || q.showWhen(getDataNow)) break;
+
+        // Acknowledge auto-inferred type when skipping inst.type
+        if (q.id === "inst.type" && getDataNow<string>("autoInferredType")) {
+          const slug = getDataNow<string>("autoInferredType")!;
+          const label = SECTOR_CONFIG[slug as SectorSlug]?.label?.toLowerCase() || slug;
+          inferAcks.push({
+            id: `ai-infer-${q.id}`,
+            role: "assistant",
+            content: `Looks like a ${label} \u2014 I'll use ${label} terminology and settings.`,
+          });
+        }
+
         nextIdx++;
       }
 
@@ -422,6 +457,9 @@ export function ConversationWizard() {
       setTimeout(() => {
         setIsTyping(false);
         const newMsgs: ConversationMessage[] = [];
+
+        // Push auto-inference acknowledgments before the next question
+        newMsgs.push(...inferAcks);
 
         if (nextQ.groupLabel) {
           newMsgs.push({ id: `sep-${nextQ.id}`, role: "system", content: nextQ.groupLabel });
@@ -502,13 +540,25 @@ export function ConversationWizard() {
         };
         for (const [k, v] of Object.entries(pendingData)) setData(k, v);
       } else if (q.id === "inst.name") {
-        // New institution
+        // New institution — auto-infer type from name if possible
+        const name = String(value).trim();
+        const suggestedSlug = suggestTypeFromName(name);
+
         pendingData = {
-          institutionName: String(value).trim(),
+          institutionName: name,
           existingInstitutionId: undefined,
           existingInstitutionName: undefined,
           existingDomainId: undefined,
         };
+
+        if (suggestedSlug) {
+          const matchedType = institutionTypes.find((t) => t.slug === suggestedSlug);
+          pendingData.typeSlug = suggestedSlug;
+          pendingData.autoInferredType = suggestedSlug;
+          if (matchedType?.id) pendingData.typeId = matchedType.id;
+          if (matchedType?.defaultDomainKind) pendingData.defaultDomainKind = matchedType.defaultDomainKind;
+        }
+
         for (const [k, v] of Object.entries(pendingData)) setData(k, v);
       }
 
@@ -520,7 +570,7 @@ export function ConversationWizard() {
       // Advance — pass pendingData so showWhen sees not-yet-flushed writes
       advanceToQuestion(qIdx, pendingData);
     },
-    [advanceToQuestion, getData, setData, selectedInst],
+    [advanceToQuestion, getData, setData, selectedInst, institutionTypes],
   );
 
   // ── Text input submit ──────────────────────────────────
@@ -1316,6 +1366,15 @@ export function ConversationWizard() {
       setActiveQIndex(qIdx);
       setEditingQId(null);
 
+      // Clear auto-inferred type when editing institution name
+      // (so inst.type question re-appears if the new name doesn't match a type)
+      if (questionId === "inst.name") {
+        setData("autoInferredType", undefined);
+        setData("typeSlug", undefined);
+        setData("typeId", undefined);
+        setData("defaultDomainKind", undefined);
+      }
+
       // Restore the previous value into input
       const q = CONVERSATION_SCRIPT[qIdx];
       const ctrl = q.control;
@@ -1331,7 +1390,7 @@ export function ConversationWizard() {
         }
       }
     },
-    [messages, getData],
+    [messages, getData, setData],
   );
 
   // ── Render: inline control for active question ─────────
@@ -1341,36 +1400,8 @@ export function ConversationWizard() {
     const q = activeQuestion.question;
     const ctrl = q.control;
 
-    if (ctrl.type === "chips") {
-      const currentVal = getData<string>(ctrl.dataKey) || "";
-      return (
-        <div className="gs-chat-control">
-          <ChipSelect
-            options={ctrl.options}
-            value={currentVal}
-            onChange={(val) => {
-              setData(ctrl.dataKey, val);
-              if (q.autoAdvance) {
-                handleAnswer(q.id, val);
-              }
-            }}
-            hint={ctrl.hints?.[currentVal]}
-          />
-          {!q.autoAdvance && (
-            <div className="gs-chat-control-footer">
-              <button
-                type="button"
-                className="hf-btn hf-btn-primary hf-btn-sm"
-                onClick={() => handleAnswer(q.id, currentVal)}
-                disabled={!currentVal}
-              >
-                Continue
-              </button>
-            </div>
-          )}
-        </div>
-      );
-    }
+    // chips, suggestions, and actions are rendered in the selection strip
+    // (renderSelectionStrip) — only inline controls remain here.
 
     if (ctrl.type === "type-picker") {
       const currentSlug = getData<string>(ctrl.dataKey) || null;
@@ -1484,32 +1515,6 @@ export function ConversationWizard() {
       );
     }
 
-    if (ctrl.type === "actions") {
-      return (
-        <div className="gs-chat-control gs-chat-actions">
-          <button
-            type="button"
-            className="hf-btn hf-btn-primary"
-            onClick={() => {
-              handleAnswer(q.id, "Create & Try a Call", "Create & Try a Call");
-              runCourseCreation();
-            }}
-          >
-            <Rocket size={14} /> {ctrl.primary.label}
-          </button>
-          <button
-            type="button"
-            className="hf-btn hf-btn-secondary"
-            onClick={() => {
-              handleAnswer(q.id, "Continue Setup", "Continue Setup");
-            }}
-          >
-            {ctrl.secondary.label} <ArrowRight size={14} />
-          </button>
-        </div>
-      );
-    }
-
     if (ctrl.type === "review") {
       return (
         <div className="gs-chat-control">
@@ -1518,28 +1523,119 @@ export function ConversationWizard() {
       );
     }
 
-    // Textarea with suggestions: render clickable suggestion chips inline
-    if (ctrl.type === "textarea" && ctrl.suggestions && ctrl.suggestions.length > 0) {
+    return null; // text/textarea/url handled by input bar; chips/actions/suggestions by strip
+  };
+
+  // ── Render: selection strip (above input bar) ──────────
+
+  const renderSelectionStrip = () => {
+    if (!activeQuestion || isTyping) return null;
+    const q = activeQuestion.question;
+    const ctrl = q.control;
+
+    // ── Chips → Radio list ──
+    if (ctrl.type === "chips") {
+      const currentVal = getData<string>(ctrl.dataKey) || "";
+      const hasHints = ctrl.hints && Object.keys(ctrl.hints).length > 0;
+      const isCompact = !hasHints && ctrl.options.every((o) => o.label.length <= 8);
+
       return (
-        <div className="gs-chat-control gs-chat-suggestions">
-          {ctrl.suggestions.map((s) => (
-            <button
-              key={s.label}
-              type="button"
-              className="gs-suggestion-chip"
-              onClick={() => {
-                const resolved = typeof s.value === "function" ? s.value(getData) : s.value;
-                setInputValue(resolved);
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="gs-chat-selection-strip">
+          <div className={`gs-chat-radio-list${isCompact ? " gs-chat-radio-list--compact" : ""}`}>
+            {ctrl.options.map((opt) => (
+              <div
+                key={opt.value}
+                className={`gs-chat-radio-option${currentVal === opt.value ? " gs-chat-radio-option--selected" : ""}`}
+                onClick={() => {
+                  setData(ctrl.dataKey, opt.value);
+                  if (q.autoAdvance) {
+                    handleAnswer(q.id, opt.value);
+                  }
+                }}
+              >
+                <div className="gs-chat-radio-dot">
+                  <div className="gs-chat-radio-dot-inner" />
+                </div>
+                <div className="gs-chat-radio-content">
+                  <div className="gs-chat-radio-label">{opt.label}</div>
+                  {hasHints && ctrl.hints?.[opt.value] && (
+                    <div className="gs-chat-radio-hint">{ctrl.hints[opt.value]}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {!q.autoAdvance && (
+            <div className="gs-chat-control-footer">
+              <button
+                type="button"
+                className="hf-btn hf-btn-primary hf-btn-sm"
+                onClick={() => handleAnswer(q.id, currentVal)}
+                disabled={!currentVal}
+              >
+                Continue
+              </button>
+            </div>
+          )}
         </div>
       );
     }
 
-    return null; // text/textarea/url handled by input bar
+    // ── Suggestions (for textarea) ──
+    if (ctrl.type === "textarea" && ctrl.suggestions && ctrl.suggestions.length > 0) {
+      return (
+        <div className="gs-chat-selection-strip">
+          <div className="gs-chat-radio-list">
+            {ctrl.suggestions.map((s) => (
+              <div
+                key={s.label}
+                className="gs-chat-radio-option"
+                onClick={() => {
+                  const resolved = typeof s.value === "function" ? s.value(getData) : s.value;
+                  setInputValue(resolved);
+                }}
+              >
+                <ArrowRight size={14} className="gs-chat-strip-suggestion-icon" />
+                <div className="gs-chat-radio-content">
+                  <div className="gs-chat-radio-label">{s.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Actions (checkpoint) ──
+    if (ctrl.type === "actions") {
+      return (
+        <div className="gs-chat-selection-strip">
+          <div className="gs-chat-strip-actions">
+            <button
+              type="button"
+              className="hf-btn hf-btn-primary"
+              onClick={() => {
+                handleAnswer(q.id, "Create & Try a Call", "Create & Try a Call");
+                runCourseCreation();
+              }}
+            >
+              <Rocket size={14} /> {ctrl.primary.label}
+            </button>
+            <button
+              type="button"
+              className="hf-btn hf-btn-secondary"
+              onClick={() => {
+                handleAnswer(q.id, "Continue Setup", "Continue Setup");
+              }}
+            >
+              {ctrl.secondary.label} <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   // ── Review card ────────────────────────────────────────
@@ -1639,6 +1735,14 @@ export function ConversationWizard() {
     const t = activeQuestion.question.control.type;
     return t === "text" || t === "textarea" || t === "url" || t === "typeahead";
   }, [activeQuestion]);
+
+  const hasSelectionStrip = useMemo(() => {
+    if (!activeQuestion || isTyping) return false;
+    const ctrl = activeQuestion.question.control;
+    if (ctrl.type === "chips" || ctrl.type === "actions") return true;
+    if (ctrl.type === "textarea" && "suggestions" in ctrl && (ctrl.suggestions?.length ?? 0) > 0) return true;
+    return false;
+  }, [activeQuestion, isTyping]);
 
   const inputPlaceholder = useMemo(() => {
     if (!activeQuestion) return "";
@@ -1779,6 +1883,9 @@ export function ConversationWizard() {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* ── Selection strip (chips/suggestions/actions) ── */}
+      {renderSelectionStrip()}
 
       {/* ── Input bar (two zones: typing + controls) ── */}
       <div className={`gs-chat-input-bar${showInputBar ? "" : " gs-chat-input-bar--hidden"}`}>
@@ -1948,6 +2055,32 @@ export function ConversationWizard() {
           </div>
         </div>
       </div>
+
+      {/* ── Minimal controls bar (when strip visible, input bar hidden) ── */}
+      {!showInputBar && hasSelectionStrip && (
+        <div className="gs-chat-strip-controls">
+          <div className="gs-chat-controls-left">
+            {controlsHintData && (
+              <FieldHint label="" hint={controlsHintData} compact />
+            )}
+            {controlsHintData && <span className="gs-chat-controls-sep">&middot;</span>}
+            <button
+              type="button"
+              className="gs-chat-cmdk-btn"
+              onClick={() => toggleChatPanel()}
+              title="Ask AI for help (⌘K)"
+            >
+              <Command size={12} />
+              <span>K</span>
+            </button>
+          </div>
+          <div className="gs-chat-controls-right">
+            {stepCounterText && (
+              <span className="gs-chat-step-counter">{stepCounterText}</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

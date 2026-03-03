@@ -203,7 +203,7 @@ export const CONVERSATION_SCRIPT: ConversationQuestion[] = [
     message: "What kind of place is this?",
     subMessage: "This helps the AI set the right tone and terminology.",
     control: { type: "type-picker", dataKey: "typeSlug", typeIdKey: "typeId" },
-    showWhen: (g) => !g<string>("existingInstitutionId"),
+    showWhen: (g) => !g<string>("existingInstitutionId") && !g<string>("autoInferredType"),
     autoAdvance: true,
     hintKey: "institution.type",
   },

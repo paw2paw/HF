@@ -11,6 +11,8 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
+import { WIZARD_TOOLS, executeWizardTool } from "@/lib/chat/wizard-tools";
+import { buildWizardSystemPrompt } from "@/lib/chat/wizard-system-prompt";
 import { embedText } from "@/lib/embeddings";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
 import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
@@ -25,7 +27,7 @@ import {
 
 export const runtime = "nodejs";
 
-type ChatMode = "DATA" | "CALL" | "BUG";
+type ChatMode = "DATA" | "CALL" | "BUG" | "WIZARD";
 
 interface EntityBreadcrumb {
   type: string;
@@ -58,6 +60,7 @@ interface ChatRequest {
   engine?: AIEngine;
   callId?: string; // Active call ID for media message creation in CALL mode
   bugContext?: BugContextPayload; // Bug report context for BUG mode
+  setupData?: Record<string, unknown>; // Current wizard state for WIZARD mode
 }
 
 const MAX_TOOL_ITERATIONS = 5;
@@ -86,22 +89,42 @@ export async function POST(request: NextRequest) {
     const userRole = authResult.session.user.role;
 
     const body: ChatRequest = await request.json();
-    const { message, mode, entityContext, conversationHistory = [], engine, callId: requestCallId, bugContext } = body;
+    const { message, mode, entityContext, conversationHistory = [], engine, callId: requestCallId, bugContext, setupData } = body;
 
     if (!message?.trim()) {
       return NextResponse.json({ ok: false, error: "Message is required" }, { status: 400 });
     }
 
+    // WIZARD mode: handle early (has its own system prompt, no slash commands)
+    if (mode === "WIZARD") {
+      const userId = authResult.session.user.id;
+      const wizardPrompt = buildWizardSystemPrompt(setupData || {});
+      const wizardMessages: AIMessage[] = [
+        { role: "system", content: wizardPrompt },
+        ...conversationHistory.slice(-20).map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+        { role: "user" as const, content: message.trim() },
+      ];
+      const aiConfig = await getAIConfig("wizard.get-started");
+      const selectedEngine = engine || aiConfig.provider;
+      return await handleWizardModeWithTools(
+        wizardMessages, "wizard.get-started", engine, selectedEngine, mode,
+        message, entityContext, conversationHistory, userId,
+      );
+    }
+
     // Check for slash command
     const parsed = parseCommand(message);
     if (parsed) {
-      const result = await executeCommand(message, entityContext, mode);
+      const result = await executeCommand(message, entityContext, mode as "DATA" | "CALL" | "BUG");
       return NextResponse.json(result);
     }
 
     // Build mode-specific system prompt with terminology
     const userInstitutionId = authResult.session.user.institutionId;
-    const systemPrompt = await buildSystemPrompt(mode, entityContext, bugContext, userRole, userInstitutionId);
+    const systemPrompt = await buildSystemPrompt(mode as "DATA" | "CALL" | "BUG", entityContext, bugContext, userRole, userInstitutionId);
 
     // Prepare messages with conversation history
     const lastHistoryMessage = conversationHistory[conversationHistory.length - 1];
@@ -417,6 +440,103 @@ async function handleCallModeWithTools(
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Transfer-Encoding": "chunked",
+      "X-Chat-Mode": mode,
+      "X-AI-Engine": selectedEngine,
+      "X-Tool-Calls": toolCallCount.toString(),
+    },
+  });
+}
+
+/**
+ * WIZARD mode with tool calling.
+ * Uses non-streaming tool loop (same pattern as DATA mode) with wizard-specific tools.
+ * Returns the final text response + raw content blocks (so the client can extract tool_use blocks).
+ */
+async function handleWizardModeWithTools(
+  messages: AIMessage[],
+  callPoint: string,
+  engine: AIEngine | undefined,
+  selectedEngine: string,
+  mode: ChatMode,
+  message: string,
+  entityContext: EntityBreadcrumb[],
+  conversationHistory: { role: string; content: string }[],
+  userId: string,
+): Promise<Response> {
+  const loopMessages: AIMessage[] = [...messages];
+  let toolCallCount = 0;
+  let finalContent = "";
+  let allToolCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    // @ai-call wizard.get-started — Non-streaming with wizard tools | config: /x/ai-config
+    const response = await getConfiguredMeteredAICompletion(
+      {
+        callPoint,
+        engineOverride: engine,
+        messages: loopMessages,
+        tools: WIZARD_TOOLS,
+      },
+      { sourceOp: `${callPoint}.tools`, userId }
+    );
+
+    // If no tool calls, we're done
+    if (!response.toolUses || response.toolUses.length === 0) {
+      finalContent = response.content;
+      break;
+    }
+
+    // Model wants to use tools
+    toolCallCount += response.toolUses.length;
+
+    // Collect tool calls for the client
+    for (const tu of response.toolUses) {
+      allToolCalls.push({ name: tu.name, input: tu.input });
+    }
+
+    // Add assistant's response to conversation
+    loopMessages.push({
+      role: "assistant",
+      content: response.rawContentBlocks || [{ type: "text", text: response.content }],
+    });
+
+    // Execute each tool and collect results
+    const toolResultBlocks: ContentBlock[] = [];
+    for (const toolUse of response.toolUses) {
+      console.log(`[wizard-tools] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
+      const result = await executeWizardTool(toolUse.name, toolUse.input, userId);
+      toolResultBlocks.push({
+        type: "tool_result",
+        tool_use_id: toolUse.id,
+        content: result.content,
+        ...(result.is_error ? { is_error: true } : {}),
+      });
+    }
+
+    loopMessages.push({
+      role: "user",
+      content: toolResultBlocks,
+    });
+
+    // If the last tool was a show_* or mark_complete, the AI should give text next round
+    // (the tool result says "Panel displayed, wait for response" so the AI will naturally provide text)
+  }
+
+  if (!finalContent) {
+    finalContent = "Let me help you continue setting up your AI tutor.";
+  }
+
+  logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext, toolCallCount);
+
+  // Return as JSON (not streaming) so the client can access tool calls
+  const responsePayload = {
+    content: finalContent,
+    toolCalls: allToolCalls,
+    toolCallCount,
+  };
+
+  return NextResponse.json(responsePayload, {
+    headers: {
       "X-Chat-Mode": mode,
       "X-AI-Engine": selectedEngine,
       "X-Tool-Calls": toolCallCount.toString(),

@@ -370,6 +370,15 @@ export const CALL_POINTS: CallPointDef[] = [
     defaults: { provider: "claude", model: config.ai.claude.lightModel, temperature: 0.3, maxTokens: 2000 },
   },
 
+  // ── Wizard AI ──
+  {
+    id: "wizard.get-started",
+    label: "Get Started Wizard",
+    description: "AI-guided onboarding conversation for setting up institutions and courses",
+    category: "course-setup",
+    defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.7, maxTokens: 500, timeoutMs: 15_000 },
+  },
+
   // ── Admin AI ──
   {
     id: "chat.stream",
