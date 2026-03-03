@@ -174,6 +174,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
   const [currentPhaseId, setCurrentPhaseId] = useState("institution");
   const [undoState, setUndoState] = useState<UndoState | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionQuestion, setSuggestionQuestion] = useState<string>("");
   const [lastUploadResult, setLastUploadResult] = useState<PackUploadResult | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -269,6 +270,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
       let panel: PanelConfig | null = null;
       const phaseSeparators: Message[] = [];
       setSuggestions([]); // Clear stale suggestions before processing new tool calls
+      setSuggestionQuestion("");
 
       for (const tc of toolCalls) {
         switch (tc.name) {
@@ -348,6 +350,8 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
           case "show_suggestions": {
             const items = tc.input.suggestions as string[];
             if (items?.length) setSuggestions(items);
+            const q = tc.input.question as string | undefined;
+            if (q) setSuggestionQuestion(q);
             break;
           }
 
@@ -398,6 +402,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
         saveHistory(newMessages);
         setInputValue("");
         setSuggestions([]);
+        setSuggestionQuestion("");
         scrollToBottom();
         setTimeout(() => inputRef.current?.focus(), 150);
         return;
@@ -406,6 +411,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
       setInputValue("");
       setActivePanel(null);
       setSuggestions([]);
+      setSuggestionQuestion("");
 
       // Clear undo if active
       if (undoState) {
@@ -551,6 +557,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
     setActivePanel(null);
     setUndoState(null);
     setSuggestions([]);
+    setSuggestionQuestion("");
 
     // Re-apply institution context if user didn't dismiss it
     const shouldReapplyContext = initialContext && !dismissedContextRef.current;
@@ -767,7 +774,7 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
                     <div className="gs-chat-success-title">Your AI tutor is ready!</div>
                     <div className="gs-chat-success-sub">Try a sim call to see it in action.</div>
                     <div className="gs-chat-success-actions">
-                      <a href={`/x/sim/${draftCallerId}?${new URLSearchParams({ ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}), ...(draftDomainId ? { domainId: draftDomainId } : {}) }).toString()}`} className="hf-btn hf-btn-primary">
+                      <a href={`/x/sim/${draftCallerId}?${new URLSearchParams({ ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}), ...(draftDomainId ? { domainId: draftDomainId } : {}) }).toString()}`} className="hf-btn hf-btn-primary" target="_blank" rel="noopener noreferrer">
                         Try a Sim Call
                       </a>
                     </div>
@@ -826,6 +833,9 @@ export function AIConversationWizard({ initialContext }: AIConversationWizardPro
             {/* Quick-reply suggestions */}
             {suggestions.length > 0 && !activePanel && (
               <div className="gs-suggestions">
+                {suggestionQuestion && (
+                  <span className="gs-suggestions-label">{suggestionQuestion}</span>
+                )}
                 {suggestions.map((label) => (
                   <button
                     key={label}

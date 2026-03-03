@@ -168,10 +168,16 @@ export const WIZARD_TOOLS: AITool[] = [
       "Show clickable quick-reply chips above the chat input. " +
       "Use this whenever you ask an OPTIONAL or skippable question — the user should never have to type 'skip'. " +
       "Suggestions auto-send as a user message when clicked. " +
-      "Can be used alongside a text response but NOT alongside other show_* tools.",
+      "Can be used alongside a text response but NOT alongside other show_* tools. " +
+      "IMPORTANT: Always include the 'question' field to give the chips context — " +
+      "e.g. 'Welcome Message' or 'Website URL'. Without it, the user sees orphan buttons with no explanation.",
     input_schema: {
       type: "object",
       properties: {
+        question: {
+          type: "string",
+          description: "Short context label displayed above the chips (e.g. 'Welcome Message', 'Website URL'). REQUIRED — chips are meaningless without it.",
+        },
         suggestions: {
           type: "array",
           items: { type: "string" },
@@ -180,7 +186,7 @@ export const WIZARD_TOOLS: AITool[] = [
           maxItems: 3,
         },
       },
-      required: ["suggestions"],
+      required: ["question", "suggestions"],
     },
   },
   {

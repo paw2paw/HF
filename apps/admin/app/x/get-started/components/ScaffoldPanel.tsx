@@ -354,6 +354,8 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
             <a
               href={`/x/sim/${getData<string>("draftCallerId") || ""}?${new URLSearchParams({ ...(getData<string>("draftPlaybookId") ? { playbookId: getData<string>("draftPlaybookId")! } : {}), ...(getData<string>("draftDomainId") || getData<string>("existingDomainId") ? { domainId: (getData<string>("draftDomainId") || getData<string>("existingDomainId"))! } : {}) }).toString()}`}
               className="gs-sim-btn gs-sim-btn-ready"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               Try a Sim Call
             </a>

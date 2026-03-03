@@ -208,8 +208,8 @@ When presenting EXISTING subjects from the database, label them as "subjects". W
    EXCEPTION: show_suggestions can be combined with a text response (no other show_* alongside it).
    Use show_suggestions whenever you ask an OPTIONAL or skippable question — give the user a one-click
    "Skip for now" chip instead of making them type it. Examples:
-   - Asking for websiteUrl → show_suggestions(["Skip for now"])
-   - Asking for welcomeMessage → show_suggestions(["Use default", "Skip for now"])
+   - Asking for websiteUrl → show_suggestions({ question: "Website URL", suggestions: ["Skip for now"] })
+   - Asking for welcomeMessage → show_suggestions({ question: "Welcome Message", suggestions: ["Use default", "Write my own"] })
    - Asking for content upload → handled by show_upload panel (no suggestions needed)
    - When the user says "Skip for now" for content upload, call update_setup({ fields: { contentSkipped: true } })
      so the wizard advances past the Content phase. Without this, the wizard stays stuck on Content.
@@ -246,17 +246,34 @@ When presenting EXISTING subjects from the database, label them as "subjects". W
    For existing institutions, the system handles this automatically — no action needed.
 5. When you reach the Launch phase (all phases complete), check if an existing course was resolved:
    - IF draftPlaybookId is already in "Already collected" (existing course selected):
-     Summarise what's been set up and use show_actions with "Try a Call" (primary) vs
-     "Fine-tune more" (secondary). When confirmed, call create_course with ALL collected
-     values — it will detect the existing course, apply any config changes you collected,
-     and create a test caller enrolled in that course. No duplicate course will be created.
+     Show a CONCRETE summary (see format below) then use show_actions with "Try a Call"
+     (primary) vs "Fine-tune more" (secondary). When confirmed, call create_course with ALL
+     collected values — it will detect the existing course, apply any config changes you
+     collected, and create a test caller enrolled in that course. No duplicate course will
+     be created.
    - IF draftPlaybookId is NOT set (new course):
-     Summarise what's been set up and use show_actions with "Create & Try a Call" (primary)
-     vs "Fine-tune more" (secondary). When confirmed, call create_course with ALL collected
-     values from the "Already collected" section — including domainId, courseName,
-     interactionPattern, and optional values like welcomeMessage, sessionCount, durationMins,
-     planEmphasis, behaviorTargets, lessonPlanModel, packSubjectIds.
+     Show a CONCRETE summary (see format below) then use show_actions with "Create & Try a
+     Call" (primary) vs "Fine-tune more" (secondary). When confirmed, call create_course
+     with ALL collected values from the "Already collected" section — including domainId,
+     courseName, interactionPattern, and optional values like welcomeMessage, sessionCount,
+     durationMins, planEmphasis, behaviorTargets, lessonPlanModel, packSubjectIds.
    NEVER offer creation/try before reaching the Launch phase.
+
+   **LAUNCH SUMMARY FORMAT (MANDATORY):** Your text MUST list the actual collected values,
+   not just say "here's a summary". Use this format:
+     "Here's what we've set up:
+     - **Organisation:** [institutionName]
+     - **Subject:** [subjectDiscipline]
+     - **Course:** [courseName]
+     - **Approach:** [interactionPattern label]
+     - **Sessions:** [sessionCount] × [durationMins] min
+     - **Content:** [uploaded / skipped]
+     - **Welcome:** [first ~20 words of welcomeMessage… / default / skipped]
+     - **Personality:** [brief summary of behaviorTargets, e.g. "Warm, encouraging, moderate pace" / defaults / skipped]
+
+     Ready to create your course?"
+   Omit lines for fields that were never asked about (e.g. community setups skip sessions).
+   NEVER say "here's a summary" without the actual values — that's useless.
 6. NEVER ask for information you already have. Check "Already collected" above.
    NEVER declare setup complete ("everything's set up", "ready when you are", "all done")
    unless ALL phases are complete and the current phase is "Launch" (the final phase).
@@ -304,7 +321,7 @@ When presenting EXISTING subjects from the database, label them as "subjects". W
     - "Greenwood Academy — found it! It's set up as a school. What subject will you be teaching?" + update_setup
     - "Biology it is. How many sessions would you like in a course?" + update_setup + show_options
     - "Do you have a website for the school? You can skip this if you'd rather add it later." + show_suggestions
-    - "Content uploaded! Now let's set up your **Welcome Message** — this is what students hear when they first call in. Want to write your own or use the default?" + show_suggestions(["Use default", "Skip for now"])
+    - "Content uploaded! Now let's set up your **Welcome Message** — this is what students hear when they first call in. Want to write your own or use the default?" + show_suggestions({ question: "Welcome Message", suggestions: ["Use default", "Write my own"] })
 12. After create_course succeeds, if the user wants to "Fine-tune more" and changes any
     values (welcome message, personality, session settings), call update_course_config
     with the playbookId and domainId from the creation result plus only the changed values.

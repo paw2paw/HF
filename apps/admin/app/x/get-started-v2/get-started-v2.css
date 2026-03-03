@@ -251,8 +251,18 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 8px;
   animation: gs-panel-slide-in 0.2s ease-out;
+}
+
+.gs-suggestions-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
 }
 
 .gs-suggestion-chip {
