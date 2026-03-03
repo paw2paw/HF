@@ -159,6 +159,27 @@ export const WIZARD_TOOLS: AITool[] = [
     },
   },
   {
+    name: "show_suggestions",
+    description:
+      "Show clickable quick-reply chips above the chat input. " +
+      "Use this whenever you ask an OPTIONAL or skippable question — the user should never have to type 'skip'. " +
+      "Suggestions auto-send as a user message when clicked. " +
+      "Can be used alongside a text response but NOT alongside other show_* tools.",
+    input_schema: {
+      type: "object",
+      properties: {
+        suggestions: {
+          type: "array",
+          items: { type: "string" },
+          description: "1-3 short suggestion labels (e.g. 'Skip for now', 'I'll add this later').",
+          minItems: 1,
+          maxItems: 3,
+        },
+      },
+      required: ["suggestions"],
+    },
+  },
+  {
     name: "create_institution",
     description:
       "Create a new institution (and its domain). " +
@@ -457,6 +478,10 @@ export async function executeWizardTool(
     case "show_upload":
     case "show_actions": {
       return { ...base, content: `Panel displayed to user. Wait for their response.` };
+    }
+
+    case "show_suggestions": {
+      return { ...base, content: `Suggestion chips displayed to user. Wait for their response.` };
     }
 
     case "create_institution": {

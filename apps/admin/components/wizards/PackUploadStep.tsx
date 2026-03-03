@@ -133,6 +133,11 @@ export function PackUploadStep({
 }: PackUploadStepProps) {
   const hasExistingItems = existingCourses.length > 0 || existingSubjects.length > 0;
 
+  // Keep domainId in a ref so handleIngest always reads the LATEST value,
+  // even if the useCallback closure captured a stale prop.
+  const domainIdRef = useRef(domainId);
+  domainIdRef.current = domainId;
+
   // File state — seeded from initialFiles if provided
   const [files, setFiles] = useState<File[]>(() => initialFiles ?? []);
   const [dragOver, setDragOver] = useState(false);
@@ -208,7 +213,7 @@ export function PackUploadStep({
     try {
       const formData = new FormData();
       formData.append('courseName', courseName);
-      formData.append('domainId', domainId);
+      formData.append('domainId', domainIdRef.current);
       for (const file of files) {
         formData.append('files', file);
       }
@@ -229,7 +234,7 @@ export function PackUploadStep({
     } finally {
       setAnalyzing(false);
     }
-  }, [files, courseName, domainId, onResult]);
+  }, [files, courseName]);
 
   // Auto-analyze when initialFiles are provided (e.g. from seed zone drop)
   const didAutoAnalyze = useRef(false);
@@ -356,6 +361,14 @@ export function PackUploadStep({
   const handleIngest = useCallback(async () => {
     if (!manifest) return;
 
+    // Read latest domainId from ref (avoids stale closure from useCallback)
+    const effectiveDomainId = domainIdRef.current;
+    if (!effectiveDomainId) {
+      console.warn('[PackUploadStep] domainId empty at ingest time — prop was:', domainId);
+      setIngestError('Organisation not ready yet. Please go back and ensure your institution is set up, then try again.');
+      return;
+    }
+
     setIngesting(true);
     setIngestError(null);
     setTimeline([]);
@@ -369,7 +382,7 @@ export function PackUploadStep({
     try {
       const formData = new FormData();
       formData.append('manifest', JSON.stringify(manifest));
-      formData.append('domainId', domainId);
+      formData.append('domainId', effectiveDomainId);
       formData.append('courseName', courseName);
       if (interactionPattern) {
         formData.append('interactionPattern', interactionPattern);
@@ -442,6 +455,7 @@ export function PackUploadStep({
       setIngesting(false);
     }
   }, [manifest, domainId, courseName, interactionPattern, teachingMode, files, handleIngestEvent]);
+  // Note: domainId kept in deps for re-creation, but effectiveDomainId reads from ref for freshness
 
   // Auto-ingest after classify when autoIngest is enabled (v3 builder — skip manifest review)
   const didAutoIngest = useRef(false);

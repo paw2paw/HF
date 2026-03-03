@@ -520,9 +520,12 @@ async function handleWizardModeWithTools(
     // Model wants to use tools
     toolCallCount += response.toolUses.length;
 
-    // Collect tool calls for the client — enforce ONE show_* per response
+    // Collect tool calls for the client — separate data tools from UI tools
+    // to ensure auto-injected update_setup (entity IDs) is processed BEFORE
+    // show_* tools that render panels dependent on those IDs.
     const showToolNames = new Set(["show_options", "show_sliders", "show_upload", "show_actions"]);
     let sawShowTool = false;
+    const deferredShowTools: Array<{ name: string; input: Record<string, unknown> }> = [];
     for (const tu of response.toolUses) {
       if (showToolNames.has(tu.name)) {
         if (sawShowTool) {
@@ -530,6 +533,9 @@ async function handleWizardModeWithTools(
           continue;
         }
         sawShowTool = true;
+        // Defer show_* tools — push them AFTER auto-injected data updates
+        deferredShowTools.push({ name: tu.name, input: tu.input });
+        continue;
       }
       allToolCalls.push({ name: tu.name, input: tu.input });
     }
@@ -579,6 +585,10 @@ async function handleWizardModeWithTools(
         } catch { /* non-JSON result — no injection needed */ }
       }
     }
+
+    // Now append deferred show_* tools AFTER all data updates are queued
+    // This ensures the client processes entity IDs before rendering panels
+    allToolCalls.push(...deferredShowTools);
 
     loopMessages.push({
       role: "user",

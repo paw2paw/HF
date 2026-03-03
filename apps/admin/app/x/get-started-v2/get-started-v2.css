@@ -245,6 +245,40 @@
   gap: 12px;
 }
 
+/* ── Quick-reply suggestion chips ───────────────────── */
+
+.gs-suggestions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  animation: gs-panel-slide-in 0.2s ease-out;
+}
+
+.gs-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.gs-suggestion-chip:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.gs-suggestion-chip:active {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+
 /* ── Undo toast ─────────────────────────────────────── */
 
 .gs-undo-toast {

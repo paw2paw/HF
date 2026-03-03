@@ -118,6 +118,7 @@ export function AIConversationWizard() {
   const [currentStep, setCurrentStep] = useState(0);
   const [currentPhaseId, setCurrentPhaseId] = useState("institution");
   const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -203,6 +204,7 @@ export function AIConversationWizard() {
     (toolCalls: WizardToolCall[]): Message[] => {
       let panel: PanelConfig | null = null;
       const phaseSeparators: Message[] = [];
+      setSuggestions([]); // Clear stale suggestions before processing new tool calls
 
       for (const tc of toolCalls) {
         switch (tc.name) {
@@ -279,6 +281,12 @@ export function AIConversationWizard() {
             break;
           }
 
+          case "show_suggestions": {
+            const items = tc.input.suggestions as string[];
+            if (items?.length) setSuggestions(items);
+            break;
+          }
+
           case "mark_complete": {
             setData("launched", true);
             setCurrentStep(5);
@@ -302,6 +310,7 @@ export function AIConversationWizard() {
 
       setInputValue("");
       setActivePanel(null);
+      setSuggestions([]);
 
       // Clear undo if active
       if (undoState) {
@@ -435,6 +444,7 @@ export function AIConversationWizard() {
     setCurrentStep(0);
     setCurrentPhaseId("institution");
     setUndoState(null);
+    setSuggestions([]);
     lastPhaseRef.current = "institution";
 
     // Show welcome greeting directly — the init effect won't re-fire because
@@ -634,16 +644,27 @@ export function AIConversationWizard() {
                 panel={activePanel}
                 onSubmit={handlePanelSubmit}
                 onAction={handleAction}
-                uploadComponent={
-                  <PackUploadStep
-                    domainId={getData<string>("draftDomainId") || getData<string>("existingDomainId") || ""}
+                uploadComponent={(() => {
+                  const resolvedDomainId = getData<string>("draftDomainId") || getData<string>("existingDomainId") || "";
+                  if (!resolvedDomainId && activePanel?.type === "upload") {
+                    console.warn("[wizard-v2] Upload panel visible but domainId empty!", {
+                      draftDomainId: getData<string>("draftDomainId"),
+                      existingDomainId: getData<string>("existingDomainId"),
+                      allData: JSON.stringify(Object.fromEntries(
+                        ["draftDomainId", "existingDomainId", "draftInstitutionId", "existingInstitutionId", "institutionName"]
+                          .map(k => [k, getData(k)])
+                      )),
+                    });
+                  }
+                  return <PackUploadStep
+                    domainId={resolvedDomainId}
                     courseName={getData<string>("courseName") || "Course"}
                     interactionPattern={getData<string>("interactionPattern") || undefined}
                     teachingMode={getData<string>("teachingMode") || undefined}
                     subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
                     onResult={handleUploadComplete}
-                  />
-                }
+                  />;
+                })()}
               />
             )}
 
@@ -655,6 +676,22 @@ export function AIConversationWizard() {
                   <Undo2 size={12} />
                   {" "}Undo
                 </button>
+              </div>
+            )}
+
+            {/* Quick-reply suggestions */}
+            {suggestions.length > 0 && !activePanel && (
+              <div className="gs-suggestions">
+                {suggestions.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="gs-suggestion-chip"
+                    onClick={() => handleSend(label)}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
 
