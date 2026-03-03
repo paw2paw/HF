@@ -521,6 +521,20 @@ async function extractSource(
           vocabulary: totalVocabularyCreated,
         },
       });
+    }, (retryInfo) => {
+      send({
+        phase: "chunk-retry",
+        message: `${fileName}: retrying chunk ${retryInfo.chunkIndex + 1}/${retryInfo.totalChunks} (attempt ${retryInfo.attempt + 1}/${retryInfo.maxAttempts})`,
+        data: {
+          fileName,
+          sourceId: source.id,
+          chunkIndex: retryInfo.chunkIndex,
+          totalChunks: retryInfo.totalChunks,
+          attempt: retryInfo.attempt + 1,
+          maxAttempts: retryInfo.maxAttempts,
+          retryDelayMs: retryInfo.delayMs,
+        },
+      });
     });
 
     if (!result.ok) {

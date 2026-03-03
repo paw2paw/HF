@@ -449,17 +449,46 @@ export async function executeWizardTool(
         if (resolved) {
           if (resolved.autoCommit) {
             const sub = resolved.subjects[0];
+
+            // Build course context so the AI knows what courses exist for this subject
+            let courseContext = "";
+            if (sub.courses.length === 1) {
+              const c = sub.courses[0];
+              courseContext =
+                `\nAUTO-COMMIT COURSE: Only one course for this subject: "${c.name}" (playbookId: ${c.id}` +
+                `${c.interactionPattern ? `, interactionPattern: ${c.interactionPattern}` : ""}). ` +
+                `Call update_setup with: { courseName: "${c.name}", draftPlaybookId: "${c.id}"` +
+                `${c.interactionPattern ? `, interactionPattern: "${c.interactionPattern}"` : ""} }. ` +
+                `Tell the user what you found. Skip to the next uncollected field (likely content upload).`;
+            } else if (sub.courses.length > 1) {
+              const courseLines = sub.courses.map((c) =>
+                `  - "${c.name}" (playbookId: ${c.id}${c.interactionPattern ? `, ${c.interactionPattern}` : ""})`
+              ).join("\n");
+              courseContext =
+                `\nMULTIPLE COURSES for this subject:\n${courseLines}\n` +
+                `Show as show_options for courseName (radio mode) with "Create new course" at the end.`;
+            } else {
+              courseContext = "\nNo existing courses for this subject — ask for course name next.";
+            }
+
             return {
               ...base,
+              autoInjectFields: sub.courses.length === 1 ? {
+                draftPlaybookId: sub.courses[0].id,
+                courseName: sub.courses[0].name,
+                ...(sub.courses[0].interactionPattern ? { interactionPattern: sub.courses[0].interactionPattern } : {}),
+              } : undefined,
               content:
                 `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
                 `AUTO-COMMIT SUBJECT: "${sub.name}" (subjectId: ${sub.id}). ` +
-                `Tell the user: "Found ${sub.name} — using your existing subject." ` +
-                `Move to next uncollected field.`,
+                `Tell the user: "Found ${sub.name}."` +
+                courseContext,
             };
           }
-          // Multiple matches — show options
-          const optionLines = resolved.subjects.map((s) => `  - "${s.name}" (subjectId: ${s.id})`).join("\n");
+          // Multiple subject matches — show options
+          const optionLines = resolved.subjects.map((s) =>
+            `  - "${s.name}" (subjectId: ${s.id}, ${s.courses.length} course${s.courses.length !== 1 ? "s" : ""})`
+          ).join("\n");
           return {
             ...base,
             content:
@@ -1075,6 +1104,8 @@ async function resolveCourseByName(name: string, domainId: string): Promise<Cour
 interface ResolvedSubjectMatch {
   id: string;
   name: string;
+  /** Courses (playbooks) linked to this subject in this domain */
+  courses: ResolvedPlaybook[];
 }
 
 interface SubjectResolution {
@@ -1086,20 +1117,46 @@ interface SubjectResolution {
 /**
  * Look up existing subjects in a domain by name.
  * Strategy: exact match first, then partial (contains) for 3+ char inputs.
- * Scoped to domain via SubjectDomain join.
+ * Scoped to domain via SubjectDomain join. Includes courses for each subject.
  */
 async function resolveSubjectByName(name: string, domainId: string): Promise<SubjectResolution | null> {
   try {
     const { prisma } = await import("@/lib/prisma");
 
+    const subjectSelect = {
+      subject: {
+        select: {
+          id: true,
+          name: true,
+          playbooks: {
+            where: { playbook: { domainId } },
+            select: {
+              playbook: { select: { id: true, name: true, config: true } },
+            },
+          },
+        },
+      },
+    } as const;
+
+    function toSubjectMatch(link: { subject: { id: string; name: string; playbooks: Array<{ playbook: { id: string; name: string; config: unknown } }> } }): ResolvedSubjectMatch {
+      return {
+        id: link.subject.id,
+        name: link.subject.name,
+        courses: link.subject.playbooks.map((ps) => {
+          const config = ps.playbook.config as Record<string, unknown> | null;
+          return { id: ps.playbook.id, name: ps.playbook.name, interactionPattern: config?.interactionPattern as string | undefined };
+        }),
+      };
+    }
+
     // 1. Try exact match (domain-scoped via SubjectDomain)
     const exactLink = await prisma.subjectDomain.findFirst({
       where: { domainId, subject: { name: { equals: name, mode: "insensitive" } } },
-      select: { subject: { select: { id: true, name: true } } },
+      select: subjectSelect,
     });
     if (exactLink) {
       return {
-        subjects: [{ id: exactLink.subject.id, name: exactLink.subject.name }],
+        subjects: [toSubjectMatch(exactLink)],
         autoCommit: true,
       };
     }
@@ -1108,13 +1165,13 @@ async function resolveSubjectByName(name: string, domainId: string): Promise<Sub
     if (name.trim().length >= 3) {
       const candidateLinks = await prisma.subjectDomain.findMany({
         where: { domainId, subject: { name: { contains: name, mode: "insensitive" } } },
-        select: { subject: { select: { id: true, name: true } } },
+        select: subjectSelect,
         take: 5,
       });
       if (candidateLinks.length > 0) {
         const subjects = candidateLinks
           .sort((a, b) => a.subject.name.length - b.subject.name.length)
-          .map((l) => ({ id: l.subject.id, name: l.subject.name }));
+          .map(toSubjectMatch);
         return {
           subjects,
           autoCommit: subjects.length === 1,

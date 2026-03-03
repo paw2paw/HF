@@ -12,6 +12,7 @@ export type IngestPhase =
   | "uploading"
   | "source-created"
   | "extracting"
+  | "chunk-retry"
   | "chunk-complete"
   | "images-extracting"
   | "images-complete"
@@ -36,6 +37,10 @@ export interface IngestEvent {
     // Chunk events
     chunkIndex?: number;
     totalChunks?: number;
+    // Retry events
+    attempt?: number;
+    maxAttempts?: number;
+    retryDelayMs?: number;
     // Per-chunk extraction counts (for client-side accumulation)
     chunkAssertions?: number;
     chunkQuestions?: number;

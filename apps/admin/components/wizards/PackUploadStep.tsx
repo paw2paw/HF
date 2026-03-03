@@ -162,6 +162,7 @@ export function PackUploadStep({
   const [timeline, setTimeline] = useState<TimelineStep[]>([]);
   const [extractionTotals, setExtractionTotals] = useState({ assertions: 0, questions: 0, vocabulary: 0, images: 0 });
   const [currentFile, setCurrentFile] = useState<{ name: string; chunks: number; completedSet: Set<number> } | null>(null);
+  const [retryInfo, setRetryInfo] = useState<{ chunkIndex: number; totalChunks: number; attempt: number; maxAttempts: number } | null>(null);
 
   // Course / subject selection
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -303,8 +304,20 @@ export function PackUploadStep({
 
     if (phase === 'init') return;
 
+    // Show retry status to user (clears on next chunk-complete)
+    if (phase === 'chunk-retry' && data) {
+      setRetryInfo({
+        chunkIndex: data.chunkIndex || 0,
+        totalChunks: data.totalChunks || 0,
+        attempt: data.attempt || 0,
+        maxAttempts: data.maxAttempts || 3,
+      });
+      return;
+    }
+
     // Track per-file extraction progress (handles out-of-order chunk arrival)
     if (phase === 'chunk-complete' && data) {
+      setRetryInfo(null); // Clear retry indicator on success
       setCurrentFile(prev => {
         const completed = new Set(prev?.completedSet || []);
         completed.add(data.chunkIndex || 0);
@@ -334,6 +347,7 @@ export function PackUploadStep({
 
     if (phase === 'file-complete' || phase === 'file-error') {
       setCurrentFile(null);
+      setRetryInfo(null);
       // Totals already accumulated per-chunk — no addition here to avoid double-counting
     }
 
@@ -951,6 +965,11 @@ export function PackUploadStep({
                   </div>
                   <span className="hf-text-xs hf-text-muted">
                     chunk {currentFile.completedSet.size}/{currentFile.chunks}
+                    {retryInfo && (
+                      <span style={{ marginLeft: 8, color: 'var(--status-warning-text)' }}>
+                        — retrying chunk {retryInfo.chunkIndex + 1} (attempt {retryInfo.attempt}/{retryInfo.maxAttempts})
+                      </span>
+                    )}
                   </span>
                 </div>
               )}

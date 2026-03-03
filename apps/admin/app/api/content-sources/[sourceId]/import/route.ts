@@ -604,7 +604,11 @@ async function runBackgroundExtraction(
         extractedCount: extractedSoFar,
       });
     },
-  }, extractionConfig, onChunkComplete);
+  }, extractionConfig, onChunkComplete, (retryInfo) => {
+    updateJob(jobId, {
+      retrying: { chunkIndex: retryInfo.chunkIndex + 1, attempt: retryInfo.attempt + 1, maxAttempts: retryInfo.maxAttempts },
+    } as any);
+  });
 
   if (!result.ok) {
     await updateJob(jobId, {

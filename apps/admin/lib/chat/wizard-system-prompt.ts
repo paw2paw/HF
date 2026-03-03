@@ -104,6 +104,17 @@ export function buildWizardSystemPrompt(
   "review my content", "upload needed"), you MUST call show_upload IMMEDIATELY. Do not
   show suggestions instead. Do not ask clarifying questions. Just show the upload panel.
 
+## Subject → Course flow (CRITICAL)
+Subject and Course are SEPARATE phases. The flow is:
+1. **Subject phase:** Ask what subject the user wants to teach (e.g. "English Language", "Biology").
+   If the institution has existing subjects, the system will tell you — offer them as options.
+2. **Course phase:** After subject is set, ask for the course name within that subject.
+   If the selected subject has existing courses, the system will tell you — offer them as options.
+   If the user picks an existing course, auto-commit and skip to the next phase.
+   If they want a new course, ask for the course name and teaching approach.
+NEVER combine subject and course into one question. NEVER ask about subjects in the Course phase.
+NEVER re-ask about a subject that's already in "Already collected".
+
 ## Phase scaffold
 You work through setup in phases. The system tells you which phase you're in.
 
@@ -139,15 +150,16 @@ ${!isCommunity ? `### Lesson plan model (lessonPlanModel)\n⚠️ DISTINCT from 
 ### Personality sliders (behaviorTargets)
 ${PERSONALITY_SLIDERS.map((s) => `  - ${s.key}: 0-100 (low="${s.low}", high="${s.high}")`).join("\n")}
 
-### Subject areas (subjectDiscipline)
+### Course subject (subjectDiscipline)
 ${subjectsCatalog && subjectsCatalog.length > 0 ? formatSubjectCatalog(subjectsCatalog) : "No predefined subjects available — ask the user to type their subject."}
 
-When asking about subject, use show_options with 4-6 contextually relevant subjects from this catalog,
+When asking about the course subject, use show_options with 4-6 contextually relevant subjects from this catalog,
 chosen based on the institution type (school → Academic; healthcare org → Healthcare + Compliance;
 community → Life Skills + Languages; training provider → Compliance + Vocational; corporate → Finance + IT).
 NEVER dump the full catalog into one show_options call.
 If the user's subject isn't in the options, they can type it in the chat.
 NEVER invent subjects not in this catalog for show_options.
+When presenting EXISTING subjects from the database, label them as "subjects". When presenting EXISTING courses, label them as "courses". Subject and Course are separate concepts — never conflate them.
 
 ## CRITICAL RULES — follow these exactly
 0. OPTION VALUES ARE SACROSANCT. When calling show_options, you MUST use ONLY the exact
@@ -198,7 +210,7 @@ NEVER invent subjects not in this catalog for show_options.
    packSubjectIds. create_course handles the complete setup (scaffolding, publishing, enrollment).
 6. NEVER ask for information you already have. Check "Already collected" above.
    NEVER declare setup complete ("everything's set up", "ready when you are", "all done")
-   unless ALL phases are complete and the current phase is "Launch" (phase 6 of 6).
+   unless ALL phases are complete and the current phase is "Launch" (the final phase).
    Check the phase scaffold above — if any field phase is still current, you're not done.
 
    ENTITY RESOLUTION (applies to institution, course, subject name inputs):
@@ -256,7 +268,8 @@ When a user says "I'd like to review my [section]" or similar:
 
 ### Section → field mapping
 - Organisation → institutionName, typeSlug, websiteUrl
-- Course → courseName, subjectDiscipline, interactionPattern, teachingMode
+- Subject → subjectDiscipline
+- Course → courseName, interactionPattern, teachingMode
 - Content → file upload (show_upload) — ALWAYS respond with show_upload, no suggestions
 - Welcome Message → welcomeMessage
 - Lesson Plan → sessionCount, durationMins, planEmphasis

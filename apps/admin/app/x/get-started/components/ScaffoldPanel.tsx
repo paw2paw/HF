@@ -9,7 +9,7 @@
 
 import { Check, Loader2, Circle, Disc, RotateCcw, ChevronRight } from "lucide-react";
 
-type ScaffoldStatus = "waiting" | "collecting" | "ready" | "building" | "draft" | "done";
+type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
 
 interface ScaffoldItem {
   key: string;
@@ -27,6 +27,7 @@ interface ScaffoldPanelProps {
   /** Terminology-resolved labels (or generic defaults) */
   terms?: {
     institution: string;
+    subject: string;
     course: string;
     content: string;
     welcome: string;
@@ -42,6 +43,7 @@ interface ScaffoldPanelProps {
 /** Map scaffold item keys to wizard phase IDs */
 const ITEM_TO_PHASE: Record<string, string> = {
   institution: "institution",
+  subject: "subject",
   course: "course",
   content: "content",
   welcome: "welcome",
@@ -51,6 +53,7 @@ const ITEM_TO_PHASE: Record<string, string> = {
 
 const DEFAULT_TERMS = {
   institution: "Organisation",
+  subject: "Subject",
   course: "Course",
   content: "Content",
   welcome: "Welcome Message",
@@ -61,23 +64,31 @@ const DEFAULT_TERMS = {
 /** Map step index to which scaffold items are being "collected" */
 const STEP_COLLECTING: Record<number, string[]> = {
   0: ["institution"],
-  1: ["course"],
-  2: ["content"],
-  3: [], // checkpoint
-  4: ["welcome", "lessons"],
-  5: ["personality"],
-  6: [], // launch
+  1: ["subject"],
+  2: ["course"],
+  3: ["content"],
+  4: [], // checkpoint
+  5: ["welcome", "lessons"],
+  6: ["personality"],
+  7: [], // launch
 };
+
+/**
+ * Per-item entity key resolution map.
+ * "resolved" (green) = the system has the internal ID/slug needed to wire downstream steps.
+ * "ready" (blue) = user data accepted but entity not yet created.
+ */
+type ResolvedKeys = Record<string, boolean>;
 
 function getItemStatus(
   key: string,
   hasValue: boolean,
   currentStepIndex: number,
-  draftCreated: boolean,
+  resolvedKeys: ResolvedKeys,
   launched: boolean,
 ): ScaffoldStatus {
   if (launched) return "done";
-  if (draftCreated && ["institution", "course", "content"].includes(key)) return "draft";
+  if (resolvedKeys[key]) return "resolved";
   if (hasValue && !STEP_COLLECTING[currentStepIndex]?.includes(key)) return "ready";
   if (STEP_COLLECTING[currentStepIndex]?.includes(key)) return "collecting";
   return hasValue ? "ready" : "waiting";
@@ -100,8 +111,8 @@ function StatusIcon({ status }: { status: ScaffoldStatus }) {
   switch (status) {
     case "done":
       return <div className="gs-scaffold-icon" data-status="done"><Check size={12} /></div>;
-    case "draft":
-      return <div className="gs-scaffold-icon" data-status="draft"><Check size={12} /></div>;
+    case "resolved":
+      return <div className="gs-scaffold-icon" data-status="resolved"><Check size={12} /></div>;
     case "building":
       return <div className="gs-scaffold-icon" data-status="building"><Loader2 size={12} className="hf-spinner" /></div>;
     case "ready":
@@ -115,17 +126,32 @@ function StatusIcon({ status }: { status: ScaffoldStatus }) {
 
 export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms, onReset, onItemClick }: ScaffoldPanelProps) {
   const t = terms ?? DEFAULT_TERMS;
-  const draftCreated = !!getData<string>("draftDomainId");
   const launched = !!getData<boolean>("launched");
   const isCommunity = getData<string>("defaultDomainKind") === "COMMUNITY";
 
+  // Entity IDs — the internal keys that unlock downstream steps
+  const hasDomainId = !!(getData<string>("draftDomainId") || getData<string>("existingDomainId"));
+  const hasPlaybookId = !!getData<string>("draftPlaybookId");
+  const hasSubjectIds = !!(getData<string[]>("packSubjectIds")?.length);
+
+  // Per-item resolution: green when the system has the entity key it needs
+  const resolvedKeys: ResolvedKeys = {
+    institution: hasDomainId,
+    subject: hasDomainId && !!getData<string>("subjectDiscipline"),
+    course: hasPlaybookId,
+    content: hasSubjectIds,
+    welcome: hasPlaybookId && !!getData<string>("welcomeMessage"),
+    lessons: hasPlaybookId && !!getData<number>("sessionCount"),
+    personality: hasPlaybookId && !!getData<Record<string, number>>("behaviorTargets"),
+  };
+
   const institutionName = getData<string>("institutionName") || getData<string>("existingInstitutionName");
   const courseName = getData<string>("courseName");
-  const hasContent = !!(getData<string[]>("packSubjectIds")?.length || getData<string>("sourceId"));
+  const hasContent = !!(hasSubjectIds || getData<string>("sourceId"));
   const welcomeMsg = getData<string>("welcomeMessage");
   const sessionCount = getData<number>("sessionCount");
   const hasTune = !!getData<Record<string, number>>("behaviorTargets");
-  const canTryCall = draftCreated || launched;
+  const canTryCall = hasDomainId || launched;
 
   // Detail chips for each section
   const typeSlug = getData<string>("typeSlug");
@@ -140,7 +166,6 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
   if (typeSlug) institutionChips.push(capitalize(typeSlug));
 
   const courseChips: string[] = [];
-  if (subjectDiscipline) courseChips.push(subjectDiscipline);
   if (interactionPattern) courseChips.push(capitalize(interactionPattern));
   if (teachingMode) courseChips.push(capitalize(teachingMode));
 
@@ -157,21 +182,28 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
       label: t.institution,
       value: institutionName || undefined,
       chips: institutionChips.length ? institutionChips : undefined,
-      status: getItemStatus("institution", !!institutionName, currentStepIndex, draftCreated, launched),
+      status: getItemStatus("institution", !!institutionName, currentStepIndex, resolvedKeys, launched),
     },
+    // Subject row hidden for communities — they don't have structured subjects
+    ...(!isCommunity ? [{
+      key: "subject",
+      label: t.subject,
+      value: subjectDiscipline || undefined,
+      status: getItemStatus("subject", !!subjectDiscipline, currentStepIndex, resolvedKeys, launched),
+    }] : []),
     {
       key: "course",
       label: isCommunity ? "Community" : t.course,
       value: courseName || undefined,
       chips: courseChips.length ? courseChips : undefined,
-      status: getItemStatus("course", !!courseName, currentStepIndex, draftCreated, launched),
+      status: getItemStatus("course", !!courseName, currentStepIndex, resolvedKeys, launched),
     },
     // Content row hidden for communities — they don't upload teaching materials
     ...(!isCommunity ? [{
       key: "content",
       label: t.content,
       value: hasContent ? "Uploaded" : undefined,
-      status: getItemStatus("content", hasContent, currentStepIndex, draftCreated, launched),
+      status: getItemStatus("content", hasContent, currentStepIndex, resolvedKeys, launched),
     }] : []),
   ];
 
@@ -180,7 +212,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
       key: "welcome",
       label: t.welcome,
       value: welcomeMsg ? welcomeMsg.slice(0, 30) + (welcomeMsg.length > 30 ? "…" : "") : undefined,
-      status: getItemStatus("welcome", !!welcomeMsg, currentStepIndex, draftCreated, launched),
+      status: getItemStatus("welcome", !!welcomeMsg, currentStepIndex, resolvedKeys, launched),
     },
     // Lessons row hidden for communities — no structured session plan
     ...(!isCommunity ? [{
@@ -188,20 +220,20 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
       label: t.lessons,
       value: sessionCount ? `${sessionCount} sessions` : undefined,
       chips: lessonChips.length ? lessonChips : undefined,
-      status: getItemStatus("lessons", !!sessionCount, currentStepIndex, draftCreated, launched),
+      status: getItemStatus("lessons", !!sessionCount, currentStepIndex, resolvedKeys, launched),
     }] : []),
     {
       key: "personality",
       label: isCommunity ? "AI Companion" : t.personality,
       value: hasTune ? "Configured" : undefined,
       chips: tuneChips.length ? tuneChips : undefined,
-      status: getItemStatus("personality", hasTune, currentStepIndex, draftCreated, launched),
+      status: getItemStatus("personality", hasTune, currentStepIndex, resolvedKeys, launched),
     },
   ];
 
   // Readiness: count ready/draft/done items out of total
   const allItems = [...items, ...extraItems];
-  const completedCount = allItems.filter((i) => i.status !== "waiting" && i.status !== "collecting").length;
+  const completedCount = allItems.filter((i) => i.status === "ready" || i.status === "resolved" || i.status === "done").length;
   const readinessPct = Math.round((completedCount / allItems.length) * 100);
 
   const readinessHint = (() => {

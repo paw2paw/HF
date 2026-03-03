@@ -162,12 +162,14 @@ export abstract class DocumentExtractor {
    * @param onChunkComplete - Optional callback for progressive persistence.
    *   Called after each chunk with assertions, questions, and vocabulary.
    *   Errors are caught and logged (extraction continues on save failure).
+   * @param onRetry - Optional callback fired when a chunk fails and will be retried.
    */
   async extract(
     text: string,
     options: ExtractionOptions,
     extractionConfig: ExtractionConfig,
     onChunkComplete?: (data: SpecialistChunkCompleteData) => Promise<void>,
+    onRetry?: (info: { chunkIndex: number; totalChunks: number; attempt: number; maxAttempts: number; delayMs: number }) => void,
   ): Promise<FullExtractionResult> {
     const warnings: string[] = [];
 
@@ -231,6 +233,7 @@ export abstract class DocumentExtractor {
             } else {
               const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
               console.warn(`[${this.documentType}-extractor] Chunk ${i} attempt ${attempt + 1} failed, retrying in ${delayMs}ms:`, errorMsg);
+              onRetry?.({ chunkIndex: i, totalChunks: chunks.length, attempt: attempt + 1, maxAttempts: MAX_CHUNK_RETRIES, delayMs });
               await sleep(delayMs);
             }
           }

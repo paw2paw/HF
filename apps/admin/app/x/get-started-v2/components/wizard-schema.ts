@@ -213,7 +213,8 @@ export interface WizardPhase {
 
 export const WIZARD_PHASES: WizardPhase[] = [
   { id: "institution", label: "Organisation", fields: ["institutionName", "typeSlug", "websiteUrl"] },
-  { id: "course", label: "Course", fields: ["courseName", "subjectDiscipline", "interactionPattern", "teachingMode"] },
+  { id: "subject", label: "Subject", fields: ["subjectDiscipline"] },
+  { id: "course", label: "Course", fields: ["courseName", "interactionPattern", "teachingMode"] },
   { id: "content", label: "Content", fields: [] },
   { id: "welcome", label: "Welcome", fields: ["welcomeMessage", "sessionCount", "durationMins", "planEmphasis"] },
   { id: "tune", label: "Fine-Tune", fields: ["behaviorTargets", "lessonPlanModel"] },
@@ -280,5 +281,5 @@ export function computeCurrentPhase(
     }
   }
 
-  return { phase: WIZARD_PHASES[5], phaseIndex: 5, phaseFields: [] };
+  return { phase: WIZARD_PHASES[WIZARD_PHASES.length - 1], phaseIndex: WIZARD_PHASES.length - 1, phaseFields: [] };
 }

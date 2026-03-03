@@ -72,6 +72,8 @@ export interface ExtractionOptions {
   onChunkDone?: (chunkIndex: number, totalChunks: number, extractedSoFar: number) => void;
   /** Called after each chunk completes with the chunk's extracted data (for progressive DB saves) */
   onChunkComplete?: (data: ChunkCompleteData) => Promise<void>;
+  /** Called when a chunk extraction fails and will be retried */
+  onRetry?: (info: { chunkIndex: number; totalChunks: number; attempt: number; maxAttempts: number; delayMs: number }) => void;
 }
 
 // ------------------------------------------------------------------
@@ -338,6 +340,7 @@ async function extractFromChunk(
       }
       const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
       console.warn(`[extract-assertions] Chunk ${chunkIndex} attempt ${attempt + 1} failed, retrying in ${delayMs}ms:`, errorMsg);
+      options.onRetry?.({ chunkIndex, totalChunks: 0, attempt: attempt + 1, maxAttempts: MAX_CHUNK_RETRIES, delayMs });
       await sleep(delayMs);
     }
   }

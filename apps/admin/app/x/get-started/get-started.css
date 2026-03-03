@@ -150,9 +150,9 @@
   color: var(--accent-primary);
 }
 
-.gs-scaffold-icon[data-status="draft"] {
-  background: var(--status-warning-bg, #fef3c7);
-  color: var(--status-warning-text, #92400e);
+.gs-scaffold-icon[data-status="resolved"] {
+  background: var(--status-success-bg, #d1fae5);
+  color: var(--status-success-text);
 }
 
 .gs-scaffold-icon[data-status="done"] {

@@ -217,7 +217,7 @@ Your task:
 Document types: ${VALID_DOC_TYPES.join(", ")}
 
 Type disambiguation:
-- COURSE_REFERENCE — tutor instruction document: skills framework, session flow, scaffolding rules, teaching principles. NOT student content. Governs HOW to teach the course.
+- COURSE_REFERENCE — tutor instruction document: skills framework, session flow/phases, scaffolding rules, teaching principles, learning outcomes, edge-case handling, communication rules. Governs HOW to teach the course. May contain student proficiency descriptions and learning outcomes as calibration material — the key test is whether the document instructs the TUTOR, not the student.
 - READING_PASSAGE — standalone prose the learner reads (stories, articles, chapters). Contains NO questions.
 - QUESTION_BANK — structured tutor questions with skill refs, model responses, or tiered guidance. NOT a test — it's a teaching tool.
 - COMPREHENSION — combined text + questions in the SAME document (e.g., "Read this passage then answer...")

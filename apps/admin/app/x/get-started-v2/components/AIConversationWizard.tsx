@@ -61,6 +61,7 @@ interface UndoState {
 
 const WIZARD_STEPS: StepDefinition[] = [
   { id: "institution", label: "Organisation", activeLabel: "Setting up organisation" },
+  { id: "subject", label: "Subject", activeLabel: "Choosing subject" },
   { id: "course", label: "Course", activeLabel: "Configuring course" },
   { id: "content", label: "Content", activeLabel: "Adding content" },
   { id: "welcome", label: "Welcome", activeLabel: "Writing welcome message" },
@@ -99,6 +100,7 @@ function uid(): string {
 /** Maps scaffold item keys to human-readable review request messages */
 const REVIEW_MESSAGES: Record<string, string> = {
   institution: "I'd like to review my organisation setup",
+  subject: "I'd like to change the subject",
   course: "I'd like to review my course details",
   content: "I'd like to review my content",
   welcome: "I'd like to change the welcome message",
@@ -157,7 +159,7 @@ export function AIConversationWizard() {
   // ── Send message to API ─────────────────────────────────
 
   const sendToAPI = useCallback(
-    async (userMessage: string, history: Message[]): Promise<WizardResponse | null> => {
+    async (userMessage: string, history: Message[], dataOverrides?: Record<string, unknown>): Promise<WizardResponse | null> => {
       // Abort any previous in-flight request (e.g. if reset was clicked)
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -168,6 +170,12 @@ export function AIConversationWizard() {
           .filter((m) => m.role !== "system")
           .map((m) => ({ role: m.role, content: m.content }));
 
+        // Merge overrides into setupData so the API sees just-selected values
+        // (React state from setData may not have re-rendered yet)
+        const setupData = dataOverrides
+          ? { ...getSetupData(), ...dataOverrides }
+          : getSetupData();
+
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -177,7 +185,7 @@ export function AIConversationWizard() {
             mode: "WIZARD",
             entityContext: [],
             conversationHistory,
-            setupData: getSetupData(),
+            setupData,
           }),
         });
 
@@ -287,7 +295,7 @@ export function AIConversationWizard() {
 
           case "mark_complete": {
             setData("launched", true);
-            setCurrentStep(5);
+            setCurrentStep(WIZARD_STEPS.length - 1);
             break;
           }
         }
@@ -302,7 +310,7 @@ export function AIConversationWizard() {
   // ── Send user message ───────────────────────────────────
 
   const handleSend = useCallback(
-    async (text?: string) => {
+    async (text?: string, dataOverrides?: Record<string, unknown>) => {
       const msg = (text || inputValue).trim();
       if (!msg || isLoading) return;
 
@@ -323,9 +331,10 @@ export function AIConversationWizard() {
       saveHistory(newMessages);
       scrollToBottom();
 
-      // Call API
+      // Call API — pass dataOverrides so just-selected values are included
+      // (React state from setData may not have re-rendered yet)
       setIsLoading(true);
-      const response = await sendToAPI(msg, newMessages);
+      const response = await sendToAPI(msg, newMessages, dataOverrides);
       setIsLoading(false);
 
       if (!response) {
@@ -381,8 +390,9 @@ export function AIConversationWizard() {
       const timerId = setTimeout(() => setUndoState(null), 3000);
       setUndoState({ dataKey, previousValue, displayText, timerId });
 
-      // Send selection as user message
-      handleSend(displayText);
+      // Send selection as user message — pass the just-selected value as an override
+      // because React's setData is async and getSetupData() would return stale state
+      handleSend(displayText, { [dataKey]: value });
     },
     [setData, getData, handleSend, undoState],
   );
