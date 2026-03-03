@@ -16,7 +16,7 @@ import { buildWizardSystemPrompt } from "@/lib/chat/wizard-system-prompt";
 import { computeCurrentPhase } from "@/app/x/get-started-v2/components/wizard-schema";
 import { embedText } from "@/lib/embeddings";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
-import { getKnowledgeRetrievalSettings } from "@/lib/system-settings";
+import { getKnowledgeRetrievalSettings, getSubjectsCatalog } from "@/lib/system-settings";
 import { getSourceIdsForDomain, getSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import {
@@ -104,14 +104,19 @@ export async function POST(request: NextRequest) {
         setupData || {},
         !!isCommunity,
       );
-      const wizardPrompt = buildWizardSystemPrompt(setupData || {}, currentPhase, phaseIndex, phaseFields);
+      const subjectsCatalog = await getSubjectsCatalog();
+      const wizardPrompt = buildWizardSystemPrompt(setupData || {}, currentPhase, phaseIndex, phaseFields, subjectsCatalog);
+      // Deduplicate: client includes the current message in conversationHistory
+      const lastHist = conversationHistory[conversationHistory.length - 1];
+      const msgInHistory = lastHist?.role === "user" && lastHist?.content === message.trim();
+
       const wizardMessages: AIMessage[] = [
         { role: "system", content: wizardPrompt },
         ...conversationHistory.slice(-20).map((m) => ({
           role: m.role as "user" | "assistant",
           content: m.content,
         })),
-        { role: "user" as const, content: message.trim() },
+        ...(msgInHistory ? [] : [{ role: "user" as const, content: message.trim() }]),
       ];
       const aiConfig = await getAIConfig("wizard.get-started");
       const selectedEngine = engine || aiConfig.provider;
@@ -459,7 +464,7 @@ function buildWizardFallback(toolCalls: Array<{ name: string; input: Record<stri
   if (names.has("show_actions")) return "Everything's set up — ready when you are!";
   if (names.has("show_upload")) return "Go ahead and upload your materials when you're ready.";
   if (names.has("show_sliders")) return "Adjust the sliders to set the personality.";
-  if (names.has("show_options")) return "Here are your options:";
+  if (names.has("show_options")) return ""; // Panel has its own header — no bubble needed
   if (names.has("update_setup")) return "Got it, saved that.";
   return ""; // Client skips empty content — no bubble rendered
 }
@@ -501,6 +506,14 @@ async function handleWizardModeWithTools(
     if (!response.toolUses || response.toolUses.length === 0) {
       finalContent = response.content;
       break;
+    }
+
+    // Capture text from responses that also include tool calls — the AI often
+    // sends a conversational acknowledgment alongside tools (e.g. "Great choice —
+    // Socratic works well for science!" + show_options). Without this, the text
+    // is lost and the client only sees a generic fallback.
+    if (response.content && !finalContent) {
+      finalContent = response.content;
     }
 
     // Model wants to use tools

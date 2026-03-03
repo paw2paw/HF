@@ -11367,6 +11367,19 @@ Create a new subject with optional qualification metadata.
 
 ---
 
+### `GET` /api/subjects-catalog
+
+Returns the admin-configured subjects catalog for wizard UIs.
+
+**Auth**: Session · **Scope**: `subjects:read`
+
+**Response** `200`
+```json
+{ ok: true, catalog: SubjectEntry[], allowFreeText: boolean }
+```
+
+---
+
 ### `DELETE` /api/subjects/:subjectId
 
 Soft-delete a subject by setting isActive to false. Requires OPERATOR role.
@@ -12803,8 +12816,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 373 |
-| Files with annotations | 372 |
+| Route files found | 374 |
+| Files with annotations | 373 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

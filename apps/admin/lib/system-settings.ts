@@ -823,6 +823,119 @@ export async function getLessonPlanSettings(): Promise<LessonPlanSettings> {
 }
 
 // ═══════════════════════════════════════════════════════
+// SUBJECTS CATALOG
+// ═══════════════════════════════════════════════════════
+
+export interface SubjectEntry {
+  label: string;
+  category: string;
+  value: string;
+}
+
+export interface SubjectsCatalogSettings {
+  catalog: SubjectEntry[];
+  allowFreeText: boolean;
+}
+
+export const SUBJECTS_CATALOG_DEFAULTS: SubjectsCatalogSettings = {
+  catalog: [
+    // Academic
+    { label: "Biology", category: "Academic", value: "biology" },
+    { label: "Chemistry", category: "Academic", value: "chemistry" },
+    { label: "Physics", category: "Academic", value: "physics" },
+    { label: "Mathematics", category: "Academic", value: "mathematics" },
+    { label: "History", category: "Academic", value: "history" },
+    { label: "Geography", category: "Academic", value: "geography" },
+    { label: "English Language", category: "Academic", value: "english-language" },
+    { label: "English Literature", category: "Academic", value: "english-literature" },
+    { label: "Computer Science", category: "Academic", value: "computer-science" },
+    { label: "Business Studies", category: "Academic", value: "business-studies" },
+    { label: "Economics", category: "Academic", value: "economics" },
+    { label: "Psychology", category: "Academic", value: "psychology" },
+    { label: "Sociology", category: "Academic", value: "sociology" },
+    { label: "Religious Studies", category: "Academic", value: "religious-studies" },
+    { label: "Philosophy", category: "Academic", value: "philosophy" },
+    { label: "Politics", category: "Academic", value: "politics" },
+    { label: "Law", category: "Academic", value: "law" },
+    { label: "Accounting", category: "Academic", value: "accounting" },
+    { label: "Statistics", category: "Academic", value: "statistics" },
+    { label: "Environmental Science", category: "Academic", value: "environmental-science" },
+    { label: "Music Theory", category: "Academic", value: "music-theory" },
+    { label: "Art History", category: "Academic", value: "art-history" },
+    // Languages
+    { label: "ESOL", category: "Languages", value: "esol" },
+    { label: "French", category: "Languages", value: "french" },
+    { label: "Spanish", category: "Languages", value: "spanish" },
+    { label: "German", category: "Languages", value: "german" },
+    { label: "Italian", category: "Languages", value: "italian" },
+    { label: "Arabic", category: "Languages", value: "arabic" },
+    { label: "Mandarin", category: "Languages", value: "mandarin" },
+    // Compliance & Certification
+    { label: "Food Hygiene", category: "Compliance & Certification", value: "food-hygiene" },
+    { label: "Health & Safety", category: "Compliance & Certification", value: "health-safety" },
+    { label: "Safeguarding", category: "Compliance & Certification", value: "safeguarding" },
+    { label: "GDPR & Data Protection", category: "Compliance & Certification", value: "gdpr-data-protection" },
+    { label: "Fire Safety", category: "Compliance & Certification", value: "fire-safety" },
+    { label: "First Aid", category: "Compliance & Certification", value: "first-aid" },
+    { label: "Manual Handling", category: "Compliance & Certification", value: "manual-handling" },
+    { label: "Anti-Money Laundering", category: "Compliance & Certification", value: "anti-money-laundering" },
+    { label: "Infection Control", category: "Compliance & Certification", value: "infection-control" },
+    { label: "Equality & Diversity", category: "Compliance & Certification", value: "equality-diversity" },
+    { label: "Mental Health First Aid", category: "Compliance & Certification", value: "mental-health-first-aid" },
+    { label: "Cyber Essentials", category: "Compliance & Certification", value: "cyber-essentials" },
+    // Healthcare
+    { label: "Anatomy & Physiology", category: "Healthcare", value: "anatomy-physiology" },
+    { label: "Pharmacology", category: "Healthcare", value: "pharmacology" },
+    { label: "Medical Terminology", category: "Healthcare", value: "medical-terminology" },
+    { label: "Nursing Knowledge", category: "Healthcare", value: "nursing-knowledge" },
+    { label: "Care Certificate", category: "Healthcare", value: "care-certificate" },
+    { label: "Clinical Governance", category: "Healthcare", value: "clinical-governance" },
+    // Finance & Business
+    { label: "Financial Literacy", category: "Finance & Business", value: "financial-literacy" },
+    { label: "Bookkeeping", category: "Finance & Business", value: "bookkeeping" },
+    { label: "Tax & Compliance", category: "Finance & Business", value: "tax-compliance" },
+    { label: "Banking & Financial Services", category: "Finance & Business", value: "banking-financial-services" },
+    { label: "Marketing", category: "Finance & Business", value: "marketing" },
+    { label: "Human Resources", category: "Finance & Business", value: "human-resources" },
+    { label: "Project Management", category: "Finance & Business", value: "project-management" },
+    // IT & Digital
+    { label: "Cybersecurity", category: "IT & Digital", value: "cybersecurity" },
+    { label: "Cloud Computing", category: "IT & Digital", value: "cloud-computing" },
+    { label: "Data Analytics", category: "IT & Digital", value: "data-analytics" },
+    { label: "Networking", category: "IT & Digital", value: "networking" },
+    { label: "AI & Machine Learning", category: "IT & Digital", value: "ai-machine-learning" },
+    // Vocational (Theory)
+    { label: "Electrical Theory", category: "Vocational (Theory)", value: "electrical-theory" },
+    { label: "Construction & Built Environment", category: "Vocational (Theory)", value: "construction-built-environment" },
+    { label: "Hospitality & Catering", category: "Vocational (Theory)", value: "hospitality-catering" },
+    { label: "Childcare & Early Years", category: "Vocational (Theory)", value: "childcare-early-years" },
+    { label: "Sport & Exercise Science", category: "Vocational (Theory)", value: "sport-exercise-science" },
+    { label: "Teaching Assistant Knowledge", category: "Vocational (Theory)", value: "teaching-assistant-knowledge" },
+    // Life Skills
+    { label: "Digital Literacy", category: "Life Skills", value: "digital-literacy" },
+    { label: "Citizenship", category: "Life Skills", value: "citizenship" },
+    { label: "Study Skills", category: "Life Skills", value: "study-skills" },
+    { label: "Communication Skills", category: "Life Skills", value: "communication-skills" },
+  ],
+  allowFreeText: true,
+};
+
+const SUBJECTS_CATALOG_KEYS: Record<keyof SubjectsCatalogSettings, string> = {
+  catalog: "subjects.catalog",
+  allowFreeText: "subjects.allow_free_text",
+};
+
+export async function getSubjectsCatalogSettings(): Promise<SubjectsCatalogSettings> {
+  return loadGroup(SUBJECTS_CATALOG_KEYS, SUBJECTS_CATALOG_DEFAULTS);
+}
+
+/** Convenience: just the catalog array for wizard consumption */
+export async function getSubjectsCatalog(): Promise<SubjectEntry[]> {
+  const settings = await getSubjectsCatalogSettings();
+  return settings.catalog;
+}
+
+// ═══════════════════════════════════════════════════════
 // SETTINGS REGISTRY (for UI rendering)
 // ═══════════════════════════════════════════════════════
 
@@ -1085,6 +1198,16 @@ export const SETTINGS_REGISTRY: SettingGroup[] = [
       { key: "content_linking.min_link_score", label: "Min link score", description: "Minimum combined score to create a link (0–1)", type: "float" as const, default: 0.35, min: 0, max: 1, step: 0.05 },
       { key: "content_linking.use_vector_similarity", label: "Use vector similarity", description: "Use pgvector cosine similarity for semantic matching (requires assertion embeddings)", type: "bool" as const, default: true },
       { key: "content_linking.min_vector_similarity", label: "Min vector similarity", description: "Minimum cosine similarity when using vector mode (0–1)", type: "float" as const, default: 0.6, min: 0, max: 1, step: 0.05 },
+    ],
+  },
+  {
+    id: "subjects",
+    label: "Subject Catalog",
+    icon: "BookOpen",
+    description: "Available subjects for course creation wizards. Admins can add, remove, or reorder subjects.",
+    settings: [
+      { key: "subjects.catalog", label: "Subject catalog (JSON)", description: "Array of { label, category, value } objects. Categories group subjects in wizard UIs.", type: "textarea" as const, default: JSON.stringify(SUBJECTS_CATALOG_DEFAULTS.catalog, null, 2) },
+      { key: "subjects.allow_free_text", label: "Allow free-text entry", description: "Let educators type a custom subject not in the catalog", type: "bool" as const, default: true },
     ],
   },
   {

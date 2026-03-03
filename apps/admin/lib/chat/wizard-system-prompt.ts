@@ -20,9 +20,24 @@ import {
   type WizardOption,
   type WizardPhase,
 } from "@/app/x/get-started-v2/components/wizard-schema";
+import type { SubjectEntry } from "@/lib/system-settings";
 
 function formatOptions(options: WizardOption[]): string {
   return options.map((o) => `  - "${o.value}" — ${o.label}: ${o.description}`).join("\n");
+}
+
+function formatSubjectCatalog(catalog: SubjectEntry[]): string {
+  const grouped = new Map<string, SubjectEntry[]>();
+  for (const entry of catalog) {
+    const list = grouped.get(entry.category) ?? [];
+    list.push(entry);
+    grouped.set(entry.category, list);
+  }
+  const lines: string[] = [];
+  for (const [category, entries] of grouped) {
+    lines.push(`  **${category}:** ${entries.map((e) => e.label).join(", ")}`);
+  }
+  return lines.join("\n");
 }
 
 function formatPhaseRoadmap(currentIndex: number): string {
@@ -47,6 +62,7 @@ export function buildWizardSystemPrompt(
   currentPhase: WizardPhase,
   phaseIndex: number,
   phaseFields: string[],
+  subjectsCatalog?: SubjectEntry[],
 ): string {
   const isCommunity = setupData.defaultDomainKind === "COMMUNITY";
   const collected = Object.entries(setupData)
@@ -108,6 +124,16 @@ ${!isCommunity ? `### Lesson plan model\n${formatOptions(LESSON_MODEL_OPTIONS)}`
 ### Personality sliders (behaviorTargets)
 ${PERSONALITY_SLIDERS.map((s) => `  - ${s.key}: 0-100 (low="${s.low}", high="${s.high}")`).join("\n")}
 
+### Subject areas (subjectDiscipline)
+${subjectsCatalog && subjectsCatalog.length > 0 ? formatSubjectCatalog(subjectsCatalog) : "No predefined subjects available — ask the user to type their subject."}
+
+When asking about subject, use show_options with 4-6 contextually relevant subjects from this catalog,
+chosen based on the institution type (school → Academic; healthcare org → Healthcare + Compliance;
+community → Life Skills + Languages; training provider → Compliance + Vocational; corporate → Finance + IT).
+NEVER dump the full catalog into one show_options call.
+If the user's subject isn't in the options, they can type it in the chat.
+NEVER invent subjects not in this catalog for show_options.
+
 ## CRITICAL RULES — follow these exactly
 1. Call EXACTLY ONE show_* tool per response. NEVER call multiple show_* tools in the same response.
    Ask one thing at a time across separate turns.
@@ -125,13 +151,26 @@ ${PERSONALITY_SLIDERS.map((s) => `  - ${s.key}: 0-100 (low="${s.low}", high="${s
    use show_actions to offer "Create & Try a Call" (primary) vs "Fine-tune more" (secondary).
    NEVER offer creation before reaching the Launch phase.
 6. NEVER ask for information you already have. Check "Already collected" above.
-    If update_setup returns a RESOLVED EXISTING INSTITUTION, immediately call update_setup
-    with the resolved IDs and typeSlug, then skip to the next unanswered field.
-    Do NOT ask the user to confirm the organisation type — just acknowledge the match
-    (e.g. "Found Riverside Academy — it's already set up as a school.") and move on.
+    If update_setup returns a RESOLVED EXISTING INSTITUTION:
+    a) Immediately call update_setup with the resolved IDs, typeSlug, and defaultDomainKind.
+    b) Do NOT ask the user to confirm the organisation type — just acknowledge the match.
+    c) If the resolution includes SUBJECTS, present them as show_options for subjectDiscipline
+       (radio mode) with an extra "Add new subject" option at the end. Example:
+       "Found Riverside Academy — a school with Biology, English, and Maths. Which subject?"
+    d) If the user picks a subject that has EXISTING COURSES, show those courses as show_options
+       for courseName (radio mode) with an extra "Create new course" option. Example:
+       "Biology has GCSE Biology already. Add another Biology course, or use this one?"
+    e) If the user picks an existing course, save its name AND interactionPattern (from the
+       resolution data) via update_setup, then skip to the next uncollected field.
+    f) If the user picks "Create new course" or "Add new subject", continue with free-text input.
+    If update_setup returns NAME SUGGESTS TYPE, set recommended=true on that type in show_options.
 7. Suggest sensible defaults based on context: if they mention "science", suggest "5E" lesson model;
    for "literature", suggest "Socratic".
-8. Use show_options for any question with predefined choices (radio mode for single-select).
+8. Use show_options ONLY for questions with predefined choices (radio mode for single-select).
+   Use show_options for subjectDiscipline (pick 4-6 relevant subjects from the catalog above).
+   NEVER use show_options for free-text fields: institutionName, courseName,
+   websiteUrl, welcomeMessage. These are typed by the user in the chat — just ask naturally
+   and save the answer with update_setup.
 9. Use show_sliders for personality (behaviorTargets).
 10. Keep a natural conversational flow. Don't enumerate what's left like a checklist.
     Ask the next question naturally after acknowledging the user's input.

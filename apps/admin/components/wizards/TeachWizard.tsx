@@ -406,12 +406,44 @@ export default function TeachWizard({ mode = "teach" }: { mode?: "teach" | "demo
   const [showNewCourseForm, setShowNewCourseForm] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [subjectDiscipline, setSubjectDiscipline] = useState("");
+  const [subjectCatalog, setSubjectCatalog] = useState<Array<{ label: string; category: string; value: string }>>([]);
+  const [subjectAllowFreeText, setSubjectAllowFreeText] = useState(true);
+  const [subjectSearch, setSubjectSearch] = useState("");
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const subjectsFetched = useRef(false);
+  const subjectDropdownRef = useRef<HTMLDivElement>(null);
   const [teachingMode, setTeachingMode] = useState<TeachingMode>("recall");
   const [suggestedMode, setSuggestedMode] = useState<TeachingMode | null>(null);
   const [lessonPlanModel, setLessonPlanModel] = useState<LessonPlanModel>("direct_instruction");
   const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [existingCourses, setExistingCourses] = useState<ExistingCourseInfo[]>([]);
   const [existingSubjects, setExistingSubjects] = useState<ExistingSubjectInfo[]>([]);
+
+  // Fetch subject catalog from SystemSettings
+  useEffect(() => {
+    if (subjectsFetched.current) return;
+    subjectsFetched.current = true;
+    fetch("/api/subjects-catalog")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.catalog) {
+          setSubjectCatalog(data.catalog);
+          setSubjectAllowFreeText(data.allowFreeText ?? true);
+        }
+      })
+      .catch(() => { /* fallback: empty catalog, free text still works */ });
+  }, []);
+
+  // Close subject dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (subjectDropdownRef.current && !subjectDropdownRef.current.contains(e.target as Node)) {
+        setSubjectDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   useEffect(() => {
     if (!selectedDomainId || sectionStatus.course !== "active") return;
@@ -1837,25 +1869,108 @@ export default function TeachWizard({ mode = "teach" }: { mode?: "teach" | "demo
 
                   <div>
                     <p className="tw-label">Subject area <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></p>
-                    <div className="tw-chip-grid" style={{ marginBottom: 8 }}>
-                      {["History", "English", "Maths", "Science", "Geography", "Computing", "Business", "PSHE"].map((d) => (
+                    {/* Quick-pick chips: first 6 from catalog */}
+                    {subjectCatalog.length > 0 && (
+                      <div className="tw-chip-grid" style={{ marginBottom: 8 }}>
+                        {subjectCatalog.slice(0, 6).map((s) => (
+                          <button
+                            key={s.value}
+                            type="button"
+                            className={`tw-chip${subjectDiscipline === s.value ? " tw-chip-selected" : ""}`}
+                            onClick={() => {
+                              setSubjectDiscipline((prev) => (prev === s.value ? "" : s.value));
+                              setSubjectSearch("");
+                              setSubjectDropdownOpen(false);
+                            }}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Searchable subject picker */}
+                    <div ref={subjectDropdownRef} style={{ position: "relative" }}>
+                      <input
+                        className="tw-input"
+                        type="text"
+                        placeholder={subjectDiscipline
+                          ? (subjectCatalog.find((s) => s.value === subjectDiscipline)?.label || subjectDiscipline)
+                          : "Search subjects..."}
+                        value={subjectSearch}
+                        onChange={(e) => {
+                          setSubjectSearch(e.target.value);
+                          setSubjectDropdownOpen(true);
+                        }}
+                        onFocus={() => setSubjectDropdownOpen(true)}
+                      />
+                      {subjectDiscipline && !subjectSearch && (
                         <button
-                          key={d}
                           type="button"
-                          className={`tw-chip${subjectDiscipline === d.toLowerCase() ? " tw-chip-selected" : ""}`}
-                          onClick={() => setSubjectDiscipline(prev => prev === d.toLowerCase() ? "" : d.toLowerCase())}
+                          onClick={() => { setSubjectDiscipline(""); setSubjectSearch(""); }}
+                          style={{
+                            position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                            background: "none", border: "none", cursor: "pointer",
+                            color: "var(--text-muted)", padding: 4, lineHeight: 1,
+                          }}
                         >
-                          {d}
+                          <XIcon size={14} />
                         </button>
-                      ))}
+                      )}
+                      {subjectDropdownOpen && (() => {
+                        const query = subjectSearch.toLowerCase().trim();
+                        const filtered = query
+                          ? subjectCatalog.filter((s) =>
+                              s.label.toLowerCase().includes(query) ||
+                              s.category.toLowerCase().includes(query))
+                          : subjectCatalog;
+                        const grouped = new Map<string, typeof subjectCatalog>();
+                        for (const s of filtered) {
+                          const list = grouped.get(s.category) ?? [];
+                          list.push(s);
+                          grouped.set(s.category, list);
+                        }
+                        const hasExactMatch = filtered.some((s) => s.value === query || s.label.toLowerCase() === query);
+                        return (
+                          <div className="tw-subject-dropdown">
+                            {filtered.length === 0 && !subjectAllowFreeText && (
+                              <div className="tw-subject-empty">No matching subjects</div>
+                            )}
+                            {Array.from(grouped.entries()).map(([category, items]) => (
+                              <div key={category}>
+                                <div className="tw-subject-category">{category}</div>
+                                {items.map((s) => (
+                                  <button
+                                    key={s.value}
+                                    type="button"
+                                    className={`tw-subject-option${subjectDiscipline === s.value ? " tw-subject-option-selected" : ""}`}
+                                    onClick={() => {
+                                      setSubjectDiscipline(s.value);
+                                      setSubjectSearch("");
+                                      setSubjectDropdownOpen(false);
+                                    }}
+                                  >
+                                    {s.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ))}
+                            {subjectAllowFreeText && query && !hasExactMatch && (
+                              <button
+                                type="button"
+                                className="tw-subject-option tw-subject-free-text"
+                                onClick={() => {
+                                  setSubjectDiscipline(query);
+                                  setSubjectSearch("");
+                                  setSubjectDropdownOpen(false);
+                                }}
+                              >
+                                Use &ldquo;{subjectSearch.trim()}&rdquo; as subject
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
-                    <input
-                      className="tw-input"
-                      type="text"
-                      placeholder="Other: e.g. Biology, PE, Art..."
-                      value={subjectDiscipline}
-                      onChange={(e) => setSubjectDiscipline(e.target.value.toLowerCase())}
-                    />
                   </div>
 
                   <div>

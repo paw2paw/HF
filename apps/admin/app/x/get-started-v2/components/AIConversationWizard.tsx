@@ -111,6 +111,7 @@ export function AIConversationWizard() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialised = useRef(false);
   const lastPhaseRef = useRef("institution");
+  const abortRef = useRef<AbortController | null>(null);
 
   // ── Scroll to bottom (with slight delay for layout settle) ──
 
@@ -146,6 +147,11 @@ export function AIConversationWizard() {
 
   const sendToAPI = useCallback(
     async (userMessage: string, history: Message[]): Promise<WizardResponse | null> => {
+      // Abort any previous in-flight request (e.g. if reset was clicked)
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
         const conversationHistory = history
           .filter((m) => m.role !== "system")
@@ -154,6 +160,7 @@ export function AIConversationWizard() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             message: userMessage,
             mode: "WIZARD",
@@ -170,6 +177,7 @@ export function AIConversationWizard() {
 
         return await res.json();
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return null;
         console.error("[wizard] API error:", err);
         return null;
       }
@@ -302,6 +310,8 @@ export function AIConversationWizard() {
       setIsLoading(false);
 
       if (!response) {
+        // If the request was aborted (e.g. by Start Afresh), don't show error
+        if (abortRef.current?.signal.aborted) return;
         const errMsg: Message = {
           id: uid(),
           role: "system",
@@ -396,6 +406,10 @@ export function AIConversationWizard() {
   // ── Reset wizard (Start Afresh) ─────────────────────────
 
   const handleReset = useCallback(() => {
+    // Abort any in-flight API call so it can't write stale state into the new session
+    abortRef.current?.abort();
+    abortRef.current = null;
+
     // Clear chat history
     try { sessionStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ }
 
@@ -445,7 +459,7 @@ export function AIConversationWizard() {
     }
   }, [isActive, startFlow]);
 
-  // ── Initialise: restore history or send greeting ────────
+  // ── Initialise: restore history or show welcome ─────────
 
   useEffect(() => {
     if (!isActive || initialised.current) return;
@@ -458,27 +472,20 @@ export function AIConversationWizard() {
       return;
     }
 
-    // Send initial greeting
-    (async () => {
-      setIsLoading(true);
-      const response = await sendToAPI(
-        "(User just opened the wizard. Give a warm greeting and ask what they'd like to set up.)",
-        [],
-      );
-      setIsLoading(false);
-
-      if (response?.content) {
-        const greeting: Message = { id: uid(), role: "assistant", content: response.content };
-        setMessages([greeting]);
-        saveHistory([greeting]);
-        scrollToBottom();
-      }
-
-      if (response?.toolCalls?.length) {
-        processToolCalls(response.toolCalls);
-      }
-    })();
-  }, [isActive, sendToAPI, processToolCalls, scrollToBottom]);
+    // Static welcome — instant, reliable, no API call needed
+    const greeting: Message = {
+      id: uid(),
+      role: "assistant",
+      content:
+        "Welcome! I'll help you set up your AI tutor in just a few minutes.\n\n" +
+        "Let's start with the basics — type the name of your organisation or school below, " +
+        "or tell me a bit about what you'd like to set up and I'll guide you through it.",
+    };
+    setMessages([greeting]);
+    saveHistory([greeting]);
+    scrollToBottom();
+    setTimeout(() => inputRef.current?.focus(), 150);
+  }, [isActive, scrollToBottom]);
 
   // ── Render ────────────────────────────────────────────
 

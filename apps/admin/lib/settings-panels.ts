@@ -80,6 +80,7 @@ export const DEFAULT_CATEGORY_MAP: Record<string, SettingsCategory> = {
   actions: "system",
   defaults: "system",
   agent_tuning: "ai",
+  subjects: "system",
 };
 
 // Non-advanced panels (shown in simple mode)

@@ -248,10 +248,29 @@ export async function executeWizardTool(
       const fields = input.fields as Record<string, unknown>;
       const keys = Object.keys(fields);
 
-      // Auto-resolve institution when name is provided — skip redundant type question
+      // Auto-resolve institution when name is provided
       if (fields.institutionName && typeof fields.institutionName === "string") {
         const resolved = await resolveInstitutionByName(fields.institutionName);
         if (resolved) {
+          // Build subjects/courses context for the AI
+          let subjectContext = "";
+          if (resolved.subjects.length > 0) {
+            const subjectLines = resolved.subjects.map((s) => {
+              const courseList = s.courses.length > 0
+                ? s.courses.map((c) => `${c.name}${c.interactionPattern ? ` [${c.interactionPattern}]` : ""}`).join(", ")
+                : "no courses yet";
+              return `  - ${s.name} (${courseList})`;
+            });
+            subjectContext =
+              `\nSubjects in this domain:\n${subjectLines.join("\n")}\n` +
+              `When asking about the course, first present existing subjects as options ` +
+              `(show_options with dataKey "subjectDiscipline") plus an "Add new subject" option. ` +
+              `If the user picks a subject that has existing courses, show those courses ` +
+              `plus a "Create new course" option (show_options with dataKey "courseName").`;
+          } else {
+            subjectContext = "\nNo subjects or courses exist yet — ask for subject and course name as normal.";
+          }
+
           return {
             ...base,
             content:
@@ -263,7 +282,21 @@ export async function executeWizardTool(
               `existingDomainId: "${resolved.domainId}", ` +
               (resolved.typeSlug ? `typeSlug: "${resolved.typeSlug}", ` : "") +
               `defaultDomainKind: "${resolved.domainKind}" } — ` +
-              `then skip to the next unanswered field (do NOT ask about organisation type).`,
+              `then skip to the next unanswered field (do NOT ask about organisation type).` +
+              subjectContext,
+          };
+        }
+
+        // No DB match — try name-based type inference for new institutions
+        const inferredType = inferTypeFromName(fields.institutionName);
+        if (inferredType) {
+          return {
+            ...base,
+            content:
+              `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
+              `No existing institution found. NAME SUGGESTS TYPE: "${inferredType}" ` +
+              `(inferred from the name "${fields.institutionName}"). ` +
+              `When showing typeSlug options, set recommended=true on "${inferredType}".`,
           };
         }
       }
@@ -424,17 +457,35 @@ export async function executeWizardTool(
 
 // ── Institution resolution ──────────────────────────────
 
+interface ResolvedCourse {
+  id: string;
+  name: string;
+  interactionPattern?: string;
+}
+
+interface ResolvedSubject {
+  id: string;
+  name: string;
+  courses: ResolvedCourse[];
+}
+
 interface ResolvedInstitution {
   institutionId: string;
   name: string;
   typeSlug: string | null;
   domainId: string;
   domainKind: string;
+  subjects: ResolvedSubject[];
 }
 
 /**
  * Look up an existing institution by name (case-insensitive).
- * Returns the first match with its type and primary domain.
+ * Returns the first match with its type, primary domain, subjects, and courses.
+ *
+ * Uses two direct Domain relations (both naturally domain-scoped):
+ *   Domain → subjects (SubjectDomain) — what subjects are taught here
+ *   Domain → playbooks (Playbook) → subjects (PlaybookSubject) — courses + their subjects
+ * Then merges in JS: subjects as keys, courses attached to each.
  */
 async function resolveInstitutionByName(name: string): Promise<ResolvedInstitution | null> {
   try {
@@ -444,21 +495,96 @@ async function resolveInstitutionByName(name: string): Promise<ResolvedInstituti
       where: { name: { equals: name, mode: "insensitive" } },
       include: {
         type: { select: { slug: true } },
-        domains: { take: 1, orderBy: { createdAt: "asc" }, select: { id: true, kind: true } },
+        domains: {
+          take: 1,
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            kind: true,
+            // Subjects taught at this institution (may have no courses yet)
+            subjects: {
+              select: {
+                subject: { select: { id: true, name: true } },
+              },
+            },
+            // Courses in this domain (already domain-scoped) + their subject links
+            playbooks: {
+              select: {
+                id: true,
+                name: true,
+                config: true,
+                subjects: {
+                  select: {
+                    subject: { select: { id: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
     if (!institution || institution.domains.length === 0) return null;
 
+    const domain = institution.domains[0];
+
+    // Build subject map from SubjectDomain (includes subjects with no courses)
+    const subjectMap = new Map<string, ResolvedSubject>();
+    for (const sd of domain.subjects) {
+      subjectMap.set(sd.subject.id, {
+        id: sd.subject.id,
+        name: sd.subject.name,
+        courses: [],
+      });
+    }
+
+    // Attach courses to their subjects via PlaybookSubject
+    for (const pb of domain.playbooks) {
+      const config = pb.config as Record<string, unknown> | null;
+      const course: ResolvedCourse = {
+        id: pb.id,
+        name: pb.name,
+        interactionPattern: config?.interactionPattern as string | undefined,
+      };
+      for (const ps of pb.subjects) {
+        const subject = subjectMap.get(ps.subject.id);
+        if (subject) subject.courses.push(course);
+      }
+    }
+
     return {
       institutionId: institution.id,
       name: institution.name,
       typeSlug: institution.type?.slug ?? null,
-      domainId: institution.domains[0].id,
-      domainKind: institution.domains[0].kind,
+      domainId: domain.id,
+      domainKind: domain.kind,
+      subjects: Array.from(subjectMap.values()),
     };
   } catch (err) {
     console.warn("[wizard-tools] Institution resolution failed:", err);
     return null;
   }
+}
+
+// ── Name-based type inference ───────────────────────────
+
+const TYPE_PATTERNS: Array<{ pattern: RegExp; typeSlug: string }> = [
+  { pattern: /\b(academy|school|college|sixth\s*form|primary|secondary|grammar|prep|nursery|kindergarten)\b/i, typeSlug: "school" },
+  { pattern: /\b(hospital|clinic|nhs|health\s*(service|centre|center)|medical|surgery|dental)\b/i, typeSlug: "healthcare" },
+  { pattern: /\b(gym|fitness|sport|athletic|martial\s*arts|swimming|tennis|yoga)\b/i, typeSlug: "coaching" },
+  { pattern: /\b(foundation|charity|community|trust|volunteer|youth|church|mosque|synagogue|temple)\b/i, typeSlug: "community" },
+  { pattern: /\b(training|workshop|bootcamp|course\s*provider|learning\s*centre)\b/i, typeSlug: "training" },
+  { pattern: /\b(ltd|limited|inc|corp|plc|consulting|solutions|partners|agency|group)\b/i, typeSlug: "corporate" },
+];
+
+/**
+ * Infer institution type from name patterns.
+ * Returns the slug if a strong signal is found, null otherwise.
+ */
+function inferTypeFromName(name: string): string | null {
+  for (const { pattern, typeSlug } of TYPE_PATTERNS) {
+    if (pattern.test(name)) return typeSlug;
+  }
+  return null;
 }
