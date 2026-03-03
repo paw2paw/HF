@@ -408,6 +408,26 @@
   color: var(--text-primary);
 }
 
+.dtw-log-toggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.dtw-log-toggle:hover {
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
 .dtw-progress-track {
   height: 6px;
   border-radius: 3px;

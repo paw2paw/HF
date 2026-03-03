@@ -191,12 +191,16 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
     if (contentTotals.images > 0) contentChips.push(`${contentTotals.images} images`);
   }
 
+  const sourceCount = getData<number>("sourceCount");
+
   const contentStatus = isExtracting
     ? "building" as ScaffoldStatus
     : getItemStatus("content", hasContent, currentStepIndex, resolvedKeys, launched);
   const contentValue = isExtracting
     ? "Extracting..."
-    : hasContent ? "Uploaded" : undefined;
+    : hasContent
+      ? sourceCount ? `${sourceCount} doc${sourceCount !== 1 ? "s" : ""} uploaded` : "Uploaded"
+      : undefined;
 
   const items: ScaffoldItem[] = [
     {

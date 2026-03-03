@@ -208,6 +208,36 @@ export function BugReportButton() {
       lines.push("", "### AI Diagnosis", response);
     }
 
+    // Wizard state (GS V1 + V2): conversation history + setup data
+    const currentPath = pathname || window.location.pathname;
+    if (currentPath.startsWith("/x/get-started")) {
+      try {
+        const stepFlow = sessionStorage.getItem("hf.stepflow.state");
+        if (stepFlow) {
+          const parsed = JSON.parse(stepFlow);
+          const data = parsed?.data;
+          if (data && Object.keys(data).length > 0) {
+            lines.push("", "### Wizard Setup Data", "```json", JSON.stringify(data, null, 2), "```");
+          }
+        }
+      } catch { /* ignore parse errors */ }
+
+      try {
+        const wizardHistory = sessionStorage.getItem("gs-v2-history");
+        if (wizardHistory) {
+          const msgs = JSON.parse(wizardHistory);
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            lines.push("", "### Wizard Conversation Log");
+            for (const m of msgs) {
+              if (m.role === "system") continue;
+              const label = m.role === "user" ? "User" : "AI";
+              lines.push(`**${label}:** ${m.content}`);
+            }
+          }
+        }
+      } catch { /* ignore parse errors */ }
+    }
+
     return lines.join("\n");
   }, [pathname, entityContext.breadcrumbs, getRecentErrors, conversationHistory, description, response]);
 

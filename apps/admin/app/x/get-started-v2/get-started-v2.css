@@ -434,6 +434,31 @@
   transition: left 0.3s ease;
 }
 
+/* ── Personality Card inside user bubble (white-on-blue) ── */
+
+.gs-chat-bubble--user .gs-personality-title {
+  color: var(--surface-primary);
+}
+
+.gs-chat-bubble--user .gs-personality-low,
+.gs-chat-bubble--user .gs-personality-high {
+  color: color-mix(in srgb, var(--surface-primary) 75%, transparent);
+}
+
+.gs-chat-bubble--user .gs-personality-track {
+  background: color-mix(in srgb, var(--surface-primary) 30%, transparent);
+}
+
+.gs-chat-bubble--user .gs-personality-fill {
+  background: var(--surface-primary);
+}
+
+.gs-chat-bubble--user .gs-personality-thumb {
+  background: var(--surface-primary);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--surface-primary);
+}
+
 /* ── Responsive ──────────────────────────────────────── */
 
 @media (max-width: 1023px) {

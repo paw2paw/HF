@@ -349,7 +349,7 @@ async function handleCallModeWithTools(
   callId: string,
 ): Promise<Response> {
   // Check if there's any content to share
-  const catalog = await buildContentCatalog(callerId);
+  const catalog = await buildContentCatalog(callerId, callId);
 
   // No content available — fall back to standard streaming (no tools needed)
   if (!catalog) {
@@ -465,8 +465,12 @@ async function handleCallModeWithTools(
   });
 }
 
-/** Contextual fallback when the AI tool loop ends without producing text. */
-function buildWizardFallback(toolCalls: Array<{ name: string; input: Record<string, unknown> }>): string {
+/** Contextual fallback when the AI tool loop ends without producing text.
+ *  Phase-aware: includes a continuation prompt about the next field when possible. */
+function buildWizardFallback(
+  toolCalls: Array<{ name: string; input: Record<string, unknown> }>,
+  mergedSetupData?: Record<string, unknown>,
+): string {
   const names = new Set(toolCalls.map((tc) => tc.name));
 
   if (names.has("show_actions")) return "Here's a summary of your setup. Ready to create your course?";
@@ -496,11 +500,59 @@ function buildWizardFallback(toolCalls: Array<{ name: string; input: Record<stri
     if (allFields.sessionCount) parts.push(`${allFields.sessionCount} sessions`);
     if (allFields.durationMins) parts.push(`${allFields.durationMins} min each`);
     if (allFields.welcomeMessage) parts.push("welcome message");
-    if (parts.length > 0) return `Got it — ${parts.join(", ")}.`;
-    return "Got it, saved that.";
+
+    const ack = parts.length > 0 ? `Got it — ${parts.join(", ")}.` : "Got it, saved that.";
+
+    // Phase-aware continuation: tell the user what comes next
+    if (mergedSetupData) {
+      const continuation = buildPhaseContinuation(mergedSetupData);
+      if (continuation) return `${ack} ${continuation}`;
+    }
+
+    return ack;
   }
 
   if (names.has("show_suggestions")) return "";
+  return "";
+}
+
+/** Generate a natural continuation prompt based on the next wizard phase/field. */
+function buildPhaseContinuation(data: Record<string, unknown>): string {
+  const isCommunity = data.defaultDomainKind === "COMMUNITY";
+  const { phase, phaseFields } = computeCurrentPhase(data, !!isCommunity);
+
+  const FIELD_PROMPTS: Record<string, string> = {
+    institutionName: "What's the name of your organisation or school?",
+    typeSlug: "What type of organisation is this?",
+    websiteUrl: "Do you have a website for your organisation?",
+    subjectDiscipline: "What subject will you be teaching?",
+    courseName: "What would you like to name your course?",
+    interactionPattern: "What teaching approach would you like?",
+    teachingMode: "What's the teaching emphasis for this course?",
+    welcomeMessage: "Now let's set up your **welcome message** — this is what students hear when they first call in.",
+    sessionCount: "How many sessions would you like in your course?",
+    durationMins: "How long should each session be?",
+    planEmphasis: "Would you like to focus on breadth or depth?",
+    behaviorTargets: "Let's fine-tune your AI tutor's **personality**.",
+    lessonPlanModel: "What lesson plan model works best for your course?",
+  };
+
+  // Content phase (no field keys)
+  if (phase.id === "content") {
+    return "Now let's add some **teaching content** for your course.";
+  }
+
+  // Launch phase
+  if (phase.id === "launch") {
+    return "Ready to review your setup and create your course?";
+  }
+
+  // Get the first uncollected field in the current phase
+  const nextField = phaseFields[0];
+  if (nextField && FIELD_PROMPTS[nextField]) {
+    return FIELD_PROMPTS[nextField];
+  }
+
   return "";
 }
 
@@ -525,6 +577,10 @@ async function handleWizardModeWithTools(
   let toolCallCount = 0;
   let finalContent = "";
   let allToolCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  // mergedSetupData accumulates fields across ALL loop iterations so later tools
+  // (e.g. show_upload) and the continuation re-prompt see the full state.
+  const mergedSetupData: Record<string, unknown> = { ...(setupData ?? {}) };
+  let hasShowTool = false;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     // @ai-call wizard.get-started — Non-streaming with wizard tools | config: /x/ai-config
@@ -568,10 +624,12 @@ async function handleWizardModeWithTools(
           continue;
         }
         sawShowTool = true;
+        hasShowTool = true;
         // Defer show_* tools — push them AFTER auto-injected data updates
         deferredShowTools.push({ name: tu.name, input: tu.input });
         continue;
       }
+      if (tu.name === "show_suggestions") hasShowTool = true;
       allToolCalls.push({ name: tu.name, input: tu.input });
     }
 
@@ -582,9 +640,6 @@ async function handleWizardModeWithTools(
     });
 
     // Execute each tool and collect results.
-    // mergedSetupData accumulates fields from earlier tools so later tools (e.g. show_upload)
-    // see the latest state — not just the client's stale snapshot.
-    const mergedSetupData: Record<string, unknown> = { ...(setupData ?? {}) };
     const toolResultBlocks: ContentBlock[] = [];
     for (const toolUse of response.toolUses) {
       console.log(`[wizard-tools] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
@@ -651,9 +706,63 @@ async function handleWizardModeWithTools(
     // (the tool result says "Panel displayed, wait for response" so the AI will naturally provide text)
   }
 
+  // ── Continuation re-prompt ──────────────────────────────
+  // If the AI produced no text AND no interactive panel (show_options/show_sliders/etc),
+  // the conversation would dead-end. Rebuild the system prompt with the updated phase
+  // and do one more AI call so the wizard naturally continues.
+  const hasInteractivePanel = hasShowTool || allToolCalls.some((tc) =>
+    ["show_options", "show_sliders", "show_upload", "show_actions", "show_suggestions"].includes(tc.name)
+  );
+  if (!finalContent && !hasInteractivePanel) {
+    const isCommunity = mergedSetupData.defaultDomainKind === "COMMUNITY";
+    const { phase: updatedPhase, phaseIndex: updatedIdx, phaseFields: updatedFields } =
+      computeCurrentPhase(mergedSetupData, !!isCommunity);
+    const freshSubjectsCatalog = await getSubjectsCatalog();
+    const continuationPrompt = buildWizardSystemPrompt(
+      mergedSetupData, updatedPhase, updatedIdx, updatedFields, freshSubjectsCatalog,
+    );
+
+    // Replace system message with updated phase context
+    loopMessages[0] = { role: "system", content: continuationPrompt };
+    // Add a nudge so the AI knows to continue
+    loopMessages.push({
+      role: "user",
+      content: "[System: phase advanced — continue the conversation naturally. Ask about the next field.]",
+    });
+
+    console.log(`[wizard] Continuation re-prompt: phase=${updatedPhase.id}, fields=${updatedFields.join(",")}`);
+
+    // @ai-call wizard.get-started — Continuation after tool-only loop | config: /x/ai-config
+    const contResponse = await getConfiguredMeteredAICompletion(
+      {
+        callPoint,
+        engineOverride: engine,
+        messages: loopMessages,
+        tools: WIZARD_TOOLS,
+      },
+      { sourceOp: `${callPoint}.continuation`, userId }
+    );
+    toolCallCount++;
+
+    finalContent = contResponse.content || "";
+
+    // Process any tool calls from the continuation (e.g. show_options for next field)
+    if (contResponse.toolUses?.length) {
+      for (const tu of contResponse.toolUses) {
+        if (["show_options", "show_sliders", "show_upload", "show_actions", "show_suggestions"].includes(tu.name)) {
+          allToolCalls.push({ name: tu.name, input: tu.input });
+        } else if (tu.name === "update_setup") {
+          allToolCalls.push({ name: tu.name, input: tu.input });
+          const fields = tu.input.fields as Record<string, unknown> | undefined;
+          if (fields) Object.assign(mergedSetupData, fields);
+        }
+      }
+    }
+  }
+
   if (!finalContent) {
-    // Contextual fallback based on what tools were called — avoids a static boring string
-    finalContent = buildWizardFallback(allToolCalls);
+    // Last-resort fallback — phase-aware version
+    finalContent = buildWizardFallback(allToolCalls, mergedSetupData);
   }
 
   logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext, toolCallCount);

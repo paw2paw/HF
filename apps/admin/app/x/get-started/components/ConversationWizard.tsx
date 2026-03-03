@@ -1674,6 +1674,17 @@ export function ConversationWizard() {
       const domainIdForDash = getData<string>("draftDomainId") || getData<string>("existingDomainId");
       return (
         <div className="gs-chat-success">
+          {/* Keep the summary visible after launch */}
+          {rows.length > 0 && (
+            <div className="gs-chat-review-card gs-chat-review-card--done">
+              {rows.map((row, i) => (
+                <div key={i} className="gs-chat-review-row">
+                  <span className="gs-chat-review-label">{row.label}</span>
+                  <span className="gs-chat-review-value">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="gs-chat-success-title">
             <Check size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6, color: "var(--status-success-text)" }} />
             Your AI tutor is live

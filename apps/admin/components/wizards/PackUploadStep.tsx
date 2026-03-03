@@ -11,7 +11,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Upload, FileText, BookOpen, X, Edit3, Check, Plus } from 'lucide-react';
+import { Upload, FileText, BookOpen, X, Edit3, Check, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import type { IngestEvent } from '@/lib/content-trust/ingest-events';
 import { DocTypeBadge } from '@/app/x/content-sources/_components/shared/badges';
 import { getDocTypeInfo } from '@/lib/doc-type-icons';
@@ -168,6 +168,7 @@ export function PackUploadStep({
   const [extractionTotals, setExtractionTotals] = useState({ assertions: 0, questions: 0, vocabulary: 0, images: 0 });
   const [currentFile, setCurrentFile] = useState<{ name: string; chunks: number; completedSet: Set<number> } | null>(null);
   const [retryInfo, setRetryInfo] = useState<{ chunkIndex: number; totalChunks: number; attempt: number; maxAttempts: number } | null>(null);
+  const [logExpanded, setLogExpanded] = useState(false);
 
   // Notify parent of live extraction progress
   const onProgressRef = useRef(onProgress);
@@ -939,13 +940,24 @@ export function PackUploadStep({
       {/* ── Ingesting progress (SSE timeline) ── */}
       {ingesting && (
         <div className="pack-ingest-progress">
+          {/* Header: spinner + label + log toggle */}
           <div className="dtw-extract-status">
             <div className="dtw-pulse-dot" />
             <div className="dtw-extract-label">Extracting Content</div>
+            {timeline.length > 0 && (
+              <button
+                type="button"
+                className="dtw-log-toggle"
+                onClick={() => setLogExpanded(prev => !prev)}
+              >
+                {logExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span>{logExpanded ? 'Hide' : 'Log'}</span>
+              </button>
+            )}
           </div>
 
-          {/* Timeline */}
-          {timeline.length > 0 && (
+          {/* Full timeline (expanded only) */}
+          {logExpanded && timeline.length > 0 && (
             <div className="hf-card hf-card-compact" style={{ marginTop: 12 }}>
               {timeline.map((step) => (
                 <div key={step.id} className="hf-flex hf-items-center hf-gap-sm" style={{ marginBottom: 4 }}>
@@ -967,7 +979,7 @@ export function PackUploadStep({
                 </div>
               ))}
 
-              {/* Per-file chunk progress bar (handles out-of-order completion) */}
+              {/* Per-file chunk progress bar (expanded) */}
               {currentFile && currentFile.chunks > 0 && (
                 <div style={{ marginTop: 6, marginBottom: 2, paddingLeft: 24 }}>
                   <div className="dtw-progress-track" style={{ height: 4 }}>
@@ -989,7 +1001,27 @@ export function PackUploadStep({
             </div>
           )}
 
-          {/* Running totals */}
+          {/* Compact chunk progress (collapsed only) */}
+          {!logExpanded && currentFile && currentFile.chunks > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div className="dtw-progress-track" style={{ height: 4 }}>
+                <div
+                  className="dtw-progress-fill"
+                  style={{ width: `${(currentFile.completedSet.size / currentFile.chunks) * 100}%` }}
+                />
+              </div>
+              <span className="hf-text-xs hf-text-muted">
+                chunk {currentFile.completedSet.size}/{currentFile.chunks}
+                {retryInfo && (
+                  <span style={{ marginLeft: 8, color: 'var(--status-warning-text)' }}>
+                    — retrying chunk {retryInfo.chunkIndex + 1} (attempt {retryInfo.attempt}/{retryInfo.maxAttempts})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+
+          {/* Running totals (always visible) */}
           {(extractionTotals.assertions > 0 || extractionTotals.questions > 0 || extractionTotals.vocabulary > 0 || extractionTotals.images > 0) && (
             <div className="hf-card hf-card-compact" style={{ marginTop: 8 }}>
               <div className="hf-flex hf-gap-md hf-text-sm hf-flex-wrap">
@@ -1009,6 +1041,7 @@ export function PackUploadStep({
             </div>
           )}
 
+          {/* Indeterminate loading (before timeline starts) */}
           {timeline.length === 0 && (
             <>
               <div className="dtw-progress-track" style={{ marginTop: 12 }}>

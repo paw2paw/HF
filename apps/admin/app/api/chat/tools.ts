@@ -118,7 +118,7 @@ async function handleShareContent(
  * For first calls, annotates media with phase assignments from the domain's
  * onboardingFlowPhases config (phases[].content[].mediaId).
  */
-export async function buildContentCatalog(callerId: string): Promise<string | null> {
+export async function buildContentCatalog(callerId: string, callId?: string): Promise<string | null> {
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: {
@@ -195,13 +195,22 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
 
   // Batch-load assertion context for each media item
   const mediaIds = unique.map((i) => i.media.id);
-  const assertionLinks = mediaIds.length > 0
-    ? await prisma.assertionMedia.groupBy({
-        by: ["mediaId"],
-        where: { mediaId: { in: mediaIds } },
-        _count: { assertionId: true },
-      })
-    : [];
+  const [assertionLinks, alreadySharedIds] = await Promise.all([
+    mediaIds.length > 0
+      ? prisma.assertionMedia.groupBy({
+          by: ["mediaId"],
+          where: { mediaId: { in: mediaIds } },
+          _count: { assertionId: true },
+        })
+      : Promise.resolve([]),
+    // Check which media has already been shared in this call (prevents re-sharing)
+    callId
+      ? prisma.callMessage.findMany({
+          where: { callId, mediaId: { not: null } },
+          select: { mediaId: true },
+        }).then((msgs) => new Set(msgs.map((m) => m.mediaId!)))
+      : Promise.resolve(new Set<string>()),
+  ]);
   const assertionCountMap = new Map(
     assertionLinks.map((al) => [al.mediaId, al._count.assertionId]),
   );
@@ -215,13 +224,14 @@ export async function buildContentCatalog(callerId: string): Promise<string | nu
     const phaseHint = phaseRef ? ` | SHARE DURING: "${phaseRef.phase}" phase${phaseRef.instruction ? ` — ${phaseRef.instruction}` : ""}` : "";
     const refCount = assertionCountMap.get(m.id);
     const refHint = refCount ? ` (Referenced by ${refCount} teaching point${refCount > 1 ? "s" : ""})` : "";
-    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${refHint}${desc}${tags}${phaseHint}`;
+    const shared = alreadySharedIds.has(m.id) ? " ✓ ALREADY SHARED" : "";
+    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${refHint}${desc}${tags}${phaseHint}${shared}`;
   });
 
-  let instructions = "When discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. \"Take a look at the passage I just sent you\").";
+  let instructions = "When discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. \"Take a look at the passage I just sent you\").\n\nIMPORTANT: Never re-share content already sent to the learner. Items marked \"ALREADY SHARED\" must NOT be shared again — just reference them naturally.";
 
   if (phaseMediaMap.size > 0) {
-    instructions += "\n\nIMPORTANT: Items marked with \"SHARE DURING\" are assigned to specific onboarding phases. Share them at the indicated point in the session flow.";
+    instructions += "\n\nItems marked with \"SHARE DURING\" are assigned to specific onboarding phases. Share them at the indicated point in the session flow.";
   }
 
   return `\n## Available Teaching Materials\nYou can share these with the learner using the share_content tool:\n${lines.join("\n")}\n\n${instructions}`;

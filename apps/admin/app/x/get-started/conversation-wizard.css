@@ -4,34 +4,6 @@
  * All colors via CSS vars — no hardcoded hex.
  * ──────────────────────────────────────────────────── */
 
-/* ── Dismiss button (top-right of chat) ────────────── */
-
-.gs-chat-header {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 12px 0;
-  flex-shrink: 0;
-}
-
-.gs-chat-dismiss-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s;
-}
-
-.gs-chat-dismiss-btn:hover {
-  color: var(--text-primary);
-  background: var(--surface-secondary);
-}
-
 /* ── Layout ─────────────────────────────────────────── */
 
 .gs-chat-container {
@@ -530,6 +502,11 @@
 }
 
 /* ── Success card ───────────────────────────────────── */
+
+.gs-chat-review-card--done {
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
 
 .gs-chat-success {
   text-align: center;
