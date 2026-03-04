@@ -13,6 +13,8 @@ import { config } from "@/lib/config";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { executeComposition, loadComposeConfig, persistComposedPrompt } from "@/lib/prompt/composition";
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
+import { getPromptTemplate } from "@/lib/prompts/prompt-settings";
+import { interpolateTemplate } from "@/lib/prompts/interpolate";
 
 // =============================================================================
 // TYPES
@@ -52,23 +54,12 @@ const SIM_CALLER_TEMPERATURE = 0.9;
 // CALLER PERSONA PROMPT
 // =============================================================================
 
-function buildCallerPersonaPrompt(
+async function buildCallerPersonaPrompt(
   callerName: string,
   domainName: string,
-): string {
-  return `You are role-playing as a caller named ${callerName} in a ${domainName} session.
-
-RULES:
-- You ARE the caller, NOT the AI assistant
-- Respond naturally as a real person would
-- Keep responses SHORT (1-3 sentences) — this simulates a phone/chat conversation
-- Ask questions, express curiosity, sometimes be confused or unsure
-- Do NOT be overly polite or perfect — be realistic and human
-- React to what the assistant says, ask follow-ups
-- If this is your first interaction, introduce yourself briefly
-- Show some personality — maybe you're a bit nervous, or enthusiastic, or skeptical
-
-You are talking to an AI assistant. Respond as yourself, the caller.`;
+): Promise<string> {
+  const template = await getPromptTemplate("sim-caller-persona");
+  return interpolateTemplate(template, { callerName, domainName });
 }
 
 // =============================================================================
@@ -153,7 +144,7 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
   onProgress({ phase: "init", message: `Call #${nextSequence} created` });
 
   // ─── Build persona prompts ───
-  const callerPersonaPrompt = buildCallerPersonaPrompt(callerName, domainName);
+  const callerPersonaPrompt = await buildCallerPersonaPrompt(callerName, domainName);
 
   const turns: { role: "system" | "caller"; content: string }[] = [];
   const conversationHistory: AIMessage[] = [];

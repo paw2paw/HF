@@ -19,6 +19,7 @@ import { getAITimeoutSettings } from "@/lib/system-settings";
 import { logAI } from "@/lib/logger";
 import { buildMultiPointSample } from "./classify-document";
 import type { DocumentType } from "./resolve-config";
+import { getPromptTemplate } from "@/lib/prompts/prompt-settings";
 
 // ------------------------------------------------------------------
 // Types
@@ -86,67 +87,6 @@ const VALID_SECTION_TYPES: DocumentType[] = [
 ];
 
 // ------------------------------------------------------------------
-// Segmentation prompt
-// ------------------------------------------------------------------
-
-const SEGMENTATION_SYSTEM_PROMPT = `You are a document structure analyst for an educational content system.
-
-Given the text of an educational document, identify its distinct pedagogical sections. Many teaching documents are COMPOSITE — they contain reading passages, vocabulary exercises, comprehension questions, discussion prompts, and answer keys all in one file.
-
-For each section, identify:
-1. title: The section heading or a descriptive title
-2. startText: The first ~30 characters of the section (for offset matching)
-3. sectionType: The best extraction type for this section:
-   - TEXTBOOK: Dense teaching content, explanatory text
-   - COMPREHENSION: Reading passage with comprehension questions, vocab exercises
-   - WORKSHEET: Fill-in activity, exercise requiring learner to write/produce
-   - ASSESSMENT: Questions with expected answers, quizzes, tests
-   - REFERENCE: Answer key, glossary, teacher notes, quick reference
-   - CURRICULUM: Formal learning outcomes, assessment criteria
-   - EXAMPLE: Case study, sample document for discussion
-   - LESSON_PLAN: Teacher-facing plan with objectives, activities, timing
-   - POLICY_DOCUMENT: Safety procedure, regulatory compliance, hazards
-4. pedagogicalRole: The teaching purpose:
-   - ACTIVATE: Pre-reading activity, warm-up, vocabulary prep
-   - INPUT: Main teaching content, reading passage, core material
-   - CHECK: Comprehension check, questions, matching, true/false
-   - PRODUCE: Discussion prompt, writing task, role-play, production
-   - REFLECT: Self-assessment, review, learning journal
-   - REFERENCE: Answer key, teacher notes, solutions
-   - META: Non-content metadata — table of contents, index, title page, copyright notice, acknowledgements, blank pages, publisher info. No teachable content.
-5. hasQuestions: true if the section contains questions for the learner
-6. hasAnswerKey: true if the section contains answers/solutions
-7. figureRefs: Array of figure/diagram/image references found (e.g. ["Figure 1", "Diagram 2.3", "Table 1"]). Empty array if none.
-8. hasFigures: true if the section contains figure captions, image descriptions, diagrams, or visual content references
-
-Return a JSON object:
-{
-  "isComposite": true/false,
-  "sections": [
-    {
-      "title": "string",
-      "startText": "first ~30 chars of section",
-      "sectionType": "TEXTBOOK|COMPREHENSION|WORKSHEET|ASSESSMENT|REFERENCE|CURRICULUM|EXAMPLE|LESSON_PLAN|POLICY_DOCUMENT",
-      "pedagogicalRole": "ACTIVATE|INPUT|CHECK|PRODUCE|REFLECT|REFERENCE",
-      "hasQuestions": true/false,
-      "hasAnswerKey": true/false,
-      "figureRefs": ["Figure 1", "Diagram 2.3"],
-      "hasFigures": true/false
-    }
-  ]
-}
-
-Rules:
-- If the document has only ONE section type throughout, set isComposite: false and return a single section
-- Sections should be in document order
-- Adjacent text of the same type can be merged into one section
-- Be generous with section detection — even short sections (a few lines) count if they serve a different pedagogical purpose
-- A document with reading + exercises + answers is ALWAYS composite
-- Title pages, copyright pages, TOC, indexes, and blank pages should be labelled META with descriptive titles (e.g. "Table of Contents", "Copyright Notice")
-- List any figure/diagram/table references found in each section's figureRefs array
-- Return ONLY valid JSON (no markdown code fences)`;
-
-// ------------------------------------------------------------------
 // Segmentation
 // ------------------------------------------------------------------
 
@@ -199,7 +139,7 @@ export async function segmentDocument(
       {
         callPoint: "content-trust.segment",
         messages: [
-          { role: "system", content: SEGMENTATION_SYSTEM_PROMPT },
+          { role: "system", content: await getPromptTemplate("document-segmentation") },
           { role: "user", content: userPrompt },
         ],
         timeoutMs: timeouts.classificationTimeoutMs,

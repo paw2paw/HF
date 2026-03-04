@@ -33,7 +33,13 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 16px;
+  margin-bottom: 4px;
+}
+
+.gs-scaffold-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
 }
 
 .gs-scaffold-list {

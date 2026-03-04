@@ -23,6 +23,7 @@ import { PARAMS } from "@/lib/registry";
 import { getPipelineGates } from "@/lib/system-settings";
 import type { SpecConfig } from "@/lib/types/json-fields";
 import type { AIEngine } from "@/lib/ai/client";
+import { getPromptTemplate } from "@/lib/prompts/prompt-settings";
 
 // Config loaded from MEASURE_AGENT spec
 interface MeasureAgentConfig {
@@ -65,23 +66,6 @@ const DEFAULT_MEASURE_CONFIG: MeasureAgentConfig = {
     confidenceRange: { min: 0.6, max: 0.9 },
   },
 };
-
-// Default prompt template for LLM scoring
-const DEFAULT_MEASURE_PROMPT = `Analyze this call transcript for the agent behavior parameter: {{parameterId}}
-
-Score how well the agent demonstrated this behavior from 0.0 to 1.0.
-- 0.0 = behavior completely absent
-- 0.5 = moderate demonstration
-- 1.0 = exemplary demonstration
-
-TRANSCRIPT:
-{{transcript}}
-
-Return a JSON object with:
-- "actualValue": number 0.0-1.0 (the score)
-- "confidence": number 0.0-1.0 (how confident you are in this score)
-- "evidence": string[] (specific quotes or observations supporting the score)
-- "reasoning": string (brief explanation of scoring rationale)`;
 
 // Cached config, prompt template, and llmConfig
 let cachedMeasureConfig: MeasureAgentConfig | null = null;
@@ -375,8 +359,8 @@ export async function measureAgent(
             const systemPrompt = llmConfig.systemPrompt ||
               "You are an expert at evaluating conversational AI agent behavior. Score precisely. Return valid JSON only.";
 
-            // Render prompt template
-            const template = promptTemplate || DEFAULT_MEASURE_PROMPT;
+            // Render prompt template — cascade: spec DB > Meta Prompts DB > hardcoded default
+            const template = promptTemplate || await getPromptTemplate("measurement-default");
             const rendered = template
               .replace(/\{\{parameterId\}\}/g, parameterId)
               .replace(/\{\{transcript\}\}/g, call.transcript.substring(0, transcriptLimit));

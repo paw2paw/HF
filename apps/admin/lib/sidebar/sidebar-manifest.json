@@ -24,6 +24,17 @@
     ]
   },
   {
+    "id": "calls",
+    "title": "Calls",
+    "href": "/x/sim",
+    "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
+    "items": [
+      { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
+      { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
+      { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR" }
+    ]
+  },
+  {
     "id": "library",
     "title": "Library",
     "href": "/x/courses",
@@ -34,17 +45,6 @@
       { "id": "content-review", "href": "/x/content-review", "label": "Review", "icon": "ClipboardCheck", "requiredRole": "OPERATOR", "advancedOnly": true },
       { "id": "dictionary", "href": "/x/dictionary", "label": "Dictionary", "icon": "BookA", "requiredRole": "OPERATOR", "advancedOnly": true },
       { "id": "import", "href": "/x/import", "label": "Import", "icon": "Download", "requiredRole": "OPERATOR", "advancedOnly": true }
-    ]
-  },
-  {
-    "id": "calls",
-    "title": "Calls",
-    "href": "/x/sim",
-    "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
-    "items": [
-      { "id": "sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle" },
-      { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
-      { "id": "testimony", "href": "/x/testimony", "label": "Testimony", "icon": "BarChart3", "requiredRole": "OPERATOR" }
     ]
   },
   {
@@ -109,7 +109,8 @@
       { "id": "ai-knowledge", "href": "/x/ai-knowledge", "label": "AI Knowledge", "icon": "Brain" },
       { "id": "ai-logs", "href": "/x/logs", "label": "AI Logs", "icon": "FileText" },
       { "id": "ai-errors", "href": "/x/ai-errors", "label": "AI Errors", "icon": "AlertTriangle" },
-      { "id": "ai-metering", "href": "/x/metering", "label": "AI Metering", "icon": "BarChart3" }
+      { "id": "ai-metering", "href": "/x/metering", "label": "AI Metering", "icon": "BarChart3" },
+      { "id": "meta-prompts", "href": "/x/meta-prompts", "label": "Meta Prompts", "icon": "ScrollText" }
     ]
   },
   {

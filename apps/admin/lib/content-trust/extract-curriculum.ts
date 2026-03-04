@@ -8,6 +8,7 @@
 
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import type { ExtractedAssertion } from "./extract-assertions";
+import { getPromptTemplate } from "@/lib/prompts/prompt-settings";
 
 // ------------------------------------------------------------------
 // Types
@@ -122,39 +123,6 @@ function parseAIJSON(content: string): any {
 // AI extraction
 // ------------------------------------------------------------------
 
-const CURRICULUM_SYSTEM_PROMPT = `You are a curriculum design specialist. Given a set of teaching assertions extracted from a syllabus or educational document, your job is to organize them into a structured curriculum with modules, learning outcomes, and assessment criteria.
-
-Rules:
-1. Group related assertions into logical modules
-2. Each module should have 3-8 learning outcomes
-3. Order modules from foundational to advanced
-4. Use clear, measurable learning outcome language ("Identify...", "Explain...", "Apply...")
-5. Preserve the source material's own structure if it has chapters/sections
-6. Generate practical module IDs (MOD-1, MOD-2, etc.)
-
-Return valid JSON only with this structure:
-{
-  "name": "Curriculum title",
-  "description": "Brief description of what this curriculum covers",
-  "modules": [
-    {
-      "id": "MOD-1",
-      "title": "Module title",
-      "description": "What this module covers",
-      "learningOutcomes": ["LO1: Identify...", "LO2: Explain..."],
-      "assessmentCriteria": ["Can define X", "Can list Y"],
-      "keyTerms": ["term1", "term2"],
-      "estimatedDurationMinutes": 30,
-      "sortOrder": 1
-    }
-  ],
-  "deliveryConfig": {
-    "sessionStructure": ["Opening review", "New content", "Practice activity", "Summary check"],
-    "assessmentStrategy": "Spaced repetition with formative checks per module",
-    "pedagogicalNotes": ["Start with real-world examples", "Use misconception correction"]
-  }
-}`;
-
 /**
  * Extract curriculum structure from assertions.
  * Takes the assertions from a syllabus-tagged source and organizes them into modules.
@@ -219,12 +187,13 @@ Generate a structured curriculum from these assertions.`;
         : "",
   ].filter(Boolean).join("\n") : "";
 
+  const basePrompt = await getPromptTemplate("curriculum-extraction");
   const systemPrompt = intentRules
-    ? CURRICULUM_SYSTEM_PROMPT.replace(
+    ? basePrompt.replace(
         "6. Generate practical module IDs (MOD-1, MOD-2, etc.)",
         `6. Generate practical module IDs (MOD-1, MOD-2, etc.)\n${intentRules}`,
       )
-    : CURRICULUM_SYSTEM_PROMPT;
+    : basePrompt;
 
   try {
     // @ai-call content-trust.curriculum — Generate structured curriculum from assertions | config: /x/ai-config
@@ -286,25 +255,6 @@ Generate a structured curriculum from these assertions.`;
 // Skeleton extraction from assertions (fast, Haiku)
 // ------------------------------------------------------------------
 
-const SKELETON_FROM_ASSERTIONS_PROMPT = `You are a curriculum designer. Given teaching assertions from a syllabus, group them into logical modules.
-Output ONLY module titles and one-sentence descriptions. Do NOT generate learning outcomes, assessment criteria, or key terms.
-
-Return valid JSON only:
-{
-  "name": "Curriculum title",
-  "description": "One-sentence summary",
-  "modules": [
-    { "id": "MOD-1", "title": "Module title", "description": "One sentence", "sortOrder": 1 }
-  ]
-}
-
-Rules:
-- Group related assertions into 4-8 modules
-- Order from foundational to advanced
-- Preserve the source material's chapter/section structure if present
-- Use module IDs: MOD-1, MOD-2, etc.
-- Return ONLY valid JSON, no explanation`;
-
 /**
  * Fast skeleton extraction from assertions using Haiku.
  * Returns module titles + descriptions only (~3-5s).
@@ -338,7 +288,7 @@ export async function extractSkeletonFromAssertions(
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "content-trust.curriculum-skeleton",
       messages: [
-        { role: "system", content: SKELETON_FROM_ASSERTIONS_PROMPT },
+        { role: "system", content: await getPromptTemplate("curriculum-skeleton") },
         {
           role: "user",
           content: `Subject: ${subjectName}${qualificationRef ? `\nQualification: ${qualificationRef}` : ""}${intentHints}\n\n${assertions.length} assertions:\n${assertionText}`,
@@ -377,40 +327,6 @@ export async function extractSkeletonFromAssertions(
 // Goals-based curriculum generation (no document required)
 // ------------------------------------------------------------------
 
-const GOALS_CURRICULUM_SYSTEM_PROMPT = `You are a curriculum design specialist. Given a subject, teaching style, and optional learning goals, generate a structured curriculum with modules, learning outcomes, and assessment criteria.
-
-Rules:
-1. Generate 4-8 modules progressing from foundational to advanced
-2. Each module should have 3-8 clear, measurable learning outcomes ("Identify...", "Explain...", "Apply...")
-3. Include practical assessment criteria for each module
-4. Adapt the pedagogical approach to the teaching style (e.g. tutor = structured, coach = goal-oriented, mentor = reflective)
-5. If learning goals are provided, ensure the curriculum covers them
-6. If no learning goals are provided, infer sensible goals for the subject
-7. Generate practical module IDs (MOD-1, MOD-2, etc.)
-
-Return valid JSON only with this structure:
-{
-  "name": "Curriculum title",
-  "description": "Brief description of what this curriculum covers",
-  "modules": [
-    {
-      "id": "MOD-1",
-      "title": "Module title",
-      "description": "What this module covers",
-      "learningOutcomes": ["LO1: Identify...", "LO2: Explain..."],
-      "assessmentCriteria": ["Can define X", "Can list Y"],
-      "keyTerms": ["term1", "term2"],
-      "estimatedDurationMinutes": 30,
-      "sortOrder": 1
-    }
-  ],
-  "deliveryConfig": {
-    "sessionStructure": ["Opening review", "New content", "Practice activity", "Summary check"],
-    "assessmentStrategy": "Spaced repetition with formative checks per module",
-    "pedagogicalNotes": ["Start with real-world examples", "Use misconception correction"]
-  }
-}`;
-
 /**
  * Generate curriculum structure from subject, persona, and learning goals.
  * Used when no document is uploaded — AI creates the curriculum from scratch.
@@ -440,12 +356,13 @@ Teaching Style: ${persona}${qualificationRef ? `\nQualification Reference: ${qua
 Generate a structured curriculum for this subject.`;
 
   // Build session-aware system prompt
+  const goalsBasePrompt = await getPromptTemplate("curriculum-from-goals");
   const systemPrompt = sessionCount
-    ? GOALS_CURRICULUM_SYSTEM_PROMPT.replace(
+    ? goalsBasePrompt.replace(
         "1. Generate 4-8 modules progressing from foundational to advanced",
         `1. Generate ${Math.max(2, maxModules - 1)}-${maxModules} modules progressing from foundational to advanced (HARD LIMIT: max ${maxModules} modules)`,
       )
-    : GOALS_CURRICULUM_SYSTEM_PROMPT;
+    : goalsBasePrompt;
 
   try {
     // @ai-call content-trust.curriculum-from-goals — Generate curriculum from subject + goals (no document) | config: /x/ai-config

@@ -59,6 +59,7 @@ import {
   VenetianMask,
   Sparkles,
   Scan,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -123,4 +124,5 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   VenetianMask,
   Sparkles,
   Scan,
+  ScrollText,
 };

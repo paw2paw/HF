@@ -12,6 +12,8 @@
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { getIdentityTemplateFallback, type FallbackIdentityTemplate } from "@/lib/fallback-settings";
 import { config } from "@/lib/config";
+import { getPromptTemplate } from "@/lib/prompts/prompt-settings";
+import { interpolateTemplate } from "@/lib/prompts/interpolate";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -131,33 +133,10 @@ const DEFAULT_DESCRIPTOR = {
 - General conversational patterns`,
 };
 
-function buildIdentitySystemPrompt(archetypeSlug?: string): string {
+async function buildIdentitySystemPrompt(archetypeSlug?: string): Promise<string> {
   const desc = (archetypeSlug && ARCHETYPE_DESCRIPTORS[archetypeSlug]) || DEFAULT_DESCRIPTOR;
-
-  return `You are generating a DOMAIN OVERLAY for an AI ${desc.label}'s identity.
-This overlay will be MERGED with a base ${desc.label} archetype that already provides:
-${desc.capabilities}
-
-Your job is to generate ONLY the domain-specific adaptations. Do NOT repeat generic ${desc.label} behaviors.
-
-The configuration MUST include ALL of these fields:
-- roleStatement: A 2-3 sentence description positioning the agent as an expert in this specific subject
-- primaryGoal: The main objective (informed by the person's goals if provided)
-- secondaryGoals: Array of 3-5 secondary goals specific to this subject
-- techniques: Array of 3-5 DOMAIN-SPECIFIC techniques, each with { name, description, when }
-  (e.g. for physics: "phenomena before equations"; for law: "case study analysis")
-- domainVocabulary: Array of 10-20 key terms the agent should use naturally
-- styleGuidelines: Array of 3-5 style guidelines SPECIFIC to this subject domain
-
-IMPORTANT:
-- The agent should sound like a genuine expert in this specific subject
-- Use vocabulary and examples from the actual source material
-- Do NOT include generic ${desc.label} behaviors — those come from the base
-- Do NOT include generic boundaries — those come from the base
-- Do NOT include session structure — that comes from the base
-- Focus on what makes THIS subject different from any other
-- Tailor everything to phone-based conversation (verbal, conversational)
-- Return ONLY valid JSON (no markdown code fences)`;
+  const template = await getPromptTemplate("identity-generation");
+  return interpolateTemplate(template, { label: desc.label, capabilities: desc.capabilities });
 }
 
 // ── Main Function ──────────────────────────────────────
@@ -209,7 +188,7 @@ Generate the identity configuration JSON.`;
     const response = await getConfiguredMeteredAICompletion({
       callPoint: "quick-launch.identity",
       messages: [
-        { role: "system", content: buildIdentitySystemPrompt(options.archetypeSlug) },
+        { role: "system", content: await buildIdentitySystemPrompt(options.archetypeSlug) },
         { role: "user", content: userPrompt },
       ],
     });

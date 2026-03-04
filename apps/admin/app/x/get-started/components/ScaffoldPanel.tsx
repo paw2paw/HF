@@ -275,6 +275,9 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
     <div className="gs-panel">
       <div className="gs-scaffold">
         <div className="gs-scaffold-title">Building Your {isCommunity ? "Community" : t.course}</div>
+        {onItemClick && (
+          <div className="gs-scaffold-hint">Click any section to review or change it</div>
+        )}
 
         <ul className="gs-scaffold-list">
           {items.map((item) => (

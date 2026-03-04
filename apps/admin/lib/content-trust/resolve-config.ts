@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
+import { getPromptTemplate } from "@/lib/prompts/prompt-settings";
 
 // ------------------------------------------------------------------
 // Types
@@ -688,6 +689,29 @@ export function deepMerge<T extends Record<string, any>>(base: T, override: Part
 }
 
 // ------------------------------------------------------------------
+// Meta Prompts — DB-overridable system prompts
+// ------------------------------------------------------------------
+
+/**
+ * Load DEFAULT_CONFIG with DB-overridable prompt texts.
+ * Cascade: Meta Prompts (SystemSettings) > hardcoded defaults in DEFAULT_CONFIG.
+ * Spec-level overrides still win (applied later in resolution chain).
+ */
+async function resolveDefaultConfigWithPrompts(): Promise<ExtractionConfig> {
+  const [extraction, structuring, classification] = await Promise.all([
+    getPromptTemplate("content-extraction"),
+    getPromptTemplate("content-structuring"),
+    getPromptTemplate("content-classification"),
+  ]);
+  return {
+    ...DEFAULT_CONFIG,
+    extraction: { ...DEFAULT_CONFIG.extraction, systemPrompt: extraction },
+    structuring: { ...DEFAULT_CONFIG.structuring, systemPrompt: structuring },
+    classification: { ...DEFAULT_CONFIG.classification, systemPrompt: classification },
+  };
+}
+
+// ------------------------------------------------------------------
 // Config resolution
 // ------------------------------------------------------------------
 
@@ -708,6 +732,9 @@ export async function resolveExtractionConfig(
   subjectDiscipline?: string,
   subjectName?: string,
 ): Promise<ExtractionConfig> {
+  // 0. Load defaults with DB-overridable prompts
+  const baseConfig = await resolveDefaultConfigWithPrompts();
+
   // 1. Load system spec
   const systemSpec = await prisma.analysisSpec.findFirst({
     where: {
@@ -720,8 +747,8 @@ export async function resolveExtractionConfig(
 
   const systemConfig = systemSpec?.config as Record<string, any> | null;
   let resolved = systemConfig
-    ? deepMerge(DEFAULT_CONFIG, systemConfig as Partial<ExtractionConfig>)
-    : DEFAULT_CONFIG;
+    ? deepMerge(baseConfig, systemConfig as Partial<ExtractionConfig>)
+    : baseConfig;
 
   // 2. If we have a sourceId, find the domain and check for overrides
   if (sourceId) {
@@ -752,6 +779,9 @@ export async function resolveExtractionConfigForDomain(
   domainId: string,
   documentType?: DocumentType,
 ): Promise<ExtractionConfig> {
+  // 0. Load defaults with DB-overridable prompts
+  const baseConfig = await resolveDefaultConfigWithPrompts();
+
   // 1. Load system spec
   const systemSpec = await prisma.analysisSpec.findFirst({
     where: {
@@ -764,8 +794,8 @@ export async function resolveExtractionConfigForDomain(
 
   const systemConfig = systemSpec?.config as Record<string, any> | null;
   let resolved = systemConfig
-    ? deepMerge(DEFAULT_CONFIG, systemConfig as Partial<ExtractionConfig>)
-    : DEFAULT_CONFIG;
+    ? deepMerge(baseConfig, systemConfig as Partial<ExtractionConfig>)
+    : baseConfig;
 
   // 2. Find domain-level override
   const domainSpec = await findDomainExtractSpec(domainId);
