@@ -86,7 +86,7 @@ export default function CallerDetailPage() {
   // Expanded states
   const [expandedCall, setExpandedCall] = useState<string | null>(null);
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
-  const [activePromptExpanded, setActivePromptExpanded] = useState(false); // Active Prompt section starts collapsed
+  const [activePromptExpanded, setActivePromptExpanded] = useState(true); // Prompt Navigator starts expanded
 
   // Prompts state
   const [composedPrompts, setComposedPrompts] = useState<ComposedPrompt[]>([]);
@@ -94,7 +94,6 @@ export default function CallerDetailPage() {
   const [composing, setComposing] = useState(false);
   const [promptProgress, setPromptProgress] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
 
   // Domain state
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -207,7 +206,7 @@ export default function CallerDetailPage() {
     if (!callerId) return;
     setPromptsLoading(true);
     try {
-      const res = await fetch(`/api/callers/${callerId}/compose-prompt?limit=3`);
+      const res = await fetch(`/api/callers/${callerId}/compose-prompt?limit=50`);
       const result = await res.json();
       if (result.ok) {
         setComposedPrompts(result.prompts);
@@ -385,7 +384,7 @@ export default function CallerDetailPage() {
       .catch((e) => console.warn("[CallerDetail] Failed to load domains:", e));
 
     // Fetch prompts for count pill (lightweight, just need the count)
-    fetch(`/api/callers/${callerId}/compose-prompt?limit=3`)
+    fetch(`/api/callers/${callerId}/compose-prompt?limit=50`)
       .then((r) => r.json())
       .then((result) => {
         if (result.ok) {
@@ -822,22 +821,17 @@ export default function CallerDetailPage() {
         </div>
       )}
 
-      {/* Active Prompt Section - Shows most recent prompt for next call */}
+      {/* Prompt Navigator - Browse all composed prompts (bootstrap → current) */}
       {composedPrompts.length > 0 && (
         <div className="cdp-active-prompt">
           <button
             onClick={() => setActivePromptExpanded(!activePromptExpanded)}
             className="cdp-active-prompt-toggle"
           >
-            <span className="cdp-active-prompt-title">🎯 Active Prompt</span>
+            <span className="cdp-active-prompt-title">📜 Prompt Navigator</span>
             <span className="cdp-active-prompt-subtitle">
-              (Will be used for the next call)
+              {composedPrompts.length} prompt{composedPrompts.length !== 1 ? "s" : ""} — bootstrap to current
             </span>
-            {composedPrompts.length > 1 && (
-              <span className="cdp-active-prompt-count">
-                +{composedPrompts.length - 1} previous prompt{composedPrompts.length > 2 ? 's' : ''}
-              </span>
-            )}
             <span className={`cdp-active-prompt-chevron${composedPrompts.length === 1 ? " cdp-active-prompt-chevron--solo" : ""}`}>
               {activePromptExpanded ? "▼" : "▶"}
             </span>
@@ -847,10 +841,7 @@ export default function CallerDetailPage() {
               <UnifiedPromptSection
                 prompts={composedPrompts}
                 loading={promptsLoading}
-                expandedPrompt={expandedPrompt}
-                setExpandedPrompt={setExpandedPrompt}
                 onRefresh={fetchPrompts}
-                defaultExpandFirst={false}
               />
             </div>
           )}

@@ -1,57 +1,109 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { AdvancedSection } from "@/components/shared/AdvancedSection";
-import type { ComposedPrompt, CallerIdentity, CallerProfile, Memory } from "./types";
-
-import { useEffect } from "react";
+import { useState, useMemo } from "react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import type { ComposedPrompt } from "./types";
 import { CATEGORY_COLORS } from "./constants";
-import type { Call } from "./types";
 import "./prompts-section.css";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Sort prompts oldest → newest and assign sequential index */
+function indexPrompts(prompts: ComposedPrompt[]) {
+  const sorted = [...prompts].sort(
+    (a, b) => new Date(a.composedAt).getTime() - new Date(b.composedAt).getTime(),
+  );
+  return sorted.map((p, i) => ({ ...p, _idx: i }));
+}
+
+/** Human-readable label for a prompt */
+function promptLabel(p: ComposedPrompt & { _idx: number }, total: number): string {
+  if (p._idx === 0) return "Bootstrap";
+  if (p._idx === total - 1 && p.status === "active") return "Next Prompt";
+  if (p.triggerCallId) return `After Call ${p._idx}`;
+  return `Prompt ${p._idx}`;
+}
+
+/** Short trigger badge */
+function triggerBadge(p: ComposedPrompt): string {
+  if (p.triggerType === "sim") return "sim";
+  if (p.triggerType === "pipeline") return "pipeline";
+  if (p.triggerType === "manual") return "manual";
+  return p.triggerType || "—";
+}
+
+/** Compute a simple line-level diff between two prompt texts */
+function computeDiff(
+  prev: string,
+  curr: string,
+): { type: "same" | "added" | "removed"; text: string }[] {
+  const prevLines = prev.split("\n");
+  const currLines = curr.split("\n");
+  const prevSet = new Set(prevLines);
+  const currSet = new Set(currLines);
+
+  const result: { type: "same" | "added" | "removed"; text: string }[] = [];
+
+  // Removed lines (in prev but not in curr)
+  for (const line of prevLines) {
+    if (!currSet.has(line)) {
+      result.push({ type: "removed", text: line });
+    }
+  }
+
+  // Current lines — mark as same or added
+  for (const line of currLines) {
+    if (prevSet.has(line)) {
+      result.push({ type: "same", text: line });
+    } else {
+      result.push({ type: "added", text: line });
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
 
 export function UnifiedPromptSection({
   prompts,
   loading,
-  expandedPrompt,
-  setExpandedPrompt,
   onRefresh,
-  defaultExpandFirst = false,
 }: {
   prompts: ComposedPrompt[];
   loading: boolean;
-  expandedPrompt: string | null;
-  setExpandedPrompt: (id: string | null) => void;
   onRefresh: () => void;
-  defaultExpandFirst?: boolean;
 }) {
-  const [viewMode, setViewMode] = useState<"human" | "llm">("human");
+  const indexed = useMemo(() => indexPrompts(prompts), [prompts]);
+  const total = indexed.length;
+
+  // Default to latest prompt
+  const [selectedIdx, setSelectedIdx] = useState<number>(Math.max(total - 1, 0));
+  // Clamp if prompts changed
+  const idx = Math.min(selectedIdx, Math.max(total - 1, 0));
+
+  const [viewMode, setViewMode] = useState<"human" | "llm" | "diff">("human");
   const [llmViewMode, setLlmViewMode] = useState<"pretty" | "raw">("pretty");
   const [copiedButton, setCopiedButton] = useState<string | null>(null);
 
-  // Auto-expand first prompt if defaultExpandFirst is true
-  useEffect(() => {
-    if (defaultExpandFirst && prompts.length > 0 && !expandedPrompt) {
-      setExpandedPrompt(prompts[0].id);
-    }
-  }, [defaultExpandFirst, prompts, expandedPrompt, setExpandedPrompt]);
+  const selected = indexed[idx] ?? null;
+  const prevPrompt = idx > 0 ? indexed[idx - 1] : null;
+
   const copyToClipboard = (text: string, buttonId: string) => {
     navigator.clipboard.writeText(text);
     setCopiedButton(buttonId);
     setTimeout(() => setCopiedButton(null), 1500);
   };
 
-  // Get the most recent active prompt
-  const activePrompt = prompts.find((p) => p.status === "active") || prompts[0];
-
   if (loading) {
-    return (
-      <div className="hf-empty hf-text-muted">Loading prompts...</div>
-    );
+    return <div className="hf-empty hf-text-muted">Loading prompts...</div>;
   }
 
-  if (!activePrompt) {
+  if (!selected) {
     return (
       <div className="hf-flex-col hf-gap-20">
         <div className="hf-empty-dashed">
@@ -65,145 +117,212 @@ export function UnifiedPromptSection({
     );
   }
 
-  const llm = activePrompt.llmPrompt;
+  const label = promptLabel(selected, total);
+  const llm = selected.llmPrompt;
+  const diffLines = viewMode === "diff" && prevPrompt
+    ? computeDiff(prevPrompt.prompt, selected.prompt)
+    : null;
 
   return (
     <div className="hf-flex-col hf-gap-20">
-      {/* Header with View Toggle */}
-      <div className="hf-flex-between">
-        <div>
-          <h3 className="hf-heading-md">Next Prompt</h3>
-          <p className="hf-text-sm hf-text-muted hf-mt-xs">
-            Generated {new Date(activePrompt.composedAt).toLocaleString()} • {activePrompt.status.toUpperCase()}
-          </p>
+      {/* ── Timeline Navigator ── */}
+      <div className="ps-timeline-nav">
+        <div className="ps-timeline-stepper">
+          <button
+            className="ps-timeline-btn"
+            disabled={idx === 0}
+            onClick={() => setSelectedIdx(0)}
+            title="First (Bootstrap)"
+          >
+            <ChevronsLeft size={16} />
+          </button>
+          <button
+            className="ps-timeline-btn"
+            disabled={idx === 0}
+            onClick={() => setSelectedIdx(idx - 1)}
+            title="Previous prompt"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          <div className="ps-timeline-label">
+            <span className="ps-timeline-number">#{selected._idx}</span>
+            <span className="ps-timeline-name">{label}</span>
+            <span className="ps-timeline-of">{idx + 1} of {total}</span>
+          </div>
+
+          <button
+            className="ps-timeline-btn"
+            disabled={idx >= total - 1}
+            onClick={() => setSelectedIdx(idx + 1)}
+            title="Next prompt"
+          >
+            <ChevronRight size={16} />
+          </button>
+          <button
+            className="ps-timeline-btn"
+            disabled={idx >= total - 1}
+            onClick={() => setSelectedIdx(total - 1)}
+            title="Latest (Next Prompt)"
+          >
+            <ChevronsRight size={16} />
+          </button>
         </div>
-        <div className="hf-flex hf-gap-sm">
-          {/* Main View Toggle: Human vs LLM */}
+
+        {/* Quick jump pills — show when > 5 prompts */}
+        {total > 5 && (
+          <select
+            className="ps-timeline-select hf-input"
+            value={idx}
+            onChange={(e) => setSelectedIdx(Number(e.target.value))}
+          >
+            {indexed.map((p) => (
+              <option key={p.id} value={p._idx}>
+                #{p._idx} — {promptLabel(p, total)} ({new Date(p.composedAt).toLocaleDateString()})
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Dot track — show when <= 10 prompts */}
+        {total <= 10 && total > 1 && (
+          <div className="ps-timeline-dots">
+            {indexed.map((p) => (
+              <button
+                key={p.id}
+                className={`ps-timeline-dot${p._idx === idx ? " ps-timeline-dot--active" : ""}${p.status === "active" ? " ps-timeline-dot--current" : ""}`}
+                onClick={() => setSelectedIdx(p._idx)}
+                title={`#${p._idx} ${promptLabel(p, total)}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Meta row ── */}
+      <div className="ps-meta-row">
+        <div className="ps-meta-left">
+          <span className={`hf-micro-badge hf-uppercase ${selected.status === "active" ? "ps-status-badge-active" : "ps-status-badge-default"}`}>
+            {selected.status}
+          </span>
+          <span className="hf-micro-badge ps-status-badge-default hf-uppercase">
+            {triggerBadge(selected)}
+          </span>
+          <span className="hf-text-sm hf-text-muted">
+            {new Date(selected.composedAt).toLocaleString()}
+          </span>
+          {selected.triggerCall && (
+            <span className="hf-text-xs hf-text-placeholder">
+              triggered by {selected.triggerCall.source} call
+            </span>
+          )}
+        </div>
+        <div className="ps-meta-right">
+          {/* View Toggle */}
           <div className="hf-toggle-group">
             <button
               onClick={() => setViewMode("human")}
-              className={`hf-toggle-btn ${viewMode === "human" ? "hf-toggle-btn-active" : ""}`}
+              className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "human" ? "hf-toggle-btn-active" : ""}`}
             >
-              📖 Human-Readable
+              Human
             </button>
             <button
               onClick={() => setViewMode("llm")}
-              className={`hf-toggle-btn ${viewMode === "llm" ? "hf-toggle-btn-active" : ""}`}
+              className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "llm" ? "hf-toggle-btn-active" : ""}`}
             >
-              🤖 LLM-Friendly
+              LLM
             </button>
+            {prevPrompt && (
+              <button
+                onClick={() => setViewMode("diff")}
+                className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "diff" ? "hf-toggle-btn-active" : ""}`}
+              >
+                Diff
+              </button>
+            )}
           </div>
-          <button onClick={onRefresh} className="hf-btn-icon">
+          <button onClick={onRefresh} className="hf-btn-icon" title="Refresh prompts">
             ↻
           </button>
         </div>
       </div>
 
-      {/* Human-Readable View */}
-      {viewMode === "human" && (
-        <div className="hf-flex-col hf-gap-lg">
-          {/* Prompt Content */}
-          <div className="hf-code-block">
-            {activePrompt.prompt}
-          </div>
-
-          {/* Composition Inputs */}
-          {activePrompt.inputs && (
-            <div className="hf-banner hf-banner-warning hf-banner-col">
-              <div className="hf-text-xs hf-text-bold hf-text-warning hf-mb-sm">
-                Composition Inputs
-              </div>
-              <div className="hf-flex-wrap hf-gap-md">
-                {activePrompt.inputs.memoriesCount !== undefined && (
-                  <span className="hf-text-sm hf-text-warning">
-                    Memories: {activePrompt.inputs.memoriesCount}
-                  </span>
-                )}
-                {activePrompt.inputs.personalityAvailable !== undefined && (
-                  <span className="hf-text-sm hf-text-warning">
-                    Personality: {activePrompt.inputs.personalityAvailable ? "Yes" : "No"}
-                  </span>
-                )}
-                {activePrompt.inputs.recentCallsCount !== undefined && (
-                  <span className="hf-text-sm hf-text-warning">
-                    Recent Calls: {activePrompt.inputs.recentCallsCount}
-                  </span>
-                )}
-                {activePrompt.inputs.behaviorTargetsCount !== undefined && (
-                  <span className="hf-text-sm hf-text-warning">
-                    Behavior Targets: {activePrompt.inputs.behaviorTargetsCount}
-                  </span>
-                )}
-              </div>
-            </div>
+      {/* ── Composition Inputs ── */}
+      {selected.inputs && (
+        <div className="ps-inputs-bar">
+          {selected.inputs.memoriesCount !== undefined && (
+            <span className="ps-input-chip">Memories: {selected.inputs.memoriesCount}</span>
           )}
-
-          {/* Copy Button */}
-          <div className="hf-flex hf-gap-sm">
-            <button
-              onClick={() => copyToClipboard(activePrompt.prompt, "active-prompt")}
-              className="hf-btn-copy ps-btn-copy-dynamic"
-              data-copied={copiedButton === "active-prompt" ? "true" : undefined}
-            >
-              {copiedButton === "active-prompt" ? "✓ Copied" : "📋 Copy Prompt"}
-            </button>
-          </div>
-
-          {/* Prompt History */}
-          {prompts.length > 1 && (
-            <div className="hf-mt-md">
-              <div className="hf-label hf-text-muted hf-mb-sm">
-                Prompt History ({prompts.length})
-              </div>
-              <div className="hf-flex-col hf-gap-sm">
-                {prompts.slice(1, 5).map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => setExpandedPrompt(expandedPrompt === p.id ? null : p.id)}
-                    className="hf-prompt-history-item"
-                  >
-                    <div className="hf-flex-between">
-                      <div className="hf-flex hf-gap-sm">
-                        <span
-                          className={`hf-micro-badge hf-uppercase ${p.status === "active" ? "ps-status-badge-active" : "ps-status-badge-default"}`}
-                        >
-                          {p.status}
-                        </span>
-                        <span className="hf-text-sm hf-text-secondary">
-                          {new Date(p.composedAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className={`hf-chevron--sm${expandedPrompt === p.id ? " hf-chevron--open" : ""}`}>
-                        <ChevronRight size={14} />
-                      </div>
-                    </div>
-                    {expandedPrompt === p.id && (
-                      <div
-                        className="hf-code-block-sm hf-mt-md ps-history-code"
-                      >
-                        {p.prompt}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+          {selected.inputs.personalityAvailable !== undefined && (
+            <span className="ps-input-chip">Personality: {selected.inputs.personalityAvailable ? "Yes" : "No"}</span>
+          )}
+          {selected.inputs.recentCallsCount !== undefined && (
+            <span className="ps-input-chip">Recent Calls: {selected.inputs.recentCallsCount}</span>
+          )}
+          {selected.inputs.behaviorTargetsCount !== undefined && (
+            <span className="ps-input-chip">Targets: {selected.inputs.behaviorTargetsCount}</span>
+          )}
+          {selected.inputs.playbooksUsed?.length > 0 && (
+            <span className="ps-input-chip">Courses: {selected.inputs.playbooksUsed.join(", ")}</span>
           )}
         </div>
       )}
 
-      {/* LLM-Friendly View */}
+      {/* ── Human-Readable View ── */}
+      {viewMode === "human" && (
+        <div className="hf-flex-col hf-gap-lg">
+          <div className="hf-code-block">{selected.prompt}</div>
+          <div className="hf-flex hf-gap-sm">
+            <button
+              onClick={() => copyToClipboard(selected.prompt, "prompt-copy")}
+              className="hf-btn-copy ps-btn-copy-dynamic"
+              data-copied={copiedButton === "prompt-copy" ? "true" : undefined}
+            >
+              {copiedButton === "prompt-copy" ? "✓ Copied" : "📋 Copy Prompt"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Diff View ── */}
+      {viewMode === "diff" && diffLines && (
+        <div className="hf-flex-col hf-gap-lg">
+          <div className="hf-text-sm hf-text-muted">
+            Changes from #{(prevPrompt as any)?._idx} → #{selected._idx}
+          </div>
+          <div className="ps-diff-block">
+            {diffLines.map((line, i) => (
+              <div
+                key={i}
+                className={`ps-diff-line${line.type === "added" ? " ps-diff-added" : line.type === "removed" ? " ps-diff-removed" : ""}`}
+              >
+                <span className="ps-diff-marker">
+                  {line.type === "added" ? "+" : line.type === "removed" ? "−" : " "}
+                </span>
+                {line.text || "\u00A0"}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {viewMode === "diff" && !prevPrompt && (
+        <div className="hf-text-sm hf-text-muted">
+          This is the first prompt — no previous version to compare.
+        </div>
+      )}
+
+      {/* ── LLM-Friendly View ── */}
       {viewMode === "llm" && (
         <div className="hf-flex-col hf-gap-lg">
           {!llm ? (
             <div className="hf-empty-dashed">
               <div className="hf-text-md hf-text-muted">
-                No structured LLM data available for this prompt. Compose a new prompt to generate.
+                No structured LLM data available for this prompt.
               </div>
             </div>
           ) : (
             <>
-              {/* Pretty/Raw Toggle */}
+              {/* Pretty/Raw Toggle + Copy */}
               <div className="hf-flex-between">
                 <span className="hf-text-sm hf-text-muted">Structured JSON for AI agent consumption</span>
                 <div className="hf-flex hf-gap-sm">
@@ -222,121 +341,19 @@ export function UnifiedPromptSection({
                     </button>
                   </div>
                   <button
-                    onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-2")}
+                    onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json")}
                     className="hf-btn hf-btn-xs ps-btn-json-copy"
-                    data-copied={copiedButton === "llm-json-2" ? "true" : undefined}
+                    data-copied={copiedButton === "llm-json" ? "true" : undefined}
                   >
-                    {copiedButton === "llm-json-2" ? "✓ Copied" : "📋 Copy JSON"}
+                    {copiedButton === "llm-json" ? "✓ Copied" : "📋 Copy JSON"}
                   </button>
                 </div>
               </div>
 
               {llmViewMode === "raw" ? (
-                <div className="hf-code-block-raw">
-                  {JSON.stringify(llm, null, 2)}
-                </div>
+                <div className="hf-code-block-raw">{JSON.stringify(llm, null, 2)}</div>
               ) : (
-                <div className="hf-flex-col hf-gap-md">
-                  {/* Memories */}
-                  {llm.memories && llm.memories.totalCount > 0 && (
-                    <div className="hf-card-compact hf-mb-0">
-                      <h4 className="hf-heading-sm ps-heading-cyan">
-                        💭 Memories ({llm.memories.totalCount})
-                      </h4>
-                      <div className="hf-flex-col hf-gap-md">
-                        {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
-                          <div key={category}>
-                            <div className="hf-text-xs hf-text-bold hf-mb-xs" style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}>
-                              {category}
-                            </div>
-                            <div className="hf-flex-col hf-gap-xs">
-                              {items.slice(0, 3).map((m: any, i: number) => (
-                                <div
-                                  key={i}
-                                  className="hf-info-cell hf-text-sm"
-                                  style={{
-                                    background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
-                                  }}
-                                >
-                                  <span className="hf-text-bold">{m.key}:</span> {m.value}
-                                  <span className="hf-text-xs hf-text-placeholder hf-ml-sm">
-                                    ({(m.confidence * 100).toFixed(0)}%)
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Behavior Targets */}
-                  {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-                    <div className="hf-card-compact hf-mb-0">
-                      <h4 className="hf-heading-sm hf-text-success">
-                        🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
-                      </h4>
-                      <div className="hf-grid-3">
-                        {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
-                          <div
-                            key={i}
-                            className={`hf-info-cell ${t.targetLevel === "HIGH" ? "ps-target-high" : t.targetLevel === "LOW" ? "ps-target-low" : "ps-target-neutral"}`}
-                          >
-                            <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
-                            <div
-                              className={`hf-text-sm hf-text-bold ${t.targetLevel === "HIGH" ? "ps-target-text-high" : t.targetLevel === "LOW" ? "ps-target-text-low" : "ps-target-text-neutral"}`}
-                            >
-                              {t.targetLevel}
-                            </div>
-                            <div className="hf-text-xs hf-text-muted">
-                              {(t.targetValue * 100).toFixed(0)}%
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Call History Summary */}
-                  {llm.callHistory && llm.callHistory.totalCalls > 0 && (
-                    <div className="hf-card-compact hf-mb-0">
-                      <h4 className="hf-heading-sm ps-heading-indigo">
-                        📞 Call History ({llm.callHistory.totalCalls} calls)
-                      </h4>
-                      <div className="hf-text-sm hf-text-muted">
-                        Recent calls included in prompt context
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI Instructions */}
-                  {llm.instructions && (
-                    <div className="hf-callout-warning">
-                      <h4 className="hf-heading-sm hf-text-warning">
-                        📋 AI Instructions
-                      </h4>
-                      <div className="hf-flex-col hf-gap-sm hf-text-sm hf-text-warning">
-                        {llm.instructions.use_memories && (
-                          <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
-                        )}
-                        {llm.instructions.use_preferences && (
-                          <div><strong>Preferences:</strong> {llm.instructions.use_preferences}</div>
-                        )}
-                        {llm.instructions.personality_adaptation?.length > 0 && (
-                          <div>
-                            <strong>Personality Adaptation:</strong>
-                            <ul className="ps-adaptation-list">
-                              {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
-                                <li key={i} className="hf-mb-xs">{tip}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <LlmPrettyView llm={llm} />
               )}
             </>
           )}
@@ -346,747 +363,108 @@ export function UnifiedPromptSection({
   );
 }
 
-// Prompts Section (AI-composed prompts history) - kept for reference
-function PromptsSection({
-  prompts,
-  loading,
-  composing,
-  expandedPrompt,
-  setExpandedPrompt,
-  onCompose,
-  onRefresh,
-}: {
-  prompts: ComposedPrompt[];
-  loading: boolean;
-  composing: boolean;
-  expandedPrompt: string | null;
-  setExpandedPrompt: (id: string | null) => void;
-  onCompose: () => void;
-  onRefresh: () => void;
-}) {
-  const [copiedButton, setCopiedButton] = useState<string | null>(null);
-  const copyToClipboard = (text: string, buttonId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedButton(buttonId);
-    setTimeout(() => setCopiedButton(null), 1500);
-  };
-  if (loading) {
-    return (
-      <div className="hf-empty hf-text-muted">Loading prompts...</div>
-    );
-  }
+// ---------------------------------------------------------------------------
+// LLM Pretty View (extracted for readability)
+// ---------------------------------------------------------------------------
 
+function LlmPrettyView({ llm }: { llm: Record<string, any> }) {
   return (
-    <div className="hf-flex-col hf-gap-20">
-      {/* Header with actions */}
-      <div className="hf-flex-between">
-        <div>
-          <h3 className="hf-heading-md">Composed Prompts</h3>
-          <p className="hf-text-sm hf-text-muted hf-mt-xs">
-            AI-generated next-call guidance prompts for this caller
-          </p>
-        </div>
-        <div className="hf-flex hf-gap-sm">
-          <button
-            onClick={onRefresh}
-            className="hf-btn hf-btn-secondary hf-btn-sm"
-          >
-            Refresh
-          </button>
-          <button
-            onClick={onCompose}
-            disabled={composing}
-            className={`hf-btn hf-btn-primary hf-btn-sm ${composing ? "ps-btn-compose-disabled" : ""}`}
-          >
-            {composing ? "Composing..." : "Compose New Prompt"}
-          </button>
-        </div>
-      </div>
-
-      {prompts.length === 0 ? (
-        <div className="hf-empty-dashed">
-          <div className="hf-empty-state-icon ps-empty-icon-lg">📝</div>
-          <div className="hf-text-md hf-text-muted">No prompts composed yet</div>
-          <div className="hf-text-sm hf-text-placeholder hf-mt-xs">
-            Click &quot;Compose New Prompt&quot; to generate a personalized next-call guidance prompt using AI
-          </div>
-        </div>
-      ) : (
-        <div className="hf-flex-col hf-gap-md">
-          {prompts.map((prompt) => {
-            const isExpanded = expandedPrompt === prompt.id;
-
-            return (
-              <div
-                key={prompt.id}
-                className={`hf-prompt-card ${prompt.status === "active" ? "hf-prompt-card-active" : ""}`}
-              >
-                {/* Prompt Header */}
-                <div
-                  onClick={() => setExpandedPrompt(isExpanded ? null : prompt.id)}
-                  className={`hf-prompt-card-header hf-flex-between ${prompt.status === "active" ? "hf-prompt-card-header-active" : ""}`}
-                >
-                  <div className="hf-flex hf-gap-md">
-                    <span
-                      className={`hf-micro-pill hf-uppercase ${prompt.status === "active" ? "ps-status-badge-active" : prompt.status === "expired" ? "ps-status-badge-expired" : "ps-status-badge-default"}`}
-                    >
-                      {prompt.status}
-                    </span>
-                    <span className="hf-text-md hf-text-bold hf-text-primary">
-                      {new Date(prompt.composedAt).toLocaleString()}
-                    </span>
-                    <span className="hf-text-sm hf-text-secondary">
-                      via {prompt.triggerType}
-                    </span>
-                    {prompt.model && (
-                      <span className="hf-badge hf-badge-info hf-mono">
-                        {prompt.model}
-                      </span>
-                    )}
-                  </div>
-                  <div className={`hf-chevron--sm${isExpanded ? " hf-chevron--open" : ""}`}>
-                    <ChevronRight size={14} />
-                  </div>
+    <div className="hf-flex-col hf-gap-md">
+      {/* Memories */}
+      {llm.memories && llm.memories.totalCount > 0 && (
+        <div className="hf-card-compact hf-mb-0">
+          <h4 className="hf-heading-sm ps-heading-cyan">
+            💭 Memories ({llm.memories.totalCount})
+          </h4>
+          <div className="hf-flex-col hf-gap-md">
+            {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
+              <div key={category}>
+                <div className="hf-text-xs hf-text-bold hf-mb-xs" style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}>
+                  {category}
                 </div>
-
-                {/* Expanded Content */}
-                {isExpanded && (
-                  <div className="hf-prompt-card-body">
-                    {/* Prompt Preview */}
-                    <div className="hf-code-block-sm">
-                      {prompt.prompt}
-                    </div>
-
-                    {/* Metadata */}
-                    {prompt.inputs && (
-                      <div className="hf-banner hf-banner-warning hf-banner-col hf-mt-md">
-                        <div className="hf-text-xs hf-text-bold hf-text-warning hf-mb-sm">
-                          Composition Inputs
-                        </div>
-                        <div className="hf-flex-wrap hf-gap-md">
-                          {prompt.inputs.memoriesCount !== undefined && (
-                            <span className="hf-text-sm hf-text-warning">
-                              Memories: {prompt.inputs.memoriesCount}
-                            </span>
-                          )}
-                          {prompt.inputs.personalityAvailable !== undefined && (
-                            <span className="hf-text-sm hf-text-warning">
-                              Personality: {prompt.inputs.personalityAvailable ? "Yes" : "No"}
-                            </span>
-                          )}
-                          {prompt.inputs.recentCallsCount !== undefined && (
-                            <span className="hf-text-sm hf-text-warning">
-                              Recent Calls: {prompt.inputs.recentCallsCount}
-                            </span>
-                          )}
-                          {prompt.inputs.behaviorTargetsCount !== undefined && (
-                            <span className="hf-text-sm hf-text-warning">
-                              Behavior Targets: {prompt.inputs.behaviorTargetsCount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Trigger Call Link */}
-                    {prompt.triggerCall && (
-                      <div className="hf-mt-sm">
-                        <span className="hf-text-sm hf-text-secondary">
-                          Triggered by call on {new Date(prompt.triggerCall.createdAt).toLocaleDateString()} ({prompt.triggerCall.source})
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Copy Button */}
-                    <div className="hf-flex hf-gap-sm hf-mt-md">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          copyToClipboard(prompt.prompt, `history-prompt-${prompt.id}`);
-                        }}
-                        className="hf-btn-copy ps-btn-copy-dynamic"
-                        data-copied={copiedButton === `history-prompt-${prompt.id}` ? "true" : undefined}
-                      >
-                        {copiedButton === `history-prompt-${prompt.id}` ? "✓ Copied" : "Copy to Clipboard"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// LLM Prompt Section - displays the structured JSON prompt for AI consumption
-function LlmPromptSection({
-  prompts,
-  loading,
-  composing,
-  onCompose,
-  onRefresh,
-}: {
-  prompts: ComposedPrompt[];
-  loading: boolean;
-  composing: boolean;
-  onCompose: () => void;
-  onRefresh: () => void;
-}) {
-  const [viewMode, setViewMode] = useState<"pretty" | "raw">("pretty");
-  const [copiedButton, setCopiedButton] = useState<string | null>(null);
-  const copyToClipboard = (text: string, buttonId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedButton(buttonId);
-    setTimeout(() => setCopiedButton(null), 1500);
-  };
-
-  // Get the most recent active prompt
-  const activePrompt = prompts.find((p) => p.status === "active") || prompts[0];
-
-  if (loading) {
-    return (
-      <div className="hf-empty hf-text-muted">Loading LLM prompt...</div>
-    );
-  }
-
-  if (!activePrompt || !activePrompt.llmPrompt) {
-    return (
-      <div className="hf-flex-col hf-gap-20">
-        <div className="hf-empty-dashed">
-          <div className="hf-empty-state-icon hf-mb-md">🤖</div>
-          <div className="hf-empty-state-title">No LLM Prompt Available</div>
-          <div className="hf-text-sm hf-text-muted hf-mt-sm hf-empty-hint-centered">
-            {!activePrompt
-              ? "Compose a prompt first to generate structured LLM data."
-              : "This prompt was created before the llmPrompt feature. Compose a new prompt to get structured JSON data."}
-          </div>
-          <button
-            onClick={onCompose}
-            disabled={composing}
-            className={`hf-btn hf-btn-primary hf-mt-md ${composing ? "ps-btn-compose-disabled" : ""}`}
-          >
-            {composing ? "Composing..." : "Compose New Prompt"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const llm = activePrompt.llmPrompt;
-
-  return (
-    <div className="hf-flex-col hf-gap-20">
-      {/* Header */}
-      <div className="hf-flex-between">
-        <div>
-          <h3 className="hf-heading-md">LLM-Friendly Prompt Data</h3>
-          <p className="hf-text-sm hf-text-muted hf-mt-xs">
-            Structured JSON for AI agent consumption • Generated {new Date(activePrompt.composedAt).toLocaleString()}
-          </p>
-        </div>
-        <div className="hf-flex hf-gap-sm">
-          <div className="hf-toggle-group">
-            <button
-              onClick={() => setViewMode("pretty")}
-              className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "pretty" ? "hf-toggle-btn-active" : ""}`}
-            >
-              Pretty
-            </button>
-            <button
-              onClick={() => setViewMode("raw")}
-              className={`hf-toggle-btn hf-toggle-btn-sm ${viewMode === "raw" ? "hf-toggle-btn-active" : ""}`}
-            >
-              Raw JSON
-            </button>
-          </div>
-          <button
-            onClick={() => copyToClipboard(JSON.stringify(llm, null, 2), "llm-json-3")}
-            className="hf-btn hf-btn-xs ps-btn-json-copy"
-            data-copied={copiedButton === "llm-json-3" ? "true" : undefined}
-          >
-            {copiedButton === "llm-json-3" ? "✓ Copied" : "📋 Copy JSON"}
-          </button>
-          <button
-            onClick={onCompose}
-            disabled={composing}
-            className={`hf-btn hf-btn-primary hf-btn-xs ${composing ? "ps-btn-compose-disabled" : ""}`}
-          >
-            {composing ? "..." : "Refresh"}
-          </button>
-        </div>
-      </div>
-
-      {viewMode === "raw" ? (
-        /* Raw JSON View */
-        <div className="hf-code-block-raw">
-          {JSON.stringify(llm, null, 2)}
-        </div>
-      ) : (
-        /* Pretty View - structured sections */
-        <div className="hf-flex-col hf-gap-lg">
-          {/* Caller Info */}
-          {llm.caller && (
-            <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm ps-heading-primary">
-                👤 Caller
-              </h4>
-              <div className="hf-grid-3 hf-gap-md">
-                {llm.caller.name && (
-                  <div className="hf-info-cell ps-cell-info">
-                    <div className="hf-info-cell-label">Name</div>
-                    <div className="hf-text-sm hf-text-bold">{llm.caller.name}</div>
-                  </div>
-                )}
-                {llm.caller.contactInfo?.email && (
-                  <div className="hf-info-cell ps-cell-info">
-                    <div className="hf-info-cell-label">Email</div>
-                    <div className="hf-text-sm hf-text-bold">{llm.caller.contactInfo.email}</div>
-                  </div>
-                )}
-                {llm.caller.contactInfo?.phone && (
-                  <div className="hf-info-cell ps-cell-info">
-                    <div className="hf-info-cell-label">Phone</div>
-                    <div className="hf-text-sm hf-text-bold">{llm.caller.contactInfo.phone}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Personality */}
-          {llm.personality && (
-            <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm ps-heading-personality">
-                🧠 Personality Profile
-              </h4>
-              {llm.personality.traits && (
-                <div className="hf-grid-5 hf-mb-md">
-                  {Object.entries(llm.personality.traits).map(([trait, data]: [string, any]) => (
+                <div className="hf-flex-col hf-gap-xs">
+                  {items.slice(0, 3).map((m: any, i: number) => (
                     <div
-                      key={trait}
-                      className={`hf-info-cell hf-text-center ${data.level === "HIGH" ? "ps-trait-high" : data.level === "LOW" ? "ps-trait-low" : "ps-trait-neutral"}`}
+                      key={i}
+                      className="hf-info-cell hf-text-sm"
+                      style={{ background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)" }}
                     >
-                      <div className="hf-text-xs hf-text-bold hf-mb-xs hf-capitalize">
-                        {trait}
-                      </div>
-                      <div
-                        className={`hf-text-md hf-text-bold ${data.level === "HIGH" ? "ps-trait-text-high" : data.level === "LOW" ? "ps-trait-text-low" : "ps-trait-text-neutral"}`}
-                      >
-                        {data.level || "—"}
-                      </div>
-                      <div className="hf-text-xs hf-text-muted hf-mt-xs">
-                        {data.score !== null ? `${(data.score * 100).toFixed(0)}%` : "N/A"}
-                      </div>
+                      <span className="hf-text-bold">{m.key}:</span> {m.value}
+                      <span className="hf-text-xs hf-text-placeholder hf-ml-sm">
+                        ({(m.confidence * 100).toFixed(0)}%)
+                      </span>
                     </div>
                   ))}
                 </div>
-              )}
-              {llm.personality.preferences && Object.values(llm.personality.preferences).some((v) => v) && (
-                <div className="hf-flex-wrap hf-gap-md">
-                  {llm.personality.preferences.tone && (
-                    <span className="hf-badge hf-badge-info">
-                      Tone: {llm.personality.preferences.tone}
-                    </span>
-                  )}
-                  {llm.personality.preferences.responseLength && (
-                    <span className="hf-badge hf-badge-warning">
-                      Length: {llm.personality.preferences.responseLength}
-                    </span>
-                  )}
-                  {llm.personality.preferences.technicalLevel && (
-                    <span className="hf-badge ps-badge-purple">
-                      Tech: {llm.personality.preferences.technicalLevel}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Memories */}
-          {llm.memories && llm.memories.totalCount > 0 && (
-            <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm ps-heading-cyan">
-                💭 Memories ({llm.memories.totalCount})
-              </h4>
-              <div className="hf-flex-col hf-gap-md">
-                {llm.memories.byCategory && Object.entries(llm.memories.byCategory).map(([category, items]: [string, any]) => (
-                  <div key={category}>
-                    <div className="hf-text-xs hf-text-bold hf-mb-xs" style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}>
-                      {category}
-                    </div>
-                    <div className="hf-flex-col hf-gap-xs">
-                      {items.slice(0, 3).map((m: any, i: number) => (
-                        <div
-                          key={i}
-                          className="hf-info-cell hf-text-sm"
-                          style={{
-                            background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
-                          }}
-                        >
-                          <span className="hf-text-bold">{m.key}:</span> {m.value}
-                          <span className="hf-text-xs hf-text-placeholder hf-ml-sm">
-                            ({(m.confidence * 100).toFixed(0)}%)
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
               </div>
-            </div>
-          )}
-
-          {/* Behavior Targets */}
-          {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
-            <div className="hf-card-compact hf-mb-0">
-              <h4 className="hf-heading-sm hf-text-success">
-                🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
-              </h4>
-              <div className="hf-grid-3">
-                {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
-                  <div
-                    key={i}
-                    className={`hf-info-cell ${t.targetLevel === "HIGH" ? "ps-target-high" : t.targetLevel === "LOW" ? "ps-target-low" : "ps-target-neutral"}`}
-                  >
-                    <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
-                    <div
-                      className={`hf-text-sm hf-text-bold ${t.targetLevel === "HIGH" ? "ps-target-text-high" : t.targetLevel === "LOW" ? "ps-target-text-low" : "ps-target-text-neutral"}`}
-                    >
-                      {t.targetLevel}
-                    </div>
-                    <div className="hf-text-xs hf-text-muted">
-                      {(t.targetValue * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Instructions Summary */}
-          {llm.instructions && (
-            <div className="hf-callout-warning">
-              <h4 className="hf-heading-sm hf-text-warning">
-                📋 AI Instructions
-              </h4>
-              <div className="hf-flex-col hf-gap-sm hf-text-sm hf-text-warning">
-                {llm.instructions.use_memories && (
-                  <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
-                )}
-                {llm.instructions.use_preferences && (
-                  <div><strong>Preferences:</strong> {llm.instructions.use_preferences}</div>
-                )}
-                {llm.instructions.use_topics && (
-                  <div><strong>Topics:</strong> {llm.instructions.use_topics}</div>
-                )}
-                {llm.instructions.personality_adaptation?.length > 0 && (
-                  <div>
-                    <strong>Personality Adaptation:</strong>
-                    <ul className="ps-adaptation-list">
-                      {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
-                        <li key={i} className="hf-mb-xs">{tip}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
-    </div>
-  );
-}
 
-// Prompt Prep Section (deprecated - keeping for backward compatibility)
-function PromptSection({ identities, caller, memories }: { identities: CallerIdentity[]; caller: CallerProfile; memories: Memory[] }) {
-  const [selectedIdentity, setSelectedIdentity] = useState<CallerIdentity | null>(
-    identities.find((i) => i.nextPrompt) || identities[0] || null
-  );
-  const [copiedButton, setCopiedButton] = useState<string | null>(null);
-  const copyToClipboard = (text: string, buttonId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedButton(buttonId);
-    setTimeout(() => setCopiedButton(null), 1500);
-  };
-
-  // Group memories by category for display
-  const memoriesByCategory = memories.reduce((acc, m) => {
-    if (!acc[m.category]) acc[m.category] = [];
-    acc[m.category].push(m);
-    return acc;
-  }, {} as Record<string, Memory[]>);
-
-  if (!identities || identities.length === 0) {
-    return (
-      <div className="hf-grid hf-gap-20">
-        {/* Caller Info Card */}
-        <div className="hf-card-compact hf-mb-0 hf-p-lg">
-          <h4 className="hf-heading-sm hf-mb-md">Caller Identification</h4>
-          <div className="hf-grid-2">
-            {caller.phone && (
-              <div className="hf-info-cell-lg ps-cell-success">
-                <div className="hf-text-xs hf-text-success hf-text-bold">Phone</div>
-                <div className="hf-text-md hf-text-bold hf-text-success hf-mt-xs">{caller.phone}</div>
-              </div>
-            )}
-            {caller.email && (
-              <div className="hf-info-cell-lg ps-cell-info">
-                <div className="hf-text-xs hf-text-bold ps-text-info">Email</div>
-                <div className="hf-text-md hf-text-bold hf-mt-xs ps-text-info">{caller.email}</div>
-              </div>
-            )}
-            {caller.externalId && (
-              <div className="hf-info-cell-lg ps-cell-purple">
-                <div className="hf-text-xs hf-text-bold ps-text-purple">External ID</div>
-                <div className="hf-text-md hf-text-bold hf-mt-xs ps-text-purple">{caller.externalId}</div>
-              </div>
-            )}
-            {caller.name && (
-              <div className="hf-info-cell-lg ps-cell-warning">
-                <div className="hf-text-xs hf-text-bold hf-text-warning">Name</div>
-                <div className="hf-text-md hf-text-bold hf-text-warning hf-mt-xs">{caller.name}</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Key Memories for Prompt Composition */}
-        <div className="hf-card-compact hf-mb-0 hf-p-lg">
-          <h4 className="hf-heading-sm hf-mb-md">Key Memories ({memories.length})</h4>
-          {memories.length === 0 ? (
-            <div className="hf-text-sm hf-text-center hf-text-placeholder hf-p-lg">
-              No memories extracted yet. Run analysis on calls to extract memories.
-            </div>
-          ) : (
-            <div className="hf-flex-col hf-gap-lg">
-              {Object.entries(memoriesByCategory).map(([category, mems]) => (
-                <div key={category}>
-                  <div
-                    className="hf-text-xs hf-text-bold hf-mb-sm"
-                    style={{ color: CATEGORY_COLORS[category]?.text || "var(--text-muted)" }}
-                  >
-                    {category} ({mems.length})
-                  </div>
-                  <div className="hf-flex-col ps-gap-6">
-                    {mems.slice(0, 5).map((m) => (
-                      <div
-                        key={m.id}
-                        className="hf-info-cell hf-text-sm"
-                        style={{
-                          background: CATEGORY_COLORS[category]?.bg || "var(--surface-secondary)",
-                        }}
-                      >
-                        <div className="hf-text-bold hf-mb-xs">{m.key}</div>
-                        <div className="hf-text-secondary">{m.value}</div>
-                      </div>
-                    ))}
-                    {mems.length > 5 && (
-                      <div className="hf-text-xs hf-text-placeholder ps-more-text">
-                        + {mems.length - 5} more
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Prompt Composition Notice */}
-        <div className="hf-callout-warning hf-p-lg">
-          <div className="hf-flex hf-gap-md hf-items-start">
-            <span className="ps-notice-icon">💡</span>
-            <div>
-              <div className="hf-text-md hf-text-bold hf-text-warning">No composed prompt yet</div>
-              <div className="hf-text-sm hf-text-warning hf-mt-xs">
-                To compose a personalized prompt for this caller, run the <code>prompt:compose-next</code> operation from the Ops page.
-                This will combine their personality profile, memories, and behavior targets into a ready-to-use prompt.
-              </div>
-              <Link
-                href="/ops"
-                className="hf-btn hf-btn-primary hf-mt-sm hf-link-unstyled hf-inline-block"
+      {/* Behavior Targets */}
+      {llm.behaviorTargets && llm.behaviorTargets.totalCount > 0 && (
+        <div className="hf-card-compact hf-mb-0">
+          <h4 className="hf-heading-sm hf-text-success">
+            🎯 Behavior Targets ({llm.behaviorTargets.totalCount})
+          </h4>
+          <div className="hf-grid-3">
+            {llm.behaviorTargets.all?.slice(0, 9).map((t: any, i: number) => (
+              <div
+                key={i}
+                className={`hf-info-cell ${t.targetLevel === "HIGH" ? "ps-target-high" : t.targetLevel === "LOW" ? "ps-target-low" : "ps-target-neutral"}`}
               >
-                Go to Ops →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ps-identity-grid">
-      {/* Identity List */}
-      <div className="hf-card-compact">
-        <h4 className="hf-text-sm hf-text-bold hf-mb-md">Identities ({identities.length})</h4>
-        <div className="hf-flex-col hf-gap-sm">
-          {identities.map((identity) => (
-            <button
-              key={identity.id}
-              onClick={() => setSelectedIdentity(identity)}
-              className={`hf-identity-btn ${selectedIdentity?.id === identity.id ? "hf-identity-btn-selected" : ""}`}
-            >
-              <div className="hf-text-sm hf-text-bold">
-                {identity.name || identity.externalId || identity.id.slice(0, 8)}
-              </div>
-              {identity.segment && (
-                <div className="hf-text-xs hf-text-muted hf-mt-xs">
-                  {identity.segment.name}
+                <div className="hf-text-xs hf-text-500 hf-mb-xs">{t.name}</div>
+                <div
+                  className={`hf-text-sm hf-text-bold ${t.targetLevel === "HIGH" ? "ps-target-text-high" : t.targetLevel === "LOW" ? "ps-target-text-low" : "ps-target-text-neutral"}`}
+                >
+                  {t.targetLevel}
                 </div>
-              )}
-              <div className={`hf-text-xs hf-mt-xs ${identity.nextPrompt ? "ps-status-ready" : "ps-status-none"}`}>
-                {identity.nextPrompt ? "✓ Prompt ready" : "No prompt"}
+                <div className="hf-text-xs hf-text-muted">
+                  {(t.targetValue * 100).toFixed(0)}%
+                </div>
               </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Prompt Display */}
-      <div className="hf-card-compact hf-p-lg">
-        {!selectedIdentity?.nextPrompt ? (
-          <div className="hf-text-center ps-empty-padded">
-            <div className="hf-empty-state-icon hf-mb-md">✨</div>
-            <div className="hf-empty-state-title">No prompt composed</div>
-            <div className="hf-text-md hf-text-muted hf-mt-xs">
-              Run prompt composition to generate a personalized prompt for this identity
-            </div>
-            <Link
-              href="/ops"
-              className="hf-btn hf-btn-primary hf-mt-md hf-link-unstyled hf-inline-block"
-            >
-              Go to Ops →
-            </Link>
+            ))}
           </div>
-        ) : (
-          <div>
-            <div className="hf-flex-between hf-mb-md">
+        </div>
+      )}
+
+      {/* Call History Summary */}
+      {llm.callHistory && llm.callHistory.totalCalls > 0 && (
+        <div className="hf-card-compact hf-mb-0">
+          <h4 className="hf-heading-sm ps-heading-indigo">
+            📞 Call History ({llm.callHistory.totalCalls} calls)
+          </h4>
+          <div className="hf-text-sm hf-text-muted">
+            Recent calls included in prompt context
+          </div>
+        </div>
+      )}
+
+      {/* AI Instructions */}
+      {llm.instructions && (
+        <div className="hf-callout-warning">
+          <h4 className="hf-heading-sm hf-text-warning">📋 AI Instructions</h4>
+          <div className="hf-flex-col hf-gap-sm hf-text-sm hf-text-warning">
+            {llm.instructions.use_memories && (
+              <div><strong>Memories:</strong> {llm.instructions.use_memories}</div>
+            )}
+            {llm.instructions.use_preferences && (
+              <div><strong>Preferences:</strong> {llm.instructions.use_preferences}</div>
+            )}
+            {llm.instructions.personality_adaptation?.length > 0 && (
               <div>
-                <h3 className="hf-heading-lg">Composed Prompt</h3>
-                <div className="hf-text-sm hf-text-placeholder hf-mt-xs">
-                  {selectedIdentity.nextPromptComposedAt
-                    ? `Composed ${new Date(selectedIdentity.nextPromptComposedAt).toLocaleString()}`
-                    : ""}
-                </div>
-              </div>
-              <button
-                onClick={() => copyToClipboard(selectedIdentity.nextPrompt || "", "next-prompt")}
-                className="hf-btn hf-btn-sm ps-btn-json-copy"
-                data-copied={copiedButton === "next-prompt" ? "true" : undefined}
-              >
-                {copiedButton === "next-prompt" ? "✓ Copied" : "📋 Copy"}
-              </button>
-            </div>
-
-            {selectedIdentity.nextPromptInputs && (
-              <div className="hf-flex hf-gap-lg hf-mb-md hf-input-summary">
-                <span>🎯 {selectedIdentity.nextPromptInputs.targetCount || 0} targets</span>
-                <span>💭 {selectedIdentity.nextPromptInputs.memoryCount || 0} memories</span>
-              </div>
-            )}
-
-            <div className="hf-prompt-display">
-              {selectedIdentity.nextPrompt}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Transcripts Section - shows all transcripts for this caller
-function TranscriptsSection({ calls }: { calls: Call[] }) {
-  const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null);
-  const [copiedButton, setCopiedButton] = useState<string | null>(null);
-  const copyToClipboard = (text: string, buttonId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedButton(buttonId);
-    setTimeout(() => setCopiedButton(null), 1500);
-  };
-
-  if (!calls || calls.length === 0) {
-    return (
-      <div className="hf-empty-dashed">
-        <div className="hf-empty-state-icon hf-mb-md">📜</div>
-        <div className="hf-empty-state-title">No transcripts</div>
-        <div className="hf-text-md hf-text-muted hf-mt-xs">No calls have been recorded for this caller</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="hf-flex-col hf-gap-md">
-      {calls.map((call) => {
-        const isExpanded = expandedTranscript === call.id;
-        const wordCount = call.transcript?.split(/\s+/).length || 0;
-
-        return (
-          <div
-            key={call.id}
-            className="hf-transcript-card"
-          >
-            {/* Header */}
-            <button
-              onClick={() => setExpandedTranscript(isExpanded ? null : call.id)}
-              className="hf-transcript-header-btn hf-flex-between"
-            >
-              <div className="hf-flex hf-gap-md">
-                <span className="ps-call-icon">📞</span>
-                <div>
-                  <div className="hf-text-md hf-text-bold">
-                    {new Date(call.createdAt).toLocaleDateString()} at {new Date(call.createdAt).toLocaleTimeString()}
-                  </div>
-                  <div className="hf-text-sm hf-text-muted">
-                    {call.source} • {wordCount} words
-                    {call.externalId && ` • ${call.externalId}`}
-                  </div>
-                </div>
-              </div>
-              <div className="hf-flex hf-gap-md">
-                {/* Analysis badges */}
-                <div className="hf-flex hf-gap-xs">
-                  {call.hasScores && (
-                    <span className="hf-badge hf-badge-success hf-text-xs">
-                      Scored
-                    </span>
-                  )}
-                  {call.hasMemories && (
-                    <span className="hf-badge hf-badge-info hf-text-xs">
-                      Memories
-                    </span>
-                  )}
-                </div>
-                <span className="hf-text-placeholder">{isExpanded ? "▼" : "▶"}</span>
-              </div>
-            </button>
-
-            {/* Transcript content */}
-            {isExpanded && (
-              <div className="hf-prompt-card-body">
-                <div className="hf-code-block-sm">
-                  {call.transcript || "No transcript content"}
-                </div>
-                <div className="hf-flex hf-gap-sm hf-mt-sm">
-                  <button
-                    onClick={() => copyToClipboard(call.transcript || "", `transcript-${call.id}`)}
-                    className="hf-btn-copy ps-btn-copy-dynamic"
-                    data-copied={copiedButton === `transcript-${call.id}` ? "true" : undefined}
-                  >
-                    {copiedButton === `transcript-${call.id}` ? "✓ Copied" : "Copy Transcript"}
-                  </button>
-                </div>
+                <strong>Personality Adaptation:</strong>
+                <ul className="ps-adaptation-list">
+                  {llm.instructions.personality_adaptation.map((tip: string, i: number) => (
+                    <li key={i} className="hf-mb-xs">{tip}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }
