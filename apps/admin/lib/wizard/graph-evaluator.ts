@@ -335,48 +335,98 @@ export function buildGraphPromptSection(
   return lines.join("\n");
 }
 
+const FIELD_PROMPTS: Record<string, string> = {
+  institutionName: "What's the name of your organisation or school?",
+  courseName: "What would you like to name your course?",
+  subjectDiscipline: "What subject will you be teaching?",
+  interactionPattern: "What teaching approach would you like?",
+  teachingMode: "What's the teaching emphasis for this course?",
+  welcomeMessage: "Now let's set up your **welcome message** — this is what students hear when they first call in.",
+  sessionCount: "How many sessions would you like in your course?",
+  durationMins: "How long should each session be?",
+  planEmphasis: "Would you like to focus on breadth or depth?",
+  behaviorTargets: "Let's fine-tune your AI tutor's **personality**.",
+  lessonPlanModel: "What lesson plan model works best for your course?",
+};
+
 /**
  * Build a graph-aware fallback when the AI produces no text.
- * Uses the evaluation to generate a natural continuation prompt.
+ *
+ * Context-aware: looks at the CURRENT TURN's tool calls to generate a
+ * specific acknowledgment (not a dump of the full blackboard).
+ * Falls back to graph evaluation for the continuation prompt.
  */
 export function buildGraphFallback(
   evaluation: GraphEvaluation,
   blackboard: Record<string, unknown>,
+  toolCalls: Array<{ name: string; input: Record<string, unknown> }> = [],
 ): string {
-  // Acknowledge what was just collected
+  const names = new Set(toolCalls.map((tc) => tc.name));
+
+  // ── 1. show_* tools: give contextual text for the panel ────────
+  if (names.has("show_actions")) {
+    return "Here's a summary of your setup. Ready to create your course?";
+  }
+  if (names.has("show_upload")) {
+    return "Now let's add some **teaching content** — PDFs, Word docs, or text files with the material you want the AI to teach.";
+  }
+  if (names.has("show_sliders")) {
+    return "Let's fine-tune the AI tutor's **personality** — how warm, direct, and encouraging should it be?";
+  }
+  if (names.has("show_options")) {
+    const optionCall = toolCalls.find((tc) => tc.name === "show_options");
+    const question = optionCall?.input?.question as string | undefined;
+    return question
+      ? `Choose your **${question.toLowerCase()}** below.`
+      : "Pick an option below.";
+  }
+  if (names.has("show_suggestions")) {
+    const suggCall = toolCalls.find((tc) => tc.name === "show_suggestions");
+    const question = suggCall?.input?.question as string | undefined;
+    if (question) return question;
+    return "";
+  }
+
+  // ── 2. Acknowledge what was JUST saved (this turn only) ────────
+  const updateCalls = toolCalls.filter((tc) => tc.name === "update_setup");
+  const justSaved: Record<string, unknown> = {};
+  for (const tc of updateCalls) {
+    const fields = tc.input.fields as Record<string, unknown> | undefined;
+    if (fields) Object.assign(justSaved, fields);
+  }
+
   const parts: string[] = [];
-  const fields = blackboard as Record<string, unknown>;
-  if (fields.institutionName) parts.push(String(fields.institutionName));
-  if (fields.courseName) parts.push(`${fields.courseName} course`);
-  if (fields.interactionPattern) parts.push(`${fields.interactionPattern} approach`);
+  if (justSaved.institutionName) parts.push(String(justSaved.institutionName));
+  if (justSaved.subjectDiscipline) parts.push(String(justSaved.subjectDiscipline));
+  if (justSaved.courseName) parts.push(`${justSaved.courseName} course`);
+  if (justSaved.interactionPattern) parts.push(`${justSaved.interactionPattern} approach`);
+  if (justSaved.teachingMode) parts.push(`${justSaved.teachingMode} emphasis`);
+  if (justSaved.sessionCount) parts.push(`${justSaved.sessionCount} sessions`);
+  if (justSaved.durationMins) parts.push(`${justSaved.durationMins} min each`);
+  if (justSaved.welcomeMessage) parts.push("welcome message saved");
+  if (justSaved.contentSkipped) parts.push("content skipped for now");
+  if (justSaved.welcomeSkipped) parts.push("welcome message skipped");
+  if (justSaved.tuneSkipped) parts.push("personality defaults kept");
 
-  const ack = parts.length > 0 ? `Got it — ${parts.join(", ")}.` : "Got it.";
+  const ack = parts.length > 0 ? `Got it — ${parts.join(", ")}.` : "";
 
+  // ── 3. Continuation: next suggested field ──────────────────────
+  // Even when canLaunch is true, if there are still optional fields
+  // the user hasn't been asked about, prompt for them first.
+  if (evaluation.suggested.length > 0) {
+    const next = evaluation.suggested[0];
+    const prompt = FIELD_PROMPTS[next.key] || next.promptHint;
+    return ack ? `${ack} ${prompt}` : prompt;
+  }
+
+  // ── 4. All fields done — offer to launch ───────────────────────
   if (evaluation.canLaunch) {
-    return `${ack} Ready to review your setup and create your course?`;
+    return ack
+      ? `${ack} Ready to review your setup and create your course?`
+      : "Ready to review your setup and create your course?";
   }
 
-  // Use the top suggestion's prompt hint for continuation
-  const next = evaluation.suggested[0];
-  if (next) {
-    const FIELD_PROMPTS: Record<string, string> = {
-      institutionName: "What's the name of your organisation or school?",
-      courseName: "What would you like to name your course?",
-      subjectDiscipline: "What subject will you be teaching?",
-      interactionPattern: "What teaching approach would you like?",
-      teachingMode: "What's the teaching emphasis for this course?",
-      welcomeMessage: "Now let's set up your **welcome message** — this is what students hear when they first call in.",
-      sessionCount: "How many sessions would you like in your course?",
-      durationMins: "How long should each session be?",
-      planEmphasis: "Would you like to focus on breadth or depth?",
-      behaviorTargets: "Let's fine-tune your AI tutor's **personality**.",
-      lessonPlanModel: "What lesson plan model works best for your course?",
-    };
-    const prompt = FIELD_PROMPTS[next.key];
-    if (prompt) return `${ack} ${prompt}`;
-  }
-
-  return ack;
+  return ack || "Got it.";
 }
 
 /** Convenience: get the display groups and their aggregate status */

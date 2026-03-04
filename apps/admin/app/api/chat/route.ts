@@ -787,7 +787,7 @@ async function handleWizardModeWithTools(
     // Last-resort fallback — version-aware
     if (mergedSetupData._wizardVersion === "v3") {
       const graphEval = evaluateGraph(mergedSetupData);
-      finalContent = buildGraphFallback(graphEval, mergedSetupData);
+      finalContent = buildGraphFallback(graphEval, mergedSetupData, allToolCalls);
     } else {
       finalContent = buildWizardFallback(allToolCalls, mergedSetupData);
     }
