@@ -458,6 +458,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
       <div className="cv4-container">
         {/* Messages */}
         <div className="cv4-messages" aria-live="polite">
+          <div className="cv4-messages-spacer" />
           {messages.map((msg) => {
             if (msg.systemType === "error") {
               return (
@@ -534,6 +535,29 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             </div>
           )}
 
+          {/* Suggestion chips — inline after last message, not buried at page bottom */}
+          {suggestions.items.length > 0 && !showUpload && !welcomeSuggestion && !isLoading && (
+            <div className="cv4-row cv4-row--assistant">
+              <div className="cv4-suggestions">
+                {suggestions.question && (
+                  <div className="cv4-suggestions-label">{suggestions.question}</div>
+                )}
+                <div className="cv4-suggestions-chips">
+                  {suggestions.items.map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className="cv4-suggestion-chip"
+                      onClick={() => handleSend(label)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -583,27 +607,6 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                 >
                   Write my own
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Suggestion chips */}
-          {suggestions.items.length > 0 && !showUpload && !welcomeSuggestion && (
-            <div className="cv4-suggestions">
-              {suggestions.question && (
-                <div className="cv4-suggestions-label">{suggestions.question}</div>
-              )}
-              <div className="cv4-suggestions-chips">
-                {suggestions.items.map((label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className="cv4-suggestion-chip"
-                    onClick={() => handleSend(label)}
-                  >
-                    {label}
-                  </button>
-                ))}
               </div>
             </div>
           )}

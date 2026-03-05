@@ -34,6 +34,12 @@
   scroll-behavior: smooth;
 }
 
+/* Spacer pushes messages to the bottom so chips appear adjacent to input */
+.cv4-messages-spacer {
+  flex: 1;
+  min-height: 0;
+}
+
 /* ── Message rows ─────────────────────────────────────── */
 
 .cv4-row {
