@@ -11,10 +11,19 @@
 
 .cv4-layout {
   display: flex;
-  justify-content: center;
+  flex-direction: row;
   height: 100%;
   min-height: 0;
+}
+
+/* Chat column — centred, takes all remaining space */
+.cv4-chat-column {
+  flex: 1;
+  display: flex;
+  justify-content: center;
   padding: 0 16px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cv4-container {
@@ -24,6 +33,27 @@
   max-width: 760px;
   height: 100%;
   min-height: 0;
+}
+
+/* Right panel column — always visible, sticky top */
+.cv4-panel-column {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 16px 16px 16px 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Override V3 panel positioning for the right column */
+.cv4-panel-column .gs-panel {
+  width: auto;
+  position: static;
+}
+
+.cv4-panel-column .gs-scaffold {
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
 }
 
 /* ── Message list ─────────────────────────────────────── */

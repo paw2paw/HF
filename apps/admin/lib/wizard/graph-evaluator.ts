@@ -303,7 +303,7 @@ export function buildGraphPromptSection(
     const top = evaluation.suggested.slice(0, 3);
     for (let i = 0; i < top.length; i++) {
       const node = top[i];
-      const marker = i === 0 ? " → (ASK THIS NEXT)" : "";
+      const marker = i === 0 ? " → (HANDLE THIS NEXT — propose or confirm, do not ask bare questions)" : "";
       lines.push(`  ${i + 1}. ${node.label} [${node.inputType}]${marker}`);
       lines.push(`     ${node.promptHint}`);
       if (node.required) lines.push("     [REQUIRED for launch]");
@@ -339,7 +339,7 @@ const FIELD_PROMPTS: Record<string, string> = {
   institutionName: "What's the name of your organisation or school?",
   courseName: "What would you like to name your course?",
   subjectDiscipline: "What subject will you be teaching?",
-  interactionPattern: "What teaching approach would you like?",
+  interactionPattern: "Based on what you've described, I'd recommend [approach] — [1-sentence reason]. Does that work for you?",
   teachingMode: "What's the teaching emphasis for this course?",
   welcomeMessage: "Now let's set up your **welcome message** — this is what students hear when they first call in.",
   sessionCount: "How many sessions would you like in your course?",

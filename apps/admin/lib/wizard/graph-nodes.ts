@@ -100,7 +100,7 @@ export const WIZARD_GRAPH_NODES: WizardGraphNode[] = [
     dependsOn: [],
     resolvedBy: ["course-lookup", "entity-chain"],
     optionsKey: "interactionPatterns",
-    promptHint: "Socratic, Directive, Advisory, or Coaching. Suggest based on subject context.",
+    promptHint: "PROPOSE (never ask 'What teaching approach would you like?'): infer best fit from subject/level and state it with 1-sentence rationale. E.g. 'I'd go with Socratic — it suits comprehension-building well. Does that work?' Only use show_options if user explicitly asks to see choices.",
     mutablePostScaffold: false,
     affinityTags: ["course", "pedagogy"],
   },

@@ -146,7 +146,6 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialised = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const progressCardInjected = useRef(false);
 
   // ── Scroll ───────────────────────────────────────────
 
@@ -239,21 +238,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             for (const [k, v] of Object.entries(fields)) {
               setData(k, v);
             }
-            // Inject the progress card once we have a meaningful field
-            if (!progressCardInjected.current) {
-              const hasMeaningful = Object.keys(fields).some((k) =>
-                ["institutionName", "courseName", "subjectDiscipline", "interactionPattern"].includes(k),
-              );
-              if (hasMeaningful) {
-                progressCardInjected.current = true;
-                extras.push({
-                  id: "progress-card",
-                  role: "system",
-                  systemType: "progress",
-                  content: "",
-                });
-              }
-            }
+            // Progress panel is now always-visible in the right column — no inline injection needed
             break;
           }
 
@@ -526,7 +511,9 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
   return (
     <div className="cv4-layout">
-      <div className="cv4-container">
+      {/* Chat column */}
+      <div className="cv4-chat-column">
+        <div className="cv4-container">
         {/* Messages */}
         <div className="cv4-messages" aria-live="polite">
           <div className="cv4-messages-spacer" />
@@ -561,22 +548,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             }
             if (msg.systemType === "options") return null; // resolved — hide
 
-            // Progress panel — live-reading from context, always up to date
-            if (msg.systemType === "progress") {
-              return (
-                <div key={msg.id} className="cv4-row cv4-row--system">
-                  <div className="cv4-progress-card">
-                    <ScaffoldPanel
-                      getData={getData}
-                      currentStepIndex={99}
-                      onItemClick={(itemKey) => {
-                        handleSend(`I'd like to review my ${REVIEW_LABELS[itemKey] ?? itemKey}`);
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            }
+            // Progress panel (legacy inline — skip, now in right column)
+            if (msg.systemType === "progress") return null;
 
             if (msg.systemType === "error") {
               return (
@@ -775,6 +748,18 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             )}
           </div>
         </div>
+        </div>
+      </div>
+
+      {/* Right panel — always visible, shows live course build progress */}
+      <div className="cv4-panel-column">
+        <ScaffoldPanel
+          getData={getData}
+          currentStepIndex={99}
+          onItemClick={(itemKey) => {
+            handleSend(`I'd like to review my ${REVIEW_LABELS[itemKey] ?? itemKey}`);
+          }}
+        />
       </div>
     </div>
   );
