@@ -46,11 +46,15 @@ When the user says anything matching these patterns, **STOP and run the BA + Tec
 | "Run the standup" / start of session with no clear task | Run standup-bot agent |
 | "What should I work on?" / "What's next?" | Read sprint backlog + MEMORY.md, recommend top story |
 | "We're done" / "That's working" / story criteria all met | Run QA agent on the story, then guard-checker |
-| "End of sprint" / "Sprint review" | Run retro-bot agent |
-| Fix chain detected (3+ fix: commits on same topic) | Flag it, offer to create a root-cause story |
+| "End of sprint" / "Sprint review" | Run retro-bot + velocity-tracker agents |
+| Fix chain detected (3+ fix: commits on same topic) | Flag it, run `root-cause` agent, create a story |
 | About to commit | Run `scope-enforcer` — one concern per commit |
 | Prompt file changed (`*system-prompt*`, `chat/route.ts`, `lib/prompt/**`) | Run `prompt-diff` — flag risk, identify evals needed |
 | `prisma/schema.prisma` changed | Run `migration-checker` before any `migrate dev` |
+| "Something broke in prod" / production incident | Run `post-mortem` agent |
+| "Is memory up to date?" / after major refactor | Run `memory-sync` agent |
+| "Clean up" / before sprint planning / monthly | Run `broken-windows` agent |
+| Making a significant architectural decision | Use `/adr` to record it in `docs/decisions/` |
 
 ### Definition of Done (every story)
 
