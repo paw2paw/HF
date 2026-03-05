@@ -739,12 +739,16 @@ async function handleWizardModeWithTools(
     ["show_options", "show_sliders", "show_upload", "show_actions", "show_suggestions"].includes(tc.name)
   );
   if (!finalContent && !hasInteractivePanel) {
-    const isV3 = mergedSetupData._wizardVersion === "v3";
+    const wizardVersionCont = mergedSetupData._wizardVersion;
     const freshSubjectsCatalog = await getSubjectsCatalog();
     let continuationPrompt: string;
     let logPhase: string;
 
-    if (isV3) {
+    if (wizardVersionCont === "v4") {
+      const graphEval = evaluateGraph(mergedSetupData);
+      continuationPrompt = buildConversationalSystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
+      logPhase = `conv:${graphEval.readinessPct}%`;
+    } else if (wizardVersionCont === "v3") {
       const graphEval = evaluateGraph(mergedSetupData);
       continuationPrompt = buildGraphSystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
       logPhase = `graph:${graphEval.readinessPct}%`;

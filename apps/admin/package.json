@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.6.199",
+  "version": "0.6.200",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -63,7 +63,10 @@
     "version:bump:major": "tsx scripts/bump-version.ts --major",
     "eval:wizard": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v3-core-rules.yaml --no-cache",
     "eval:wizard:v4": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-core-rules.yaml --no-cache",
-    "eval:all": "dotenv -e .env.local -- promptfoo eval --no-cache",
+    "eval:wizard:v4:skip": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-skip-upload.yaml --no-cache",
+    "eval:wizard:v4:launch": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-launch.yaml --no-cache",
+    "eval:wizard:v4:all": "npm run eval:wizard:v4 && npm run eval:wizard:v4:skip && npm run eval:wizard:v4:launch",
+    "eval:all": "npm run eval:wizard && npm run eval:wizard:v4 && npm run eval:wizard:v4:skip && npm run eval:wizard:v4:launch",
     "eval:view": "promptfoo view"
   },
   "prisma": {

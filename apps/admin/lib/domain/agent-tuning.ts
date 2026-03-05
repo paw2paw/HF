@@ -314,6 +314,35 @@ export function snap5(v: number): number {
   return Math.round(v * 20) / 20;
 }
 
+/**
+ * Resolve one or more preset IDs to a behaviorTargets numeric map (values 0-1).
+ * Accepts a single ID ("socratic-mentor") or comma-separated IDs ("socratic-mentor,clear-instructor").
+ * Searches all matrices in the provided settings. Unknown IDs are silently skipped.
+ * Returns an empty object if no presets are found.
+ */
+export function behaviorTargetsFromPresets(
+  presetIds: string,
+  settings: AgentTuningSettings = AGENT_TUNING_DEFAULTS,
+): Record<string, number> {
+  const ids = presetIds.split(",").map((s) => s.trim()).filter(Boolean);
+  const positions: Record<string, MatrixPosition> = {};
+
+  for (const id of ids) {
+    for (const matrix of settings.matrices) {
+      const preset = matrix.presets.find((p) => p.id === id);
+      if (preset) {
+        positions[matrix.id] = { x: preset.x, y: preset.y };
+        break;
+      }
+    }
+  }
+
+  if (Object.keys(positions).length === 0) return {};
+
+  const derived = deriveParametersFromMatrices(settings, positions);
+  return Object.fromEntries(Object.entries(derived).map(([k, v]) => [k, v.value]));
+}
+
 // ── Persistence ─────────────────────────────────────────
 
 /**

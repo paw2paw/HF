@@ -683,7 +683,7 @@ export async function executeWizardTool(
         const { prisma } = await import("@/lib/prisma");
         const { scaffoldDomain } = await import("@/lib/domain/scaffold");
         const { loadPersonaFlowPhases, loadPersonaArchetype, loadPersonaWelcomeTemplate } = await import("@/lib/domain/quick-launch");
-        const { applyBehaviorTargets } = await import("@/lib/domain/agent-tuning");
+        const { applyBehaviorTargets, behaviorTargetsFromPresets } = await import("@/lib/domain/agent-tuning");
         const { enrollCaller } = await import("@/lib/enrollment");
         const { randomFakeName } = await import("@/lib/fake-names");
         const slugify = (await import("slugify")).default;
@@ -890,13 +890,20 @@ export async function executeWizardTool(
         if (resolvedWelcome) domainUpdate.onboardingWelcome = resolvedWelcome;
 
         const behaviorTargets = input.behaviorTargets as Record<string, number> | undefined;
-        if (behaviorTargets && Object.keys(behaviorTargets).length > 0) {
+        const personalityPreset = input.personalityPreset as string | undefined;
+        const resolvedTargets =
+          (behaviorTargets && Object.keys(behaviorTargets).length > 0)
+            ? behaviorTargets
+            : personalityPreset
+              ? behaviorTargetsFromPresets(personalityPreset)
+              : undefined;
+        if (resolvedTargets && Object.keys(resolvedTargets).length > 0) {
           const wrapped: Record<string, { value: number; confidence: number }> = {};
-          for (const [paramId, value] of Object.entries(behaviorTargets)) {
+          for (const [paramId, value] of Object.entries(resolvedTargets)) {
             wrapped[paramId] = { value, confidence: 0.5 };
           }
           domainUpdate.onboardingDefaultTargets = wrapped;
-          await applyBehaviorTargets(playbookId, behaviorTargets);
+          await applyBehaviorTargets(playbookId, resolvedTargets);
         }
 
         if (Object.keys(domainUpdate).length > 0) {

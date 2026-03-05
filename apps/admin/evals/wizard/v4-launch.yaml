@@ -1,0 +1,154 @@
+description: "Wizard V4 — launch summary + course creation"
+
+# Run with: npm run eval:wizard:v4:launch
+# Included in: npm run eval:all
+#
+# Snapshot: Launch phase — all fields collected, new course (no draftPlaybookId).
+
+prompts:
+  - id: v4-launch-phase
+    label: "V4 — Launch phase (all fields collected, new course)"
+    raw: |
+      You are the Human Fluency setup guide — a knowledgeable assistant helping an educator set up their AI tutor.
+
+      ## Your personality
+      - Warm, professional, concise — 1-2 sentences per response, max
+      - NEVER respond with only tools and no text.
+
+      ## Phase scaffold
+
+      ### Progress
+        ✓ Organisation
+        ✓ Subject
+        ✓ Course
+        ✓ Content
+        ✓ Welcome
+        ✓ Fine-Tune
+        → Launch (current)
+
+      ### Current phase: Launch (7 of 7)
+      All phases complete. Show the launch summary, then offer to create the course.
+
+      ### Already collected
+        institutionName: "Greenwood Academy"
+        typeSlug: "school"
+        domainId: "dom_abc123"
+        subjectDiscipline: "English Language"
+        courseName: "GCSE English Language"
+        interactionPattern: "socratic"
+        teachingMode: "comprehension"
+        contentSkipped: false
+        welcomeMessage: "Welcome to your GCSE English Language course. I'm here to help you practise and improve."
+        sessionCount: "8"
+        durationMins: "30"
+        planEmphasis: "balanced"
+        behaviorTargets: { warmth: 75, directiveness: 40, pace: 50, encouragement: 80 }
+        lessonPlanModel: "spiral"
+
+      ## CRITICAL RULES
+      5. At the Launch phase with no draftPlaybookId (new course), show the MANDATORY launch
+         summary listing actual collected values — then use show_actions with:
+         - primary: "Create & Try a Call"
+         - secondary: "Fine-tune more"
+
+         LAUNCH SUMMARY FORMAT (MANDATORY) — list ACTUAL values, not placeholders:
+           "Here's what we've set up:
+           - **Organisation:** [institutionName]
+           - **Subject:** [subjectDiscipline]
+           - **Course:** [courseName]
+           - **Approach:** [interactionPattern label]
+           - **Sessions:** [sessionCount] × [durationMins] min
+           - **Content:** [uploaded / skipped]
+           - **Welcome:** [first ~20 words of welcomeMessage…]
+           - **Personality:** [brief summary of behaviorTargets]
+
+           Ready to create your course?"
+
+         NEVER say "here's a summary" without listing the actual values.
+      11. ALWAYS include natural-language text alongside tool calls.
+
+      ---
+      The educator says: {{userMessage}}
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      max_tokens: 600
+      tools:
+        - name: show_actions
+          description: "Present primary/secondary action buttons"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              primary:
+                type: object
+                properties:
+                  label: { type: string }
+                  icon: { type: string }
+                required: [label]
+              secondary:
+                type: object
+                properties:
+                  label: { type: string }
+                  icon: { type: string }
+                required: [label]
+            required: [question, primary, secondary]
+        - name: create_course
+          description: "Create the course and a test caller"
+          input_schema:
+            type: object
+            additionalProperties: true
+        - name: update_setup
+          description: "Save collected setup fields"
+          input_schema:
+            type: object
+            properties:
+              fields:
+                type: object
+                additionalProperties: true
+            required: [fields]
+
+tests:
+
+  # ── Launch summary format ─────────────────────────────────────────────────
+
+  - description: "LAUNCH: Summary lists actual collected values, not placeholders"
+    vars:
+      userMessage: "Ready to go"
+    assert:
+      - type: icontains
+        value: "Greenwood Academy"
+      - type: icontains
+        value: "English Language"
+      - type: icontains
+        value: "GCSE English Language"
+      - type: llm-rubric
+        value: "The launch summary lists actual collected values: organisation, subject, course name, teaching approach, session count and duration, content status, welcome message snippet, and personality summary. It ends with a confirmation like 'Ready to create your course?' It does NOT say 'here's a summary' without the values."
+
+  - description: "LAUNCH: Summary shown when user expresses readiness without explicit create"
+    vars:
+      userMessage: "That all looks good to me"
+    assert:
+      - type: icontains
+        value: "Greenwood Academy"
+      - type: llm-rubric
+        value: "Shows the full launch summary with actual values and then calls show_actions. Does NOT call create_course directly — the user said 'looks good' not 'create the course'."
+
+  # ── show_actions ──────────────────────────────────────────────────────────
+
+  - description: "LAUNCH: show_actions called with primary label containing 'Create' or 'Try'"
+    vars:
+      userMessage: "Ready to go"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const actions = _tc.find(t => t.name === 'show_actions');
+          if (!actions) return { pass: false, score: 0, reason: 'No show_actions call at launch phase' };
+          const primaryLabel = (actions.args?.primary?.label || '').toLowerCase();
+          if (!primaryLabel.includes('create') && !primaryLabel.includes('try')) {
+            return { pass: false, score: 0, reason: `Expected "Create & Try a Call" as primary label, got: "${actions.args?.primary?.label}"` };
+          }
+          return true;

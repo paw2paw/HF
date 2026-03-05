@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowUp, Loader2, Paperclip } from "lucide-react";
+import { ArrowUp, Loader2, Plus } from "lucide-react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { PackUploadStep } from "@/components/wizards/PackUploadStep";
@@ -487,6 +487,14 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                   <LessonPlanAccordion
                     entries={msg.lessonEntries}
                     courseName={msg.lessonCourseName}
+                    onTestLesson={draftCallerId ? (session) => {
+                      const params = new URLSearchParams({
+                        ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
+                        ...(draftDomainId ? { domainId: draftDomainId } : {}),
+                        session: String(session),
+                      });
+                      window.open(`/x/sim/${draftCallerId}?${params.toString()}`, "_blank", "noopener,noreferrer");
+                    } : undefined}
                   />
                 </div>
               );
@@ -620,7 +628,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
               disabled={!resolvedDomainId}
               title={resolvedDomainId ? "Upload teaching materials" : "Set up your course first"}
             >
-              <Paperclip size={16} />
+              <Plus size={16} />
             </button>
 
             <textarea
@@ -628,7 +636,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
+              placeholder="Describe your course, ask a question, or tell me what to change..."
               rows={1}
               className="cv4-textarea"
             />
