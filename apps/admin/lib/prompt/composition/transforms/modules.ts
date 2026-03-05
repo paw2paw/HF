@@ -415,6 +415,9 @@ export async function computeSharedState(
           label: entry.label || '',
           phases: entry.phases || null,
           learningOutcomeRefs: entry.learningOutcomeRefs || null,
+          assertionIds: entry.assertionIds || null,
+          vocabularyIds: entry.vocabularyIds || null,
+          questionIds: entry.questionIds || null,
           media: entry.media || null,
         };
 

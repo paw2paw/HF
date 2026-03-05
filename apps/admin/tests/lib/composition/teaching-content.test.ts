@@ -68,6 +68,9 @@ function makeContext(overrides: {
   assertions?: CurriculumAssertionData[];
   nextModule?: ModuleData | null;
   moduleToReview?: ModuleData | null;
+  lessonPlanEntry?: SharedComputedState["lessonPlanEntry"];
+  vocabulary?: Array<{ id: string; term: string; definition: string; partOfSpeech?: string; exampleUsage?: string; topic?: string }>;
+  questions?: Array<{ id: string; questionText: string; questionType?: string; options?: any; correctAnswer?: string; chapter?: string; learningOutcomeRef?: string; difficulty?: string }>;
 } = {}): AssembledContext {
   const sharedState: SharedComputedState = {
     modules: [],
@@ -81,6 +84,7 @@ function makeContext(overrides: {
     reviewType: "quick_recall",
     reviewReason: "Brief recall",
     thresholds: { high: 0.65, low: 0.35 },
+    lessonPlanEntry: overrides.lessonPlanEntry ?? undefined,
   };
 
   return {
@@ -99,6 +103,8 @@ function makeContext(overrides: {
       systemSpecs: [],
       onboardingSpec: null,
       curriculumAssertions: overrides.assertions ?? [],
+      curriculumVocabulary: overrides.vocabulary,
+      curriculumQuestions: overrides.questions,
     },
     sections: {},
     resolvedSpecs: {
@@ -508,6 +514,194 @@ describe("renderTeachingContent transform", () => {
       // Overview should not have citations
       expect(result.teachingPoints).toContain("This module covers food safety principles");
       expect(result.teachingPoints).not.toContain("[Source, p.1]");
+    });
+  });
+
+  // =====================================================
+  // SESSION-SCOPED VOCABULARY FILTERING
+  // =====================================================
+
+  describe("session-scoped vocabulary filtering", () => {
+    const vocab = [
+      { id: "v1", term: "Bacteria", definition: "Single-celled organisms", partOfSpeech: "noun" },
+      { id: "v2", term: "Pathogen", definition: "Disease-causing agent", partOfSpeech: "noun" },
+      { id: "v3", term: "Contamination", definition: "Introduction of harmful substances" },
+    ];
+
+    it("renders all vocabulary when no vocabularyIds in lesson plan", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({ assertions, vocabulary: vocab });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).toContain("KEY VOCABULARY:");
+      expect(result.teachingPoints).toContain("Bacteria");
+      expect(result.teachingPoints).toContain("Pathogen");
+      expect(result.teachingPoints).toContain("Contamination");
+      expect(result.vocabularyCount).toBe(3);
+    });
+
+    it("filters vocabulary to session-specific IDs when present", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({
+        assertions,
+        vocabulary: vocab,
+        lessonPlanEntry: {
+          session: 1,
+          type: "introduce",
+          moduleId: null,
+          moduleLabel: "",
+          label: "Session 1",
+          vocabularyIds: ["v1", "v3"],
+        },
+      });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).toContain("Bacteria");
+      expect(result.teachingPoints).not.toContain("Pathogen");
+      expect(result.teachingPoints).toContain("Contamination");
+      expect(result.vocabularyCount).toBe(2);
+    });
+
+    it("falls back to all vocabulary when vocabularyIds is empty array", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({
+        assertions,
+        vocabulary: vocab,
+        lessonPlanEntry: {
+          session: 1,
+          type: "introduce",
+          moduleId: null,
+          moduleLabel: "",
+          label: "Session 1",
+          vocabularyIds: [],
+        },
+      });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.vocabularyCount).toBe(3);
+    });
+  });
+
+  // =====================================================
+  // SESSION-SCOPED QUESTION FILTERING
+  // =====================================================
+
+  describe("session-scoped question filtering", () => {
+    const questions = [
+      { id: "q1", questionText: "What temperature is the danger zone?", correctAnswer: "8-63°C" },
+      { id: "q2", questionText: "Name three food safety hazards", correctAnswer: "biological, chemical, physical" },
+      { id: "q3", questionText: "How long can food be in the danger zone?", correctAnswer: "Max 4 hours" },
+    ];
+
+    it("renders all questions when no questionIds in lesson plan", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({ assertions, questions });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).toContain("PRACTICE QUESTIONS (3):");
+      expect(result.teachingPoints).toContain("What temperature is the danger zone?");
+      expect(result.teachingPoints).toContain("Name three food safety hazards");
+      expect(result.teachingPoints).toContain("How long can food be in the danger zone?");
+      expect(result.questionCount).toBe(3);
+    });
+
+    it("filters questions to session-specific IDs when present", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({
+        assertions,
+        questions,
+        lessonPlanEntry: {
+          session: 1,
+          type: "introduce",
+          moduleId: null,
+          moduleLabel: "",
+          label: "Session 1",
+          questionIds: ["q1"],
+        },
+      });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).toContain("PRACTICE QUESTIONS (1):");
+      expect(result.teachingPoints).toContain("What temperature is the danger zone?");
+      expect(result.teachingPoints).not.toContain("Name three food safety hazards");
+      expect(result.questionCount).toBe(1);
+    });
+
+    it("includes correct answers in rendered questions", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({
+        assertions,
+        questions: [questions[0]],
+      });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).toContain("[Answer: 8-63°C]");
+    });
+
+    it("falls back to all questions when questionIds is empty array", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({
+        assertions,
+        questions,
+        lessonPlanEntry: {
+          session: 1,
+          type: "introduce",
+          moduleId: null,
+          moduleLabel: "",
+          label: "Session 1",
+          questionIds: [],
+        },
+      });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.questionCount).toBe(3);
+    });
+
+    it("omits questions section when no questions available", () => {
+      const assertions = [makeAssertion()];
+      const ctx = makeContext({ assertions, questions: [] });
+      const result = transform(null, ctx, sectionDef);
+
+      expect(result.teachingPoints).not.toContain("PRACTICE QUESTIONS");
+      expect(result.questionCount).toBe(0);
+    });
+  });
+
+  // =====================================================
+  // BACKWARD COMPATIBILITY
+  // =====================================================
+
+  describe("backward compatibility (no IDs in lesson plan)", () => {
+    it("existing lesson plans without vocab/question IDs show all items", () => {
+      const assertions = [makeAssertion()];
+      const vocab = [
+        { id: "v1", term: "Term1", definition: "Def1" },
+        { id: "v2", term: "Term2", definition: "Def2" },
+      ];
+      const questions = [
+        { id: "q1", questionText: "Q1?", correctAnswer: "A1" },
+      ];
+      const ctx = makeContext({
+        assertions,
+        vocabulary: vocab,
+        questions,
+        lessonPlanEntry: {
+          session: 1,
+          type: "introduce",
+          moduleId: null,
+          moduleLabel: "",
+          label: "Session 1",
+          // No vocabularyIds, no questionIds — backward compat
+        },
+      });
+      const result = transform(null, ctx, sectionDef);
+
+      // All vocab and questions should render (graceful fallback)
+      expect(result.vocabularyCount).toBe(2);
+      expect(result.questionCount).toBe(1);
+      expect(result.teachingPoints).toContain("Term1");
+      expect(result.teachingPoints).toContain("Term2");
+      expect(result.teachingPoints).toContain("Q1?");
     });
   });
 });

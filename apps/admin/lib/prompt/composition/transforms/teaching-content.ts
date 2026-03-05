@@ -391,8 +391,14 @@ registerTransform("renderTeachingContent", (
   // Collect unique sources for metadata
   const sources = [...new Set(assertions.map((a) => a.sourceName))];
 
+  // Filter vocabulary to current session if lesson plan specifies vocabularyIds
+  const allVocabulary = context.loadedData.curriculumVocabulary || [];
+  const sessionVocabIds = context.sharedState?.lessonPlanEntry?.vocabularyIds;
+  const vocabulary = sessionVocabIds?.length
+    ? allVocabulary.filter((v) => (sessionVocabIds as string[]).includes(v.id))
+    : allVocabulary;
+
   // Render vocabulary section if available
-  const vocabulary = context.loadedData.curriculumVocabulary || [];
   let vocabularySection = "";
   if (vocabulary.length > 0) {
     const vocabLines = vocabulary.map((v) => {
@@ -402,13 +408,26 @@ registerTransform("renderTeachingContent", (
     vocabularySection = `\n\nKEY VOCABULARY:\n${vocabLines.join("\n")}`;
   }
 
-  // Append vocabulary to teaching points
-  const fullTeachingPoints = vocabularySection
-    ? `${teachingPoints}${vocabularySection}`
-    : teachingPoints;
+  // Filter questions to current session if lesson plan specifies questionIds
+  const allQuestions = context.loadedData.curriculumQuestions || [];
+  const sessionQuestionIds = context.sharedState?.lessonPlanEntry?.questionIds;
+  const questions = sessionQuestionIds?.length
+    ? allQuestions.filter((q) => (sessionQuestionIds as string[]).includes(q.id))
+    : allQuestions;
 
-  // Question metadata for prompt awareness
-  const questions = context.loadedData.curriculumQuestions || [];
+  // Render practice questions section if available
+  let questionsSection = "";
+  if (questions.length > 0) {
+    const qLines = questions.map((q, i) => {
+      let line = `${i + 1}. ${q.questionText}`;
+      if (q.correctAnswer) line += ` [Answer: ${q.correctAnswer}]`;
+      return line;
+    });
+    questionsSection = `\n\nPRACTICE QUESTIONS (${questions.length}):\nUse these to check understanding during the session. Don't read them verbatim — weave them naturally into conversation.\n${qLines.join("\n")}`;
+  }
+
+  // Append vocabulary and questions to teaching points
+  const fullTeachingPoints = `${teachingPoints}${vocabularySection}${questionsSection}`;
 
   return {
     hasTeachingContent: true,

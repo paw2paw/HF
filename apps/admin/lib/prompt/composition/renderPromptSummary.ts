@@ -20,6 +20,7 @@ interface LLMPrompt {
     cohort_context?: string | null;
     this_session?: string;
     you_are?: string;
+    course_context?: string | null;
     key_memory?: string;
     key_memories?: string[];
     voice_style?: string;
@@ -162,6 +163,9 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
     parts.push(qs.you_are);
   } else if (id?.role) {
     parts.push(id.role.substring(0, 300));
+  }
+  if (qs?.course_context) {
+    parts.push(qs.course_context);
   }
   if (id?.primaryGoal) parts.push(`Goal: ${id.primaryGoal}`);
   // Domain description provides audience context (e.g. "Year 5 pupils", "adult learners")

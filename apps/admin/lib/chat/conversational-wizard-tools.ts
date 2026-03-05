@@ -24,7 +24,11 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
       "interactionPattern, teachingMode, welcomeMessage, sessionCount, durationMins, " +
       "planEmphasis, behaviorTargets, lessonPlanModel, existingInstitutionId, existingDomainId, defaultDomainKind, " +
       "physicalMaterials, personalityPreset, personalityDescription, " +
-      "contentSkipped, welcomeSkipped, tuneSkipped.",
+      "courseContext, " +
+      "contentSkipped, welcomeSkipped, tuneSkipped. " +
+      "courseContext = 3-5 sentence synthesis of the teacher's course philosophy, learner profile, " +
+      "and teaching rationale. Capture during Phase 1b — distill WHY the course exists, WHO the learners are, " +
+      "and WHAT makes the teaching approach distinctive. This reaches the voice AI on every call.",
     input_schema: {
       type: "object",
       properties: {

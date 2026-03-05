@@ -28,7 +28,10 @@ export const WIZARD_TOOLS: AITool[] = [
       "Valid field keys: institutionName, typeSlug, websiteUrl, courseName, subjectDiscipline, " +
       "interactionPattern, teachingMode, welcomeMessage, sessionCount, durationMins, " +
       "planEmphasis, behaviorTargets, lessonPlanModel, existingInstitutionId, existingDomainId, defaultDomainKind, " +
-      "contentSkipped, welcomeSkipped, tuneSkipped.",
+      "courseContext, " +
+      "contentSkipped, welcomeSkipped, tuneSkipped. " +
+      "courseContext = 3-5 sentence synthesis of the teacher's course philosophy, learner profile, " +
+      "and teaching rationale.",
     input_schema: {
       type: "object",
       properties: {
@@ -849,6 +852,7 @@ export async function executeWizardTool(
         if (input.planEmphasis) configUpdate.planEmphasis = input.planEmphasis;
         if (input.lessonPlanModel) configUpdate.lessonPlanModel = input.lessonPlanModel;
         if (input.physicalMaterials) configUpdate.physicalMaterials = input.physicalMaterials;
+        if (input.courseContext) configUpdate.courseContext = input.courseContext;
 
         await prisma.playbook.update({
           where: { id: playbookId },
@@ -1007,6 +1011,7 @@ export async function executeWizardTool(
         if (input.planEmphasis) configUpdate.planEmphasis = input.planEmphasis;
         if (input.lessonPlanModel) configUpdate.lessonPlanModel = input.lessonPlanModel;
         if (welcomeMessage) configUpdate.welcomeMessage = welcomeMessage;
+        if (input.courseContext) configUpdate.courseContext = input.courseContext;
 
         await prisma.playbook.update({
           where: { id: playbookId },

@@ -258,4 +258,32 @@ describe("computeQuickStart transform", () => {
     const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
     expect(result.cohort_context).toBeNull();
   });
+
+  it("includes course_context from playbook config", () => {
+    const ctx = makeContext({
+      loadedData: {
+        ...makeContext().loadedData,
+        playbooks: [{
+          id: "pb-1",
+          name: "Hebrew through the Siddur",
+          status: "PUBLISHED",
+          domain: null,
+          items: [],
+          config: {
+            subjectDiscipline: "Hebrew",
+            courseContext: "This course teaches Hebrew through the Reform Jewish prayer book. The language is a gateway into Judaism — every letter connects to historical, cultural, and religious context.",
+          },
+        }],
+      },
+    });
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.course_context).toContain("gateway into Judaism");
+    expect(result.course_context).toContain("prayer book");
+  });
+
+  it("returns null course_context when not set", () => {
+    const ctx = makeContext();
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.course_context).toBeNull();
+  });
 });

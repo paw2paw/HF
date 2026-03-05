@@ -269,6 +269,10 @@ export interface SharedComputedState {
     learningOutcomeRefs?: string[] | null;
     /** Explicit TP-to-session binding (educator-curated). Overrides learningOutcomeRefs matching. */
     assertionIds?: string[] | null;
+    /** Vocabulary items assigned to this session by the lesson planner */
+    vocabularyIds?: string[] | null;
+    /** Questions assigned to this session by the lesson planner */
+    questionIds?: string[] | null;
     /** Images assigned to this session (auto-resolved or manually curated) */
     media?: Array<{
       mediaId: string;

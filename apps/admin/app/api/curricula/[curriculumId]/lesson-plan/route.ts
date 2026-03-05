@@ -41,6 +41,8 @@ interface LessonPlanEntry {
   estimatedDurationMins?: number;
   assertionCount?: number;
   assertionIds?: string[];
+  vocabularyIds?: string[];
+  questionIds?: string[];
   /** Images linked to this session (auto-resolved or manually assigned) */
   media?: LessonPlanMediaRef[];
 }
@@ -186,6 +188,8 @@ export async function PUT(
         phases: Array.isArray(e.phases) ? e.phases : undefined,
         questionCount: e.questionCount || undefined,
         vocabularyCount: e.vocabularyCount || undefined,
+        vocabularyIds: Array.isArray(e.vocabularyIds) ? e.vocabularyIds : undefined,
+        questionIds: Array.isArray(e.questionIds) ? e.questionIds : undefined,
         media: Array.isArray(e.media)
           ? e.media.filter((m: any) => m && typeof m.mediaId === "string").slice(0, 50)
           : undefined,

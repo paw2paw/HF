@@ -433,7 +433,7 @@ describe("computeSharedState", () => {
               estimatedSessions: 6,
               entries: [
                 { session: 1, type: "onboarding", moduleId: null, moduleLabel: "Onboarding", label: "Welcome & orientation" },
-                { session: 2, type: "introduce", moduleId: "MOD-1", moduleLabel: "Introduction", label: "First exposure" },
+                { session: 2, type: "introduce", moduleId: "MOD-1", moduleLabel: "Introduction", label: "First exposure", assertionIds: ["a1", "a2"], vocabularyIds: ["v1", "v2"], questionIds: ["q1"] },
                 { session: 3, type: "deepen", moduleId: "MOD-1", moduleLabel: "Introduction", label: "Deepen basics" },
                 { session: 4, type: "introduce", moduleId: "MOD-2", moduleLabel: "Hazards", label: "Hazard types" },
                 { session: 5, type: "review", moduleId: null, moduleLabel: "Review", label: "Review session" },
@@ -481,6 +481,44 @@ describe("computeSharedState", () => {
       expect(result.lessonPlanEntry).toBeDefined();
       expect(result.lessonPlanEntry!.moduleId).toBe("MOD-1");
       expect(result.lessonPlanEntry!.moduleLabel).toBe("Introduction");
+    });
+
+    it("threads assertionIds, vocabularyIds, and questionIds from lesson plan entry", async () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+        callerAttributes: [
+          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 2, scope: "CURRICULUM" }),
+        ],
+      });
+      const specs = makeResolvedSpecs();
+      const result = await computeSharedState(data, specs, {});
+
+      // Session 2 has assertionIds, vocabularyIds, questionIds
+      expect(result.lessonPlanEntry).toBeDefined();
+      expect(result.lessonPlanEntry!.assertionIds).toEqual(["a1", "a2"]);
+      expect(result.lessonPlanEntry!.vocabularyIds).toEqual(["v1", "v2"]);
+      expect(result.lessonPlanEntry!.questionIds).toEqual(["q1"]);
+    });
+
+    it("returns null for ID arrays when lesson plan entry has none", async () => {
+      const data = makeLoadedData({
+        subjectSources: subjectSourcesWithPlan,
+        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
+        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
+        callerAttributes: [
+          // Session 5 is "review" with no ID arrays
+          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 5, scope: "CURRICULUM" }),
+        ],
+      });
+      const specs = makeResolvedSpecs();
+      const result = await computeSharedState(data, specs, {});
+
+      expect(result.lessonPlanEntry).toBeDefined();
+      expect(result.lessonPlanEntry!.assertionIds).toBeNull();
+      expect(result.lessonPlanEntry!.vocabularyIds).toBeNull();
+      expect(result.lessonPlanEntry!.questionIds).toBeNull();
     });
 
     it("overrides nextModule to match lesson plan entry", async () => {

@@ -41,6 +41,7 @@ registerTransform("computeQuickStart", (
   // Subject/course context for greeting and session orientation
   const playbook = loadedData.playbooks?.[0];
   const subjectDiscipline = (playbook?.config as any)?.subjectDiscipline as string | undefined;
+  const courseContext = (playbook?.config as any)?.courseContext as string | undefined;
   const subjectRef = subjectDiscipline || playbook?.name || null;
 
   return {
@@ -60,6 +61,8 @@ registerTransform("computeQuickStart", (
       const lastSpace = truncated.lastIndexOf(" ");
       return lastSpace > 100 ? role.substring(0, lastSpace) + "..." : truncated + "...";
     })(),
+
+    course_context: courseContext || null,
 
     this_caller: `${caller?.name || "Unknown"} (call #${loadedData.callCount + 1})`,
 
