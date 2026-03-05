@@ -161,6 +161,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const [showUpload, setShowUpload] = useState(false);
   const [suggestions, setSuggestions] = useState<{ question?: string; items: string[] }>({ items: [] });
   const [welcomeSuggestion, setWelcomeSuggestion] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -176,6 +178,34 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
       });
     }, 50);
   }, []);
+
+  // ── Start over ───────────────────────────────────────
+
+  const SETUP_KEYS = [
+    "institutionName", "existingInstitutionId", "existingDomainId",
+    "typeSlug", "defaultDomainKind", "websiteUrl",
+    "courseName", "subjectDiscipline", "interactionPattern", "teachingMode",
+    "welcomeMessage", "sessionCount", "durationMins", "planEmphasis",
+    "behaviorTargets", "lessonPlanModel", "personalityPreset", "physicalMaterials",
+    "draftDomainId", "draftInstitutionId", "draftPlaybookId", "draftCallerId",
+    "launched", "sourceId", "packSubjectIds", "extractionTotals", "contentSkipped",
+  ];
+
+  const handleStartOver = useCallback(() => {
+    abortRef.current?.abort();
+    sessionStorage.removeItem(HISTORY_KEY);
+    for (const k of SETUP_KEYS) setData(k, undefined);
+    setMessages([]);
+    setInputValue("");
+    setIsLoading(false);
+    setShowUpload(false);
+    setSuggestions({ items: [] });
+    setWelcomeSuggestion(null);
+    setConfirmReset(false);
+    initialised.current = false;
+    setResetKey((n) => n + 1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setData]);
 
   // ── Setup data ────────────────────────────────────────
 
@@ -533,7 +563,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     scrollToBottom();
     setTimeout(() => inputRef.current?.focus(), 150);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, scrollToBottom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, scrollToBottom, resetKey]);
 
   // ── Render ────────────────────────────────────────────
 
@@ -784,6 +815,39 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
               </button>
             )}
           </div>
+
+          {/* Start over */}
+          {messages.length > 1 && (
+            <div className="cv4-start-over-row">
+              {confirmReset ? (
+                <>
+                  <span className="cv4-start-over-label">Clear conversation?</span>
+                  <button
+                    type="button"
+                    className="cv4-start-over-confirm"
+                    onClick={handleStartOver}
+                  >
+                    Yes, start over
+                  </button>
+                  <button
+                    type="button"
+                    className="cv4-start-over-cancel"
+                    onClick={() => setConfirmReset(false)}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="cv4-start-over-btn"
+                  onClick={() => setConfirmReset(true)}
+                >
+                  Start over
+                </button>
+              )}
+            </div>
+          )}
         </div>
         </div>
       </div>
