@@ -145,6 +145,43 @@ New or modified `route.ts` files should have `@api` JSDoc annotations. Check for
 
 ---
 
+### Category 6: MVC Strictness ✓
+
+In Next.js App Router, the layer contract is: **Route handlers are thin. Lib is pure. Components have no I/O.**
+
+**6a. No business logic in route handlers**
+Route handlers (`app/api/**/route.ts`) must only: parse request → call lib function → return response.
+Flag: conditional branching beyond input parsing, inline data transformation, spec-slug lookups, loop logic.
+```bash
+grep -n "\.map\|\.filter\|\.reduce\|\.find\|for (" [route files]
+```
+One-liner maps for response shaping are OK. Complex logic belongs in `lib/`.
+
+**6b. No direct DB calls from UI components**
+UI components (`app/x/**/*.tsx`, `components/**/*.tsx`) must never call `prisma.*` directly.
+All data fetching must go through API routes or server actions in dedicated lib files.
+```bash
+grep -n "prisma\." [ui files]
+```
+Flag any `prisma.` occurrence in component files.
+
+**6c. No HTTP fetch calls from lib files**
+`lib/**/*.ts` files must not call `fetch()` to internal API routes — that creates circular dependencies and untestable code.
+Lib functions call other lib functions or prisma directly. Routes call lib. Components call routes.
+```bash
+grep -n "fetch(" [lib files]
+```
+Exception: `lib/vapi/`, `lib/knowledge/` external service calls are allowed.
+
+**6d. No JSX / HTML strings in lib files**
+`lib/**/*.ts` must not produce JSX or HTML string fragments. Presentation belongs in components.
+```bash
+grep -n "<[A-Z]\|React\.\|createElement\|innerHTML\|dangerouslySetInner" [lib files]
+```
+Exception: email template lib with explicit rendering responsibility is allowed if documented.
+
+---
+
 ## Step 3 — Scorecard
 
 Output a clean scorecard:
@@ -159,6 +196,7 @@ Output a clean scorecard:
 | 3 | CSS Clean | ✅ PASS / ❌ FAIL / ⚠️ WARN | [N issues or —] |
 | 4 | Auth | ✅ PASS / ❌ FAIL / ⚠️ WARN | [N issues or —] |
 | 5 | Code Quality | ✅ PASS / ❌ FAIL / ⚠️ WARN | [N issues or —] |
+| 6 | MVC Strictness | ✅ PASS / ❌ FAIL / ⚠️ WARN | [N issues or —] |
 
 **Verdict: READY TO MERGE** / **NOT READY — [N] issues**
 ```
