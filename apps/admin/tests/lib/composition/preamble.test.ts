@@ -122,13 +122,78 @@ describe("computePreamble transform", () => {
     expect(result.voiceRules).toEqual(["Rule 1", "Rule 2"]);
   });
 
-  it("includes critical rules about review and struggle handling", () => {
-    const ctx = makeContext();
+  it("includes critical rules about review and struggle handling (with-curriculum branch)", () => {
+    const ctx = makeContext({
+      sharedState: {
+        modules: [{ id: "m1" }] as any,
+        isFirstCall: false,
+        daysSinceLastCall: 0,
+        completedModules: new Set(),
+        estimatedProgress: 0,
+        lastCompletedIndex: -1,
+        moduleToReview: null,
+        nextModule: null,
+        reviewType: "",
+        reviewReason: "",
+        thresholds: { high: 0.65, low: 0.35 },
+      },
+    });
     const result = getTransform("computePreamble")!(null, ctx, makeSectionDef());
 
     const rules = result.criticalRules.join(" ");
     expect(rules).toContain("RETURNING_CALLER");
     expect(rules).toContain("review");
     expect(rules).toContain("struggles");
+  });
+
+  it("includes all 4 pacing rules in with-curriculum branch", () => {
+    const ctx = makeContext({
+      sharedState: {
+        modules: [{ id: "m1" }] as any,
+        isFirstCall: false,
+        daysSinceLastCall: 0,
+        completedModules: new Set(),
+        estimatedProgress: 0,
+        lastCompletedIndex: -1,
+        moduleToReview: null,
+        nextModule: null,
+        reviewType: "",
+        reviewReason: "",
+        thresholds: { high: 0.65, low: 0.35 },
+      },
+    });
+    const result = getTransform("computePreamble")!(null, ctx, makeSectionDef());
+    const rules = result.criticalRules.join(" ");
+
+    expect(rules).toContain("Confirm readiness before moving to a new topic");
+    expect(rules).toContain("Do not give answers before the student has attempted");
+    expect(rules).toContain("Do not rush");
+    expect(rules).toContain("Treat each session as standalone");
+  });
+
+  it("includes all 4 pacing rules in without-curriculum branch", () => {
+    const ctx = makeContext({
+      sharedState: {
+        modules: [],
+        isFirstCall: false,
+        daysSinceLastCall: 0,
+        completedModules: new Set(),
+        estimatedProgress: 0,
+        lastCompletedIndex: -1,
+        moduleToReview: null,
+        nextModule: null,
+        reviewType: "",
+        reviewReason: "",
+        thresholds: { high: 0.65, low: 0.35 },
+      },
+      sections: {},
+    });
+    const result = getTransform("computePreamble")!(null, ctx, makeSectionDef());
+    const rules = result.criticalRules.join(" ");
+
+    expect(rules).toContain("Confirm readiness before moving to a new topic");
+    expect(rules).toContain("Do not give answers before the student has attempted");
+    expect(rules).toContain("Do not rush");
+    expect(rules).toContain("Treat each session as standalone");
   });
 });
