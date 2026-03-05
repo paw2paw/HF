@@ -259,7 +259,9 @@ No inline `style={{}}` for static properties. No hardcoded hex. No one-off styli
 - **Spinner vs Glow**: `hf-spinner` = blocking (user must wait). `hf-glow-active` = background (user can continue). Never mix on same element.
 - **FieldHint**: Every wizard intent field MUST have `<FieldHint>`. Data in `lib/wizard-hints.ts`.
 
-Full class list + color map in `hf-nextjs-patterns-SKILL.md`. Run `ui-reviewer` agent after any UI changes.
+Full class list + color map in `hf-nextjs-patterns-SKILL.md`. After any UI changes, run both:
+- `ui-reviewer` — mechanical compliance (classes, colors, FieldHint, spinner-vs-glow)
+- `ux-reviewer` — design quality (empty states, errors, microcopy, educator language, feedback loops)
 
 ---
 
