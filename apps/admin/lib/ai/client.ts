@@ -18,7 +18,7 @@ export type AIEngine = "mock" | "claude" | "openai";
 // Content block types for tool calling (Anthropic SDK format)
 export type ContentBlock =
   | { type: "text"; text: string }
-  | { type: "thinking"; thinking: string }
+  | { type: "thinking"; thinking: string; signature?: string }
   | { type: "tool_use"; id: string; name: string; input: Record<string, any> }
   | { type: "tool_result"; tool_use_id: string; content: string };
 
@@ -208,7 +208,7 @@ async function callClaude(
     // Thinking blocks must be preserved so multi-turn tool loops pass them back correctly.
     const rawContentBlocks: ContentBlock[] = response.content.map((c: any) => {
       if (c.type === "text") return { type: "text" as const, text: c.text };
-      if (c.type === "thinking") return { type: "thinking" as const, thinking: c.thinking };
+      if (c.type === "thinking") return { type: "thinking" as const, thinking: c.thinking, signature: c.signature };
       if (c.type === "tool_use") return { type: "tool_use" as const, id: c.id, name: c.name, input: c.input };
       return { type: "text" as const, text: "" };
     });
