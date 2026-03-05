@@ -650,6 +650,16 @@ export function getDefaultSections(): CompositionSectionDef[] {
       outputKey: "visualAids",
     },
     {
+      id: "physical_materials",
+      name: "Physical Materials",
+      priority: 12.66,
+      dataSource: "_assembled",
+      activateWhen: { condition: "always" },
+      fallback: { action: "null" },
+      transform: "formatPhysicalMaterials",
+      outputKey: "physicalMaterials",
+    },
+    {
       id: "pedagogy_mode",
       name: "Pedagogy Mode",
       priority: 12.7,
