@@ -639,7 +639,7 @@ async function handleWizardModeWithTools(
         messages: loopMessages,
         tools,
         // Only enable thinking on the first call — subsequent tool-loop iterations don't need it
-        ...(i === 0 && thinkingBudget ? { thinkingBudgetTokens: thinkingBudget } : {}),
+        ...(i === 0 && thinkingBudget ? { thinkingBudgetTokens: thinkingBudget, timeoutMs: 60_000 } : {}),
       },
       { sourceOp: `${callPoint}.tools`, userId }
     );

@@ -62,7 +62,7 @@ export function BugReportButton() {
     abortRef.current = new AbortController();
 
     const bugContext = {
-      url: pathname || window.location.pathname,
+      url: window.location.href || pathname,
       errors: getRecentErrors(),
       browser: navigator.userAgent,
       viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -170,8 +170,9 @@ export function BugReportButton() {
 
   // Build full context markdown for Claude Code
   const buildFullContext = useCallback(() => {
+    const fullUrl = typeof window !== "undefined" ? window.location.href : (pathname || "");
     const lines: string[] = [
-      `## Bug Report — ${pathname || window.location.pathname}`,
+      `## Bug Report — ${fullUrl}`,
       `**Time:** ${new Date().toLocaleString()}`,
       `**Viewport:** ${typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "N/A"}`,
       `**Browser:** ${typeof navigator !== "undefined" ? navigator.userAgent : "N/A"}`,
@@ -222,20 +223,23 @@ export function BugReportButton() {
         }
       } catch { /* ignore parse errors */ }
 
-      try {
-        const wizardHistory = sessionStorage.getItem("gs-v2-history");
-        if (wizardHistory) {
-          const msgs = JSON.parse(wizardHistory);
-          if (Array.isArray(msgs) && msgs.length > 0) {
-            lines.push("", "### Wizard Conversation Log");
-            for (const m of msgs) {
-              if (m.role === "system") continue;
-              const label = m.role === "user" ? "User" : "AI";
-              lines.push(`**${label}:** ${m.content}`);
+      for (const histKey of ["gs-v4-history", "gs-v2-history"]) {
+        try {
+          const wizardHistory = sessionStorage.getItem(histKey);
+          if (wizardHistory) {
+            const msgs = JSON.parse(wizardHistory);
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              lines.push("", `### Wizard Conversation Log (${histKey})`);
+              for (const m of msgs) {
+                if (m.role === "system") continue;
+                const label = m.role === "user" ? "User" : "AI";
+                lines.push(`**${label}:** ${m.content}`);
+              }
+              break; // only include the first found
             }
           }
-        }
-      } catch { /* ignore parse errors */ }
+        } catch { /* ignore parse errors */ }
+      }
     }
 
     return lines.join("\n");
@@ -385,7 +389,7 @@ export function BugReportButton() {
               {showContext ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               <span style={{ fontWeight: 500 }}>Context</span>
               <span style={{ color: "var(--text-tertiary)" }}>
-                {pathname}
+                {typeof window !== "undefined" ? window.location.href : pathname}
                 {recentErrors.length > 0 && (
                   <span style={{ color: "var(--status-error-text)", marginLeft: 8 }}>
                     {recentErrors.length} error{recentErrors.length !== 1 ? "s" : ""}
@@ -395,7 +399,7 @@ export function BugReportButton() {
             </button>
             {showContext && (
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-                <div><strong>URL:</strong> {pathname}</div>
+                <div><strong>URL:</strong> {typeof window !== "undefined" ? window.location.href : pathname}</div>
                 <div><strong>Viewport:</strong> {typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "N/A"}</div>
                 {recentErrors.length > 0 && (
                   <div>

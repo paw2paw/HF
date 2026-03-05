@@ -169,6 +169,11 @@ async function callClaude(
   if (thinkingBudgetTokens) {
     createParams.thinking = { type: "enabled", budget_tokens: thinkingBudgetTokens };
     createParams.temperature = 1; // Required when thinking is enabled
+    // Anthropic requires max_tokens > budget_tokens. Ensure at least budget + 1000 for the response.
+    const minTokens = thinkingBudgetTokens + 1000;
+    if (createParams.max_tokens < minTokens) {
+      createParams.max_tokens = minTokens;
+    }
   }
 
   // Add timeout support with AbortController
