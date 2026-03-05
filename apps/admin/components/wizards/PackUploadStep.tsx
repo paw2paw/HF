@@ -372,7 +372,7 @@ export function PackUploadStep({
       const id = phase === 'file-complete' || phase === 'file-error'
         ? `file-${data?.fileName}` : `${phase}-${data?.subjectName || data?.fileName || ''}`;
       const existing = prev.find((s) => s.id === id);
-      const isDone = phase === 'subject-created' || phase === 'source-created' || phase === 'file-complete' || phase === 'images-complete' || phase === 'post-processing';
+      const isDone = phase === 'subject-created' || phase === 'source-created' || phase === 'source-skipped' || phase === 'file-complete' || phase === 'images-complete' || phase === 'post-processing';
       const isError = phase === 'file-error';
       const status = isError ? 'error' : isDone ? 'done' : 'active';
 

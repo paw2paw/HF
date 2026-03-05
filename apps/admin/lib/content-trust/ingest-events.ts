@@ -11,6 +11,7 @@ export type IngestPhase =
   | "subject-created"
   | "uploading"
   | "source-created"
+  | "source-skipped"
   | "extracting"
   | "chunk-retry"
   | "chunk-complete"

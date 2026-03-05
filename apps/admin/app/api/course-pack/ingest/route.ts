@@ -199,13 +199,13 @@ export async function POST(req: NextRequest) {
                 data: { fileName: file.name, fileIndex: fi, totalFiles: totalFilesInGroup },
               });
 
-              const { sourceId, mediaStorageKey, text, source } = await createSource(
+              const { sourceId, mediaStorageKey, text, source, deduplicated } = await createSource(
                 file, subject.id, domain.slug, mf.documentType, userId,
               );
 
               send({
-                phase: "source-created",
-                message: `Uploaded: ${file.name}`,
+                phase: deduplicated ? "source-skipped" : "source-created",
+                message: deduplicated ? `Already uploaded — reusing: ${file.name}` : `Uploaded: ${file.name}`,
                 data: { sourceId, fileName: file.name },
               });
 
@@ -298,13 +298,13 @@ export async function POST(req: NextRequest) {
                 data: { fileName: file.name },
               });
 
-              const { sourceId, mediaStorageKey: pedMediaKey, text, source } = await createSource(
+              const { sourceId, mediaStorageKey: pedMediaKey, text, source, deduplicated: pedDeduped } = await createSource(
                 file, pedSubject.id, domain.slug, mf.documentType || "LESSON_PLAN", userId,
               );
 
               send({
-                phase: "source-created",
-                message: `Uploaded: ${file.name}`,
+                phase: pedDeduped ? "source-skipped" : "source-created",
+                message: pedDeduped ? `Already uploaded — reusing: ${file.name}` : `Uploaded: ${file.name}`,
                 data: { sourceId, fileName: file.name },
               });
 
@@ -394,37 +394,56 @@ async function createSource(
   const { text } = await extractTextFromBuffer(buffer, file.name);
   const finalDocType = documentType as DocumentType;
 
-  // Create ContentSource
-  const baseSlug = file.name
-    .replace(/\.[^/.]+$/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  const sourceSlug = `${domainSlug}-${baseSlug}-${Date.now()}`;
-  const displayName = file.name.replace(/\.[^/.]+$/, "");
+  // Compute hash first — used for dedup at ContentSource level
+  const contentHash = computeContentHash(buffer);
 
-  const source = await prisma.contentSource.create({
-    data: {
-      slug: sourceSlug,
-      name: displayName,
-      trustLevel: "UNVERIFIED",
-      documentType: finalDocType,
-      documentTypeSource: "pack-manifest",
-      textSample: text.substring(0, 2000),
-    },
-  });
+  // Dedup: reuse existing ContentSource if the same file was uploaded before
+  let deduplicated = false;
+  let source = await prisma.contentSource.findUnique({ where: { contentHash } });
 
-  // Attach to subject
-  await prisma.subjectSource.create({
-    data: {
-      subjectId,
-      sourceId: source.id,
-      tags: ["content", "pack-upload"],
-    },
+  if (!source) {
+    const baseSlug = file.name
+      .replace(/\.[^/.]+$/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    const sourceSlug = `${domainSlug}-${baseSlug}-${Date.now()}`;
+    const displayName = file.name.replace(/\.[^/.]+$/, "");
+
+    try {
+      source = await prisma.contentSource.create({
+        data: {
+          slug: sourceSlug,
+          name: displayName,
+          trustLevel: "UNVERIFIED",
+          documentType: finalDocType,
+          documentTypeSource: "pack-manifest",
+          textSample: text.substring(0, 2000),
+          contentHash,
+        },
+      });
+    } catch (err: any) {
+      // Concurrent upload race — another request created the same hash; re-fetch and reuse
+      if (err.code === "P2002") {
+        source = await prisma.contentSource.findUnique({ where: { contentHash } });
+        if (!source) throw err;
+        deduplicated = true;
+      } else {
+        throw err;
+      }
+    }
+  } else {
+    deduplicated = true;
+  }
+
+  // Attach to subject — idempotent upsert (@@unique([subjectId, sourceId]) already defined)
+  await prisma.subjectSource.upsert({
+    where: { subjectId_sourceId: { subjectId, sourceId: source.id } },
+    update: {},
+    create: { subjectId, sourceId: source.id, tags: ["content", "pack-upload"] },
   });
 
   // Store file as MediaAsset
-  const contentHash = computeContentHash(buffer);
   const storage = getStorageAdapter();
 
   const existingMedia = await prisma.mediaAsset.findUnique({ where: { contentHash } });
@@ -470,7 +489,7 @@ async function createSource(
     create: { subjectId, mediaId },
   });
 
-  return { sourceId: source.id, mediaId, mediaStorageKey, text, source };
+  return { sourceId: source.id, mediaId, mediaStorageKey, text, source, deduplicated };
 }
 
 /**
