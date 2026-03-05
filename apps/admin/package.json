@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.6.195",
+  "version": "0.6.196",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -60,7 +60,11 @@
     "db:seed:full:reset": "tsx prisma/seed-full.ts --reset",
     "version:bump": "tsx scripts/bump-version.ts",
     "version:bump:minor": "tsx scripts/bump-version.ts --minor",
-    "version:bump:major": "tsx scripts/bump-version.ts --major"
+    "version:bump:major": "tsx scripts/bump-version.ts --major",
+    "eval:wizard": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v3-core-rules.yaml --no-cache",
+    "eval:wizard:v4": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-core-rules.yaml --no-cache",
+    "eval:all": "dotenv -e .env.local -- promptfoo eval --no-cache",
+    "eval:view": "promptfoo view"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -114,10 +118,12 @@
     "@vitest/coverage-v8": "^4.0.17",
     "autoprefixer": "^10.4.23",
     "commander": "^12.1.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
+    "promptfoo": "^0.120.19",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5",

@@ -121,7 +121,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<{ question?: string; items: string[] }>({ items: [] });
   const [welcomeSuggestion, setWelcomeSuggestion] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -211,7 +211,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const processToolCalls = useCallback(
     (toolCalls: WizardToolCall[]): Message[] => {
       const extras: Message[] = [];
-      setSuggestions([]);
+      setSuggestions({ items: [] });
 
       for (const tc of toolCalls) {
         switch (tc.name) {
@@ -225,7 +225,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
           case "show_suggestions": {
             const items = tc.input.suggestions as string[];
-            if (items?.length) setSuggestions(items);
+            const question = tc.input.question as string | undefined;
+            if (items?.length) setSuggestions({ question, items });
             break;
           }
 
@@ -308,7 +309,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
       setInputValue("");
       setShowUpload(false);
-      setSuggestions([]);
+      setSuggestions({ items: [] });
       setWelcomeSuggestion(null);
 
       const userMsg: Message = { id: uid(), role: "user", content: msg };
@@ -587,18 +588,23 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           )}
 
           {/* Suggestion chips */}
-          {suggestions.length > 0 && !showUpload && !welcomeSuggestion && (
+          {suggestions.items.length > 0 && !showUpload && !welcomeSuggestion && (
             <div className="cv4-suggestions">
-              {suggestions.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="cv4-suggestion-chip"
-                  onClick={() => handleSend(label)}
-                >
-                  {label}
-                </button>
-              ))}
+              {suggestions.question && (
+                <div className="cv4-suggestions-label">{suggestions.question}</div>
+              )}
+              <div className="cv4-suggestions-chips">
+                {suggestions.items.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="cv4-suggestion-chip"
+                    onClick={() => handleSend(label)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

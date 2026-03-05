@@ -40,9 +40,12 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
     name: "show_suggestions",
     description:
       "Show clickable quick-reply chips above the chat input. " +
-      "Use whenever you ask an OPTIONAL or skippable question — the user should never have to type 'skip'. " +
-      "Suggestions auto-send as a user message when clicked. " +
-      "IMPORTANT: Always include the 'question' field to give the chips context.",
+      "ONLY for CONFIRMATION and SKIP chips — never to present a list of choices. " +
+      "Good: 'Sounds good', 'Skip for now', 'Use default', 'Go more directive'. " +
+      "Bad: 'Socratic', 'Direct instruction' — bare option labels with no explanation. " +
+      "For required choices (approach, sessions, etc.) explain in prose, recommend one, " +
+      "then offer confirmatory chips. Suggestions auto-send as a user message when clicked. " +
+      "ALWAYS include the 'question' field — shown as a small label above the chips.",
     input_schema: {
       type: "object",
       properties: {
@@ -53,7 +56,7 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
         suggestions: {
           type: "array",
           items: { type: "string" },
-          description: "1-3 short suggestion labels (e.g. 'Skip for now', 'Use default').",
+          description: "1-3 short confirmatory labels (e.g. 'Sounds good', 'Skip for now', 'Use default', 'Go more directive'). Never bare option names.",
           minItems: 1,
           maxItems: 3,
         },

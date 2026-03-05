@@ -256,25 +256,39 @@
 
 .cv4-suggestions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
   padding: 0 2px;
 }
 
+.cv4-suggestions-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.cv4-suggestions-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .cv4-suggestion-chip {
-  padding: 6px 14px;
+  padding: 8px 16px;
   font-size: 13px;
-  border: 1px solid var(--border-default);
+  font-weight: 500;
+  border: 1.5px solid var(--accent-primary);
   border-radius: 20px;
-  background: var(--surface-primary);
-  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--surface-primary));
+  color: var(--accent-primary);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .cv4-suggestion-chip:hover {
-  background: var(--surface-secondary);
-  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 15%, var(--surface-primary));
 }
 
 /* ── Upload panel ─────────────────────────────────────── */
