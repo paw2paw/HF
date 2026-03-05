@@ -1501,12 +1501,57 @@ async function generateLessonPlanPreview(
       }
     }
 
-    // Return preview for the UI (same shape as before but with real data)
-    return entries.map((e) => ({
-      session: e.session,
-      label: e.label,
-      type: e.type,
-    }));
+    // ── Resolve content text for preview ──────────────
+    const allAssertionIds = entries.flatMap((e) => e.assertionIds || []);
+    const allVocabIds = entries.flatMap((e) => e.vocabularyIds || []);
+    const allQuestionIds = entries.flatMap((e) => e.questionIds || []);
+
+    const [assertions, vocabs, questionCount] = await Promise.all([
+      allAssertionIds.length > 0
+        ? prisma.contentAssertion.findMany({
+            where: { id: { in: allAssertionIds } },
+            select: { id: true, assertion: true },
+          })
+        : [],
+      allVocabIds.length > 0
+        ? prisma.contentVocabulary.findMany({
+            where: { id: { in: allVocabIds } },
+            select: { id: true, term: true },
+          })
+        : [],
+      allQuestionIds.length > 0
+        ? prisma.contentQuestion.count({
+            where: { id: { in: allQuestionIds } },
+          })
+        : 0,
+    ]);
+
+    const assertionMap = new Map(assertions.map((a: any) => [a.id, a.assertion]));
+    const vocabMap = new Map(vocabs.map((v: any) => [v.id, v.term]));
+
+    // Return enriched preview for the UI
+    return entries.map((e) => {
+      const tpTexts = (e.assertionIds || [])
+        .map((id: string) => assertionMap.get(id))
+        .filter(Boolean) as string[];
+      const vTerms = (e.vocabularyIds || [])
+        .map((id: string) => vocabMap.get(id))
+        .filter(Boolean) as string[];
+      const qCount = (e.questionIds || []).length;
+
+      return {
+        session: e.session,
+        label: e.label,
+        type: e.type,
+        teachingPointCount: tpTexts.length,
+        vocabCount: vTerms.length,
+        questionCount: qCount,
+        teachingPointPreviews: tpTexts.slice(0, 3).map((t) =>
+          t.length > 80 ? t.slice(0, 77) + "…" : t
+        ),
+        vocabPreviews: vTerms.slice(0, 3),
+      };
+    });
   } catch (err: any) {
     console.warn("[wizard-tools] Lesson plan generation failed, using fallback preview:", err.message);
     return fallback;

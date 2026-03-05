@@ -36,6 +36,27 @@
   margin-bottom: 4px;
 }
 
+.gs-scaffold-title--done {
+  color: var(--accent-primary);
+}
+
+.gs-scaffold-course-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-primary);
+  text-decoration: none;
+  margin-bottom: 12px;
+  transition: opacity 0.15s;
+}
+
+.gs-scaffold-course-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
 .gs-scaffold-hint {
   font-size: 11px;
   color: var(--text-muted);

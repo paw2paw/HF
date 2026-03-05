@@ -56,6 +56,7 @@ interface Message {
   /** Populated for lesson-plan system messages */
   lessonEntries?: LessonEntry[];
   lessonCourseName?: string;
+  lessonCourseId?: string;
   /** Populated for options system messages */
   optionsPanel?: OptionsPanel;
   /** True after the user has resolved an options card — hides it from render */
@@ -369,6 +370,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
       // Check if create_course just completed — lessonPlanPreview in setupData
       const preview = getData<LessonEntry[]>("lessonPlanPreview");
       const courseName = getData<string>("courseName");
+      const playbookId = getData<string>("draftPlaybookId");
       if (preview?.length && !getData<boolean>("lessonPlanShown")) {
         setData("lessonPlanShown", true);
         extra.push({
@@ -378,6 +380,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           systemType: "lesson-plan",
           lessonEntries: preview,
           lessonCourseName: courseName || undefined,
+          lessonCourseId: playbookId || undefined,
         });
       }
 
@@ -645,6 +648,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                   <LessonPlanAccordion
                     entries={msg.lessonEntries}
                     courseName={msg.lessonCourseName}
+                    courseId={msg.lessonCourseId}
                     onTestLesson={draftCallerId ? (session) => {
                       const params = new URLSearchParams({
                         ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),

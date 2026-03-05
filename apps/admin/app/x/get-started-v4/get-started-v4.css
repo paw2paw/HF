@@ -517,6 +517,27 @@
   animation: cv4-fadein 0.25s ease-out;
 }
 
+.cv4-accordion--empty {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cv4-accordion--empty .cv4-lesson-notes {
+  margin: 0;
+}
+
+.cv4-accordion--empty .cv4-lesson-notes a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cv4-accordion--empty .cv4-lesson-notes a:hover {
+  text-decoration: underline;
+}
+
 .cv4-accordion-header {
   display: flex;
   align-items: center;
@@ -646,6 +667,93 @@
   color: var(--text-muted);
   flex-shrink: 0;
   text-transform: capitalize;
+}
+
+/* ── Lesson content preview ──────────────────────────── */
+
+.cv4-lesson-content-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.cv4-lesson-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+}
+
+.cv4-lesson-content-counts {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.cv4-lesson-content-previews {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cv4-lesson-content-previews li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.cv4-lesson-content-previews li svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.cv4-lesson-content-vocab {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cv4-vocab-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.cv4-lesson-fullplan-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-default);
+}
+
+.cv4-lesson-fullplan-hint a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cv4-lesson-fullplan-hint a:hover {
+  text-decoration: underline;
 }
 
 .cv4-test-lesson-btn {

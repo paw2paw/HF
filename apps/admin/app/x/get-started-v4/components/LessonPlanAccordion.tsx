@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, BookOpen, Play } from "lucide-react";
+import { ChevronDown, BookOpen, Play, FileText } from "lucide-react";
 
 export interface LessonEntry {
   session: number;
@@ -9,12 +9,22 @@ export interface LessonEntry {
   type: "introduction" | "lesson" | "review" | string;
   notes?: string;
   estimatedDurationMins?: number;
+  teachingPointCount?: number;
+  vocabCount?: number;
+  questionCount?: number;
+  teachingPointPreviews?: string[];
+  vocabPreviews?: string[];
 }
 
 interface LessonPlanAccordionProps {
   entries: LessonEntry[];
   courseName?: string;
+  courseId?: string;
   onTestLesson?: (session: number) => void;
+}
+
+function hasContent(entry: LessonEntry): boolean {
+  return !!(entry.teachingPointCount || entry.vocabCount || entry.questionCount);
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -23,11 +33,30 @@ const TYPE_LABELS: Record<string, string> = {
   lesson: "Lesson",
 };
 
-export function LessonPlanAccordion({ entries, courseName, onTestLesson }: LessonPlanAccordionProps) {
+export function LessonPlanAccordion({ entries, courseName, courseId, onTestLesson }: LessonPlanAccordionProps) {
   const [listOpen, setListOpen] = useState(false);
   const [openSessions, setOpenSessions] = useState<Set<number>>(new Set());
 
-  if (!entries.length) return null;
+  if (!entries.length) {
+    return (
+      <div className="cv4-accordion cv4-accordion--empty">
+        <div className="cv4-accordion-title">
+          <BookOpen size={14} />
+          <span>Lesson Plan</span>
+        </div>
+        <p className="cv4-lesson-notes">
+          No sessions were generated yet.{" "}
+          {courseId ? (
+            <a href={`/x/courses/${courseId}`} target="_blank" rel="noopener noreferrer">
+              Add sessions from the course page
+            </a>
+          ) : (
+            "You can add sessions once the course is created."
+          )}
+        </p>
+      </div>
+    );
+  }
 
   const toggleSession = (session: number) => {
     setOpenSessions((prev) => {
@@ -71,6 +100,11 @@ export function LessonPlanAccordion({ entries, courseName, onTestLesson }: Lesso
                 >
                   <span className="cv4-lesson-num">{entry.session}</span>
                   <span className="cv4-lesson-label">{entry.label}</span>
+                  {hasContent(entry) && (
+                    <span className="cv4-lesson-content-badge" title="teaching points">
+                      {entry.teachingPointCount || 0} points
+                    </span>
+                  )}
                   <span className="cv4-lesson-type">
                     {TYPE_LABELS[entry.type] ?? entry.type}
                   </span>
@@ -87,6 +121,38 @@ export function LessonPlanAccordion({ entries, courseName, onTestLesson }: Lesso
                     {entry.estimatedDurationMins && (
                       <p className="cv4-lesson-meta">{entry.estimatedDurationMins} min</p>
                     )}
+
+                    {hasContent(entry) && (
+                      <div className="cv4-lesson-content">
+                        <p className="cv4-lesson-content-counts">
+                          {[
+                            entry.teachingPointCount && `${entry.teachingPointCount} teaching point${entry.teachingPointCount !== 1 ? "s" : ""}`,
+                            entry.vocabCount && `${entry.vocabCount} vocab term${entry.vocabCount !== 1 ? "s" : ""}`,
+                            entry.questionCount && `${entry.questionCount} question${entry.questionCount !== 1 ? "s" : ""}`,
+                          ].filter(Boolean).join(" · ")}
+                        </p>
+
+                        {entry.teachingPointPreviews?.length ? (
+                          <ul className="cv4-lesson-content-previews">
+                            {entry.teachingPointPreviews.map((tp, i) => (
+                              <li key={i}>
+                                <FileText size={11} />
+                                <span>{tp}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+
+                        {entry.vocabPreviews?.length ? (
+                          <div className="cv4-lesson-content-vocab">
+                            {entry.vocabPreviews.map((v, i) => (
+                              <span key={i} className="cv4-vocab-chip">{v}</span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+
                     {onTestLesson && (
                       <button
                         type="button"
@@ -102,6 +168,19 @@ export function LessonPlanAccordion({ entries, courseName, onTestLesson }: Lesso
               </div>
             );
           })}
+
+          {courseId && (
+            <div className="cv4-lesson-fullplan-hint">
+              <BookOpen size={12} />
+              <span>
+                Showing the first few teaching points per session.{" "}
+                <a href={`/x/courses/${courseId}`} target="_blank" rel="noopener noreferrer">
+                  Open the full lesson plan
+                </a>{" "}
+                to see all content, vocabulary, and questions.
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

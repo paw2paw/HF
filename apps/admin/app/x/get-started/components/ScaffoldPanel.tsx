@@ -7,7 +7,7 @@
  * with status indicators. Labels adapt via terminology when available.
  */
 
-import { Check, Loader2, Circle, Disc, RotateCcw, ChevronRight } from "lucide-react";
+import { Check, Loader2, Circle, Disc, RotateCcw, ChevronRight, ExternalLink } from "lucide-react";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
 
@@ -274,9 +274,28 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
   return (
     <div className="gs-panel">
       <div className="gs-scaffold">
-        <div className="gs-scaffold-title">Building Your {isCommunity ? "Community" : t.course}</div>
-        {onItemClick && (
-          <div className="gs-scaffold-hint">Click any section to review or change it</div>
+        {launched ? (
+          <>
+            <div className="gs-scaffold-title gs-scaffold-title--done">
+              {courseName || (isCommunity ? "Your Community" : `Your ${t.course}`)} is ready
+            </div>
+            <a
+              href={hasPlaybookId ? `/x/courses/${getData<string>("draftPlaybookId")}` : "/x/courses"}
+              className="gs-scaffold-course-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {hasPlaybookId ? "View full course details" : "View your courses"}
+              <ExternalLink size={12} />
+            </a>
+          </>
+        ) : (
+          <>
+            <div className="gs-scaffold-title">Building Your {isCommunity ? "Community" : t.course}</div>
+            {onItemClick && (
+              <div className="gs-scaffold-hint">Click any section to review or change it</div>
+            )}
+          </>
         )}
 
         <ul className="gs-scaffold-list">
