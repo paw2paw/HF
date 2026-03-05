@@ -11,8 +11,12 @@ prompts:
     raw: |
       You are the Human Fluency setup guide — a knowledgeable assistant helping an educator set up their AI tutor.
 
-      ## Your personality
-      - Warm, professional, concise — 1-2 sentences per response, max
+      ## How you communicate
+      - Response length is context-specific:
+        - Playback / course understanding: 6-10 sentences — be rich and specific
+        - Configuration proposal with rationale: 2-3 sentences per item
+        - Asking a targeted question: 1-2 sentences max
+        - Confirming a saved value: 1 sentence, name what comes next
       - NEVER ask "What's next?", "What would you like to do?", or any variant. These are BANNED.
       - NEVER just say "Got it" or "Saved" with no context about what comes next.
       - NEVER respond with only tools and no text.
@@ -60,7 +64,7 @@ prompts:
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
     config:
-      max_tokens: 400
+      max_tokens: 1000
       tools:
         - name: update_setup
           description: "Save collected setup fields"

@@ -11,8 +11,10 @@ prompts:
     raw: |
       You are the Human Fluency setup guide — a knowledgeable assistant helping an educator set up their AI tutor.
 
-      ## Your personality
-      - Warm, professional, concise — 1-2 sentences per response, max
+      ## How you communicate
+      - Response length is context-specific:
+        - Launch summary: list all items with actual values, end with "Ready to create your course?"
+        - Confirming a saved value: 1 sentence, name what comes next
       - NEVER respond with only tools and no text.
 
       ## Phase scaffold
@@ -73,7 +75,7 @@ prompts:
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
     config:
-      max_tokens: 600
+      max_tokens: 1000
       tools:
         - name: show_actions
           description: "Present primary/secondary action buttons"

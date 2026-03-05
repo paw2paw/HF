@@ -14,11 +14,14 @@ prompts:
     raw: |
       You are the Human Fluency setup guide — a knowledgeable assistant helping an educator set up their AI tutor.
 
-      ## Your personality
-      - Warm, professional, concise — 1-2 sentences per response, max
-      - You're a colleague helping with setup, not a form
-      - Chat naturally — acknowledge what the user says before moving on
-      - Offer context-aware suggestions (e.g. "Socratic works well for literature")
+      ## How you communicate
+      - Response length is context-specific:
+        - Playback / course understanding: 6-10 sentences — be rich and specific
+        - Configuration proposal with rationale: 2-3 sentences per item
+        - Asking a targeted question: 1-2 sentences max
+        - Confirming a saved value: 1 sentence, name what comes next
+      - You're a knowledgeable colleague, not a form
+      - When recommending, explain why it fits their specific context
       - When recommending an option in show_options, set recommended: true on that option
       - Never refer to yourself by name
       - NEVER invent features, pages, or capabilities that don't exist
@@ -118,7 +121,7 @@ prompts:
 providers:
   - id: anthropic:messages:claude-sonnet-4-6
     config:
-      max_tokens: 600
+      max_tokens: 1200
       tools:
         - name: update_setup
           description: "Save collected setup fields"
@@ -413,3 +416,84 @@ tests:
             }
           }
           return true;
+
+  # ── PROPOSE, DON'T ASK — full config proposal ─────────────────────────────
+
+  - description: "PROPOSAL: After rich intake, proposes ALL config fields in one response"
+    vars:
+      userMessage: "I'm creating a GCSE English Language course for Year 10 students at Riverside Academy. They need to pass their exam next year. I want the AI to guide them through comprehension exercises using a Socratic approach — questions first, not direct explanation."
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup — should extract all fields from rich intake' };
+          const fields = update.args?.fields || update.args || {};
+          const missing = [];
+          if (!fields.courseName && !fields.subjectDiscipline && !fields.interactionPattern) {
+            missing.push('courseName, subjectDiscipline, and interactionPattern — all inferable from the message');
+          }
+          if (missing.length) return { pass: false, score: 0, reason: `Missing fields: ${missing.join(', ')}` };
+          return true;
+      - type: llm-rubric
+        value: "After a rich multi-field intake, the response either (a) plays back the full course understanding in 5+ sentences before asking anything, OR (b) proposes all configuration items at once with rationale. It does NOT drip-feed one field at a time or ask a bare question like 'What teaching approach would you like?'."
+
+  - description: "PROPOSAL: Never asks bare 'What teaching approach would you like?'"
+    vars:
+      userMessage: "I'm creating a maths tutoring course for GCSE students"
+    assert:
+      - type: not-icontains
+        value: "what teaching approach would you like"
+      - type: not-icontains
+        value: "which teaching approach"
+      - type: llm-rubric
+        value: "Proposes a specific teaching approach (e.g. Socratic or Directive) with a reason grounded in maths tutoring at GCSE level. Does NOT ask the user to choose from a list without first making a recommendation."
+
+  - description: "PROPOSAL: Proposes complete configuration after rich intake (not gap-fill)"
+    vars:
+      userMessage: "Biology tutoring for A-level students, they're preparing for Edexcel exams. School is St Mary's. I want structured lessons that cover the syllabus thoroughly."
+    assert:
+      - type: llm-rubric
+        value: "Proposes at least 4 of these configuration items in a single response: teaching approach, session count, session duration, lesson plan model, teaching emphasis, coverage. Each proposal includes a brief rationale. Does NOT end the response by asking a single bare question about one field."
+
+  # ── Understanding playback ────────────────────────────────────────────────
+
+  - description: "PLAYBACK: Rich intake triggers understanding playback before asking anything"
+    vars:
+      userMessage: "This is a course in Hebrew for adult converts to Judaism. They need to pass the Beit Din and use Hebrew practically in prayers. I teach each letter with its cultural, historical, and religious context — it's not just language, it's a gateway into Judaism. The learners are motivated adults with life experience."
+    assert:
+      - type: llm-rubric
+        value: "The response plays back the course understanding in at least 5 sentences before asking any question or proposing configuration. It names: the course subject (Hebrew/Jewish studies), the learner profile (adult converts, Beit Din), the teaching philosophy (language as cultural gateway), and the distinctive teaching method (cultural/religious context per letter). It does NOT jump straight to asking about the institution name or course name."
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const textPart = _out.split('"type":"tool_use"')[0].trim();
+          const wordCount = textPart.split(/\s+/).length;
+          if (wordCount < 60) {
+            return { pass: false, score: 0, reason: `Understanding playback is too short (${wordCount} words) — should be 6-10 sentences of rich reflection` };
+          }
+          return true;
+
+  - description: "PLAYBACK: File classification is conversational — describes what each file IS and HOW it would be used"
+    vars:
+      userMessage: "I've uploaded two files: 'How the course works' and 'Chapter 1 Teaching Content'"
+    assert:
+      - type: llm-rubric
+        value: "Describes each file in terms of (1) what type of document it appears to be (teaching guide, lesson content, exam paper, etc.) and (2) how the AI would use it (teach from it directly, shape AI behaviour, reference material). Asks the user to confirm the classification is right. Does NOT just list filenames or show generic labels."
+
+  # ── Lesson plan preview ───────────────────────────────────────────────────
+
+  - description: "LESSON PREVIEW: Generates structured lesson outline when requested"
+    vars:
+      userMessage: "Can you show me what the first lesson would look like?"
+    assert:
+      - type: llm-rubric
+        value: "Generates a structured lesson outline showing at minimum: how the session would open, what content would be covered and in what order, how the student would practise, and how the session would close. References the already-collected subject (English Language) and approach (Socratic) in the lesson structure. Does NOT just say 'I can't generate a lesson plan yet'."
+
+  - description: "LESSON PREVIEW: After content correction, AI acknowledges and updates"
+    vars:
+      userMessage: "Actually, that interpretation of 'reishit' is wrong — it refers to the six days of creation, not the Torah as a whole."
+    assert:
+      - type: llm-rubric
+        value: "Acknowledges the correction explicitly and specifically (names what was wrong and what the correct interpretation is). Does NOT defend the original answer. If the correction affects a saved field, calls update_setup. Asks whether the correction landed correctly."
