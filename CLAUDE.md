@@ -54,6 +54,7 @@ When the user says anything matching these patterns, **STOP and run the BA + Tec
 - [ ] All acceptance criteria checked off
 - [ ] `qa-engineer` agent run (vitest + promptfoo evals if applicable)
 - [ ] `guard-checker` agent run (all 13 guards)
+- [ ] `standards-checker` agent run — READY TO MERGE verdict
 - [ ] `/check` passes (tsc + lint + tests)
 - [ ] Issue closed on GitHub
 
