@@ -48,6 +48,9 @@ When the user says anything matching these patterns, **STOP and run the BA + Tec
 | "We're done" / "That's working" / story criteria all met | Run QA agent on the story, then guard-checker |
 | "End of sprint" / "Sprint review" | Run retro-bot agent |
 | Fix chain detected (3+ fix: commits on same topic) | Flag it, offer to create a root-cause story |
+| About to commit | Run `scope-enforcer` — one concern per commit |
+| Prompt file changed (`*system-prompt*`, `chat/route.ts`, `lib/prompt/**`) | Run `prompt-diff` — flag risk, identify evals needed |
+| `prisma/schema.prisma` changed | Run `migration-checker` before any `migrate dev` |
 
 ### Definition of Done (every story)
 
