@@ -690,6 +690,7 @@ export async function executeWizardTool(
         const { enrollCaller } = await import("@/lib/enrollment");
         const { randomFakeName } = await import("@/lib/fake-names");
         const slugify = (await import("slugify")).default;
+        const { generateLessonPlan } = await import("@/lib/content-trust/lesson-planner");
 
         const domainId = input.domainId as string;
         const courseName = input.courseName as string;
@@ -777,12 +778,18 @@ export async function executeWizardTool(
               },
             }).catch(err => console.error("[wizard] Instant curriculum (existing) failed (non-fatal):", err.message));
 
-            const existingPreviewCount = input.sessionCount ? Number(input.sessionCount) : 6;
-            const existingLessonPlanPreview = Array.from({ length: existingPreviewCount }, (_, i) => ({
-              session: i + 1,
-              label: `Session ${i + 1}`,
-              type: i === 0 ? "introduction" : i === existingPreviewCount - 1 ? "review" : "lesson",
-            }));
+            // Resolve primary subject for the existing playbook
+            const existingPbSubject = await prisma.playbookSubject.findFirst({
+              where: { playbookId: existingPlaybookId },
+              select: { subjectId: true },
+            });
+
+            // Generate real lesson plan from content sources (if available)
+            const existingLessonPlanPreview = await generateLessonPlanPreview(
+              prisma, packSubjectIds, existingPbSubject?.subjectId,
+              input.sessionCount ? Number(input.sessionCount) : undefined,
+              input.durationMins ? Number(input.durationMins) : undefined,
+            );
 
             return {
               ...base,
@@ -938,14 +945,12 @@ export async function executeWizardTool(
           },
         }).catch(err => console.error("[wizard] Instant curriculum failed (non-fatal):", err.message));
 
-        // Build a preview lesson plan from sessionCount so V4 UI can show it immediately.
-        // The async generateInstantCurriculum will populate real curriculum in the background.
-        const previewCount = input.sessionCount ? Number(input.sessionCount) : 6;
-        const lessonPlanPreview = Array.from({ length: previewCount }, (_, i) => ({
-          session: i + 1,
-          label: `Session ${i + 1}`,
-          type: i === 0 ? "introduction" : i === previewCount - 1 ? "review" : "lesson",
-        }));
+        // Generate real lesson plan from content sources (with IDs for session-scoped content)
+        const lessonPlanPreview = await generateLessonPlanPreview(
+          prisma, packSubjectIds, subject.id,
+          input.sessionCount ? Number(input.sessionCount) : undefined,
+          input.durationMins ? Number(input.durationMins) : undefined,
+        );
 
         return {
           ...base,
@@ -1373,5 +1378,137 @@ async function resolveSubjectByName(name: string, domainId: string): Promise<Sub
   } catch (err) {
     console.warn("[wizard-tools] Subject resolution failed:", err);
     return null;
+  }
+}
+
+// ── Lesson plan generation for create_course ────────────
+
+/**
+ * Generate a real lesson plan preview from content source assertions.
+ *
+ * If content sources have extracted assertions, calls generateLessonPlan
+ * to produce sessions with assertionIds/vocabularyIds/questionIds,
+ * creates a Curriculum record, and saves the plan to deliveryConfig.
+ *
+ * Falls back to a generic numbered preview if no assertions exist yet.
+ */
+async function generateLessonPlanPreview(
+  prisma: any,
+  packSubjectIds: string[] | undefined,
+  primarySubjectId: string | undefined,
+  sessionCount?: number,
+  durationMins?: number,
+): Promise<Array<{ session: number; label: string; type: string }>> {
+  const fallbackCount = sessionCount || 6;
+  const fallback = Array.from({ length: fallbackCount }, (_, i) => ({
+    session: i + 1,
+    label: `Session ${i + 1}`,
+    type: i === 0 ? "introduction" : i === fallbackCount - 1 ? "review" : "lesson",
+  }));
+
+  // Need at least one subject with content sources
+  const subjectIds = packSubjectIds?.length
+    ? packSubjectIds
+    : primarySubjectId
+      ? [primarySubjectId]
+      : [];
+
+  if (subjectIds.length === 0) return fallback;
+
+  try {
+    // Find content sources linked to these subjects
+    const subjectSources = await prisma.subjectSource.findMany({
+      where: { subjectId: { in: subjectIds } },
+      select: { sourceId: true, subjectId: true },
+    });
+
+    if (subjectSources.length === 0) return fallback;
+
+    const sourceIds = subjectSources.map((ss: any) => ss.sourceId);
+
+    // Check that at least one source has assertions (extraction must be complete)
+    const assertionCount = await prisma.contentAssertion.count({
+      where: { sourceId: { in: sourceIds } },
+    });
+
+    if (assertionCount === 0) return fallback;
+
+    // Generate lesson plan from the first source with content
+    const { generateLessonPlan } = await import("@/lib/content-trust/lesson-planner");
+    const plan = await generateLessonPlan(sourceIds[0], {
+      targetSessionCount: sessionCount,
+      sessionLength: durationMins || 30,
+      skipAIRefinement: true,
+    });
+
+    if (plan.sessions.length === 0) return fallback;
+
+    // Map LessonSession[] → LessonPlanEntry[] format
+    const entries = plan.sessions.map((s) => ({
+      session: s.sessionNumber,
+      type: s.sessionType,
+      moduleId: null,
+      moduleLabel: "",
+      label: s.title,
+      estimatedDurationMins: s.estimatedMinutes,
+      assertionIds: s.assertionIds,
+      vocabularyIds: s.vocabularyIds,
+      questionIds: s.questionIds,
+      ...(s.media?.length ? { media: s.media } : {}),
+    }));
+
+    // Create or find Curriculum record for the primary subject and persist the plan
+    const resolvedSubjectId = primarySubjectId || subjectIds[0];
+    const subject = await prisma.subject.findUnique({
+      where: { id: resolvedSubjectId },
+      select: { id: true, slug: true, name: true },
+    });
+
+    if (subject) {
+      const curriculumSlug = `${subject.slug}-curriculum`;
+      const existingCurriculum = await prisma.curriculum.findFirst({
+        where: { subjectId: subject.id },
+        select: { id: true, deliveryConfig: true },
+      });
+
+      const lessonPlanData = {
+        estimatedSessions: entries.length,
+        entries,
+        generatedAt: new Date().toISOString(),
+        generatedFrom: "auto-wizard",
+      };
+
+      if (existingCurriculum) {
+        // Update existing curriculum with lesson plan
+        const dc = (existingCurriculum.deliveryConfig as Record<string, any>) || {};
+        await prisma.curriculum.update({
+          where: { id: existingCurriculum.id },
+          data: {
+            deliveryConfig: { ...dc, lessonPlan: lessonPlanData },
+          },
+        });
+      } else {
+        // Create new curriculum with the lesson plan
+        await prisma.curriculum.create({
+          data: {
+            slug: curriculumSlug,
+            name: `${subject.name} Curriculum`,
+            subjectId: subject.id,
+            deliveryConfig: { lessonPlan: lessonPlanData },
+            constraints: [],
+          },
+        });
+      }
+    }
+
+    // Return preview for the UI (same shape as before but with real data)
+    return entries.map((e) => ({
+      session: e.session,
+      label: e.label,
+      type: e.type,
+    }));
+  } catch (err: any) {
+    console.warn("[wizard-tools] Lesson plan generation failed, using fallback preview:", err.message);
+    return fallback;
   }
 }

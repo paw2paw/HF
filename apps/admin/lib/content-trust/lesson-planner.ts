@@ -56,6 +56,7 @@ export interface LessonPlanOptions {
   includeAssessment?: boolean; // default true
   includeReview?: boolean; // default true
   targetSessionCount?: number; // if set, consolidate small sessions to hit this target
+  skipAIRefinement?: boolean; // skip AI title refinement for instant generation
 }
 
 // ------------------------------------------------------------------
@@ -240,8 +241,10 @@ export async function generateLessonPlan(
       reason: "Sequential topic progression",
     }));
 
-  // AI refinement: improve session titles and objectives
-  const refined = await refineWithAI(sessions, assertions.length, questions.length, vocabulary.length);
+  // AI refinement: improve session titles and objectives (skip for instant generation)
+  const refined = options.skipAIRefinement
+    ? sessions
+    : await refineWithAI(sessions, assertions.length, questions.length, vocabulary.length);
 
   // Resolve images linked to each session's assertions via AssertionMedia
   await resolveSessionMedia(refined);
