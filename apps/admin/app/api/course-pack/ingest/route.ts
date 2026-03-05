@@ -114,6 +114,17 @@ export async function POST(req: NextRequest) {
   }
 
   const userId = authResult.session.user.id;
+  const nonBlocking = formData.get("nonBlocking") === "true";
+
+  // ── Non-blocking mode: create sources fast, extract in background ──
+
+  if (nonBlocking) {
+    return handleNonBlocking(
+      manifest, domain, files, userId, courseName,
+      interactionPattern as InteractionPattern | undefined,
+      teachingMode, subjectDiscipline,
+    );
+  }
 
   // ── SSE stream ──────────────────────────────────────
 
@@ -375,6 +386,201 @@ export async function POST(req: NextRequest) {
       Connection: "keep-alive",
     },
   });
+}
+
+// ── Non-blocking handler ──────────────────────────────
+
+interface SourceForExtraction {
+  source: { id: string; slug: string; name: string };
+  text: string;
+  documentType: string;
+  fileName: string;
+  subjectId: string;
+  subjectName: string;
+  mediaStorageKey?: string;
+}
+
+/**
+ * Non-blocking ingest: creates subjects + sources synchronously,
+ * returns JSON immediately, then fires off extraction in the background.
+ */
+async function handleNonBlocking(
+  manifest: PackManifest,
+  domain: { id: string; slug: string; name: string },
+  files: File[],
+  userId: string,
+  courseName: string,
+  interactionPattern: InteractionPattern | undefined,
+  teachingMode: TeachingMode | undefined,
+  subjectDiscipline: string | undefined,
+): Promise<Response> {
+  try {
+    const createdSubjects: Array<{ id: string; name: string }> = [];
+    const allSourceIds: string[] = [];
+    const extractionQueue: SourceForExtraction[] = [];
+    let sourceCount = 0;
+
+    // ── Create subjects + sources for each group ──
+
+    for (const group of manifest.groups) {
+      const subjectSlug = `${domain.slug}-${group.suggestedSubjectName}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      let subject = await prisma.subject.findFirst({
+        where: { slug: subjectSlug },
+      });
+
+      if (!subject) {
+        subject = await prisma.subject.create({
+          data: {
+            slug: subjectSlug,
+            name: group.suggestedSubjectName,
+            isActive: true,
+          },
+        });
+      }
+
+      createdSubjects.push({ id: subject.id, name: subject.name });
+
+      // Link Subject to Domain (idempotent)
+      const existingLink = await prisma.subjectDomain.findFirst({
+        where: { subjectId: subject.id, domainId: domain.id },
+      });
+      if (!existingLink) {
+        await prisma.subjectDomain.create({
+          data: { subjectId: subject.id, domainId: domain.id },
+        });
+      }
+
+      // Create sources for each file in group
+      for (const mf of group.files) {
+        const file = files[mf.fileIndex];
+        if (!file) continue;
+
+        const { sourceId, mediaStorageKey, text, source, deduplicated } = await createSource(
+          file, subject.id, domain.slug, mf.documentType, userId,
+        );
+
+        allSourceIds.push(sourceId);
+        sourceCount++;
+
+        if (!deduplicated) {
+          extractionQueue.push({
+            source, text, documentType: mf.documentType,
+            fileName: file.name, subjectId: subject.id,
+            subjectName: subject.name, mediaStorageKey,
+          });
+        }
+      }
+
+      // Auto-pair passage ↔ question bank within this group
+      const passageSources = group.files.filter(f => f.role === "passage");
+      const questionSources = group.files.filter(f => f.role === "questions");
+      if (passageSources.length > 0 && questionSources.length > 0) {
+        const passageIds = passageSources.map(f => {
+          const file = files[f.fileIndex];
+          return allSourceIds[allSourceIds.length - group.files.length + group.files.indexOf(f)];
+        }).filter(Boolean);
+        const questionIds = questionSources.map(f => {
+          return allSourceIds[allSourceIds.length - group.files.length + group.files.indexOf(f)];
+        }).filter(Boolean);
+
+        for (let qi = 0; qi < questionIds.length; qi++) {
+          const pairedPassage = passageIds.length === 1 ? passageIds[0] : passageIds[qi] || passageIds[0];
+          if (pairedPassage) {
+            await prisma.contentSource.update({
+              where: { id: questionIds[qi] },
+              data: { linkedSourceId: pairedPassage },
+            });
+          }
+        }
+      }
+    }
+
+    // ── Pedagogy files ──
+
+    if (manifest.pedagogyFiles.length > 0) {
+      const pedSubjectSlug = `${domain.slug}-course-guide`;
+      let pedSubject = await prisma.subject.findFirst({
+        where: { slug: pedSubjectSlug },
+      });
+      if (!pedSubject) {
+        pedSubject = await prisma.subject.create({
+          data: {
+            slug: pedSubjectSlug,
+            name: `${courseName || domain.name} Course Guide`,
+            isActive: true,
+          },
+        });
+      }
+
+      const existingPedLink = await prisma.subjectDomain.findFirst({
+        where: { subjectId: pedSubject.id, domainId: domain.id },
+      });
+      if (!existingPedLink) {
+        await prisma.subjectDomain.create({
+          data: { subjectId: pedSubject.id, domainId: domain.id },
+        });
+      }
+
+      createdSubjects.push({ id: pedSubject.id, name: pedSubject.name });
+
+      for (const mf of manifest.pedagogyFiles) {
+        const file = files[mf.fileIndex];
+        if (!file) continue;
+
+        const { sourceId, mediaStorageKey, text, source, deduplicated } = await createSource(
+          file, pedSubject.id, domain.slug, mf.documentType || "LESSON_PLAN", userId,
+        );
+
+        allSourceIds.push(sourceId);
+        sourceCount++;
+
+        if (!deduplicated) {
+          extractionQueue.push({
+            source, text, documentType: mf.documentType || "LESSON_PLAN",
+            fileName: file.name, subjectId: pedSubject.id,
+            subjectName: pedSubject.name, mediaStorageKey,
+          });
+        }
+      }
+    }
+
+    // ── Fire-and-forget extraction ──
+
+    const noOpSend: SendIngestEvent = () => {};
+    const limit = pLimit(3);
+
+    for (const task of extractionQueue) {
+      limit(() =>
+        extractSource(
+          task.source, task.text, task.documentType as DocumentType, task.fileName,
+          task.subjectId, userId, interactionPattern,
+          teachingMode, noOpSend, task.mediaStorageKey, subjectDiscipline, task.subjectName,
+        ).catch(err => {
+          console.error(`[course-pack/ingest] Background extraction failed for ${task.fileName}:`,
+            err instanceof Error ? err.message : err);
+        })
+      );
+    }
+
+    console.log(
+      `[course-pack/ingest] Non-blocking: ${sourceCount} sources created, ${extractionQueue.length} queued for extraction`,
+    );
+
+    return NextResponse.json({
+      ok: true,
+      subjects: createdSubjects,
+      sourceIds: allSourceIds,
+      sourceCount,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Ingestion failed";
+    console.error("[course-pack/ingest] Non-blocking error:", err);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────

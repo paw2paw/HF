@@ -551,7 +551,7 @@ export async function executeWizardTool(
                 existingInstitutionId: resolved.institutionId,
                 defaultDomainKind: resolved.domainKind,
               },
-              content: "Panel displayed to user. Wait for their response.",
+              content: "Teaching Materials panel is visible in the right column. Guide the user to drop files there. Wait for their response.",
             };
           }
 
@@ -602,14 +602,14 @@ export async function executeWizardTool(
               draftInstitutionId: institution.id,
               defaultDomainKind: domainKind,
             },
-            content: "Panel displayed to user. Wait for their response.",
+            content: "Teaching Materials panel is visible in the right column. Guide the user to drop files there. Wait for their response.",
           };
         } catch (err) {
           console.error("[wizard-tools] Auto-create institution for show_upload failed:", err);
-          // Fall through — show upload anyway, PackUploadStep will show a clear error
+          // Fall through — show upload anyway, SourcesPanel will show a clear error
         }
       }
-      return { ...base, content: `Panel displayed to user. Wait for their response.` };
+      return { ...base, content: `Teaching Materials panel is visible in the right column. Guide the user to drop files there. Wait for their response.` };
     }
 
     case "show_suggestions": {

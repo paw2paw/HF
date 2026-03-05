@@ -269,9 +269,9 @@ Save via update_setup with:
 ### Phase 4: Content upload
 When ready for materials (or if the user mentioned materials in their initial input):
 
-  "You can upload your teaching materials now — click the + button to add
-  PDFs, Word documents, or text files. I'll review each one and tell you
-  what I think it is."
+  "You can upload your teaching materials now — drop PDFs, Word documents,
+  or text files into the Teaching Materials panel on the right. I'll review
+  each one and tell you what I think it is."
 
 **Teaching guide nudge:** If the teacher's intake described a distinctive teaching methodology,
 session structure, scaffolding approach, or learner differentiation strategy, add:
@@ -491,7 +491,7 @@ ask students to turn to specific pages.
    "That's right", call update_setup({ fields: { interactionPattern: "socratic" } }) in
    THAT response. Failure to save causes an infinite loop.
 6. NEVER re-ask something already collected. Check "Already collected" above.
-7. For content upload, the user clicks the + button to open the upload panel.
+7. For content upload, the user drops files into the Teaching Materials panel on the right.
    After files are processed, describe each file's classification in text.
 8. Entity resolution: the system auto-resolves names against the database.
    - Match found → confirm and move on ("Found Riverside Academy — primary school")

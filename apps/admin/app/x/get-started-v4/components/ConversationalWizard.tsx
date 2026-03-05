@@ -14,17 +14,17 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowUp, Loader2, Plus, X } from "lucide-react";
+import { ArrowUp, Loader2 } from "lucide-react";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
-import { PackUploadStep } from "@/components/wizards/PackUploadStep";
-import type { PackUploadResult } from "@/components/wizards/PackUploadStep";
 import { FileCard } from "./FileCard";
 import type { FileCardData } from "./FileCard";
 import { LessonPlanAccordion } from "./LessonPlanAccordion";
 import type { LessonEntry } from "./LessonPlanAccordion";
 import { OptionsCard } from "./OptionsCard";
 import type { OptionsPanel } from "./OptionsCard";
+import { SourcesPanel } from "./SourcesPanel";
+import type { SourcesReadyData } from "./SourcesPanel";
 import { ScaffoldPanel } from "../../get-started/components/ScaffoldPanel";
 import "../get-started-v4.css";
 
@@ -159,7 +159,6 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
   const [suggestions, setSuggestions] = useState<{ question?: string; items: string[] }>({ items: [] });
   const [welcomeSuggestion, setWelcomeSuggestion] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -190,6 +189,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     "behaviorTargets", "lessonPlanModel", "personalityPreset", "physicalMaterials",
     "draftDomainId", "draftInstitutionId", "draftPlaybookId", "draftCallerId",
     "launched", "sourceId", "packSubjectIds", "extractionTotals", "contentSkipped",
+    "uploadSourceIds", "sourceCount",
   ];
 
   const handleStartOver = useCallback(() => {
@@ -199,7 +199,6 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     setMessages([]);
     setInputValue("");
     setIsLoading(false);
-    setShowUpload(false);
     setSuggestions({ items: [] });
     setWelcomeSuggestion(null);
     setConfirmReset(false);
@@ -307,7 +306,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           }
 
           case "show_upload": {
-            setShowUpload(true);
+            // SourcesPanel is always visible in the right column — no state toggle needed.
+            // AI's text response guides the user to drop files there.
             break;
           }
 
@@ -397,7 +397,6 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
       if (!msg || isLoading) return;
 
       setInputValue("");
-      setShowUpload(false);
       setSuggestions({ items: [] });
       setWelcomeSuggestion(null);
 
@@ -454,30 +453,26 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     [inputValue, isLoading, messages, sendToAPI, processToolCalls, processResponseContent, scrollToBottom],
   );
 
-  // ── Upload complete ────────────────────────────────────
+  // ── Sources ready (from SourcesPanel in right column) ──
 
-  const handleUploadComplete = useCallback(
-    (result: PackUploadResult) => {
-      if (result.subjects) setData("packSubjectIds", result.subjects.map((s) => s.id));
-      if (result.extractionTotals) setData("extractionTotals", result.extractionTotals);
-      if (result.taskId) setData("uploadTaskId", result.taskId);
+  const handleSourcesReady = useCallback(
+    (data: SourcesReadyData) => {
+      if (data.subjects) setData("packSubjectIds", data.subjects.map((s) => s.id));
+      if (data.sourceIds) setData("uploadSourceIds", data.sourceIds);
 
-      const classifications = result.classifications || [];
-      const fileCards: FileCardData[] = classifications.map((c) => ({
+      const fileCards: FileCardData[] = data.classifications.map((c) => ({
         fileName: c.fileName,
         classification: c.documentType,
-        subject: result.subjects?.[0]?.name,
+        subject: data.subjects?.[0]?.name,
         confidence: c.confidence,
         reasoning: c.reasoning,
       }));
 
-      setShowUpload(false);
-
-      // Inline file cards as a system message
+      // Add a compact hint in chat (not the full upload UI)
       const uploadMsg: Message = {
         id: uid(),
         role: "system",
-        content: `${classifications.length ?? 1} file(s) uploaded`,
+        content: `${data.classifications.length} file(s) uploaded — extracting in background`,
         systemType: "upload-result",
         fileCards: fileCards.length ? fileCards : undefined,
       };
@@ -487,11 +482,20 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
         return updated;
       });
 
-      // Pass classification data to the AI so it can narrate each file
-      setData("lastUploadClassifications", classifications);
-      handleSend("Teaching materials uploaded", { lastUploadClassifications: classifications });
+      // Tell the AI about the uploaded files so it can continue the conversation
+      setData("lastUploadClassifications", data.classifications);
+      handleSend("Teaching materials uploaded", { lastUploadClassifications: data.classifications });
     },
     [setData, handleSend],
+  );
+
+  // ── Extraction done (from SourcesPanel) ─────────────
+
+  const handleExtractionDone = useCallback(
+    (totals: { assertions: number; questions: number; vocabulary: number }) => {
+      setData("extractionTotals", { ...totals, images: 0 });
+    },
+    [setData],
   );
 
   // ── Keyboard ──────────────────────────────────────────
@@ -707,7 +711,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           )}
 
           {/* Suggestion chips — inline after last message, not buried at page bottom */}
-          {suggestions.items.length > 0 && !showUpload && !welcomeSuggestion && !isLoading && (
+          {suggestions.items.length > 0 && !welcomeSuggestion && !isLoading && (
             <div className="cv4-row cv4-row--assistant">
               <div className="cv4-suggestions">
                 {suggestions.question && (
@@ -734,23 +738,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
         {/* Input area */}
         <div className="cv4-input-area">
-          {/* Upload panel */}
-          {showUpload && resolvedDomainId && (
-            <div className="cv4-upload-panel">
-              <PackUploadStep
-                domainId={resolvedDomainId}
-                courseName={getData<string>("courseName") || "Course"}
-                interactionPattern={getData<string>("interactionPattern") || undefined}
-                teachingMode={getData<string>("teachingMode") || undefined}
-                subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
-                institutionName={getData<string>("institutionName") || undefined}
-                onResult={handleUploadComplete}
-              />
-            </div>
-          )}
-
           {/* Welcome suggestion accept chip */}
-          {welcomeSuggestion && !showUpload && (
+          {welcomeSuggestion && (
             <div className="cv4-welcome-suggestion">
               <div className="cv4-welcome-suggestion-label">Suggested welcome message:</div>
               <div className="cv4-welcome-suggestion-text">{welcomeSuggestion}</div>
@@ -784,16 +773,6 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
           {/* Text input */}
           <div className="cv4-input-row">
-            <button
-              type="button"
-              className={`cv4-attach-btn${showUpload ? " cv4-attach-btn--active" : ""}`}
-              onClick={() => setShowUpload((v) => !v)}
-              disabled={!resolvedDomainId}
-              title={showUpload ? "Close upload panel" : (resolvedDomainId ? "Upload teaching materials" : "Set up your course first")}
-            >
-              {showUpload ? <X size={16} /> : <Plus size={16} />}
-            </button>
-
             <textarea
               ref={inputRef}
               value={inputValue}
@@ -865,6 +844,20 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             handleSend(`I'd like to review my ${REVIEW_LABELS[itemKey] ?? itemKey}`);
           }}
         />
+
+        {/* Sources panel — visible once institution/domain resolved */}
+        {resolvedDomainId && !launched && (
+          <SourcesPanel
+            domainId={resolvedDomainId}
+            courseName={getData<string>("courseName") || "Course"}
+            interactionPattern={getData<string>("interactionPattern") || undefined}
+            teachingMode={getData<string>("teachingMode") || undefined}
+            subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
+            institutionName={getData<string>("institutionName") || undefined}
+            onSourcesReady={handleSourcesReady}
+            onExtractionDone={handleExtractionDone}
+          />
+        )}
       </div>
     </div>
   );
