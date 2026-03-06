@@ -109,7 +109,7 @@ const TYPES: InstitutionTypeSeed[] = [
     },
     setupSpecSlug: "COMMUNITY-SETUP-001",
     defaultDomainKind: "COMMUNITY",
-    defaultArchetypeSlug: "COMPANION-001",
+    defaultArchetypeSlug: "CONVGUIDE-001",
   },
   {
     slug: "coaching",

@@ -21,7 +21,12 @@ type ContentScope = {
   subjects: Array<{
     id: string;
     teachingDepth: number | null;
-    sources: Array<{ sourceId: string; documentType: string | null }>;
+    sources: Array<{
+      sourceId: string;
+      documentType: string | null;
+      sortOrder: number;
+      tags: string[];
+    }>;
   }>;
   scoped: boolean;
 } | null;
@@ -156,8 +161,11 @@ async function resolveContentScope(callerId: string): Promise<ContentScope> {
           sources: {
             select: {
               sourceId: true,
+              sortOrder: true,
+              tags: true,
               source: { select: { documentType: true } },
             },
+            orderBy: { sortOrder: "asc" },
           },
         },
       },
@@ -172,6 +180,8 @@ async function resolveContentScope(callerId: string): Promise<ContentScope> {
       sources: sd.subject.sources.map((s) => ({
         sourceId: s.sourceId,
         documentType: s.source?.documentType ?? null,
+        sortOrder: s.sortOrder,
+        tags: s.tags,
       })),
     })),
     scoped: false,
@@ -650,12 +660,24 @@ registerLoader("curriculumAssertions", async (_callerId, loaderConfig) => {
   const scope: ContentScope = loaderConfig?.contentScope ?? null;
   if (!scope) return [];
 
-  const sourceIds = scope.subjects.flatMap((s) =>
-    s.sources
-      .filter((ss) => ss.documentType !== "COURSE_REFERENCE")
-      .map((ss) => ss.sourceId)
-  );
+  // Build ordered source list respecting teacher-set sortOrder
+  const orderedSources = scope.subjects
+    .flatMap((s) => s.sources)
+    .filter((ss) => ss.documentType !== "COURSE_REFERENCE")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const sourceIds = [...new Set(orderedSources.map((ss) => ss.sourceId))];
   if (sourceIds.length === 0) return [];
+
+  // Build source order + documentType maps for post-sort and rendering
+  const sourceOrderMap = new Map<string, number>();
+  const sourceDocTypeMap = new Map<string, string | null>();
+  orderedSources.forEach((ss, i) => {
+    if (!sourceOrderMap.has(ss.sourceId)) {
+      sourceOrderMap.set(ss.sourceId, i);
+      sourceDocTypeMap.set(ss.sourceId, ss.documentType);
+    }
+  });
 
   // Extract teachingDepth from first subject that has one
   const teachingDepth = scope.subjects
@@ -691,6 +713,7 @@ registerLoader("curriculumAssertions", async (_callerId, loaderConfig) => {
       orderIndex: true,
       topicSlug: true,
       teachMethod: true,
+      sourceId: true,
       source: {
         select: {
           name: true,
@@ -713,12 +736,21 @@ registerLoader("curriculumAssertions", async (_callerId, loaderConfig) => {
     learningOutcomeRef: a.learningOutcomeRef,
     sourceName: a.source.name,
     sourceTrustLevel: a.source.trustLevel,
+    sourceId: a.sourceId,
+    sourceOrder: sourceOrderMap.get(a.sourceId) ?? 999,
+    sourceDocumentType: sourceDocTypeMap.get(a.sourceId) ?? null,
     depth: a.depth,
     parentId: a.parentId,
     orderIndex: a.orderIndex,
     topicSlug: a.topicSlug,
     teachMethod: a.teachMethod ?? null,
   }));
+
+  // Post-sort: group by source delivery order, preserve depth/orderIndex within each source
+  result.sort((a, b) => {
+    if (a.sourceOrder !== b.sourceOrder) return a.sourceOrder - b.sourceOrder;
+    return 0; // preserve DB ordering (depth, orderIndex, examRelevance) within same source
+  });
 
   // Attach teachingDepth as metadata on the loader context
   (result as any).__teachingDepth = teachingDepth;

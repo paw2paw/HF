@@ -28,6 +28,7 @@ import "./transforms/targets";
 import "./transforms/modules";
 import "./transforms/pedagogy";
 import "./transforms/pedagogy-mode";
+import "./transforms/teaching-style";
 import "./transforms/voice";
 import "./transforms/quickstart";
 import "./transforms/preamble";
@@ -40,6 +41,7 @@ import "./transforms/activities";
 import "./transforms/actions";
 import "./transforms/visual-aids";
 import "./transforms/physical-materials";
+import "./transforms/session-materials";
 import "./transforms/course-instructions";
 
 /**
@@ -650,6 +652,16 @@ export function getDefaultSections(): CompositionSectionDef[] {
       outputKey: "visualAids",
     },
     {
+      id: "session_materials",
+      name: "Session Materials",
+      priority: 12.655,
+      dataSource: "_assembled",
+      activateWhen: { condition: "always" },
+      fallback: { action: "null" },
+      transform: "formatSessionMaterials",
+      outputKey: "sessionMaterials",
+    },
+    {
       id: "physical_materials",
       name: "Physical Materials",
       priority: 12.66,
@@ -671,9 +683,20 @@ export function getDefaultSections(): CompositionSectionDef[] {
       dependsOn: ["curriculum"],
     },
     {
+      id: "teaching_style",
+      name: "Teaching Style",
+      priority: 12.8,
+      dataSource: "_assembled",
+      activateWhen: { condition: "always" },
+      fallback: { action: "null" },
+      transform: "computeTeachingStyle",
+      outputKey: "teachingStyle",
+      dependsOn: ["identity"],
+    },
+    {
       id: "activity_toolkit",
       name: "Activity Toolkit",
-      priority: 12.8,
+      priority: 12.85,
       dataSource: "_assembled",
       activateWhen: { condition: "always" },
       fallback: { action: "emptyObject", value: { hasActivities: false, recommended: [], principles: [] } },

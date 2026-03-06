@@ -5,6 +5,9 @@ import { getActivitiesConfig } from "@/lib/fallback-settings";
 import { resolveChannel } from "@/lib/channels/router";
 import { dispatchMedia } from "@/lib/channels/dispatch";
 import { getPublicMediaUrl } from "@/app/api/media/[id]/public/route";
+import { searchQuestions, searchVocabulary } from "@/lib/knowledge/assertions";
+import { getTeachingSourceIdsForPlaybook, getTeachingSourceIdsForDomain } from "@/lib/knowledge/domain-sources";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 
 export const runtime = "nodejs";
 
@@ -105,6 +108,10 @@ export async function POST(request: NextRequest) {
           result = await handleShareContent(args, callerId, customerPhone);
           break;
 
+        case "lookup_vocabulary":
+          result = await handleLookupVocabulary(args, callerId);
+          break;
+
         default:
           result = { error: `Unknown tool: ${funcName}` };
       }
@@ -124,6 +131,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * Look up teaching content by topic keyword.
+ * Course-scoped: only returns content from the caller's enrolled course/domain.
  */
 async function handleLookupTeachingPoint(
   args: { topic: string; limit?: number },
@@ -131,6 +139,8 @@ async function handleLookupTeachingPoint(
 ) {
   const { topic, limit = 3 } = args;
   if (!topic) return { error: "topic is required" };
+
+  const sourceIds = await resolveCallerSourceIds(callerId);
 
   const words = topic
     .toLowerCase()
@@ -140,6 +150,7 @@ async function handleLookupTeachingPoint(
 
   const assertions = await prisma.contentAssertion.findMany({
     where: {
+      ...(sourceIds ? { sourceId: { in: sourceIds } } : {}),
       OR: [
         ...words.slice(0, 5).map((w) => ({
           assertion: { contains: w, mode: "insensitive" as const },
@@ -249,6 +260,8 @@ async function handleRecordObservation(
 
 /**
  * Get a practice question for the current topic.
+ * Searches ContentQuestion first (real extracted questions with answers),
+ * falls back to assertion-based suggestion if none found.
  */
 async function handleGetPracticeQuestion(
   args: { topic: string },
@@ -257,7 +270,32 @@ async function handleGetPracticeQuestion(
   const { topic } = args;
   if (!topic) return { error: "topic is required" };
 
-  // Look for assertions with category "example" or high exam relevance
+  // Resolve course-scoped source IDs for the caller
+  const sourceIds = await resolveCallerSourceIds(callerId);
+
+  // Search real extracted questions first
+  const questions = await searchQuestions(topic, 3, sourceIds);
+
+  if (questions.length > 0) {
+    const chosen = questions[0];
+    return {
+      found: true,
+      source: "extracted",
+      question: {
+        text: chosen.questionText,
+        type: chosen.questionType,
+        correctAnswer: chosen.correctAnswer,
+        difficulty: chosen.difficulty,
+      },
+      alternatives: questions.slice(1).map((q) => ({
+        text: q.questionText,
+        type: q.questionType,
+        correctAnswer: q.correctAnswer,
+      })),
+    };
+  }
+
+  // Fallback: use assertions as basis for improvised questions
   const words = topic
     .toLowerCase()
     .replace(/[^\w\s]/g, " ")
@@ -266,6 +304,7 @@ async function handleGetPracticeQuestion(
 
   const assertions = await prisma.contentAssertion.findMany({
     where: {
+      ...(sourceIds ? { sourceId: { in: sourceIds } } : {}),
       OR: [
         ...words.slice(0, 5).map((w) => ({
           assertion: { contains: w, mode: "insensitive" as const },
@@ -284,14 +323,14 @@ async function handleGetPracticeQuestion(
   if (assertions.length === 0) {
     return {
       found: false,
-      suggestion: `No exam-relevant content found for "${topic}". Ask the caller to explain the concept in their own words.`,
+      suggestion: `No practice content found for "${topic}". Ask the caller to explain the concept in their own words.`,
     };
   }
 
-  // Use the assertion as basis for a practice question
   const chosen = assertions[0];
   return {
     found: true,
+    source: "assertion",
     basedOn: {
       content: chosen.assertion,
       source: chosen.source.name,
@@ -735,6 +774,63 @@ async function handleShareContent(
 }
 
 /**
+ * Look up a vocabulary term and return its contextual definition.
+ * Searches ContentVocabulary — extracted terms with definitions,
+ * part of speech, and source context.
+ */
+async function handleLookupVocabulary(
+  args: { term: string },
+  callerId: string | null,
+) {
+  const { term } = args;
+  if (!term) return { error: "term is required" };
+
+  const sourceIds = await resolveCallerSourceIds(callerId);
+  const results = await searchVocabulary(term, 3, sourceIds);
+
+  if (results.length === 0) {
+    return {
+      found: false,
+      message: `No vocabulary entry found for "${term}". Explain the word in your own words or ask the caller what they think it means.`,
+    };
+  }
+
+  const primary = results[0];
+  return {
+    found: true,
+    term: primary.term,
+    definition: primary.definition,
+    partOfSpeech: primary.partOfSpeech,
+    topic: primary.topic,
+    alternatives: results.slice(1).map((v) => ({
+      term: v.term,
+      definition: v.definition,
+      partOfSpeech: v.partOfSpeech,
+    })),
+  };
+}
+
+/**
+ * Resolve course-scoped source IDs for a caller.
+ * Used by tools that need to scope content queries to the caller's course/domain.
+ */
+async function resolveCallerSourceIds(callerId: string | null): Promise<string[] | undefined> {
+  if (!callerId) return undefined;
+
+  const caller = await prisma.caller.findUnique({
+    where: { id: callerId },
+    select: { domainId: true },
+  });
+  if (!caller?.domainId) return undefined;
+
+  const playbookId = await resolvePlaybookId(callerId);
+  if (playbookId) {
+    return getTeachingSourceIdsForPlaybook(playbookId);
+  }
+  return getTeachingSourceIdsForDomain(caller.domainId);
+}
+
+/**
  * Maps tool function name → VoiceCallSettings property key.
  * Used by assistant-request to filter tools based on settings.
  */
@@ -748,6 +844,7 @@ export const TOOL_SETTING_KEYS: Record<string, keyof import("@/lib/system-settin
   send_text_to_caller: "toolSendText",
   request_artifact: "toolRequestArtifact",
   share_content: "toolShareContent",
+  lookup_vocabulary: "toolLookupVocabulary",
 };
 
 /**
@@ -958,6 +1055,24 @@ export const VAPI_TOOL_DEFINITIONS = [
           },
         },
         required: ["media_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_vocabulary",
+      description:
+        "Look up the definition of a word or term from the course materials. Use when the caller asks \"what does X mean?\", encounters an unfamiliar word, or when you want to introduce key vocabulary. Returns the contextual definition from the source text, not a generic dictionary definition.",
+      parameters: {
+        type: "object",
+        properties: {
+          term: {
+            type: "string",
+            description: "The word or term to look up",
+          },
+        },
+        required: ["term"],
       },
     },
   },

@@ -81,15 +81,23 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
   subjects: Array<{
     id: string;
     teachingDepth: number | null;
-    sources: Array<{ sourceId: string; documentType: string | null }>;
+    sources: Array<{
+      sourceId: string;
+      documentType: string | null;
+      sortOrder: number;
+      tags: string[];
+    }>;
   }>;
   scoped: boolean;
 }> {
   const sourceSelect = {
     select: {
       sourceId: true,
+      sortOrder: true,
+      tags: true,
       source: { select: { documentType: true } },
     },
+    orderBy: { sortOrder: "asc" as const },
   } as const;
 
   // 1. Try course-scoped
@@ -113,6 +121,8 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
         sources: ps.subject.sources.map((s) => ({
           sourceId: s.sourceId,
           documentType: s.source?.documentType ?? null,
+          sortOrder: s.sortOrder,
+          tags: s.tags,
         })),
       })),
       scoped: true,
@@ -139,6 +149,8 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
       sources: sd.subject.sources.map((s) => ({
         sourceId: s.sourceId,
         documentType: s.source?.documentType ?? null,
+        sortOrder: s.sortOrder,
+        tags: s.tags,
       })),
     })),
     scoped: false,

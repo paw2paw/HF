@@ -38,6 +38,9 @@ function makeAssertion(overrides: Partial<CurriculumAssertionData> = {}): Curric
     learningOutcomeRef: null,
     sourceName: "Level 2 Food Hygiene",
     sourceTrustLevel: "ACCREDITED_MATERIAL",
+    sourceId: "src-1",
+    sourceOrder: 0,
+    sourceDocumentType: "TEXTBOOK",
     depth: null,
     parentId: null,
     orderIndex: 0,
@@ -395,9 +398,9 @@ describe("renderTeachingContent transform", () => {
       const ctx = makeContext({ assertions });
       const result = transform(null, ctx, sectionDef);
 
-      // Flat mode uses "## APPROVED TEACHING POINTS"
-      expect(result.teachingPoints).toContain("## APPROVED TEACHING POINTS");
-      expect(result.teachingPoints).not.toContain("## TEACHING CONTENT");
+      // Flat mode uses "## TEACHING CONTENT" heading
+      expect(result.teachingPoints).toContain("## TEACHING CONTENT");
+      expect(result.teachingPoints).toContain("verified points from trusted sources");
     });
 
     it("respects depth filtering — omits nodes deeper than maxDepth", () => {

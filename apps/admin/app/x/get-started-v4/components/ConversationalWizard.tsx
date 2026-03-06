@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowUp, Loader2, MoreHorizontal, AlertCircle, HelpCircle, ChevronsRight, Copy, Quote, Check } from "lucide-react";
+import { ArrowUp, Loader2, MoreHorizontal, AlertCircle, HelpCircle, ChevronsRight, Copy, Quote, Check, Upload } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
@@ -25,7 +25,7 @@ import type { LessonEntry } from "./LessonPlanAccordion";
 import { OptionsCard } from "./OptionsCard";
 import type { OptionsPanel } from "./OptionsCard";
 import { SourcesPanel } from "./SourcesPanel";
-import type { SourcesReadyData } from "./SourcesPanel";
+import type { SourcesReadyData, SourcesPanelHandle } from "./SourcesPanel";
 import { ScaffoldPanel } from "../../get-started/components/ScaffoldPanel";
 import "../get-started-v4.css";
 
@@ -45,7 +45,7 @@ interface ConversationalWizardProps {
 }
 
 type MessageRole = "assistant" | "user" | "system";
-type SystemType = "timeline" | "success" | "error" | "upload-result" | "lesson-plan" | "options" | "progress";
+type SystemType = "timeline" | "success" | "error" | "upload-result" | "upload-zone" | "lesson-plan" | "options" | "progress";
 
 interface Message {
   id: string;
@@ -364,6 +364,13 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const initialised = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Upload discoverability — peek+glow + page-level drag
+  const sourcesPanelRef = useRef<SourcesPanelHandle>(null);
+  const sourcesPanelElRef = useRef<HTMLDivElement>(null);
+  const [sourcesGlow, setSourcesGlow] = useState(false);
+  const [pageDragOver, setPageDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
   // ── Scroll ───────────────────────────────────────────
 
   const scrollToBottom = useCallback(() => {
@@ -501,8 +508,18 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           }
 
           case "show_upload": {
-            // SourcesPanel is always visible in the right column — no state toggle needed.
-            // AI's text response guides the user to drop files there.
+            // Peek + glow: scroll SourcesPanel into view and pulse
+            sourcesPanelElRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            setSourcesGlow(true);
+            setTimeout(() => setSourcesGlow(false), 5000);
+
+            // Inject inline drop zone into chat (only once)
+            extras.push({
+              id: uid(),
+              role: "system",
+              content: "",
+              systemType: "upload-zone",
+            });
             break;
           }
 
@@ -696,6 +713,37 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     [setData],
   );
 
+  // ── Page-level drag (full-page drop overlay) ─────────
+
+  const handlePageDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) setPageDragOver(true);
+  }, []);
+
+  const handlePageDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) setPageDragOver(false);
+  }, []);
+
+  const handlePageDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handlePageDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setPageDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      sourcesPanelRef.current?.addFiles(e.dataTransfer.files);
+      // Peek + glow to show where the files went
+      sourcesPanelElRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      setSourcesGlow(true);
+      setTimeout(() => setSourcesGlow(false), 3000);
+    }
+  }, []);
+
   // ── Keyboard ──────────────────────────────────────────
 
   const hasActiveOptions = messages.some((m) => m.systemType === "options" && !m.resolved);
@@ -782,7 +830,23 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const launched = getData<boolean>("launched");
 
   return (
-    <div className="cv4-layout">
+    <div
+      className="cv4-layout"
+      onDragEnter={handlePageDragEnter}
+      onDragLeave={handlePageDragLeave}
+      onDragOver={handlePageDragOver}
+      onDrop={handlePageDrop}
+    >
+      {/* Full-page drop overlay */}
+      {pageDragOver && (
+        <div className="hf-drop-overlay">
+          <div className="hf-drop-card">
+            <Upload size={24} />
+            <span>Drop files anywhere to upload</span>
+          </div>
+        </div>
+      )}
+
       {/* Chat column */}
       <div className="cv4-chat-column">
         <div className="cv4-container">
@@ -840,6 +904,37 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                   {!msg.fileCards && (
                     <div className="cv4-bubble cv4-bubble--system">{msg.content}</div>
                   )}
+                </div>
+              );
+            }
+
+            if (msg.systemType === "upload-zone") {
+              return (
+                <div key={msg.id} className="cv4-row cv4-row--system">
+                  <div
+                    className="cv4-inline-upload-zone"
+                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("cv4-inline-upload-zone--active"); }}
+                    onDragLeave={(e) => { e.currentTarget.classList.remove("cv4-inline-upload-zone--active"); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.currentTarget.classList.remove("cv4-inline-upload-zone--active");
+                      if (e.dataTransfer.files.length > 0) {
+                        sourcesPanelRef.current?.addFiles(e.dataTransfer.files);
+                        sourcesPanelElRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        setSourcesGlow(true);
+                        setTimeout(() => setSourcesGlow(false), 3000);
+                      }
+                    }}
+                    onClick={() => {
+                      // Trigger SourcesPanel's file input via its own click handler
+                      sourcesPanelElRef.current?.querySelector<HTMLInputElement>("input[type=file]")?.click();
+                    }}
+                  >
+                    <Upload size={20} />
+                    <div className="cv4-inline-upload-text">Drop files here or click to browse</div>
+                    <div className="cv4-inline-upload-hint">PDF, Word, or text files</div>
+                  </div>
                 </div>
               );
             }
@@ -1063,16 +1158,20 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
         {/* Sources panel — visible once institution/domain resolved */}
         {resolvedDomainId && !launched && (
-          <SourcesPanel
-            domainId={resolvedDomainId}
-            courseName={getData<string>("courseName") || "Course"}
-            interactionPattern={getData<string>("interactionPattern") || undefined}
-            teachingMode={getData<string>("teachingMode") || undefined}
-            subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
-            institutionName={getData<string>("institutionName") || undefined}
-            onSourcesReady={handleSourcesReady}
-            onExtractionDone={handleExtractionDone}
-          />
+          <div ref={sourcesPanelElRef}>
+            <SourcesPanel
+              ref={sourcesPanelRef}
+              domainId={resolvedDomainId}
+              courseName={getData<string>("courseName") || "Course"}
+              interactionPattern={getData<string>("interactionPattern") || undefined}
+              teachingMode={getData<string>("teachingMode") || undefined}
+              subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
+              institutionName={getData<string>("institutionName") || undefined}
+              glow={sourcesGlow}
+              onSourcesReady={handleSourcesReady}
+              onExtractionDone={handleExtractionDone}
+            />
+          </div>
         )}
       </div>
     </div>

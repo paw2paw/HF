@@ -885,6 +885,31 @@ const stepExecutors: Record<string, StepExecutor> = {
 // ── Helpers ────────────────────────────────────────────
 
 /**
+ * Translate V4 wizard interactionPattern values to INIT-001 persona keys.
+ *
+ * The V4 wizard uses descriptive interaction patterns (socratic, directive, etc.)
+ * but INIT-001 personas use agent-type keys (tutor, coach, companion, guide).
+ * This mapping bridges the two vocabularies.
+ *
+ * Passes through raw INIT-001 keys unchanged for backward compatibility (V3, quick-launch).
+ */
+const INTERACTION_TO_PERSONA: Record<string, string> = {
+  // V4 wizard interactionPattern → INIT-001 persona key
+  socratic: "tutor",
+  directive: "tutor",
+  reflective: "tutor",
+  open: "tutor",
+  advisory: "coach",
+  coaching: "coach",
+  companion: "companion",
+  facilitation: "guide",
+};
+
+export function resolvePersonaKey(interactionPatternOrPersona: string): string {
+  return INTERACTION_TO_PERSONA[interactionPatternOrPersona] || interactionPatternOrPersona;
+}
+
+/**
  * Load persona-specific flow phases from INIT-001 spec.
  * Returns null if persona or spec not found (scaffold uses its own defaults).
  *
@@ -908,7 +933,8 @@ export async function loadPersonaFlowPhases(persona: string): Promise<any | null
   if (!spec?.config) return null;
 
   const specConfig = spec.config as SpecConfig;
-  const personaConfig = specConfig.personas?.[persona];
+  const resolvedKey = resolvePersonaKey(persona);
+  const personaConfig = specConfig.personas?.[resolvedKey];
   return personaConfig?.firstCallFlow?.phases ? { phases: personaConfig.firstCallFlow.phases } : null;
 }
 
@@ -937,7 +963,8 @@ export async function loadPersonaArchetype(persona: string): Promise<string | nu
   if (!spec?.config) return null;
 
   const specConfig = spec.config as SpecConfig;
-  const personaConfig = specConfig.personas?.[persona];
+  const resolvedKey = resolvePersonaKey(persona);
+  const personaConfig = specConfig.personas?.[resolvedKey];
   return personaConfig?.identitySpec || null;
 }
 
@@ -968,18 +995,19 @@ export async function loadPersonaWelcomeTemplate(persona: string): Promise<strin
   if (!spec?.config) return null;
 
   const specConfig = spec.config as SpecConfig;
+  const resolvedKey = resolvePersonaKey(persona);
 
   // Check persona-specific welcomeTemplate first, then top-level styleWelcomeTemplates
-  const personaConfig = specConfig.personas?.[persona];
+  const personaConfig = specConfig.personas?.[resolvedKey];
   if (personaConfig?.welcomeTemplate) return personaConfig.welcomeTemplate;
 
   const styleTemplates = (specConfig as any).styleWelcomeTemplates;
-  if (styleTemplates?.[persona]) return styleTemplates[persona];
+  if (styleTemplates?.[resolvedKey]) return styleTemplates[resolvedKey];
 
   // Fall back to the nested welcomeTemplates map on the welcome_quality parameter
   const welcomeParam = specConfig.parameters?.find?.((p: any) => p.id === "welcome_quality");
   const templates = welcomeParam?.config?.welcomeTemplates;
-  if (templates?.[persona]) return templates[persona];
+  if (templates?.[resolvedKey]) return templates[resolvedKey];
 
   return null;
 }

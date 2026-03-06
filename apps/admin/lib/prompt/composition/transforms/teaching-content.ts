@@ -60,10 +60,10 @@ function renderFlatTeachingPoints(
 ): string {
   const lines: string[] = [];
 
-  lines.push("## APPROVED TEACHING POINTS");
-  lines.push(`(${totalCount} verified assertions from trusted sources)\n`);
-  lines.push("IMPORTANT: Use ONLY these teaching points when stating specific facts,");
-  lines.push("definitions, thresholds, or rules. Cite the source when quoting figures.\n");
+  lines.push("## TEACHING CONTENT");
+  lines.push(`(${totalCount} verified points from trusted sources)\n`);
+  lines.push("Teach these points actively — explain each one, check understanding,");
+  lines.push("then progress. Cite the source when quoting specific facts or figures.\n");
 
   for (const cat of CATEGORY_ORDER) {
     const chapters = grouped.get(cat);
@@ -271,6 +271,78 @@ function buildCitation(a: CurriculumAssertionData): string {
 }
 
 // ------------------------------------------------------------------
+// Source-grouped rendering (new — ordered by teacher's document sequence)
+// ------------------------------------------------------------------
+
+/** Delivery hints per DocumentType — tells the AI how to use each source */
+const DELIVERY_HINTS: Record<string, string> = {
+  READING_PASSAGE: "Read key passages with the student. Pause for discussion.",
+  TEXTBOOK: "Explain these concepts. Check understanding after each point.",
+  QUESTION_BANK: "Use these to assess understanding. Let the student attempt before revealing answers.",
+  WORKSHEET: "Work through these exercises together.",
+  CURRICULUM: "Cover these learning objectives.",
+  LESSON_PLAN: "Follow this session structure.",
+  SYLLABUS: "These are the curriculum requirements to address.",
+};
+const DEFAULT_DELIVERY_HINT = "Teach these points through dialogue.";
+
+/**
+ * Render assertions grouped by source document, in teacher-set sortOrder.
+ * Each source group gets a header with the source name and a delivery hint
+ * derived from its DocumentType.
+ */
+function renderSourceGrouped(assertions: CurriculumAssertionData[]): string {
+  const lines: string[] = [];
+  lines.push("## TEACHING CONTENT");
+
+  // Group by sourceId, preserving the source order from the loader sort
+  const bySource = new Map<string, CurriculumAssertionData[]>();
+  const sourceNames = new Map<string, string>();
+  const sourceDocTypes = new Map<string, string | null>();
+  for (const a of assertions) {
+    const key = a.sourceId;
+    if (!bySource.has(key)) {
+      bySource.set(key, []);
+      sourceNames.set(key, a.sourceName);
+      sourceDocTypes.set(key, a.sourceDocumentType ?? null);
+    }
+    bySource.get(key)!.push(a);
+  }
+
+  let sourceNum = 1;
+  for (const [sourceId, sourceAssertions] of bySource) {
+    const name = sourceNames.get(sourceId) || "Unknown";
+    const docType = sourceDocTypes.get(sourceId) || null;
+    const hint = (docType && DELIVERY_HINTS[docType]) || DEFAULT_DELIVERY_HINT;
+
+    lines.push("");
+    lines.push(`### Material ${sourceNum}: ${name}`);
+    lines.push(hint);
+    lines.push("");
+
+    for (const a of sourceAssertions) {
+      const citation = a.pageRef ? ` [${a.pageRef}]` : "";
+      const loRef = a.learningOutcomeRef ? ` (${a.learningOutcomeRef})` : "";
+      const methodTag = a.teachMethod ? ` [${a.teachMethod}]` : "";
+      lines.push(`- ${a.assertion}${citation}${loRef}${methodTag}`);
+    }
+
+    sourceNum++;
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Check if assertions span multiple sources with distinct sort orders,
+ * meaning the teacher has set (or could benefit from) document-level ordering.
+ */
+function hasMultipleSources(assertions: CurriculumAssertionData[]): boolean {
+  const sourceIds = new Set(assertions.map((a) => a.sourceId));
+  return sourceIds.size > 1;
+}
+
+// ------------------------------------------------------------------
 // Main transform
 // ------------------------------------------------------------------
 
@@ -365,7 +437,10 @@ registerTransform("renderTeachingContent", (
 
   let teachingPoints: string;
 
-  if (hasHierarchy) {
+  if (hasMultipleSources(assertions)) {
+    // Source-grouped mode: group by document in teacher-set order, with delivery hints
+    teachingPoints = renderSourceGrouped(assertions);
+  } else if (hasHierarchy) {
     // Pyramid mode: compute effective depth and render tree
     const defaultMaxDepth = Math.max(...assertions.filter((a) => a.depth != null).map((a) => a.depth!), 3);
     const effectiveDepth = computeEffectiveDepth(

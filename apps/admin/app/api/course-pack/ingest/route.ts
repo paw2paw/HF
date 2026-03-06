@@ -7,6 +7,7 @@ import { getStorageAdapter, computeContentHash } from "@/lib/storage";
 import { config } from "@/lib/config";
 import type { InteractionPattern, TeachingMode } from "@/lib/content-trust/resolve-config";
 import { checkAutoTriggerCurriculum } from "@/lib/jobs/auto-trigger";
+import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
 import type { SendIngestEvent } from "@/lib/content-trust/ingest-events";
 import pLimit from "p-limit";
 
@@ -643,10 +644,14 @@ async function createSource(
   }
 
   // Attach to subject — idempotent upsert (@@unique([subjectId, sourceId]) already defined)
+  // Auto-tag student-visible based on document type (teacher can override via eye toggle)
+  const tags = ["content", "pack-upload"];
+  if (isStudentVisibleDefault(documentType)) tags.push("student-material");
+
   await prisma.subjectSource.upsert({
     where: { subjectId_sourceId: { subjectId, sourceId: source.id } },
     update: {},
-    create: { subjectId, sourceId: source.id, tags: ["content", "pack-upload"] },
+    create: { subjectId, sourceId: source.id, tags },
   });
 
   // Store file as MediaAsset

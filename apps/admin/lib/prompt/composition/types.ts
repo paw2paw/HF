@@ -133,6 +133,12 @@ export interface CurriculumAssertionData {
   learningOutcomeRef: string | null;
   sourceName: string;
   sourceTrustLevel: string;
+  /** Source ID for grouping assertions by document */
+  sourceId: string;
+  /** Source delivery order (from SubjectSource.sortOrder) — lower = teach first */
+  sourceOrder: number;
+  /** Document type of the source (TEXTBOOK, READING_PASSAGE, QUESTION_BANK, etc.) */
+  sourceDocumentType: string | null;
   // Pyramid hierarchy fields
   depth: number | null;
   parentId: string | null;

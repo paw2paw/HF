@@ -137,6 +137,23 @@ export function getDocTypeInfo(type: string): DocTypeInfo {
   return DOC_TYPE_INFO[type] ?? DOC_TYPE_INFO.TEXTBOOK;
 }
 
+/**
+ * Document types that students should see by default.
+ * Teacher can override via the eye toggle on the sources panel.
+ */
+const STUDENT_VISIBLE_DOC_TYPES = new Set([
+  "READING_PASSAGE",
+  "WORKSHEET",
+  "COMPREHENSION",
+  "QUESTION_BANK",
+  "EXAMPLE",
+]);
+
+/** Should this document type be shared with students by default? */
+export function isStudentVisibleDefault(documentType: string): boolean {
+  return STUDENT_VISIBLE_DOC_TYPES.has(documentType);
+}
+
 /** Ordered groups for the role-grouped picker UI */
 export const DOC_TYPE_GROUPS: Array<{
   role: DocTypeRole;

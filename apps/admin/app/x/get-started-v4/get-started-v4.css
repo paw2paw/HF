@@ -14,6 +14,7 @@
   flex-direction: row;
   height: 100%;
   min-height: 0;
+  position: relative; /* for full-page drop overlay */
 }
 
 /* Chat column — centred, takes all remaining space */
@@ -1244,6 +1245,48 @@
   font-weight: 500;
 }
 
+.cv4-sources-visibility {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.cv4-sources-visibility--on {
+  color: var(--accent-primary);
+}
+.cv4-sources-visibility:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.cv4-sources-remove {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.cv4-sources-file:hover .cv4-sources-remove {
+  opacity: 1;
+}
+.cv4-sources-remove:hover {
+  background: color-mix(in srgb, var(--text-danger) 12%, transparent);
+  color: var(--text-danger);
+}
+
 .cv4-sources-extraction {
   display: flex;
   flex-direction: column;
@@ -1331,6 +1374,42 @@
 
 .cv4-sources-add-more:hover {
   color: var(--accent-primary);
+}
+
+/* ── Inline upload zone (in chat stream) ─────────────── */
+
+.cv4-inline-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 24px;
+  border: 1.5px dashed var(--border-default);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  color: var(--text-muted);
+  max-width: 380px;
+  width: 100%;
+  animation: cv4-fadein 0.25s ease-out;
+}
+
+.cv4-inline-upload-zone:hover,
+.cv4-inline-upload-zone--active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  color: var(--accent-primary);
+}
+
+.cv4-inline-upload-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cv4-inline-upload-hint {
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 /* ── Message action bar (hover menu on assistant bubbles) ── */

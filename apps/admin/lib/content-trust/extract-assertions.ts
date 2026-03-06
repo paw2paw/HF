@@ -15,7 +15,7 @@
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { logAI } from "@/lib/logger";
-import { resolveExtractionConfig, type ExtractionConfig, type DocumentType, categoryToTeachMethod } from "./resolve-config";
+import { resolveExtractionConfig, type ExtractionConfig, type DocumentType, categoryToTeachMethod, INSTRUCTION_CATEGORIES } from "./resolve-config";
 import { parseJsonResponse } from "./extractors/base-extractor";
 import type { DocumentSection } from "./segment-document";
 import { filterSections, detectFigureRefs } from "./filter-sections";
@@ -245,11 +245,27 @@ async function extractFromChunk(
   extractionConfig: ExtractionConfig,
 ): Promise<ExtractedAssertion[]> {
   const { extraction } = extractionConfig;
-  const validCategoryIds = new Set(extraction.categories.map((c) => c.id));
+  // Accept both type-specific categories AND instruction categories as valid output.
+  // This prevents tutor instructions in mixed documents from being silently remapped to "fact".
+  const validCategoryIds = new Set([
+    ...extraction.categories.map((c) => c.id),
+    ...INSTRUCTION_CATEGORIES,
+  ]);
+
+  // Build document-type context for the AI
+  const docTypeLabel = options.documentType
+    ? options.documentType.replace(/_/g, " ").toLowerCase()
+    : "training";
+
+  // For non-COURSE_REFERENCE documents, hint that tutor instructions may be present
+  const instructionHint = options.documentType !== "COURSE_REFERENCE"
+    ? `\nIf any content instructs the TUTOR (how to teach) rather than teaching the STUDENT, classify it using: ${INSTRUCTION_CATEGORIES.join(", ")}.`
+    : "";
 
   const userPrompt = [
-    `Extract all teaching points from this ${options.qualificationRef ? `${options.qualificationRef} ` : ""}training material.`,
+    `Extract all teaching points from this ${options.qualificationRef ? `${options.qualificationRef} ` : ""}${docTypeLabel} material.`,
     `\nValid categories: ${extraction.categories.map((c) => c.id).join(", ")}`,
+    instructionHint,
     options.focusChapters?.length
       ? `Focus on: ${options.focusChapters.join(", ")}`
       : "",
@@ -423,6 +439,20 @@ export async function extractAssertions(
 
   if (deduplicated.length < allAssertions.length) {
     warnings.push(`Removed ${allAssertions.length - deduplicated.length} duplicate assertions`);
+  }
+
+  // Warn if a COURSE_REFERENCE doc contains student-facing content that will be orphaned.
+  // These assertions pass extraction but fall through both composition loaders:
+  // curriculumAssertions excludes COURSE_REFERENCE sources, courseInstructions excludes content categories.
+  if (options.documentType === "COURSE_REFERENCE") {
+    const instructionCatSet = new Set<string>(INSTRUCTION_CATEGORIES);
+    const contentAssertions = deduplicated.filter((a) => !instructionCatSet.has(a.category));
+    if (contentAssertions.length > 0) {
+      warnings.push(
+        `This teacher guide contains ${contentAssertions.length} student-facing teaching point${contentAssertions.length > 1 ? "s" : ""} (${[...new Set(contentAssertions.map((a) => a.category))].join(", ")}). ` +
+        `These won't reach students during calls — upload student content as a separate document (Textbook, Reading Passage, etc.).`
+      );
+    }
   }
 
   return {

@@ -118,6 +118,11 @@ interface LLMPrompt {
   };
 }
 
+/** Format a document type for display in prompts */
+function formatDocType(dt: string): string {
+  return dt.replace(/_/g, " ");
+}
+
 /**
  * Get level label for a score.
  * Structural defaults matching COMP-001 personality_section.config.thresholds.
@@ -264,9 +269,15 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
   const teachingContent = llmPrompt.instructions?.teaching_content;
   if (teachingContent && typeof teachingContent === "string") {
     parts.push("[TEACHING CONTENT]");
-    parts.push("These are the approved teaching points for THIS session. Deliver them");
-    parts.push("through natural conversation — weave them in, don't lecture. Ensure the");
-    parts.push("key points are covered by the end of the call. Cite sources when quoting facts.");
+    parts.push("These are the specific materials for THIS session — not background notes.");
+    parts.push("Actively teach this content through dialogue.");
+    parts.push("");
+    parts.push("DELIVERY:");
+    parts.push("1. Work through materials in the order shown.");
+    parts.push("2. Introduce each point: explain, check understanding, then progress.");
+    parts.push("3. If the student already knows something, acknowledge and move on.");
+    parts.push("4. Aim to cover all points by session end. Prioritise understanding over completion.");
+    parts.push("5. Stay conversational — teach through dialogue, not monologue.");
     // Strip the leading ## heading if present (the [TEACHING CONTENT] tag replaces it)
     const body = teachingContent
       .replace(/^## (?:APPROVED )?TEACHING (?:POINTS|CONTENT)\n[^\n]*\n?/, "")
@@ -286,6 +297,37 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
       .replace(/^## COURSE RULES\n.*\n?/, "")
       .trim();
     if (rulesBody) parts.push(rulesBody);
+    parts.push("");
+  }
+
+  // --- SESSION MATERIALS ---
+  const sessMat = (llmPrompt as any).sessionMaterials;
+  if (sessMat?.hasSessionMaterials && sessMat.materials?.length) {
+    parts.push("[SESSION MATERIALS]");
+    parts.push("The student has these documents on their screen via the Materials page.");
+    parts.push("Reference them naturally — direct the student to specific sections.");
+    parts.push("");
+    for (const m of sessMat.materials) {
+      const chapStr = m.chapters?.length ? ` — ${m.chapters.slice(0, 4).join(", ")}` : "";
+      parts.push(`- "${m.sourceName}" [${formatDocType(m.documentType)}]${chapStr}`);
+    }
+    parts.push("");
+    // Per-type delivery hints
+    const hasPassage = sessMat.materials.some((m: any) =>
+      ["READING_PASSAGE", "COMPREHENSION"].includes(m.documentType),
+    );
+    const hasQuestions = sessMat.materials.some((m: any) =>
+      ["QUESTION_BANK", "WORKSHEET"].includes(m.documentType),
+    );
+    if (hasPassage) {
+      parts.push("Reading passages: confirm the student has it open before discussing. Direct them to specific paragraphs.");
+    }
+    if (hasQuestions) {
+      parts.push("Questions/worksheets: the student can see them — discuss and explore, don't just read them back.");
+    }
+    if (sessMat.vocabTerms?.length) {
+      parts.push(`Vocabulary on screen: ${sessMat.vocabTerms.join(", ")}`);
+    }
     parts.push("");
   }
 
@@ -316,6 +358,15 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
     parts.push("The student has these physical materials with them:");
     parts.push(physMat.description);
     parts.push("Reference specific pages when directing the student. Always confirm they are on the correct page before teaching from it.");
+    parts.push("");
+  }
+
+  // --- INTERACTION APPROACH ---
+  const teachStyle = (llmPrompt as any).teachingStyle;
+  if (teachStyle?.approach) {
+    parts.push("[INTERACTION APPROACH]");
+    parts.push(`Style: ${teachStyle.label}`);
+    parts.push(teachStyle.approach);
     parts.push("");
   }
 
@@ -420,6 +471,15 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     parts.push("");
   }
 
+  // Teaching Style (interaction approach)
+  const teachStyle2 = (llmPrompt as any).teachingStyle;
+  if (teachStyle2?.approach) {
+    parts.push("## Teaching Style\n");
+    parts.push(`**${teachStyle2.label}** (${teachStyle2.pattern})\n`);
+    parts.push(teachStyle2.approach);
+    parts.push("");
+  }
+
   // Session Pedagogy (the roadmap)
   const pedagogy = llmPrompt.instructions?.session_pedagogy;
   if (pedagogy) {
@@ -515,6 +575,21 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
       for (const [cat, count] of Object.entries(courseInstr2.categories)) {
         parts.push(`- ${cat.replace(/_/g, " ")}: ${count}`);
       }
+    }
+    parts.push("");
+  }
+
+  // Session Materials (student-visible sources)
+  const sessMat2 = (llmPrompt as any).sessionMaterials;
+  if (sessMat2?.hasSessionMaterials && sessMat2.materials?.length) {
+    parts.push("## Session Materials\n");
+    parts.push(`**${sessMat2.count}** document${sessMat2.count > 1 ? "s" : ""} shared with students:\n`);
+    for (const m of sessMat2.materials) {
+      const chapStr = m.chapters?.length ? ` — ${m.chapters.join(", ")}` : "";
+      parts.push(`- **${m.sourceName}** (${formatDocType(m.documentType)})${chapStr}`);
+    }
+    if (sessMat2.vocabTerms?.length) {
+      parts.push(`\n**Vocabulary**: ${sessMat2.vocabTerms.join(", ")}`);
     }
     parts.push("");
   }

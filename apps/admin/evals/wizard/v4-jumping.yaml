@@ -1,0 +1,350 @@
+description: "Wizard V4 — non-linear flow: out-of-order, amendments, back-tracking"
+
+# Run with: npm run eval:wizard:v4:jumping
+#
+# The critical test: users don't follow a linear path. They jump around,
+# provide info out of order, go back to review, change their mind.
+# Despite all this, the wizard must collect everything needed for
+# create_course and produce a working test caller with good prompts.
+
+prompts:
+  - id: v4-mid-conversation
+    label: "V4 — Mid-conversation (some fields collected, graph-driven)"
+    raw: |
+      You are the HumanFirst Studio setup assistant. You help educators create and configure
+      AI tutoring courses through natural conversation.
+
+      ## How you communicate
+      - Confirming a saved value: 1 sentence, name what comes next
+      - **Bold the opening concept of each sentence or bullet.**
+      - NEVER expose internal field names.
+      - NEVER respond with only tools and no text.
+      - NEVER ask "What's next?" or "What would you like to do?" — BANNED.
+
+      ## NON-LINEAR FLOW — you drive the conversation
+      - The user can provide ANY information in ANY order.
+      - If multiple fields are provided in one message, extract ALL with update_setup.
+      - After saving, check the graph for what's still needed.
+      - Accept out-of-order info gracefully — don't force a linear path.
+      - After any save, check if "Can launch: YES". If so, offer summary.
+
+      ## Entity resolution
+      The system auto-resolves names against the database:
+      - Match found → confirm and move on
+      - Multiple matches → describe them and ask which one
+      - No match → treat as new entity, continue normally
+      When saving institutionName, call ONLY update_setup.
+
+      ## Amendment handling
+      When user says "I'd like to review my [section]":
+      1. Recap current values for that section in one response
+      2. Call show_suggestions(["Keep as is", "Change something"])
+      3. "Keep as is" → section done. Resume normal flow. Do NOT follow up with sub-questions.
+      4. "Change something" → ask WHICH field → show panel → after change:
+         show_suggestions(["Change another", "All done"])
+
+      Amendment tiers:
+      - Pre-creation: all changes free → call update_setup only
+      - Post-creation config (welcome, sessions, personality): update_setup AND update_course_config
+      - Post-creation structural (course name, institution, approach): explain kindly, offer new course
+
+      ## Wizard Status
+      Readiness: 40% | Can launch: NO
+
+      ### Already collected
+        ✓ Organisation name: "Greenwood Academy"
+        ✓ Organisation type: "school"
+        ✓ Subject area: "English Language"
+        ✓ Course name: "GCSE English Language"
+        ✓ Teaching approach: "socratic"
+
+      ### What to ask next (priority order)
+        1. Teaching emphasis [options] → (HANDLE THIS NEXT)
+           Recall, Comprehension, Practice, or Syllabus.
+        2. Welcome message [free-text]
+           What the student hears on first call.
+        3. Number of sessions [options]
+           3, 5, 8, or 12 sessions.
+        ... and 5 more optional fields available
+
+      ### Still required for launch
+        (none — all required fields collected)
+
+      ## Valid values
+      ### Teaching approaches: socratic, directive, advisory, coaching, companion, facilitation, reflective, open
+      ### Teaching emphasis: recall, comprehension, practice, syllabus
+      ### Session count: 3, 5, 8, 12
+      ### Duration: 15, 20, 30, 45, 60
+      ### Lesson plan model: direct, 5e, spiral, mastery, project
+
+      ## Personality presets (describe in plain language — never show IDs)
+      Save via update_setup with:
+      - personalityPreset: preset IDs as comma-separated string (e.g. "socratic-mentor,clear-instructor")
+      - personalityDescription: plain language summary
+      When user describes personality in their own words ("warm and encouraging"), map to
+      the closest preset and save immediately.
+
+      ## Content upload
+      When user asks to review content or upload: call show_upload IMMEDIATELY.
+
+      ## Rules
+      1. Call update_setup EVERY time you learn new information.
+         Extract ALL fields from a single message in ONE update_setup call.
+      2. **EVERY response MUST contain natural-language text. No exceptions.**
+         A bare tool call with no visible text is NEVER acceptable.
+         After update_setup: state what was saved (1 sentence) + name the next topic.
+      5. AFFIRMATION = CONFIRMED. Save and advance.
+      6. NEVER re-ask something already collected.
+      8. show_suggestions: ONLY for confirmation/skip. One show_* per response.
+
+      ---
+      The educator says: {{userMessage}}
+
+  - id: v4-post-scaffold
+    label: "V4 — Post-scaffold (course created, reviewing)"
+    raw: |
+      You are the HumanFirst Studio setup assistant.
+
+      ## Amendment handling (CRITICAL — POST-SCAFFOLD)
+      Amendment tier: POST-SCAFFOLD (playbookId: pb_abc123).
+
+      **Config changes** (welcome message, sessions, personality):
+        You MUST call BOTH tools: update_setup AND update_course_config.
+        Calling only update_setup is NOT enough — the DB will not be updated.
+      **Structural changes** (course name, institution, teaching approach):
+        CANNOT change after creation. Explain kindly, offer to start a new course.
+        Do NOT call update_setup with these fields.
+
+      ## Wizard Status
+      Readiness: 100% | Can launch: YES
+
+      ### Already collected
+        ✓ Organisation name: "Greenwood Academy"
+        ✓ Course name: "GCSE English Language"
+        ✓ Teaching approach: "socratic"
+        ✓ Welcome message: "Welcome to GCSE English Language."
+        ✓ Number of sessions: "8"
+        ✓ Session duration: "30"
+        ✓ Personality: "socratic-mentor,clear-instructor"
+
+      ## Rules
+      2. ALWAYS include natural-language text.
+
+      ---
+      The educator says: {{userMessage}}
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      max_tokens: 1200
+      tools:
+        - name: update_setup
+          description: >-
+            Save one or more extracted data fields. Call EVERY time you learn new information.
+            Valid field keys: institutionName, typeSlug, websiteUrl, courseName, subjectDiscipline,
+            interactionPattern, teachingMode, welcomeMessage, sessionCount, durationMins,
+            planEmphasis, behaviorTargets, lessonPlanModel, physicalMaterials,
+            personalityPreset, personalityDescription, courseContext,
+            contentSkipped, welcomeSkipped, tuneSkipped.
+            Use EXACTLY these key names — other names will be silently dropped.
+          input_schema:
+            type: object
+            properties:
+              fields:
+                type: object
+                description: "Key-value pairs. Keys MUST be from the valid field names list above."
+                additionalProperties: true
+            required: [fields]
+        - name: show_suggestions
+          description: "Show clickable quick-reply chips (confirmation/skip only)"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              suggestions: { type: array, items: { type: string } }
+            required: [question, suggestions]
+        - name: show_options
+          description: "Show structured option card inline"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              dataKey: { type: string }
+              mode: { type: string }
+              options: { type: array }
+            required: [question, dataKey, mode, options]
+        - name: show_upload
+          description: "Show the file upload panel"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+            required: [question]
+        - name: update_course_config
+          description: "Update course config post-scaffold (requires domainId + playbookId)"
+          input_schema:
+            type: object
+            properties:
+              domainId: { type: string }
+              playbookId: { type: string }
+            required: [domainId, playbookId]
+        - name: suggest_welcome_message
+          description: "Generate a welcome message suggestion"
+          input_schema:
+            type: object
+            properties:
+              courseName: { type: string }
+            required: [courseName]
+
+tests:
+
+  # ── Out-of-order info ───────────────────────────────────────────────────
+
+  - description: "JUMP: Session count provided before being asked → accepted gracefully"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "Actually let's do 5 sessions of 30 minutes"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup — out-of-order info should be accepted' };
+          const fields = update.args?.fields || update.args || {};
+          if (!fields.sessionCount) return { pass: false, score: 0, reason: 'sessionCount not saved despite user providing it' };
+          return true;
+      - type: llm-rubric
+        value: "Accepts the session count and duration without complaint. Acknowledges what was saved and continues with the next graph priority. Does NOT say 'We'll get to that later' or force linear ordering."
+
+  - description: "JUMP: Personality preference provided early → saved, continues with priority"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "I want the tutor to be warm and encouraging, like a friendly professor"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup — personality preference should be saved even if given early' };
+          const fields = update.args?.fields || update.args || {};
+          if (!fields.personalityPreset && !fields.behaviorTargets && !fields.personalityDescription) {
+            return { pass: false, score: 0, reason: 'Personality data not saved despite user describing it' };
+          }
+          return true;
+
+  - description: "JUMP: Mixed fields from different phases → all extracted in one call"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "Let's do comprehension emphasis, 8 sessions of 30 min, spiral lesson structure"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup' };
+          const fields = update.args?.fields || update.args || {};
+          let count = 0;
+          if (fields.teachingMode) count++;
+          if (fields.sessionCount) count++;
+          if (fields.durationMins) count++;
+          if (fields.lessonPlanModel) count++;
+          if (count < 3) return { pass: false, score: 0, reason: `Only extracted ${count}/4 fields — should extract all from multi-field message` };
+          return true;
+
+  # ── Amendment: review and keep ──────────────────────────────────────────
+
+  - description: "AMEND: 'Review my course settings' → recaps values + show_suggestions"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "I'd like to review my course settings"
+    assert:
+      - type: llm-rubric
+        value: "Recaps the current course settings (GCSE English Language, Socratic, English Language) in natural language. Calls show_suggestions with 'Keep as is' and 'Change something' options."
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const sugg = _tc.find(t => t.name === 'show_suggestions');
+          if (!sugg) return { pass: false, score: 0, reason: 'No show_suggestions — review should offer Keep as is / Change something' };
+          return true;
+
+  - description: "AMEND: 'Keep as is' → section closed, no follow-up sub-questions"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "Keep as is"
+    assert:
+      - type: llm-rubric
+        value: "Acknowledges briefly and resumes normal conversation flow — asks about the next graph priority. Does NOT follow up by asking about individual fields within the section (e.g. 'Would you also like to set the teaching emphasis?'). The section is DONE."
+
+  # ── Amendment: change something ─────────────────────────────────────────
+
+  - description: "AMEND: 'Change something' → asks which specific field"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "Change something"
+    assert:
+      - type: llm-rubric
+        value: "Asks WHICH specific field the user wants to change (e.g. 'course name', 'teaching approach'). Does NOT change everything. Does NOT show all fields at once."
+
+  # ── Post-scaffold amendments ────────────────────────────────────────────
+
+  - description: "POST-SCAFFOLD: Config change → update_setup AND update_course_config"
+    prompts: [v4-post-scaffold]
+    vars:
+      userMessage: "Change the welcome message to 'Hello and welcome to your English course'"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          const config = _tc.find(t => t.name === 'update_course_config');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup — local state not updated' };
+          if (!config) return { pass: false, score: 0, reason: 'No update_course_config — DB not updated (post-scaffold config change requires both)' };
+          return true;
+
+  - description: "POST-SCAFFOLD: Structural change → explained kindly, cannot change"
+    prompts: [v4-post-scaffold]
+    vars:
+      userMessage: "I want to change the course name to A-Level English Language"
+    assert:
+      - type: llm-rubric
+        value: "Explains kindly that the course name cannot be changed after creation. Does NOT attempt to change it. Offers to start a new course instead."
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (update) {
+            const fields = update.args?.fields || update.args || {};
+            if (fields.courseName) return { pass: false, score: 0, reason: 'Attempted to change courseName post-scaffold — structural changes are blocked' };
+          }
+          return true;
+
+  # ── Content review always shows upload ──────────────────────────────────
+
+  - description: "AMEND: 'Review my content' → show_upload immediately (no suggestions first)"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "I'd like to review my content"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const upload = _tc.find(t => t.name === 'show_upload');
+          if (!upload) return { pass: false, score: 0, reason: 'Content review should show_upload immediately — no intermediate suggestions' };
+          return true;
+
+  # ── Never re-ask collected fields ───────────────────────────────────────
+
+  - description: "NEVER-RE-ASK: Does not ask about already-collected institution"
+    prompts: [v4-mid-conversation]
+    vars:
+      userMessage: "What do we need to set up next?"
+    assert:
+      - type: llm-rubric
+        value: "Identifies the next uncollected field from the graph priority (teaching emphasis, welcome message, sessions, etc.). Does NOT ask about institution name or teaching approach — these are already collected."

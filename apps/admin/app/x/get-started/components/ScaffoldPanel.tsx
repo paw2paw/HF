@@ -329,7 +329,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
   const readinessHint = (() => {
     if (launched) return "Ready to go!";
     if (canTryCall) return "Enough to try a call";
-    if (completedCount >= 3) return "Enough to try a call — hit Create below";
+    if (completedCount >= 3) return "Almost there — finish setup to try a call";
     if (completedCount >= 1) return `Need ${t.content.toLowerCase()} to try a call`;
     return "Getting started...";
   })();

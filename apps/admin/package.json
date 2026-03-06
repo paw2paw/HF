@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.6.221",
+  "version": "0.6.222",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -63,10 +63,16 @@
     "version:bump:major": "tsx scripts/bump-version.ts --major",
     "eval:wizard": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v3-core-rules.yaml --no-cache",
     "eval:wizard:v4": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-core-rules.yaml --no-cache",
-    "eval:wizard:v4:skip": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-skip-upload.yaml --no-cache",
+    "eval:wizard:v4:intake": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-intake.yaml --no-cache",
+    "eval:wizard:v4:playback": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-playback.yaml --no-cache",
+    "eval:wizard:v4:proposal": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-proposal.yaml --no-cache",
+    "eval:wizard:v4:content": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-content.yaml --no-cache",
+    "eval:wizard:v4:welcome": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-welcome.yaml --no-cache",
+    "eval:wizard:v4:personality": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-personality.yaml --no-cache",
     "eval:wizard:v4:launch": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-launch.yaml --no-cache",
-    "eval:wizard:v4:all": "npm run eval:wizard:v4 && npm run eval:wizard:v4:skip && npm run eval:wizard:v4:launch",
-    "eval:all": "npm run eval:wizard && npm run eval:wizard:v4 && npm run eval:wizard:v4:skip && npm run eval:wizard:v4:launch",
+    "eval:wizard:v4:jumping": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v4-jumping.yaml --no-cache",
+    "eval:wizard:v4:all": "npm run eval:wizard:v4 && npm run eval:wizard:v4:intake && npm run eval:wizard:v4:playback && npm run eval:wizard:v4:proposal && npm run eval:wizard:v4:content && npm run eval:wizard:v4:welcome && npm run eval:wizard:v4:personality && npm run eval:wizard:v4:launch && npm run eval:wizard:v4:jumping",
+    "eval:all": "npm run eval:wizard && npm run eval:wizard:v4:all",
     "eval:view": "promptfoo view"
   },
   "prisma": {

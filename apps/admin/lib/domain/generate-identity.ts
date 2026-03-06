@@ -123,6 +123,14 @@ const ARCHETYPE_DESCRIPTORS: Record<string, { label: string; capabilities: strin
 - Challenge and support balance
 - Action planning and follow-through`,
   },
+  [config.specs.convguideArchetype]: {
+    label: "conversational guide",
+    capabilities: `- Conversational warmth and genuine curiosity
+- Topic exploration and unexpected connections
+- Active listening with authentic reactions
+- Open questioning that deepens thinking
+- Natural conversation pacing and flow`,
+  },
 };
 
 const DEFAULT_DESCRIPTOR = {

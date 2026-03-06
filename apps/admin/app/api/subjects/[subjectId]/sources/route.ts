@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
 
 type Params = { params: Promise<{ subjectId: string }> };
 
@@ -94,11 +95,24 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
     }
 
+    // Auto-tag student-visible if no explicit tags provided
+    let tags: string[] = body.tags || ["content"];
+    if (!body.tags) {
+      // Look up document type to determine student visibility default
+      const srcInfo = await prisma.contentSource.findUnique({
+        where: { id: sourceId },
+        select: { documentType: true },
+      });
+      if (srcInfo?.documentType && isStudentVisibleDefault(srcInfo.documentType)) {
+        tags = [...tags, "student-material"];
+      }
+    }
+
     const subjectSource = await prisma.subjectSource.create({
       data: {
         subjectId,
         sourceId,
-        tags: body.tags || ["content"],
+        tags,
         trustLevelOverride: body.trustLevelOverride || null,
         sortOrder: body.sortOrder || 0,
       },
@@ -118,6 +132,57 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
     }
     console.error("[subjects/:id/sources] POST error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * @api PATCH /api/subjects/:subjectId/sources
+ * @visibility internal
+ * @scope subjects:update
+ * @auth session
+ * @tags subjects
+ * @description Update a SubjectSource's tags (e.g. toggle student-material visibility).
+ * @param subjectId string - Subject ID (path)
+ * @body sourceId string - Source ID to update (required)
+ * @body tags string[] - Updated tags array (required)
+ * @response 200 { ok: true, subjectSource: {...} }
+ * @response 400 { error: "sourceId and tags are required" }
+ * @response 500 { error: "..." }
+ */
+export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
+    const authResult = await requireAuth("OPERATOR");
+    if (isAuthError(authResult)) return authResult.error;
+
+    const { subjectId } = await params;
+    const body = await req.json();
+
+    if (!body.sourceId || !Array.isArray(body.tags)) {
+      return NextResponse.json(
+        { error: "sourceId and tags are required" },
+        { status: 400 },
+      );
+    }
+
+    const subjectSource = await prisma.subjectSource.update({
+      where: {
+        subjectId_sourceId: {
+          subjectId,
+          sourceId: body.sourceId,
+        },
+      },
+      data: { tags: body.tags },
+      include: {
+        source: {
+          include: { _count: { select: { assertions: true } } },
+        },
+      },
+    });
+
+    return NextResponse.json({ ok: true, subjectSource });
+  } catch (error: any) {
+    console.error("[subjects/:id/sources] PATCH error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

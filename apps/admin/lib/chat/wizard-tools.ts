@@ -1047,16 +1047,22 @@ export async function executeWizardTool(
       const patternPhrase: Record<string, string> = {
         socratic: "guide you with questions to build your own understanding",
         directive: "walk you through each concept step by step",
-        "coaching-feedback": "coach you through practice and give you honest feedback",
-        "discovery-led": "help you discover the ideas yourself",
-        "exam-prep": "prepare you thoroughly for your exam",
-        "conversational-tutor": "have a genuine conversation about the material",
+        advisory: "offer guidance and perspective when you need it",
+        coaching: "help you think through challenges and find your own answers",
+        companion: "have a genuine, thoughtful conversation with you",
+        facilitation: "guide our conversation around the topics that interest you",
+        reflective: "help you reflect on what you're learning and why it matters",
+        open: "work through this with you in whatever way feels right",
+        "conversational-guide": "have a great conversation about the things that interest you",
       };
       const stylePhrase = patternPhrase[interactionPattern] || "work through this with you";
       const subjectClause = subjectDiscipline ? ` in ${subjectDiscipline}` : "";
       const materialsClause = physicalMaterials ? ` Have your ${physicalMaterials} nearby if you can.` : "";
 
-      const suggestion = `Hi! I'm your tutor for ${courseName}${subjectClause}. I'm here to ${stylePhrase}.${materialsClause} What would you like to start with today?`;
+      const isConvGuide = interactionPattern === "conversational-guide";
+      const suggestion = isConvGuide
+        ? `Hi! I'm really glad you called. I'm here to ${stylePhrase}. No agenda, no pressure — just a good chat. What's been on your mind lately?`
+        : `Hi! I'm your tutor for ${courseName}${subjectClause}. I'm here to ${stylePhrase}.${materialsClause} What would you like to start with today?`;
 
       return {
         ...base,

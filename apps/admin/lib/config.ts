@@ -317,6 +317,15 @@ export const config = {
     },
 
     /**
+     * Conversational Guide Archetype Spec (default: CONVGUIDE-001)
+     * Used for Hub/community guided 1:1 conversations around topic areas.
+     * Can be overridden via CONVGUIDE_ARCHETYPE_SLUG env var.
+     */
+    get convguideArchetype(): string {
+      return optional("CONVGUIDE_ARCHETYPE_SLUG", "CONVGUIDE-001");
+    },
+
+    /**
      * Mentor Archetype Spec (default: MENTOR-001)
      * Used for the reflective/mentoring interaction pattern.
      * Can be overridden via MENTOR_ARCHETYPE_SLUG env var.

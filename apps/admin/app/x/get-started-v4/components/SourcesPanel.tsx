@@ -12,11 +12,11 @@
  * Replaces the inline PackUploadStep that used to block the chat input area.
  */
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Upload, FileText, Check, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { useState, useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from "react";
+import { Upload, FileText, Check, AlertCircle, Loader2, RefreshCw, X, Eye, EyeOff } from "lucide-react";
 import { useSourceStatus } from "@/hooks/useSourceStatus";
 import { SourceStatusDots } from "@/components/shared/SourceStatusDots";
-import { getDocTypeInfo } from "@/lib/doc-type-icons";
+import { getDocTypeInfo, isStudentVisibleDefault } from "@/lib/doc-type-icons";
 
 // ── Types ────────────────────────────────────────────────
 
@@ -32,6 +32,11 @@ export interface SourcesReadyData {
   }>;
 }
 
+export interface SourcesPanelHandle {
+  /** Add files programmatically (from page-level drop or inline zone) */
+  addFiles: (files: FileList | File[]) => void;
+}
+
 interface SourcesPanelProps {
   domainId: string;
   courseName: string;
@@ -39,6 +44,8 @@ interface SourcesPanelProps {
   teachingMode?: string;
   subjectDiscipline?: string;
   institutionName?: string;
+  /** When true, applies hf-glow-active to draw attention */
+  glow?: boolean;
   /** Called when sources are created and extraction is running in background */
   onSourcesReady?: (data: SourcesReadyData) => void;
   /** Called when background extraction finishes (all sources have assertions) */
@@ -52,23 +59,27 @@ const ACCEPT_ATTR = VALID_EXTENSIONS.join(",");
 
 // ── Component ────────────────────────────────────────────
 
-export function SourcesPanel({
+export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(function SourcesPanel({
   domainId,
   courseName,
   interactionPattern,
   teachingMode,
   subjectDiscipline,
   institutionName,
+  glow,
   onSourcesReady,
   onExtractionDone,
-}: SourcesPanelProps) {
+}, ref) {
   const [files, setFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
   const [classifications, setClassifications] = useState<SourcesReadyData["classifications"]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [studentVisible, setStudentVisible] = useState<Record<number, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const notifiedDone = useRef(false);
 
   // ── Live extraction tracking ──────────────────────────
@@ -113,6 +124,11 @@ export function SourcesPanel({
     });
     setError(null);
   }, []);
+
+  // Expose addFiles for external callers (page-level drop, inline zone)
+  useImperativeHandle(ref, () => ({
+    addFiles,
+  }), [addFiles]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -187,8 +203,16 @@ export function SourcesPanel({
       if (!ingestData.ok) throw new Error(ingestData.error || "Upload failed");
 
       setSourceIds(ingestData.sourceIds || []);
+      setSubjects(ingestData.subjects || []);
       setPhase("tracking");
       notifiedDone.current = false;
+
+      // Initialize student visibility from document type defaults
+      const visMap: Record<number, boolean> = {};
+      classificationsList.forEach((c, i) => {
+        visMap[i] = isStudentVisibleDefault(c.documentType);
+      });
+      setStudentVisible(visMap);
 
       // Notify parent — sources ready, extraction running in background
       onSourcesReady?.({
@@ -215,6 +239,64 @@ export function SourcesPanel({
     };
   }, [files, phase, handleProcess]);
 
+  // ── Remove a file ────────────────────────────────────
+
+  const removeFile = useCallback((fileName: string) => {
+    // Remove from local files (pre-upload)
+    setFiles((prev) => prev.filter((f) => f.name !== fileName));
+
+    // Remove from classifications + sourceIds (post-upload)
+    const idx = classifications.findIndex((c) => c.fileName === fileName);
+    if (idx >= 0) {
+      const newClassifications = classifications.filter((_, i) => i !== idx);
+      const newSourceIds = sourceIds.filter((_, i) => i !== idx);
+      setClassifications(newClassifications);
+      setSourceIds(newSourceIds);
+
+      // Re-notify parent with updated data
+      if (newSourceIds.length > 0) {
+        onSourcesReady?.({
+          subjects: [], // parent keeps its own subject state
+          sourceIds: newSourceIds,
+          sourceCount: newSourceIds.length,
+          classifications: newClassifications,
+        });
+      }
+
+      // If all files removed, reset to idle
+      if (newClassifications.length === 0) {
+        setPhase("idle");
+        notifiedDone.current = false;
+      }
+    }
+  }, [classifications, sourceIds, onSourcesReady]);
+
+  // ── Toggle student visibility ────────────────────────
+
+  const toggleStudentVisible = useCallback(async (idx: number) => {
+    const sourceId = sourceIds[idx];
+    const subjectId = subjects[0]?.id;
+    if (!sourceId || !subjectId) return;
+
+    const newVisible = !studentVisible[idx];
+    setStudentVisible((prev) => ({ ...prev, [idx]: newVisible }));
+
+    // Build tags: keep existing non-visibility tags, toggle student-material
+    const baseTags = ["content", "pack-upload"];
+    const tags = newVisible ? [...baseTags, "student-material"] : baseTags;
+
+    try {
+      await fetch(`/api/subjects/${subjectId}/sources`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId, tags }),
+      });
+    } catch {
+      // Revert on failure
+      setStudentVisible((prev) => ({ ...prev, [idx]: !newVisible }));
+    }
+  }, [sourceIds, subjects, studentVisible]);
+
   // ── Render ────────────────────────────────────────────
 
   const isProcessing = phase === "analyzing" || phase === "uploading";
@@ -222,7 +304,7 @@ export function SourcesPanel({
   const showDropZone = phase === "idle" || phase === "error";
 
   return (
-    <div className="cv4-sources">
+    <div ref={containerRef} className={`cv4-sources${glow ? " hf-glow-active" : ""}`}>
       <div className="cv4-sources-header">Teaching Materials</div>
 
       {/* Drop zone */}
@@ -251,6 +333,25 @@ export function SourcesPanel({
         }}
       />
 
+      {/* Queued files (before classification) */}
+      {files.length > 0 && !hasResults && !isProcessing && (
+        <div className="cv4-sources-files">
+          {files.map((f) => (
+            <div key={f.name} className="cv4-sources-file">
+              <FileText size={12} />
+              <span className="cv4-sources-filename">{f.name}</span>
+              <button
+                className="cv4-sources-remove"
+                onClick={() => removeFile(f.name)}
+                title="Remove file"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Processing indicator */}
       {isProcessing && (
         <div className="cv4-sources-status">
@@ -262,11 +363,9 @@ export function SourcesPanel({
       {/* File list with classifications */}
       {hasResults && (
         <div className="cv4-sources-files">
-          {classifications.map((c) => {
+          {classifications.map((c, idx) => {
             const info = getDocTypeInfo(c.documentType);
-            const sourceStatus = sourceIds.length > 0
-              ? Object.values(statusMap).find((_, i) => i < classifications.indexOf(c) + 1)
-              : null;
+            const isVisible = studentVisible[idx] ?? false;
             return (
               <div key={c.fileName} className="cv4-sources-file">
                 <FileText size={12} />
@@ -277,6 +376,20 @@ export function SourcesPanel({
                 >
                   {info.label}
                 </span>
+                <button
+                  className={`cv4-sources-visibility${isVisible ? " cv4-sources-visibility--on" : ""}`}
+                  onClick={() => toggleStudentVisible(idx)}
+                  title={isVisible ? "Students can see this — click to hide" : "Hidden from students — click to share"}
+                >
+                  {isVisible ? <Eye size={12} /> : <EyeOff size={12} />}
+                </button>
+                <button
+                  className="cv4-sources-remove"
+                  onClick={() => removeFile(c.fileName)}
+                  title="Remove file"
+                >
+                  <X size={12} />
+                </button>
               </div>
             );
           })}
@@ -331,4 +444,4 @@ export function SourcesPanel({
       )}
     </div>
   );
-}
+});

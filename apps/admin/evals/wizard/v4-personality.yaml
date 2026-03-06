@@ -1,0 +1,204 @@
+description: "Wizard V4 — personality presets (not sliders)"
+
+# Run with: npm run eval:wizard:v4:personality
+#
+# V4 uses personality PRESETS (named combinations), NOT numeric sliders.
+# Two matrices: Communication Style + Teaching Approach.
+# AI describes in plain language, never shows numbers or percentages.
+
+prompts:
+  - id: v4-personality-phase
+    label: "V4 — Personality phase (presets, not sliders)"
+    raw: |
+      You are the HumanFirst Studio setup assistant. You help educators create and configure
+      AI tutoring courses through natural conversation.
+
+      ## How you communicate
+      - **Bold the opening concept of each sentence or bullet.**
+      - NEVER respond with only tools and no text.
+      - NEVER expose IDs, numbers, percentages, or slider positions for personality.
+        Describe personality in PLAIN LANGUAGE only.
+
+      ## Phase 3: AI personality
+      Describe personality in PLAIN LANGUAGE — never show IDs, numbers, or percentages.
+
+        "I'd go with **[Preset Name]** — [plain description of what this means
+        for their specific course]. Want to adjust?"
+
+      Available presets:
+
+      **Communication Style:**
+      - Friendly Professor — Warm and knowledgeable with a professional demeanour
+      - Socratic Mentor — Warm and conversational, guides through questions
+      - Drill Instructor — Cool and formal, focused on precision and standards
+      - Casual Peer — Relaxed and informal, like a helpful friend
+
+      **Teaching Approach:**
+      - Discovery Guide — Lets learners explore, offers gentle support
+      - Stretch Mentor — Asks probing questions, pushes learners beyond comfort zone
+      - Clear Instructor — Direct explanations, gentle pace, minimal ambiguity
+      - Tough Love Coach — High expectations, direct feedback, pushes hard
+
+      Recommend ONE from each category.
+      Save via update_setup with:
+      - personalityPreset: BOTH preset IDs as comma-separated string
+        (e.g. "socratic-mentor,clear-instructor")
+      - personalityDescription: plain language summary of the combination
+
+      ## Wizard Status
+      Readiness: 80% | Can launch: YES
+
+      ### Already collected
+        ✓ Organisation name: "Greenwood Academy"
+        ✓ Organisation type: "school"
+        ✓ Subject area: "English Language"
+        ✓ Course name: "GCSE English Language"
+        ✓ Teaching approach: "socratic"
+        ✓ Teaching emphasis: "comprehension"
+        ✓ Welcome message: "Welcome to your GCSE English Language course."
+        ✓ Number of sessions: "8"
+        ✓ Session duration: "30"
+
+      ### What to ask next (priority order)
+        1. Personality [options] → (HANDLE THIS NEXT)
+           Warmth, directiveness, pace, encouragement. Use personality presets.
+        2. Lesson plan model [options]
+           Direct, 5E, Spiral, Mastery, or Project-Based.
+
+      ### What was just proposed (previous turn)
+      The AI recommended:
+        - Communication style: Socratic Mentor — warm and conversational
+        - Teaching approach: Clear Instructor — direct explanations, gentle pace
+      Save as personalityPreset: "socratic-mentor,clear-instructor"
+
+      ## Skipping personality
+      When the user says "use defaults", "skip", or "skip personality":
+        call update_setup({ fields: { tuneSkipped: true } }).
+      Without this flag, the wizard stays stuck on personality FOREVER.
+
+      ## Rules
+      1. Call update_setup when you learn new information.
+      2. **EVERY response MUST contain natural-language text. No exceptions.**
+      5. AFFIRMATION = CONFIRMED. Save and advance — call update_setup with the
+         recommended personalityPreset + personalityDescription immediately.
+
+      ---
+      The educator says: {{userMessage}}
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      max_tokens: 1000
+      tools:
+        - name: update_setup
+          description: >-
+            Save one or more extracted data fields. Call EVERY time you learn new information.
+            Valid field keys: institutionName, typeSlug, websiteUrl, courseName, subjectDiscipline,
+            interactionPattern, teachingMode, welcomeMessage, sessionCount, durationMins,
+            planEmphasis, behaviorTargets, lessonPlanModel, physicalMaterials,
+            personalityPreset, personalityDescription, courseContext,
+            contentSkipped, welcomeSkipped, tuneSkipped.
+            Use EXACTLY these key names — other names will be silently dropped.
+          input_schema:
+            type: object
+            properties:
+              fields:
+                type: object
+                description: "Key-value pairs. Keys MUST be from the valid field names list above."
+                additionalProperties: true
+            required: [fields]
+        - name: show_suggestions
+          description: "Show clickable quick-reply chips (confirmation/skip only)"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              suggestions: { type: array, items: { type: string } }
+            required: [question, suggestions]
+        - name: show_options
+          description: "Show structured option card inline"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              dataKey: { type: string }
+              mode: { type: string }
+              options: { type: array }
+            required: [question, dataKey, mode, options]
+
+tests:
+
+  # ── Personality recommendation ──────────────────────────────────────────
+
+  - description: "PERSONALITY: Recommends preset in plain language, no numbers"
+    vars:
+      userMessage: "What personality should the tutor have?"
+    assert:
+      - type: llm-rubric
+        value: "Recommends a specific personality preset by NAME (e.g. 'Friendly Professor', 'Socratic Mentor') with a plain-language description of what it means for this course. Does NOT show numeric values, percentages, slider positions, or internal IDs like 'x: 0.8, y: 0.7'."
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const text = _out.split('"type":"tool_use"')[0].trim();
+          const hasNumbers = /\b(0\.\d|[1-9]\d?%|\d{2,3}\s*\/\s*100)\b/.test(text);
+          if (hasNumbers) return { pass: false, score: 0, reason: 'Response contains numeric values or percentages — personality must be described in plain language only' };
+          return true;
+
+  - description: "PERSONALITY: Recommends from BOTH categories (communication + teaching)"
+    vars:
+      userMessage: "Tell me about the AI tutor's personality options"
+    assert:
+      - type: llm-rubric
+        value: "Recommends presets from BOTH categories: one Communication Style (Friendly Professor, Socratic Mentor, Drill Instructor, or Casual Peer) AND one Teaching Approach (Discovery Guide, Stretch Mentor, Clear Instructor, or Tough Love Coach). Explains each in terms of how it would work for GCSE English Language."
+
+  # ── Personality saves correctly ─────────────────────────────────────────
+
+  - description: "PERSONALITY: 'Sounds good' → saves personalityPreset + personalityDescription"
+    vars:
+      userMessage: "Sounds good"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup after affirmation — personality not saved' };
+          const fields = update.args?.fields || update.args || {};
+          if (!fields.personalityPreset && !fields.behaviorTargets) {
+            return { pass: false, score: 0, reason: 'Neither personalityPreset nor behaviorTargets saved' };
+          }
+          return true;
+
+  # ── User adjustments in plain language ──────────────────────────────────
+
+  - description: "PERSONALITY: 'Make it warmer and less formal' → maps to appropriate preset"
+    vars:
+      userMessage: "Make it warmer and less formal"
+    assert:
+      - type: llm-rubric
+        value: "Maps 'warmer and less formal' to an appropriate preset (e.g. Casual Peer or Socratic Mentor — warm + informal). Describes the adjustment in plain language. Does NOT show numeric slider values."
+
+  - description: "PERSONALITY: 'I want it to push the students harder' → maps to challenging preset"
+    vars:
+      userMessage: "I want it to push the students harder"
+    assert:
+      - type: llm-rubric
+        value: "Maps 'push harder' to a challenging preset (e.g. Stretch Mentor or Tough Love Coach). Describes what this means in practice for the student experience."
+
+  # ── Skip personality ────────────────────────────────────────────────────
+
+  - description: "PERSONALITY: 'Use defaults' → tuneSkipped: true"
+    vars:
+      userMessage: "Use defaults"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup' };
+          const fields = update.args?.fields || update.args || {};
+          if (!fields.tuneSkipped && !fields.personalityPreset && !fields.behaviorTargets) {
+            return { pass: false, score: 0, reason: 'Neither tuneSkipped nor personality values saved — wizard may get stuck' };
+          }
+          return true;
