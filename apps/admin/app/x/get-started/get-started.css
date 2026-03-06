@@ -27,6 +27,25 @@
   border: 1px solid var(--border-default);
   border-radius: 16px;
   padding: 20px;
+
+  /* Segment colours — light-to-dark blue, one per scaffold item */
+  --gs-seg-1: #93c5fd;
+  --gs-seg-2: #60a5fa;
+  --gs-seg-3: #3b82f6;
+  --gs-seg-4: #2563eb;
+  --gs-seg-5: #1d4ed8;
+  --gs-seg-6: #1e40af;
+  --gs-seg-7: #1e3a8a;
+}
+
+.dark .gs-scaffold {
+  --gs-seg-1: #bfdbfe;
+  --gs-seg-2: #93c5fd;
+  --gs-seg-3: #60a5fa;
+  --gs-seg-4: #3b82f6;
+  --gs-seg-5: #2563eb;
+  --gs-seg-6: #1d4ed8;
+  --gs-seg-7: #1e40af;
 }
 
 .gs-scaffold-title {
@@ -162,14 +181,11 @@
   background: var(--border-default);
 }
 
-.gs-dot[data-status="collecting"] {
-  background: var(--accent-primary);
-}
-
+.gs-dot[data-status="collecting"],
 .gs-dot[data-status="ready"],
 .gs-dot[data-status="resolved"],
 .gs-dot[data-status="done"] {
-  background: var(--accent-primary);
+  /* background set via inline style per-item */
 }
 
 .gs-dot[data-status="building"] {

@@ -11,19 +11,22 @@ import { Loader2, RotateCcw, ChevronRight, ExternalLink } from "lucide-react";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
 
-/* ── Segment colors (CSS var references) ──────────────── */
-const SEGMENT_COLORS: Record<ScaffoldStatus, string> = {
-  done:       "var(--accent-primary)",
-  resolved:   "var(--accent-primary)",
-  ready:      "var(--accent-primary)",
-  building:   "var(--accent-primary)",
-  collecting: "var(--accent-primary)",
-  waiting:    "var(--border-default)",
+/* ── Per-item segment colours (light → dark blue) ─────── */
+const ITEM_COLORS: Record<string, string> = {
+  institution: "var(--gs-seg-1)",
+  subject:     "var(--gs-seg-2)",
+  course:      "var(--gs-seg-3)",
+  content:     "var(--gs-seg-4)",
+  welcome:     "var(--gs-seg-5)",
+  lessons:     "var(--gs-seg-6)",
+  personality: "var(--gs-seg-7)",
 };
+
+const WAITING_COLOR = "var(--border-default)";
 
 /* ── Segmented Donut ──────────────────────────────────── */
 
-interface DonutItem { status: ScaffoldStatus; label: string }
+interface DonutItem { status: ScaffoldStatus; label: string; color: string }
 
 function ProgressDonut({ items }: { items: DonutItem[] }) {
   const size = 120;
@@ -60,7 +63,7 @@ function ProgressDonut({ items }: { items: DonutItem[] }) {
               cy={center}
               r={radius}
               fill="none"
-              stroke={SEGMENT_COLORS[item.status]}
+              stroke={item.status === "waiting" ? WAITING_COLOR : item.color}
               strokeWidth={strokeWidth}
               strokeDasharray={`${segArc} ${circumference - segArc}`}
               className={`gs-donut-segment${isAnimated ? " gs-donut-segment--pulse" : ""}`}
@@ -176,12 +179,14 @@ const LESSON_MODEL_LABELS: Record<string, string> = {
   project: "Project-Based",
 };
 
-function StatusDot({ status }: { status: ScaffoldStatus }) {
+function StatusDot({ status, color }: { status: ScaffoldStatus; color?: string }) {
   const isAnimated = status === "collecting" || status === "building";
+  const showColor = color && status !== "waiting" && status !== "building";
   return (
     <span
       className={`gs-dot${isAnimated ? " gs-dot--pulse" : ""}`}
       data-status={status}
+      style={showColor ? { background: color } : undefined}
     >
       {status === "building" && <Loader2 size={10} className="hf-spinner" />}
     </span>
@@ -375,7 +380,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
               tabIndex={onItemClick ? 0 : undefined}
               onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
             >
-              <StatusDot status={item.status} />
+              <StatusDot status={item.status} color={ITEM_COLORS[item.key]} />
               <div className="gs-scaffold-item-content">
                 <div className="gs-scaffold-item-row">
                   <span className="gs-scaffold-label">{item.label}</span>
@@ -408,7 +413,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
               tabIndex={onItemClick ? 0 : undefined}
               onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
             >
-              <StatusDot status={item.status} />
+              <StatusDot status={item.status} color={ITEM_COLORS[item.key]} />
               <div className="gs-scaffold-item-content">
                 <div className="gs-scaffold-item-row">
                   <span className="gs-scaffold-label">{item.label}</span>
@@ -428,7 +433,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
         </ul>
 
         <div className="gs-readiness">
-          <ProgressDonut items={allItems.map(i => ({ status: i.status, label: i.label }))} />
+          <ProgressDonut items={allItems.map(i => ({ status: i.status, label: i.label, color: ITEM_COLORS[i.key] ?? "var(--accent-primary)" }))} />
           <div className="gs-readiness-hint">{readinessHint}</div>
         </div>
 
