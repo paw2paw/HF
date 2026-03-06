@@ -45,7 +45,6 @@ export async function GET() {
       analysisSpecCount,
       publishedSpecCount,
       parameterCount,
-      runConfigCount,
       callerCount,
       callCount,
       knowledgeDocCount,
@@ -56,7 +55,6 @@ export async function GET() {
       prisma.analysisSpec.count(),
       prisma.analysisSpec.count({ where: { isActive: true, compiledAt: { not: null } } }),
       prisma.parameter.count(),
-      prisma.compiledAnalysisSet.count({ where: { status: "READY" } }),
       prisma.caller.count(),
       prisma.call.count(),
       prisma.knowledgeDoc.count(),
@@ -64,6 +62,8 @@ export async function GET() {
       prisma.behaviorTarget.count(),
       prisma.callerMemory.count(),
     ]);
+    // Run configs = compiled specs (CompiledAnalysisSet was removed from schema)
+    const runConfigCount = publishedSpecCount;
 
     // Build readiness checks
     const checks: Record<string, ReadinessCheck> = {

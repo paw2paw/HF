@@ -48,19 +48,12 @@ describe("chat tools", () => {
   });
 
   describe("executeToolCall — share_content", () => {
-    it("creates a media CallMessage for valid media", async () => {
+    it("returns media metadata without creating a DB message", async () => {
       mockPrisma.mediaAsset.findUnique.mockResolvedValue({
         id: "media-1",
         fileName: "passage.png",
         mimeType: "image/png",
         title: "Passage Image",
-      });
-      mockPrisma.callMessage.create.mockResolvedValue({
-        id: "msg-1",
-        callId: "call-1",
-        role: "assistant",
-        content: "Here is the passage",
-        mediaId: "media-1",
       });
 
       const { executeToolCall } = await import("@/app/api/chat/tools");
@@ -72,13 +65,15 @@ describe("chat tools", () => {
 
       expect(result.is_error).toBeFalsy();
       expect(result.content).toContain("shared");
-      expect(mockPrisma.callMessage.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          callId: "call-1",
-          role: "assistant",
-          mediaId: "media-1",
-        }),
+      // Should return media metadata for the route to pass via header
+      expect(result.sharedMedia).toEqual({
+        id: "media-1",
+        fileName: "passage.png",
+        mimeType: "image/png",
+        title: "Passage Image",
       });
+      // Should NOT create a CallMessage (client handles persistence via observer relay)
+      expect(mockPrisma.callMessage.create).not.toHaveBeenCalled();
     });
 
     it("returns error when media not found", async () => {

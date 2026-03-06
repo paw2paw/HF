@@ -51,6 +51,8 @@ export interface ToolResult {
   tool_use_id: string;
   content: string;
   is_error?: boolean;
+  /** Media metadata returned by share_content (no DB message created — caller handles persistence) */
+  sharedMedia?: { id: string; fileName: string; mimeType: string; title: string | null };
 }
 
 /**
@@ -76,7 +78,7 @@ async function handleShareContent(
   toolUse: AIToolUse,
   ctx: ToolContext
 ): Promise<ToolResult> {
-  const { media_id, context } = toolUse.input as { media_id: string; context?: string };
+  const { media_id } = toolUse.input as { media_id: string; context?: string };
 
   // Validate media exists
   const media = await prisma.mediaAsset.findUnique({
@@ -92,19 +94,13 @@ async function handleShareContent(
     };
   }
 
-  // Create a CallMessage with media attachment
-  await prisma.callMessage.create({
-    data: {
-      callId: ctx.callId,
-      role: "assistant",
-      content: context || media.title || media.fileName,
-      mediaId: media.id,
-    },
-  });
-
+  // Don't create a separate CallMessage here — the client will persist the
+  // assistant message with mediaId via the observer relay. Creating a message
+  // here caused duplicates: one from the tool + one from the streamed response.
   return {
     tool_use_id: toolUse.id,
     content: `Successfully shared "${media.title || media.fileName}" (${media.mimeType}) with the learner. It will appear as an image/document in their chat. Continue the conversation naturally — reference the content you just shared.`,
+    sharedMedia: { id: media.id, fileName: media.fileName, mimeType: media.mimeType, title: media.title },
   };
 }
 

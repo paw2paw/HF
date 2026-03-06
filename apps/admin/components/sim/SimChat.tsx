@@ -175,7 +175,9 @@ export function SimChat({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming, artifacts, actions]);
 
-  // Poll for server-side messages (teacher interjections + AI-shared media)
+  // Poll for server-side messages (teacher interjections only)
+  // AI-shared media is now handled via the X-Shared-Media response header
+  // and attached to the streaming message directly — no need to poll for it.
   const lastInterjectionCheck = useRef(new Date().toISOString());
   useEffect(() => {
     if (!callId) return;
@@ -188,10 +190,8 @@ export function SimChat({
         if (data.ok && data.messages?.length > 0) {
           lastInterjectionCheck.current = new Date().toISOString();
           for (const msg of data.messages) {
-            // Skip messages we created client-side (user/assistant without media)
-            // Only inject: teacher messages, or any message with media attached
-            const isServerSide = msg.role === 'teacher' || msg.media;
-            if (!isServerSide) continue;
+            // Only inject teacher interjections (sent via observation panel)
+            if (msg.role !== 'teacher') continue;
 
             // Avoid duplicates
             setMessages(prev => {
@@ -391,6 +391,30 @@ export function SimChat({
         throw new Error(errData?.error || 'AI response failed');
       }
 
+      // Read shared media from tool calls (e.g. share_content) before streaming
+      let sharedMediaInfo: MediaInfo | null = null;
+      const sharedMediaHeader = res.headers.get('X-Shared-Media');
+      if (sharedMediaHeader) {
+        try {
+          const items = JSON.parse(sharedMediaHeader);
+          if (items.length > 0) {
+            const mi = items[0];
+            sharedMediaInfo = {
+              id: mi.id,
+              fileName: mi.fileName,
+              mimeType: mi.mimeType,
+              title: mi.title,
+              url: `/api/media/${mi.id}`,
+            };
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === assistantMsgId ? { ...m, media: sharedMediaInfo } : m
+              )
+            );
+          }
+        } catch { /* ignore malformed header */ }
+      }
+
       const reader = res.body?.getReader();
       if (!reader) throw new Error('No stream');
 
@@ -413,12 +437,17 @@ export function SimChat({
       }
 
       // Relay assistant message to server for observers (fire-and-forget)
+      // Include mediaId so the persisted message has the attachment for call resumption
       const currentCallId = callIdRef.current;
       if (currentCallId && fullContent) {
         fetch(`/api/calls/${currentCallId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'assistant', content: fullContent }),
+          body: JSON.stringify({
+            role: 'assistant',
+            content: fullContent,
+            ...(sharedMediaInfo ? { mediaId: sharedMediaInfo.id } : {}),
+          }),
         }).catch((err) => console.warn("[sim] Observer relay failed:", err));
       }
 
@@ -434,7 +463,11 @@ export function SimChat({
           fetch(`/api/calls/${currentCallId}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: 'assistant', content: fullContent }),
+            body: JSON.stringify({
+              role: 'assistant',
+              content: fullContent,
+              ...(sharedMediaInfo ? { mediaId: sharedMediaInfo.id } : {}),
+            }),
           }).catch((err) => console.warn("[sim] Observer relay failed:", err));
         }
         return;

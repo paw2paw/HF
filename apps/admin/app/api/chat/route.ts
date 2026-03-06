@@ -413,6 +413,8 @@ async function handleCallModeWithTools(
   let toolCallCount = 0;
   let finalContent = "";
   const toolCtx = { callerId, callId };
+  const sharedMediaItems: Array<{ id: string; fileName: string; mimeType: string; title: string | null }> = [];
+  const sharedMediaIds = new Set<string>(); // Dedup within a single turn
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     // @ai-call chat.call — Non-streaming with content tools | config: /x/ai-config
@@ -443,6 +445,21 @@ async function handleCallModeWithTools(
     // Execute tools and collect results
     const toolResultBlocks: ContentBlock[] = [];
     for (const toolUse of response.toolUses) {
+      // Guard: prevent sharing the same media twice in one turn
+      // (catalog is built once per turn so "ALREADY SHARED" won't catch intra-turn dupes)
+      if (toolUse.name === "share_content") {
+        const mediaId = (toolUse.input as { media_id: string }).media_id;
+        if (sharedMediaIds.has(mediaId)) {
+          toolResultBlocks.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: "This content was already shared earlier in this turn. Reference it naturally without re-sharing.",
+            ...({ is_error: true }),
+          } as ContentBlock);
+          continue;
+        }
+      }
+
       console.log(`[chat-tools:call] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
       const result = await executeToolCall(toolUse, toolCtx);
       toolResultBlocks.push({
@@ -451,6 +468,12 @@ async function handleCallModeWithTools(
         content: result.content,
         ...(result.is_error ? { is_error: true } : {}),
       });
+
+      // Collect shared media metadata for the response header
+      if (result.sharedMedia) {
+        sharedMediaIds.add(result.sharedMedia.id);
+        sharedMediaItems.push(result.sharedMedia);
+      }
     }
 
     loopMessages.push({
@@ -474,15 +497,19 @@ async function handleCallModeWithTools(
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Transfer-Encoding": "chunked",
-      "X-Chat-Mode": mode,
-      "X-AI-Engine": selectedEngine,
-      "X-Tool-Calls": toolCallCount.toString(),
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "X-Chat-Mode": mode,
+    "X-AI-Engine": selectedEngine,
+    "X-Tool-Calls": toolCallCount.toString(),
+  };
+  // Pass shared media metadata to the client so it can render inline + persist via relay
+  if (sharedMediaItems.length > 0) {
+    headers["X-Shared-Media"] = JSON.stringify(sharedMediaItems);
+  }
+
+  return new Response(stream, { headers });
 }
 
 /**
