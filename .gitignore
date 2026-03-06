@@ -31,3 +31,8 @@ supabase/
 # User content uploads (not code)
 New Docs/
 nnew docs/
+A-Sample Docs/
+
+# Binary documents (use cloud storage, not git)
+*.pdf
+*.docx
