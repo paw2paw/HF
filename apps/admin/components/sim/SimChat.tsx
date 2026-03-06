@@ -34,6 +34,7 @@ export interface SimChatProps {
   mode: 'standalone' | 'embedded';
   sessionGoal?: string;
   targetOverrides?: Record<string, number>;
+  forceFirstCall?: boolean;
   onCallEnd?: () => void;
   onNewCall?: () => void;
   onBack?: () => void;
@@ -101,6 +102,7 @@ export function SimChat({
   mode,
   sessionGoal,
   targetOverrides,
+  forceFirstCall,
   onCallEnd,
   onNewCall,
   onBack,
@@ -295,7 +297,7 @@ export function SimChat({
         const composeRes = await fetch(`/api/callers/${callerId}/compose-prompt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ triggerType: 'sim', ...(playbookId ? { playbookIds: [playbookId] } : {}), ...(targetOverrides ? { targetOverrides } : {}) }),
+          body: JSON.stringify({ triggerType: 'sim', ...(playbookId ? { playbookIds: [playbookId] } : {}), ...(targetOverrides ? { targetOverrides } : {}), ...(forceFirstCall ? { forceFirstCall: true } : {}) }),
         });
         if (composeRes.ok) {
           const composeData = await composeRes.json();

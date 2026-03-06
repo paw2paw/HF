@@ -28,6 +28,7 @@ export default function SimConversationPage() {
   const expectedDomainId = searchParams.get('domainId') || undefined;
   const playbookId = searchParams.get('playbookId') || undefined;
   const communityName = searchParams.get('communityName') || undefined;
+  const forceFirstCall = searchParams.get('forceFirstCall') === 'true';
 
   // Tuner pills from Teach/Demonstrate wizard — derive target overrides for prompt composition
   const targetOverrides = useMemo(() => {
@@ -139,6 +140,7 @@ export default function SimConversationPage() {
       mode="standalone"
       sessionGoal={sessionGoal}
       targetOverrides={targetOverrides}
+      forceFirstCall={forceFirstCall || undefined}
       onBack={isDesktop ? undefined : () => router.push('/x/sim')}
     />
   );
