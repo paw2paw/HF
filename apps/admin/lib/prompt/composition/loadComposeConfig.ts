@@ -29,6 +29,7 @@ export interface ComposeConfig {
 export async function loadComposeConfig(overrides?: {
   targetOverrides?: Record<string, number>;
   playbookIds?: string[];
+  forceFirstCall?: boolean;
 }): Promise<ComposeConfig> {
   // Try exact slug first (from config), then fallback to any active COMPOSE/SYSTEM spec
   const composeSpec = await prisma.analysisSpec.findFirst({
@@ -92,6 +93,7 @@ export async function loadComposeConfig(overrides?: {
       temperature,
       targetOverrides: overrides?.targetOverrides || {},
       playbookIds: overrides?.playbookIds || undefined,
+      forceFirstCall: overrides?.forceFirstCall || false,
     },
     sections: sections && sections.length > 0 ? sections : getDefaultSections(),
   };

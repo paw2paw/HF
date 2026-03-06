@@ -15,6 +15,8 @@ export interface PersistOptions {
   triggerCallId?: string | null;
   composeSpecSlug?: string | null;
   specConfig?: Record<string, any>;
+  /** Skip DB persistence — return a preview-only mock prompt (used by forceFirstCall) */
+  skipPersist?: boolean;
 }
 
 export interface PersistedPrompt {
@@ -48,10 +50,25 @@ export async function persistComposedPrompt(
     triggerCallId,
     composeSpecSlug,
     specConfig,
+    skipPersist = false,
   } = options;
 
-  const p = db(tx);
   const { llmPrompt, callerContext, loadedData, resolvedSpecs, metadata } = composition;
+
+  // Preview-only mode — return mock prompt without DB write
+  if (skipPersist) {
+    console.log("[persist] Preview mode: skipping DB persistence (forceFirstCall)");
+    return {
+      id: `preview-${Date.now()}`,
+      callerId,
+      prompt: promptSummary,
+      llmPrompt,
+      status: "preview",
+      composedAt: new Date(),
+    };
+  }
+
+  const p = db(tx);
 
   const composedPrompt = await p.composedPrompt.create({
     data: {

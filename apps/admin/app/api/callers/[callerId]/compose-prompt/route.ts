@@ -18,6 +18,7 @@ export const runtime = "nodejs";
  * @body triggerCallId string - Optional call ID that triggered this composition
  * @body targetOverrides object - Preview overrides for behavior targets (not persisted)
  * @body playbookIds string[] - Optional filter to specific playbooks for A/B comparison
+ * @body forceFirstCall boolean - Override to treat as first call regardless of history (preview-only, not persisted)
  * @response 200 { ok: true, prompt: ComposedPrompt, metadata: { engine, model, usage, inputContext, composition } }
  * @response 500 { ok: false, error: "Failed to compose prompt" }
  */
@@ -55,12 +56,14 @@ export async function POST(
       triggerCallId,
       targetOverrides,
       playbookIds,
+      forceFirstCall = false,
     } = body;
 
     // Load COMPOSE spec config (shared helper)
     const { fullSpecConfig, sections, specSlug } = await loadComposeConfig({
       targetOverrides,
       playbookIds,
+      forceFirstCall,
     });
 
     // Execute composition pipeline
@@ -72,14 +75,15 @@ export async function POST(
     // Render deterministic prompt summary
     const promptSummary = renderPromptSummary(composition.llmPrompt);
 
-    // Persist and supersede (shared helper)
+    // Persist and supersede (shared helper) — skip DB write for preview-only mode
     const composedPrompt = await persistComposedPrompt(composition, promptSummary, {
       callerId,
       playbookId: playbookIds?.[0] || null,
-      triggerType,
+      triggerType: forceFirstCall ? "preview_first_call" : triggerType,
       triggerCallId,
       composeSpecSlug: specSlug,
       specConfig: fullSpecConfig,
+      skipPersist: forceFirstCall,
     });
 
     return NextResponse.json({
