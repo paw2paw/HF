@@ -143,48 +143,88 @@
   opacity: 1;
 }
 
-.gs-scaffold-icon {
-  width: 20px;
-  height: 20px;
-  margin-top: 1px;
+/* ── Status dot (replaces 20px circle icons) ─────────── */
+
+.gs-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  font-size: 11px;
+  transition: background 0.3s, border-color 0.3s;
   box-sizing: border-box;
 }
 
-.gs-scaffold-icon[data-status="waiting"] {
-  border: 2px solid var(--border-default);
-  color: var(--text-muted);
+.gs-dot[data-status="waiting"] {
+  background: var(--border-default);
 }
 
-.gs-scaffold-icon[data-status="collecting"] {
-  border: 2px solid var(--accent-primary);
+.gs-dot[data-status="collecting"] {
+  background: var(--accent-primary);
+}
+
+.gs-dot[data-status="ready"],
+.gs-dot[data-status="resolved"],
+.gs-dot[data-status="done"] {
+  background: var(--accent-primary);
+}
+
+.gs-dot[data-status="building"] {
+  background: transparent;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
   color: var(--accent-primary);
+}
+
+.gs-dot--pulse {
   animation: gs-pulse 1.5s ease-in-out infinite;
 }
 
-.gs-scaffold-icon[data-status="ready"] {
-  background: var(--accent-primary);
-  color: white;
+/* ── Segmented Donut ─────────────────────────────────── */
+
+.gs-donut-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 8px;
 }
 
-.gs-scaffold-icon[data-status="building"] {
-  border: 2px solid var(--accent-primary);
+.gs-donut-svg {
+  display: block;
+}
+
+.gs-donut-segment {
+  transition: stroke 0.4s ease, opacity 0.4s ease;
+}
+
+.gs-donut-segment--pulse {
+  animation: gs-pulse 1.5s ease-in-out infinite;
+}
+
+.gs-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gs-donut-pct {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.gs-donut-check {
+  font-size: 28px;
+  font-weight: 700;
   color: var(--accent-primary);
-}
-
-.gs-scaffold-icon[data-status="resolved"] {
-  background: var(--status-success-bg, #d1fae5);
-  color: var(--status-success-text);
-}
-
-.gs-scaffold-icon[data-status="done"] {
-  background: var(--status-success-bg, #d1fae5);
-  color: var(--status-success-text);
+  line-height: 1;
 }
 
 .gs-scaffold-label {
@@ -223,45 +263,13 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border-default);
-}
-
-.gs-readiness-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.gs-readiness-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.gs-readiness-pct {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.gs-readiness-bar {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--surface-secondary);
-  overflow: hidden;
-}
-
-.gs-readiness-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: var(--accent-primary);
-  transition: width 0.4s ease;
+  text-align: center;
 }
 
 .gs-readiness-hint {
   font-size: 11px;
   color: var(--text-muted);
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 /* ── Sim Call Button ──────────────────────────────────── */

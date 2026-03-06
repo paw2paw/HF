@@ -276,10 +276,72 @@
   background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
 }
 
+.dtw-dropzone--has-files {
+  padding: 16px;
+  text-align: left;
+}
+
 .dtw-dropzone-icon { font-size: 32px; margin-bottom: 12px; }
 .dtw-dropzone-filename { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .dtw-dropzone-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .dtw-file-input-hidden { display: none; }
+
+/* ── Dropzone file chips (when files are present) ─── */
+
+.dtw-dropzone-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dtw-dropzone-file-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.dtw-dropzone-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.dtw-dropzone-file-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.dtw-dropzone-file-remove:hover {
+  color: var(--status-error-text);
+  background: var(--status-error-bg);
+}
+
+.dtw-dropzone-add-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
 /* ── Source cards ─────────────────────────────────── */
 

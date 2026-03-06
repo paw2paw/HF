@@ -742,21 +742,45 @@ export function PackUploadStep({
       {!manifest && !ingesting && (
         <div className="pack-upload-section">
           <div
-            className={`dtw-dropzone ${dragOver ? 'dtw-dropzone--active' : ''}`}
+            className={`dtw-dropzone ${dragOver ? 'dtw-dropzone--active' : ''} ${files.length > 0 ? 'dtw-dropzone--has-files' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <div className="dtw-dropzone-icon">
-              <Upload size={32} />
-            </div>
-            <div className="dtw-dropzone-filename">
-              Drop your files here
-            </div>
-            <div className="dtw-dropzone-hint">
-              Readings, questions, course docs — PDF, DOCX, TXT, MD, JSON
-            </div>
+            {files.length === 0 ? (
+              <>
+                <div className="dtw-dropzone-icon">
+                  <Upload size={32} />
+                </div>
+                <div className="dtw-dropzone-filename">
+                  Drop your files here
+                </div>
+                <div className="dtw-dropzone-hint">
+                  Readings, questions, course docs — PDF, DOCX, TXT, MD, JSON
+                </div>
+              </>
+            ) : (
+              <div className="dtw-dropzone-files">
+                {files.map((file, idx) => (
+                  <div key={file.name} className="dtw-dropzone-file-chip">
+                    <FileText size={12} />
+                    <span className="dtw-dropzone-file-name">{file.name}</span>
+                    <button
+                      className="dtw-dropzone-file-remove"
+                      onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
+                      title="Remove file"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                <div className="dtw-dropzone-add-hint">
+                  <Upload size={14} />
+                  <span>Drop or click to add more</span>
+                </div>
+              </div>
+            )}
           </div>
           <input
             ref={fileInputRef}
@@ -771,28 +795,6 @@ export function PackUploadStep({
               e.target.value = '';
             }}
           />
-
-          {/* File list */}
-          {files.length > 0 && (
-            <div className="pack-file-list">
-              {files.map((file, idx) => (
-                <div key={file.name} className="pack-file-item">
-                  <FileText size={14} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
-                  <span className="pack-file-name">{file.name}</span>
-                  <span className="pack-file-size">
-                    {(file.size / 1024).toFixed(0)} KB
-                  </span>
-                  <button
-                    className="pack-file-remove"
-                    onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                    title="Remove"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
 
           {analyzeError && (
             <div className="dtw-upload-error">{analyzeError}</div>

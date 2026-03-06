@@ -1332,3 +1332,89 @@
 .cv4-sources-add-more:hover {
   color: var(--accent-primary);
 }
+
+/* ── Message action bar (hover menu on assistant bubbles) ── */
+
+.cv4-msg-actions-wrap {
+  position: relative;
+  max-width: 78%;
+}
+
+.cv4-msg-actions-trigger {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+  z-index: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.cv4-msg-actions-wrap:hover .cv4-msg-actions-trigger,
+.cv4-msg-actions-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.cv4-msg-actions-trigger:hover {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+@media (hover: none) {
+  .cv4-msg-actions-trigger {
+    opacity: 0.6;
+  }
+}
+
+.cv4-msg-actions-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cv4-msg-actions-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  outline: none;
+}
+
+.cv4-msg-actions-item:hover,
+.cv4-msg-actions-item:focus-visible {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.cv4-msg-actions-item svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cv4-msg-actions-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-default);
+}

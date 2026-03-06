@@ -7,9 +7,77 @@
  * with status indicators. Labels adapt via terminology when available.
  */
 
-import { Check, Loader2, Circle, Disc, RotateCcw, ChevronRight, ExternalLink } from "lucide-react";
+import { Loader2, RotateCcw, ChevronRight, ExternalLink } from "lucide-react";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
+
+/* ── Segment colors (CSS var references) ──────────────── */
+const SEGMENT_COLORS: Record<ScaffoldStatus, string> = {
+  done:       "var(--accent-primary)",
+  resolved:   "var(--accent-primary)",
+  ready:      "var(--accent-primary)",
+  building:   "var(--accent-primary)",
+  collecting: "var(--accent-primary)",
+  waiting:    "var(--border-default)",
+};
+
+/* ── Segmented Donut ──────────────────────────────────── */
+
+interface DonutItem { status: ScaffoldStatus; label: string }
+
+function ProgressDonut({ items }: { items: DonutItem[] }) {
+  const size = 120;
+  const strokeWidth = 10;
+  const center = size / 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const GAP = 4; // px gap between segments
+  const gapDeg = (GAP / circumference) * 360;
+  const segDeg = (360 - items.length * gapDeg) / items.length;
+  const segArc = (segDeg / 360) * circumference;
+
+  const completedCount = items.filter(i => i.status === "ready" || i.status === "resolved" || i.status === "done").length;
+  const pct = Math.round((completedCount / items.length) * 100);
+  const allDone = completedCount === items.length;
+
+  return (
+    <div className="gs-donut-wrap">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="gs-donut-svg"
+      >
+        {items.map((item, i) => {
+          const startAngle = -90 + i * (segDeg + gapDeg);
+          const isAnimated = item.status === "collecting" || item.status === "building";
+
+          return (
+            <circle
+              key={i}
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              stroke={SEGMENT_COLORS[item.status]}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${segArc} ${circumference - segArc}`}
+              className={`gs-donut-segment${isAnimated ? " gs-donut-segment--pulse" : ""}`}
+              style={{ transform: `rotate(${startAngle}deg)`, transformOrigin: `${center}px ${center}px` }}
+            />
+          );
+        })}
+      </svg>
+      <div className="gs-donut-center">
+        {allDone
+          ? <span className="gs-donut-check">&#10003;</span>
+          : <span className="gs-donut-pct">{pct}%</span>
+        }
+      </div>
+    </div>
+  );
+}
 
 interface ScaffoldItem {
   key: string;
@@ -108,21 +176,16 @@ const LESSON_MODEL_LABELS: Record<string, string> = {
   project: "Project-Based",
 };
 
-function StatusIcon({ status }: { status: ScaffoldStatus }) {
-  switch (status) {
-    case "done":
-      return <div className="gs-scaffold-icon" data-status="done"><Check size={12} /></div>;
-    case "resolved":
-      return <div className="gs-scaffold-icon" data-status="resolved"><Check size={12} /></div>;
-    case "building":
-      return <div className="gs-scaffold-icon" data-status="building"><Loader2 size={12} className="hf-spinner" /></div>;
-    case "ready":
-      return <div className="gs-scaffold-icon" data-status="ready"><Check size={12} /></div>;
-    case "collecting":
-      return <div className="gs-scaffold-icon" data-status="collecting"><Disc size={10} /></div>;
-    default:
-      return <div className="gs-scaffold-icon" data-status="waiting"><Circle size={10} /></div>;
-  }
+function StatusDot({ status }: { status: ScaffoldStatus }) {
+  const isAnimated = status === "collecting" || status === "building";
+  return (
+    <span
+      className={`gs-dot${isAnimated ? " gs-dot--pulse" : ""}`}
+      data-status={status}
+    >
+      {status === "building" && <Loader2 size={10} className="hf-spinner" />}
+    </span>
+  );
 }
 
 export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms, onReset, onItemClick }: ScaffoldPanelProps) {
@@ -152,7 +215,8 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
   const welcomeMsg = getData<string>("welcomeMessage");
   const sessionCount = getData<number>("sessionCount");
   const hasTune = !!getData<Record<string, number>>("behaviorTargets");
-  const canTryCall = hasDomainId || launched;
+  const draftCallerId = getData<string>("draftCallerId");
+  const canTryCall = !!draftCallerId && (hasDomainId || launched);
 
   // Detail chips for each section
   const typeSlug = getData<string>("typeSlug");
@@ -261,7 +325,6 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
   // Readiness: count ready/draft/done items out of total
   const allItems = [...items, ...extraItems];
   const completedCount = allItems.filter((i) => i.status === "ready" || i.status === "resolved" || i.status === "done").length;
-  const readinessPct = Math.round((completedCount / allItems.length) * 100);
 
   const readinessHint = (() => {
     if (launched) return "Ready to go!";
@@ -312,7 +375,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
               tabIndex={onItemClick ? 0 : undefined}
               onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
             >
-              <StatusIcon status={item.status} />
+              <StatusDot status={item.status} />
               <div className="gs-scaffold-item-content">
                 <div className="gs-scaffold-item-row">
                   <span className="gs-scaffold-label">{item.label}</span>
@@ -345,7 +408,7 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
               tabIndex={onItemClick ? 0 : undefined}
               onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
             >
-              <StatusIcon status={item.status} />
+              <StatusDot status={item.status} />
               <div className="gs-scaffold-item-content">
                 <div className="gs-scaffold-item-row">
                   <span className="gs-scaffold-label">{item.label}</span>
@@ -365,20 +428,14 @@ export function ScaffoldPanel({ getData, currentStepIndex, currentPhaseId, terms
         </ul>
 
         <div className="gs-readiness">
-          <div className="gs-readiness-header">
-            <span className="gs-readiness-label">Readiness</span>
-            <span className="gs-readiness-pct">{readinessPct}%</span>
-          </div>
-          <div className="gs-readiness-bar">
-            <div className="gs-readiness-fill" style={{ width: `${readinessPct}%` }} />
-          </div>
+          <ProgressDonut items={allItems.map(i => ({ status: i.status, label: i.label }))} />
           <div className="gs-readiness-hint">{readinessHint}</div>
         </div>
 
         <div className="gs-try-call">
           {canTryCall ? (
             <a
-              href={`/x/sim/${getData<string>("draftCallerId") || ""}?${new URLSearchParams({ ...(getData<string>("draftPlaybookId") ? { playbookId: getData<string>("draftPlaybookId")! } : {}), ...(getData<string>("draftDomainId") || getData<string>("existingDomainId") ? { domainId: (getData<string>("draftDomainId") || getData<string>("existingDomainId"))! } : {}) }).toString()}`}
+              href={`/x/sim/${draftCallerId}?${new URLSearchParams({ ...(getData<string>("draftPlaybookId") ? { playbookId: getData<string>("draftPlaybookId")! } : {}), ...(getData<string>("draftDomainId") || getData<string>("existingDomainId") ? { domainId: (getData<string>("draftDomainId") || getData<string>("existingDomainId"))! } : {}) }).toString()}`}
               className="gs-sim-btn gs-sim-btn-ready"
               target="_blank"
               rel="noopener noreferrer"
