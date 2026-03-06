@@ -14,6 +14,18 @@
 
 import type { AITool } from "@/lib/ai/client";
 
+// ── Helpers ─────────────────────────────────────────────
+
+/** Return the string only if it looks like a real UUID (v4). Rejects slugs, made-up prefixed IDs, etc. */
+function validUuid(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  // Standard UUID v4 pattern — also accepts Prisma cuid/cuid2 (25+ alphanum chars)
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) return value;
+  // Prisma CUID (starts with c, 25 chars) or CUID2 (24+ chars alphanumeric)
+  if (/^c[a-z0-9]{24,}$/i.test(value)) return value;
+  return undefined;
+}
+
 // ── Tool definitions (sent to the AI) ───────────────────
 
 export const WIZARD_TOOLS: AITool[] = [
@@ -625,6 +637,37 @@ export async function executeWizardTool(
         const name = input.name as string;
         const typeSlug = input.typeSlug as string | undefined;
 
+        // ── Guard: if institution already exists (setupData or name match), return it ──
+        // The AI sometimes calls create_institution even when update_setup already resolved one.
+        const existingDomainId = validUuid(setupData?.existingDomainId);
+        const existingInstitutionId = validUuid(setupData?.existingInstitutionId);
+        if (existingDomainId && existingInstitutionId) {
+          console.log(`[wizard-tools] create_institution: institution already resolved (${existingInstitutionId}), returning existing`);
+          return {
+            ...base,
+            content: JSON.stringify({
+              ok: true,
+              institutionId: existingInstitutionId,
+              domainId: existingDomainId,
+              alreadyExisted: true,
+            }),
+          };
+        }
+        // Also check by name
+        const resolved = await resolveInstitutionByName(name);
+        if (resolved) {
+          console.log(`[wizard-tools] create_institution: "${name}" already exists (${resolved.institutionId}), returning existing`);
+          return {
+            ...base,
+            content: JSON.stringify({
+              ok: true,
+              institutionId: resolved.institutionId,
+              domainId: resolved.domainId,
+              alreadyExisted: true,
+            }),
+          };
+        }
+
         // Find institution type + its default domain kind
         let typeId: string | undefined;
         let domainKind: "INSTITUTION" | "COMMUNITY" = "INSTITUTION";
@@ -692,12 +735,91 @@ export async function executeWizardTool(
         const slugify = (await import("slugify")).default;
         const { generateLessonPlan } = await import("@/lib/content-trust/lesson-planner");
 
-        const domainId = input.domainId as string;
+        // ── Resolve domainId — validate AI input, prefer setupData truth ──
+        // The AI frequently hallucinates domainId (slugs, prefixed IDs, etc.).
+        // Always prefer setupData (set by update_setup from real DB lookups),
+        // only use input.domainId if it's a real UUID AND setupData has nothing.
+        let domainId = validUuid(setupData?.existingDomainId)
+          || validUuid(setupData?.draftDomainId)
+          || validUuid(input.domainId);
+
+        // Last resort: if AI sent a slug/name, try to resolve it from the DB
+        if (!domainId && input.domainId && typeof input.domainId === "string") {
+          console.warn(`[wizard-tools] create_course: rejected invalid domainId from AI: "${input.domainId}" — attempting slug/name lookup`);
+          const domain = await prisma.domain.findFirst({
+            where: {
+              OR: [
+                { slug: input.domainId as string },
+                { name: { equals: input.domainId as string, mode: "insensitive" } },
+              ],
+            },
+            select: { id: true },
+          });
+          if (domain) {
+            domainId = domain.id;
+            console.log(`[wizard-tools] create_course: resolved slug/name "${input.domainId}" → ${domain.id}`);
+          }
+        }
         const courseName = input.courseName as string;
         const interactionPattern = input.interactionPattern as string;
         const subjectDiscipline = (input.subjectDiscipline as string) || courseName;
         const packSubjectIds = (input.packSubjectIds as string[] | undefined)
           || (setupData?.packSubjectIds as string[] | undefined);
+
+        // ── Safety net: auto-create institution + domain if missing ──
+        // Mirrors the show_upload safety net. The AI sometimes skips
+        // create_institution and jumps straight to create_course.
+        if (!domainId && setupData?.institutionName) {
+          const name = setupData.institutionName as string;
+          const resolved = await resolveInstitutionByName(name);
+          if (resolved) {
+            domainId = resolved.domainId;
+          } else {
+            const typeSlug = setupData.typeSlug as string | undefined;
+            let typeId: string | undefined;
+            let domainKind: "INSTITUTION" | "COMMUNITY" = "INSTITUTION";
+            if (typeSlug) {
+              const instType = await prisma.institutionType.findFirst({
+                where: { slug: typeSlug },
+                select: { id: true, defaultDomainKind: true },
+              });
+              typeId = instType?.id;
+              if (instType?.defaultDomainKind === "COMMUNITY") domainKind = "COMMUNITY";
+            }
+            const institution = await prisma.institution.create({
+              data: {
+                name,
+                slug: slugify(name, { lower: true, strict: true }),
+                ...(typeId ? { typeId } : {}),
+              },
+            });
+            const domain = await prisma.domain.create({
+              data: {
+                name,
+                slug: slugify(name, { lower: true, strict: true }),
+                institutionId: institution.id,
+                kind: domainKind,
+              },
+            });
+            await prisma.user.update({
+              where: { id: userId },
+              data: { activeInstitutionId: institution.id },
+            });
+            domainId = domain.id;
+            console.log(`[wizard-tools] Auto-created institution "${name}" (${institution.id}) + domain (${domain.id}) for create_course`);
+          }
+        }
+
+        if (!domainId) {
+          return {
+            ...base,
+            content: JSON.stringify({
+              ok: false,
+              error: "No institution set up yet. Ask the user for their organisation name first, then retry.",
+            }),
+            is_error: true,
+          };
+        }
 
         // ── Guard: existing course resolved via entity resolution ──
         // If draftPlaybookId is already set, skip scaffolding — just apply config tweaks
@@ -1042,6 +1164,7 @@ export async function executeWizardTool(
           ...base,
           content: JSON.stringify({
             ok: true,
+            domainId,
             playbookId,
             callerId: caller.id,
             callerName,
@@ -1290,8 +1413,19 @@ export async function executeWizardTool(
         const { prisma } = await import("@/lib/prisma");
         const { applyBehaviorTargets } = await import("@/lib/domain/agent-tuning");
 
-        const domainId = input.domainId as string;
-        const playbookId = input.playbookId as string;
+        const domainId = validUuid(input.domainId)
+          || validUuid(setupData?.existingDomainId)
+          || validUuid(setupData?.draftDomainId);
+        const playbookId = validUuid(input.playbookId)
+          || validUuid(setupData?.draftPlaybookId);
+
+        if (!domainId || !playbookId) {
+          return {
+            ...base,
+            content: JSON.stringify({ ok: false, error: "Invalid domainId or playbookId. Use the IDs from create_course result." }),
+            is_error: true,
+          };
+        }
 
         // 1. Persist welcome message to Domain
         const welcomeMessage = input.welcomeMessage as string | undefined;

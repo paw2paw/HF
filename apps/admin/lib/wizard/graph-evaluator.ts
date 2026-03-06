@@ -324,6 +324,18 @@ export function buildGraphPromptSection(
     lines.push("");
   }
 
+  // Upload classifications (not a graph node — inject directly so the AI can see them)
+  const classifications = blackboard.lastUploadClassifications;
+  if (Array.isArray(classifications) && classifications.length > 0) {
+    lines.push("### Uploaded files (from lastUploadClassifications)");
+    for (const c of classifications) {
+      const conf = typeof c.confidence === "number" ? ` (confidence: ${Math.round(c.confidence * 100)}%)` : "";
+      lines.push(`  - ${c.fileName}: ${c.documentType}${conf}`);
+      if (c.reasoning) lines.push(`    Reasoning: ${c.reasoning}`);
+    }
+    lines.push("");
+  }
+
   // Missing required
   if (evaluation.missingRequired.length > 0) {
     lines.push("### Still required for launch");
