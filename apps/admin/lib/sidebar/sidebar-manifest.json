@@ -4,7 +4,8 @@
     "items": [
       { "id": "get-started-v2", "href": "/x/get-started-v2", "label": "Get Started", "icon": "Sparkles", "highlighted": true, "wizard": true },
       { "id": "get-started-v3", "href": "/x/get-started-v3", "label": "Get Started V3", "icon": "Sparkles", "wizard": true, "visibleFor": ["ADMIN", "SUPERADMIN"] },
-      { "id": "get-started-v4", "href": "/x/get-started-v4", "label": "Get Started V4", "icon": "Sparkles", "wizard": true, "visibleFor": ["ADMIN", "SUPERADMIN"] }
+      { "id": "get-started-v4", "href": "/x/get-started-v4", "label": "Get Started V4", "icon": "Sparkles", "wizard": true, "visibleFor": ["ADMIN", "SUPERADMIN"] },
+      { "id": "onboarding-flows", "href": "/x/get-started-v4/onboarding", "label": "Onboarding", "icon": "MessageSquare", "visibleFor": ["ADMIN", "SUPERADMIN"] }
     ]
   },
   {
