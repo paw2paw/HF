@@ -21,8 +21,10 @@ steps:
       - '--cache=true'
       - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin/cache'
       - '--cache-ttl=720h'
+      - '--single-snapshot'
+      - '--snapshotMode=redo'
       - '--build-arg=NEXT_PUBLIC_APP_ENV=${_APP_ENV}'
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: N1_HIGHCPU_8
+  machineType: E2_HIGHCPU_8
