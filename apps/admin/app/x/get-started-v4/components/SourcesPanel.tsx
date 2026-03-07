@@ -228,16 +228,26 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
   }, [files, domainId, courseName, interactionPattern, teachingMode, subjectDiscipline, onSourcesReady]);
 
   // Auto-process when files are added (after a short debounce to allow multi-file drops)
+  // Only fires when domainId is available — if not, files stay queued until it arrives.
   const processTimer = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    if (files.length > 0 && phase === "idle") {
+    if (files.length > 0 && phase === "idle" && domainId) {
       if (processTimer.current) clearTimeout(processTimer.current);
       processTimer.current = setTimeout(() => handleProcess(), 800);
     }
     return () => {
       if (processTimer.current) clearTimeout(processTimer.current);
     };
-  }, [files, phase, handleProcess]);
+  }, [files, phase, domainId, handleProcess]);
+
+  // When domainId arrives and files are already queued, kick off processing
+  const prevDomainId = useRef<string>("");
+  useEffect(() => {
+    if (domainId && !prevDomainId.current && files.length > 0 && phase === "idle") {
+      handleProcess();
+    }
+    prevDomainId.current = domainId;
+  }, [domainId, files.length, phase, handleProcess]);
 
   // ── Remove a file ────────────────────────────────────
 
@@ -340,6 +350,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
             <div key={f.name} className="cv4-sources-file">
               <FileText size={12} />
               <span className="cv4-sources-filename">{f.name}</span>
+              {!domainId && <span className="cv4-sources-queued">queued</span>}
               <button
                 className="cv4-sources-remove"
                 onClick={() => removeFile(f.name)}

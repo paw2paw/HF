@@ -2,7 +2,7 @@
  * Golden Path Seed
  *
  * Creates a clean, realistic dataset for golden path demos:
- *   1. Greenfield Academy (school) — 2 lesson plans, 2 classes, 8 students
+ *   1. Aardvark Academy (school) — 1 course, 1 class, 4 students
  *   2. Apex Consulting (corporate) — 1 training plan, 1 team, 6 employees
  *   3. Companion (community) — 2 programmes, 1 community, 6 members
  *   4. Bright Path Training (training) — 12 courses, 1 cohort, 8 participants
@@ -144,8 +144,8 @@ const INSTITUTIONS: InstitutionDef[] = [
       cohorts: [
         {
           name: "Class 5B",
-          teacher: { name: "Mr. David Clarke", email: "d.clarke@greenfield.sch.uk" },
-          members: ["Sophie Brown", "Noah Martinez", "Zara Ali", "Liam O'Connor"],
+          teacher: { name: "Mr. David Clarke", email: "d.clarke@aardvark.sch.uk" },
+          members: ["Aaron Brown", "Aaliyah Martinez", "Aanya Ali", "Aarav O'Connor"],
         },
       ],
     },

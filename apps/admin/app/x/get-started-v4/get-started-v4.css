@@ -120,6 +120,20 @@
   font-weight: 600;
 }
 
+.cv4-strong-chip {
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.cv4-strong-chip:hover {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
 .cv4-bubble--assistant ul,
 .cv4-bubble--assistant ol {
   margin: 0.5em 0;
@@ -1258,6 +1272,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cv4-sources-queued {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .cv4-sources-doctype {

@@ -1047,7 +1047,25 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                   {msg.thinking && <ThinkingBlock content={msg.thinking} />}
                   <div className="cv4-msg-actions-wrap">
                     <div className="cv4-bubble cv4-bubble--assistant">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        components={isLast ? {
+                          strong: ({ children }) => {
+                            const label = String(children ?? "").replace(/:$/, "").trim();
+                            return (
+                              <strong
+                                className="cv4-strong-chip"
+                                title={`Click to change ${label}`}
+                                onClick={() => {
+                                  setInputValue(`Change ${label.toLowerCase()}: `);
+                                  setTimeout(() => inputRef.current?.focus(), 50);
+                                }}
+                              >
+                                {children}
+                              </strong>
+                            );
+                          },
+                        } : undefined}
+                      >{msg.content}</ReactMarkdown>
                       {inlineOptions.length > 0 && (
                         <ul className="cv4-inline-options" role="listbox">
                           {inlineOptions.map((opt, i) => (
@@ -1310,8 +1328,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           }}
         />
 
-        {/* Sources panel — visible once institution/domain resolved */}
-        {resolvedDomainId && !launched && (
+        {/* Sources panel — always visible so files can be queued before domain exists */}
+        {!launched && (
           <div ref={sourcesPanelElRef}>
             <SourcesPanel
               ref={sourcesPanelRef}
