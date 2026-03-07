@@ -72,13 +72,15 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
   {
     name: "show_options",
     description:
-      "Show a structured option card inline in the chat stream for questions with predefined choices. " +
-      "Use for: teaching approach, session count/duration, lesson plan model, subject discipline (from catalog), " +
-      "or any question with 2-8 predefined values. " +
+      "Show a structured option card for questions with predefined choices. " +
+      "Two modes: (1) CHOICE card — inline in the chat stream, for teaching approach, session count/duration, lesson plan model, subject discipline, or any question with 2-8 predefined values. " +
       "Use mode 'radio' for single-choice, 'checklist' for multi-choice. " +
       "Always set recommended: true on the option you recommend. " +
-      "The user can click 'Something else' to type freely instead, or 'Skip' for optional fields. " +
-      "IMPORTANT: use show_options for CHOICE questions, show_suggestions for CONFIRMATIONS only.",
+      "(2) FIELD PICKER — set fieldPicker: true after presenting the full Phase 2/5 proposal summary. " +
+      "Shows above the input bar so the user can pick which proposal field to change. " +
+      "Use mode: 'checklist', dataKey: '_fieldPicker', options = one entry per bold field in the proposal (label = field name, description = proposed value + one-sentence rationale). " +
+      "IMPORTANT: use show_options for CHOICE questions, show_suggestions for CONFIRMATIONS only. " +
+      "When fieldPicker: true, do NOT also call show_suggestions in the same response.",
     input_schema: {
       type: "object",
       properties: {
@@ -88,7 +90,7 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
         },
         dataKey: {
           type: "string",
-          description: "The setup field key this answer maps to (e.g. 'interactionPattern', 'sessionCount').",
+          description: "The setup field key this answer maps to (e.g. 'interactionPattern', 'sessionCount'). Use '_fieldPicker' for field picker mode.",
         },
         mode: {
           type: "string",
@@ -98,6 +100,10 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
         required: {
           type: "boolean",
           description: "If true, Skip button is hidden. Default false.",
+        },
+        fieldPicker: {
+          type: "boolean",
+          description: "If true, renders above the input bar as a proposal field picker. Use after full proposal summary only. Options = each bold proposal field. Do not call show_suggestions in the same response.",
         },
         options: {
           type: "array",

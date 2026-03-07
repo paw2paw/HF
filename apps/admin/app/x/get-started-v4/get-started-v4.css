@@ -120,18 +120,25 @@
   font-weight: 600;
 }
 
-.cv4-strong-chip {
-  cursor: pointer;
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 3px;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
+/* ── Field picker panel (above input bar) ─────────────── */
+
+.cv4-field-picker-panel {
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-primary);
 }
 
-.cv4-strong-chip:hover {
-  color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+.cv4-option-letter {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.cv4-options-footer--picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .cv4-bubble--assistant ul,
@@ -1476,13 +1483,13 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: none;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
-  background: transparent;
+  background: var(--surface-secondary);
   color: var(--text-muted);
   cursor: pointer;
-  opacity: 0.35;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
   z-index: 1;
 }
 
@@ -1490,7 +1497,7 @@
 .cv4-msg-actions-trigger[aria-expanded="true"] {
   opacity: 1;
   background: var(--surface-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .cv4-msg-actions-trigger:hover {
@@ -1500,7 +1507,7 @@
 
 @media (hover: none) {
   .cv4-msg-actions-trigger {
-    opacity: 0.5;
+    opacity: 0.7;
   }
 }
 

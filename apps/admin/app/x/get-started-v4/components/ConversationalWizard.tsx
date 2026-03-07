@@ -32,6 +32,7 @@ import { ScaffoldPanel } from "../../get-started/components/ScaffoldPanel";
 import { parseOptionsFromText } from "@/lib/chat/parse-options";
 import "../get-started-v4.css";
 
+
 // ── Types ────────────────────────────────────────────────
 
 export interface WizardInitialContext {
@@ -45,6 +46,7 @@ export interface WizardInitialContext {
 
 interface ConversationalWizardProps {
   initialContext?: WizardInitialContext;
+  userRole?: string;
 }
 
 type MessageRole = "assistant" | "user" | "system";
@@ -96,6 +98,7 @@ interface WizardResponse {
 // ── Thinking ─────────────────────────────────────────────
 
 const WIZARD_THINKING_KEY = "wizard.thinking-enabled";
+const WIZARD_FIELD_PICKER_KEY = "wizard.field-picker";
 
 function ThinkingBlock({ content }: { content: string }) {
   const [open, setOpen] = useState(false);
@@ -361,7 +364,7 @@ function contextToInitialData(ctx: WizardInitialContext): Record<string, unknown
 
 // ── Component ────────────────────────────────────────────
 
-export function ConversationalWizard({ initialContext }: ConversationalWizardProps) {
+export function ConversationalWizard({ initialContext, userRole }: ConversationalWizardProps) {
   const { getData, setData, isActive, startFlow } = useStepFlow();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -369,6 +372,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<{ question?: string; items: string[] }>({ items: [] });
   const [welcomeSuggestion, setWelcomeSuggestion] = useState<string | null>(null);
+  const [fieldPickerPanel, setFieldPickerPanel] = useState<OptionsPanel | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [demoResetState, setDemoResetState] = useState<"idle" | "confirm" | "running" | "done" | "error">("idle");
@@ -420,6 +424,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     setIsLoading(false);
     setSuggestions({ items: [] });
     setWelcomeSuggestion(null);
+    setFieldPickerPanel(null);
     setConfirmReset(false);
     initialised.current = false;
     setResetKey((n) => n + 1);
@@ -562,13 +567,19 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
           }
 
           case "show_options": {
-            extras.push({
-              id: uid(),
-              role: "system",
-              systemType: "options",
-              content: tc.input.question as string,
-              optionsPanel: tc.input as unknown as OptionsPanel,
-            });
+            const fieldPickerEnabled = localStorage.getItem(WIZARD_FIELD_PICKER_KEY) !== "false";
+            if (tc.input.fieldPicker && fieldPickerEnabled) {
+              // Field picker renders above the input bar, not in the message stream
+              setFieldPickerPanel(tc.input as unknown as OptionsPanel);
+            } else {
+              extras.push({
+                id: uid(),
+                role: "system",
+                systemType: "options",
+                content: tc.input.question as string,
+                optionsPanel: tc.input as unknown as OptionsPanel,
+              });
+            }
             break;
           }
 
@@ -581,7 +592,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
       return extras;
     },
-    [setData],
+    [setData, setFieldPickerPanel],
   );
 
   // ── Post-process AI response for tool results ─────────
@@ -1047,25 +1058,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                   {msg.thinking && <ThinkingBlock content={msg.thinking} />}
                   <div className="cv4-msg-actions-wrap">
                     <div className="cv4-bubble cv4-bubble--assistant">
-                      <ReactMarkdown
-                        components={isLast ? {
-                          strong: ({ children }) => {
-                            const label = String(children ?? "").replace(/:$/, "").trim();
-                            return (
-                              <strong
-                                className="cv4-strong-chip"
-                                title={`Click to change ${label}`}
-                                onClick={() => {
-                                  setInputValue(`Change ${label.toLowerCase()}: `);
-                                  setTimeout(() => inputRef.current?.focus(), 50);
-                                }}
-                              >
-                                {children}
-                              </strong>
-                            );
-                          },
-                        } : undefined}
-                      >{msg.content}</ReactMarkdown>
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
                       {inlineOptions.length > 0 && (
                         <ul className="cv4-inline-options" role="listbox">
                           {inlineOptions.map((opt, i) => (
@@ -1128,6 +1121,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                 <div className="cv4-success-actions">
                   <a
                     href={`/x/sim/${draftCallerId}?${new URLSearchParams({
+                      forceFirstCall: "true",
                       ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
                       ...(draftDomainId ? { domainId: draftDomainId } : {}),
                     }).toString()}`}
@@ -1203,6 +1197,27 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             </div>
           )}
 
+          {/* Field picker panel — shown above input when AI calls show_options with fieldPicker: true */}
+          {fieldPickerPanel && !isLoading && (
+            <div className="cv4-field-picker-panel">
+              <OptionsCard
+                panel={fieldPickerPanel}
+                onSelect={(_value, displayText) => {
+                  setFieldPickerPanel(null);
+                  handleSend(`Change ${displayText.toLowerCase()}`);
+                }}
+                onSkip={() => {
+                  setFieldPickerPanel(null);
+                  handleSend("Looks good, let's build it");
+                }}
+                onSomethingElse={() => {
+                  setFieldPickerPanel(null);
+                  setTimeout(() => inputRef.current?.focus(), 50);
+                }}
+              />
+            </div>
+          )}
+
           {/* Text input */}
           <div className="cv4-input-row">
             <textarea
@@ -1271,7 +1286,7 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
       <div className="cv4-panel-column">
 
         {/* Demo Reset — SUPERADMIN only */}
-        {initialContext?.userRole === "SUPERADMIN" && (
+        {(userRole ?? initialContext?.userRole) === "SUPERADMIN" && (
           <div className="cv4-demo-reset">
             {demoResetState === "idle" && (
               <button

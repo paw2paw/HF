@@ -10,7 +10,7 @@ export default async function GetStartedV4Page() {
   const { user } = session;
   const institutionId = user.institutionId;
 
-  if (!institutionId) return <ConversationalWizard />;
+  if (!institutionId) return <ConversationalWizard userRole={user.role} />;
 
   const institution = await prisma.institution.findUnique({
     where: { id: institutionId, isActive: true },
@@ -28,7 +28,7 @@ export default async function GetStartedV4Page() {
   });
 
   if (!institution || institution.domains.length === 0) {
-    return <ConversationalWizard />;
+    return <ConversationalWizard userRole={user.role} />;
   }
 
   let domainId = institution.domains[0].id;

@@ -406,19 +406,31 @@ export async function POST(
 
     const { curriculumId } = await params;
     const body = await request.json().catch(() => ({}));
-    const totalSessionTarget = body.totalSessionTarget || null;
-    const durationMins = body.durationMins || null;
     const emphasis: string = body.emphasis || "balanced";
     const includeAssessments: string = body.includeAssessments || "light";
 
     // Verify curriculum exists
     const curriculum = await prisma.curriculum.findUnique({
       where: { id: curriculumId },
-      select: { id: true, notableInfo: true },
+      select: { id: true, notableInfo: true, subjectId: true },
     });
 
     if (!curriculum) {
       return NextResponse.json({ ok: false, error: "Curriculum not found" }, { status: 404 });
+    }
+
+    // If no explicit session count/duration in body, fall back to playbook config
+    // (the "Regenerate Plan" button sends {} — read saved educator preferences)
+    let totalSessionTarget: number | null = body.totalSessionTarget || null;
+    let durationMins: number | null = body.durationMins || null;
+    if ((!totalSessionTarget || !durationMins) && curriculum.subjectId) {
+      const playbookSubject = await prisma.playbookSubject.findFirst({
+        where: { subject: { curriculums: { some: { id: curriculumId } } } },
+        select: { playbook: { select: { config: true } } },
+      });
+      const config = (playbookSubject?.playbook?.config as Record<string, any>) || {};
+      if (!totalSessionTarget && config.sessionCount) totalSessionTarget = Number(config.sessionCount);
+      if (!durationMins && config.durationMins) durationMins = Number(config.durationMins);
     }
 
     // Check curriculum has modules

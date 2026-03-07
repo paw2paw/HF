@@ -510,6 +510,15 @@ ask students to turn to specific pages.
 - The user can click "Something else" to type freely, or "Skip" for optional fields.
 - **CALL ONE show_options per response at most. Never call show_suggestions in the same response as show_options.**
 
+**show_options with fieldPicker: true** — call this ONCE immediately after presenting the full Phase 2 or Phase 5 configuration proposal:
+- Set fieldPicker: true, mode: "checklist", dataKey: "_fieldPicker"
+- question: "What would you like to change?"
+- options: one entry per bold field in the proposal (label = plain field name, description = proposed value + one-sentence rationale)
+- Example options: { value: "interactionPattern", label: "Teaching approach", description: "Socratic — question-led discovery, builds analytical thinking" }
+- Do NOT call show_suggestions in the same response
+- Only call this after a FULL proposal — not in reply to individual field questions
+- The user selects one or more fields → message sent = "Change [field name(s)]" → you address only those fields
+
 **show_suggestions** — use ONLY for:
 - Confirmation after a proposal: "Sounds right", "Change something", "Walk me through each one"
 - Post-playback: "That's right", "I'd change something", "Let's continue"
@@ -600,6 +609,8 @@ Amendment tiers:
 - **Post-creation config** (welcome message, sessions, personality, first-call material assignments): call update_setup AND update_course_config. For material reassignment, pass updated onboardingFlowPhases to update_course_config.
 - **Post-creation structural** (course name, institution, teaching approach): explain kindly that
   these can't be changed after creation. Offer to start a new course instead.
+
+⚠️ **Session count / duration changes (post-creation):** After calling update_course_config with a new sessionCount or durationMins, tell the user: "I've saved that setting. To apply it to your lesson plan, click **Regenerate Plan** on the Lesson Plan tab — it will rebuild the sessions to match." Do NOT say the lesson plan automatically adjusts — it does not update automatically.
 
 ${setupData.draftPlaybookId ? `Amendment tier: POST-SCAFFOLD (playbookId: ${setupData.draftPlaybookId}).` : "Amendment tier: PRE-SCAFFOLD (all changes free)."}`;
 }

@@ -59,6 +59,7 @@ const ROLE_LEVEL: Record<string, number> = {
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
 const WIZARD_THINKING_KEY = "wizard.thinking-enabled";
+const WIZARD_FIELD_PICKER_KEY = "wizard.field-picker";
 
 export function UserContextMenu({
   isOpen,
@@ -103,6 +104,13 @@ export function UserContextMenu({
     if (stored !== null) setWizardThinkingEnabled(stored !== "false");
   }, []);
 
+  // Wizard field picker toggle (localStorage)
+  const [wizardFieldPickerEnabled, setWizardFieldPickerEnabled] = useState(true);
+  useEffect(() => {
+    const stored = localStorage.getItem(WIZARD_FIELD_PICKER_KEY);
+    if (stored !== null) setWizardFieldPickerEnabled(stored !== "false");
+  }, []);
+
   // Deep logging toggle (server-side, ADMIN+ only — fetch on menu open)
   const [deepLogging, setDeepLogging] = useState(false);
   useEffect(() => {
@@ -130,6 +138,15 @@ export function UserContextMenu({
       new StorageEvent("storage", { key: WIZARD_THINKING_KEY, newValue: String(next) })
     );
   }, [wizardThinkingEnabled]);
+
+  const handleToggleWizardFieldPicker = useCallback(() => {
+    const next = !wizardFieldPickerEnabled;
+    setWizardFieldPickerEnabled(next);
+    localStorage.setItem(WIZARD_FIELD_PICKER_KEY, String(next));
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: WIZARD_FIELD_PICKER_KEY, newValue: String(next) })
+    );
+  }, [wizardFieldPickerEnabled]);
 
   const handleToggleDeepLogging = useCallback(async () => {
     const newValue = !deepLogging;
@@ -629,6 +646,30 @@ export function UserContextMenu({
                   className="hf-toggle-mini"
                   onClick={handleToggleWizardThinking}
                   title={wizardThinkingEnabled ? "Reasoning display ON" : "Reasoning display OFF"}
+                >
+                  <div className="hf-toggle-mini-knob" />
+                </button>
+              </div>
+
+              {/* Field Picker mode */}
+              <div
+                className="flex items-center justify-between px-3 py-2 rounded-lg"
+                style={{ color: "var(--text-primary)" }}
+              >
+                <span className="flex items-center gap-3 text-sm">
+                  <BookOpen
+                    className="w-[18px] h-[18px] flex-shrink-0"
+                    style={{ color: "var(--text-secondary)" }}
+                  />
+                  Chat mode
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={wizardFieldPickerEnabled}
+                  className="hf-toggle-mini"
+                  onClick={handleToggleWizardFieldPicker}
+                  title={wizardFieldPickerEnabled ? "Field picker ON" : "Field picker OFF"}
                 >
                   <div className="hf-toggle-mini-knob" />
                 </button>

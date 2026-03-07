@@ -294,6 +294,7 @@ export function SimChat({
         if (cancelled) return;
 
         let usedPromptId: string | null = null;
+        let firstLine: string | null = null;
         const composeRes = await fetch(`/api/callers/${callerId}/compose-prompt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -302,6 +303,7 @@ export function SimChat({
         if (composeRes.ok) {
           const composeData = await composeRes.json();
           usedPromptId = composeData.prompt?.id || null;
+          firstLine = (composeData.prompt?.llmPrompt as any)?._quickStart?.first_line || null;
         } else {
           console.warn('[sim] compose-prompt failed, continuing with existing prompt');
         }
@@ -324,12 +326,14 @@ export function SimChat({
           return;
         }
 
-        // AI sends greeting
+        // AI sends greeting — mirror VAPI's firstMessage behaviour
         if (!cancelled) {
           setIsInitializing(false);
           await streamAIResponse(
             sessionGoal
-                ? `The user just opened the chat. The admin has set a session goal: "${sessionGoal}". Greet them warmly as if answering a phone call, and gently orient toward this goal. Be brief and natural.`
+              ? `The user just opened the chat. The admin has set a session goal: "${sessionGoal}". Greet them warmly as if answering a phone call, and gently orient toward this goal. Be brief and natural.${firstLine ? ` Open with: "${firstLine}"` : ''}`
+              : firstLine
+                ? `The user just opened the chat. Open with exactly: "${firstLine}"`
                 : 'The user just opened the chat. Greet them warmly as if answering a phone call. Be brief and natural.',
             []
           );

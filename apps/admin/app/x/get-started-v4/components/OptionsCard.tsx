@@ -26,6 +26,7 @@ export interface OptionsPanel {
   dataKey: string;
   mode: "radio" | "checklist";
   required?: boolean;
+  fieldPicker?: boolean;
   options: OptionDef[];
 }
 
@@ -146,6 +147,7 @@ export function OptionsCard({ panel, onSelect, onSkip, onSomethingElse }: Option
           const isFocused = focusedIndex === idx;
           const isSelected = selected.has(opt.value);
 
+          const letter = String.fromCharCode(65 + page * PAGE_SIZE + idx);
           return (
             <li
               key={opt.value}
@@ -155,10 +157,10 @@ export function OptionsCard({ panel, onSelect, onSkip, onSomethingElse }: Option
                 (isSelected ? " cv4-option-row--selected" : "")
               }
               role="option"
-              aria-selected={panel.mode === "checklist" ? isSelected : undefined}
+              aria-selected={panel.mode === "checklist" || panel.fieldPicker ? isSelected : undefined}
               onClick={() => {
                 setFocusedIndex(idx);
-                if (panel.mode === "radio") {
+                if (panel.mode === "radio" && !panel.fieldPicker) {
                   handleRadioSelect(opt);
                 } else {
                   toggleSelected(opt.value);
@@ -166,14 +168,19 @@ export function OptionsCard({ panel, onSelect, onSkip, onSomethingElse }: Option
               }}
               onMouseEnter={() => setFocusedIndex(idx)}
             >
-              {panel.mode === "radio" ? (
+              {panel.fieldPicker ? (
+                <span className={`cv4-option-checkbox${isSelected ? " cv4-option-checkbox--checked" : ""}`} aria-hidden="true" />
+              ) : panel.mode === "radio" ? (
                 <span className="cv4-option-number">{page * PAGE_SIZE + idx + 1}</span>
               ) : (
                 <span className={`cv4-option-checkbox${isSelected ? " cv4-option-checkbox--checked" : ""}`} aria-hidden="true" />
               )}
               <div className="cv4-option-body">
                 <div className="cv4-option-label-row">
-                  <span className="cv4-option-label">{opt.label}</span>
+                  <span className="cv4-option-label">
+                    {panel.fieldPicker && <span className="cv4-option-letter">{letter} — </span>}
+                    {opt.label}
+                  </span>
                   {opt.recommended && (
                     <span className="cv4-option-recommended">Recommended</span>
                   )}
@@ -211,45 +218,65 @@ export function OptionsCard({ panel, onSelect, onSkip, onSomethingElse }: Option
         </div>
       )}
 
-      {/* Footer: checklist confirm + escape links + hints */}
-      <div className="cv4-options-footer">
-        <div className="cv4-options-footer-left">
-          {panel.mode === "checklist" && (
-            <button
-              type="button"
-              className="cv4-options-confirm-btn"
-              disabled={selected.size === 0}
-              onClick={handleChecklistConfirm}
-            >
-              Confirm{selected.size > 0 ? ` (${selected.size})` : ""}
-            </button>
-          )}
+      {/* Footer */}
+      {panel.fieldPicker ? (
+        <div className="cv4-options-footer cv4-options-footer--picker">
           <button
             type="button"
             className="cv4-options-escape"
-            onClick={onSomethingElse}
+            onClick={onSkip}
           >
-            <Pencil size={11} />
-            Something else
+            Looks good — build it
           </button>
-          {!panel.required && (
+          <button
+            type="button"
+            className="cv4-options-confirm-btn"
+            disabled={selected.size === 0}
+            onClick={handleChecklistConfirm}
+          >
+            {selected.size > 0 ? `${selected.size} ` : ""}Change this ›
+          </button>
+        </div>
+      ) : (
+        <div className="cv4-options-footer">
+          <div className="cv4-options-footer-left">
+            {panel.mode === "checklist" && (
+              <button
+                type="button"
+                className="cv4-options-confirm-btn"
+                disabled={selected.size === 0}
+                onClick={handleChecklistConfirm}
+              >
+                Confirm{selected.size > 0 ? ` (${selected.size})` : ""}
+              </button>
+            )}
             <button
               type="button"
-              className="cv4-options-skip"
-              onClick={onSkip}
+              className="cv4-options-escape"
+              onClick={onSomethingElse}
             >
-              Skip
+              <Pencil size={11} />
+              Something else
             </button>
-          )}
+            {!panel.required && (
+              <button
+                type="button"
+                className="cv4-options-skip"
+                onClick={onSkip}
+              >
+                Skip
+              </button>
+            )}
+          </div>
+          <div className="cv4-options-hints">
+            <span>↑↓ navigate</span>
+            <span>·</span>
+            <span>{panel.mode === "checklist" ? "Space toggle" : "Enter select"}</span>
+            <span>·</span>
+            <span>Esc dismiss</span>
+          </div>
         </div>
-        <div className="cv4-options-hints">
-          <span>↑↓ navigate</span>
-          <span>·</span>
-          <span>{panel.mode === "checklist" ? "Space toggle" : "Enter select"}</span>
-          <span>·</span>
-          <span>Esc dismiss</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
