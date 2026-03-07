@@ -728,7 +728,7 @@ export default function SimpleSidebarNav({
 
                     return collapsed ? (
                       <Link
-                        key={item.href}
+                        key={item.id}
                         href={item.href}
                         title={item.label}
                         data-nav-item
@@ -764,7 +764,7 @@ export default function SimpleSidebarNav({
                       </Link>
                     ) : (
                       <Link
-                        key={item.href}
+                        key={item.id}
                         href={item.href}
                         data-nav-item
                         tabIndex={0}

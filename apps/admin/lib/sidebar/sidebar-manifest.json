@@ -1,9 +1,27 @@
 [
   {
-    "id": "get-started",
-    "defaultHiddenFor": ["EDUCATOR"],
+    "id": "edu-setup",
+    "title": "Setup",
+    "href": "/x/get-started-v4",
+    "defaultHiddenFor": ["OPERATOR", "ADMIN", "SUPERADMIN", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
     "items": [
-      { "id": "get-started-v4", "href": "/x/get-started-v4", "label": "Get Started", "icon": "Sparkles", "highlighted": true, "wizard": true }
+      { "id": "edu-gs", "href": "/x/get-started-v4", "label": "Get Started", "icon": "Sparkles", "highlighted": true, "wizard": true, "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-home", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }
+    ]
+  },
+  {
+    "id": "edu-glance",
+    "title": "At A Glance",
+    "href": "/x/educator/classrooms",
+    "defaultHiddenFor": ["OPERATOR", "ADMIN", "SUPERADMIN", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
+    "items": [
+      { "id": "edu-classrooms", "href": "/x/educator/classrooms", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-depts", "href": "/x/educator/departments", "label": "Departments", "icon": "Building", "terminologyLabel": "group_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-subjects", "href": "/x/subjects", "label": "Subjects", "icon": "Library", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-reports2", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-try2", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-settings2", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {
@@ -99,31 +117,6 @@
       { "id": "edu-try", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-settings", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }
-    ]
-  },
-  {
-    "id": "edu-setup",
-    "title": "Setup",
-    "href": "/x/get-started-v4",
-    "defaultHiddenFor": ["OPERATOR", "ADMIN", "SUPERADMIN", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
-    "items": [
-      { "id": "edu-gs", "href": "/x/get-started-v4", "label": "Get Started", "icon": "Sparkles", "highlighted": true, "wizard": true, "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-home", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }
-    ]
-  },
-  {
-    "id": "edu-glance",
-    "title": "At A Glance",
-    "href": "/x/educator/classrooms",
-    "defaultHiddenFor": ["OPERATOR", "ADMIN", "SUPERADMIN", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
-    "items": [
-      { "id": "edu-classrooms", "href": "/x/educator/classrooms", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-depts", "href": "/x/educator/departments", "label": "Departments", "icon": "Building", "terminologyLabel": "group_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-subjects", "href": "/x/educator/settings", "label": "Subjects", "icon": "Library", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-reports2", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-try2", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-settings2", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {
