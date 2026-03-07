@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
+import { getSubjectsForPlaybook, getSourceIdsForDomain } from "@/lib/knowledge/domain-sources";
 
 type Params = { params: Promise<{ curriculumId: string }> };
 
@@ -212,34 +212,46 @@ function toSummary(a: {
 }
 
 /**
- * Resolve content source IDs using the same path as content-breakdown:
- * courseId → getSubjectsForPlaybook (PlaybookSubject → Subject → SubjectSource,
- * with domain fallback). Falls back to direct SubjectSource query if no courseId.
+ * Resolve content source IDs with 3-tier fallback:
+ * 1. Course-scoped: PlaybookSubject → Subject → SubjectSource (most precise)
+ * 2. Direct SubjectSource via curriculum.subjectId (original behavior)
+ * 3. Domain-wide: all SubjectDomain → Subject → SubjectSource (broadest)
+ *
+ * Tier 3 handles the case where PlaybookSubject exists but the linked subject
+ * has 0 SubjectSource rows (content uploaded to sibling subjects in the domain).
  */
 async function resolveSourceIds(
   courseId: string | null,
   subjectId: string | null,
 ): Promise<string[]> {
-  // Path 1: Course-aware resolution (matches content-breakdown)
+  let domainId: string | null = null;
+
+  // Tier 1: Course-aware resolution (PlaybookSubject → Subject → SubjectSource)
   if (courseId) {
     const playbook = await prisma.playbook.findUnique({
       where: { id: courseId },
       select: { domainId: true },
     });
-    if (playbook?.domainId) {
-      const { subjects } = await getSubjectsForPlaybook(courseId, playbook.domainId);
+    domainId = playbook?.domainId ?? null;
+    if (domainId) {
+      const { subjects } = await getSubjectsForPlaybook(courseId, domainId);
       const ids = [...new Set(subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId)))];
       if (ids.length > 0) return ids;
     }
   }
 
-  // Path 2: Direct SubjectSource query (original behavior)
+  // Tier 2: Direct SubjectSource query (original behavior)
   if (subjectId) {
     const subjectSources = await prisma.subjectSource.findMany({
       where: { subjectId },
       select: { sourceId: true },
     });
-    return subjectSources.map((ss) => ss.sourceId);
+    if (subjectSources.length > 0) return subjectSources.map((ss) => ss.sourceId);
+  }
+
+  // Tier 3: Domain-wide fallback (all domain subjects' sources)
+  if (domainId) {
+    return getSourceIdsForDomain(domainId);
   }
 
   return [];

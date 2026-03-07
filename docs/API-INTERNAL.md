@@ -8575,6 +8575,22 @@ List all students (callers) enrolled in a course (playbook).
 
 ---
 
+### `POST` /api/domains/:domainId/subjects
+
+Link a subject to this domain (creates SubjectDomain join row)
+
+**Auth**: ADMIN
+
+---
+
+### `DELETE` /api/domains/:domainId/subjects/:subjectId
+
+Unlink a subject from this domain (deletes SubjectDomain join row)
+
+**Auth**: ADMIN
+
+---
+
 ### `POST` /api/educator/classrooms/:id/artifacts
 
 **Auth**: EDUCATOR
@@ -8604,6 +8620,14 @@ List all students (callers) enrolled in a course (playbook).
 Get branding for the current user's institution.
 
 **Auth**: VIEWER (any authenticated user)
+
+---
+
+### `PATCH` /api/institution/branding
+
+Update branding for the current user's institution.
+
+**Auth**: ADMIN
 
 ---
 
@@ -12953,8 +12977,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 380 |
-| Files with annotations | 379 |
+| Route files found | 382 |
+| Files with annotations | 381 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 
