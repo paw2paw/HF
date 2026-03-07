@@ -579,6 +579,21 @@
   overflow: hidden;
 }
 
+.wa-desktop-resize-handle {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--wa-divider);
+  position: relative;
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+.wa-desktop-resize-handle:hover,
+.wa-desktop-resize-handle:active {
+  background: var(--wa-green-primary);
+}
+
 .wa-desktop-main {
   flex: 1;
   display: flex;

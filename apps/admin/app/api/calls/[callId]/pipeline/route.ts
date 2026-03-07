@@ -23,6 +23,7 @@ import { getConfiguredMeteredAICompletion, logMockAIUsage } from "@/lib/metering
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
+import { aggregateCallerMemorySummary } from "@/lib/ops/memory-extract";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
 import { validateSpecDependencies } from "@/lib/pipeline/validate-dependencies";
 import { trackGoalProgress } from "@/lib/goals/track-progress";
@@ -437,11 +438,12 @@ async function runBatchedCallerAnalysis(
         log.info("EXTRACT JSON recovery applied", { fixesApplied });
       }
 
-      // Store scores (handle both full and compact keys: score/s, confidence/c)
+      // Store scores (handle both full and compact keys: score/s, confidence/c, reasoning/r)
       if (parsed.scores) {
         for (const [parameterId, scoreData] of Object.entries(parsed.scores as Record<string, any>)) {
           const score = Math.max(0, Math.min(1, scoreData.score ?? scoreData.s ?? 0.5));
           const confidence = Math.max(0, Math.min(1, scoreData.confidence ?? scoreData.c ?? 0.7));
+          const reasoning: string | undefined = scoreData.reasoning ?? scoreData.r ?? undefined;
 
           // Check if score already exists for this call+parameter
           const existing = await prisma.callScore.findFirst({
@@ -453,6 +455,7 @@ async function runBatchedCallerAnalysis(
               data: {
                 score,
                 confidence,
+                reasoning,
                 evidence: ["AI batched analysis"],
                 scoredBy: `${engine}_batched_v2`,
                 scoredAt: new Date(),
@@ -466,6 +469,7 @@ async function runBatchedCallerAnalysis(
                 parameterId,
                 score,
                 confidence,
+                reasoning,
                 evidence: ["AI batched analysis"],
                 scoredBy: `${engine}_batched_v2`,
               },
@@ -501,6 +505,11 @@ async function runBatchedCallerAnalysis(
             memoriesCreated++;
           }
         }
+      }
+
+      // Aggregate memory summary after extraction
+      if (memoriesCreated > 0) {
+        await aggregateCallerMemorySummary(callerId, false);
       }
 
       // Parse learning assessment from AI response

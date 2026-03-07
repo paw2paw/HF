@@ -387,6 +387,8 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
   const [sourcesGlow, setSourcesGlow] = useState(false);
   const [pageDragOver, setPageDragOver] = useState(false);
   const dragCounterRef = useRef(0);
+  // Pending upload notification — queued when upload completes while AI is loading
+  const pendingUploadRef = useRef<{ text: string; overrides: Record<string, unknown> } | null>(null);
 
   // ── Scroll ───────────────────────────────────────────
 
@@ -441,6 +443,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
       "behaviorTargets", "lessonPlanModel", "personalityPreset", "physicalMaterials",
       "draftDomainId", "draftInstitutionId", "draftPlaybookId", "draftCallerId",
       "launched", "sourceId", "packSubjectIds", "extractionTotals", "contentSkipped",
+      "lastUploadClassifications",
       "communityMode", "draftCohortGroupId", "communityJoinToken", "communityHubUrl",
     ];
     const data: Record<string, unknown> = {};
@@ -648,7 +651,12 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
   const handleSend = useCallback(
     async (text?: string, overrides?: Record<string, unknown>) => {
       const msg = (text || inputValue).trim();
-      if (!msg || isLoading) return;
+      if (!msg) return;
+      // If AI is mid-response, queue the message to send once it finishes
+      if (isLoading) {
+        pendingUploadRef.current = { text: msg, overrides: overrides || {} };
+        return;
+      }
 
       setInputValue("");
       setSuggestions({ items: [] });
@@ -706,6 +714,13 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
       saveHistory(finalMessages);
       scrollToBottom();
       setTimeout(() => inputRef.current?.focus(), 150);
+
+      // Drain any upload notification that arrived while AI was loading
+      const pending = pendingUploadRef.current;
+      if (pending) {
+        pendingUploadRef.current = null;
+        handleSend(pending.text, pending.overrides);
+      }
     },
     [inputValue, isLoading, messages, sendToAPI, processToolCalls, processResponseContent, scrollToBottom],
   );

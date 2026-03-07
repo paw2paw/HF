@@ -164,9 +164,28 @@ async function runAggregation(
       await updateLearnerProfile(callerId, profileUpdates, avgConfidence);
       console.log(`[aggregate-runner] Updated learner profile with ${Object.keys(profileUpdates).length} fields`);
     } else {
-      // Generic CallerAttribute update for other profile types
-      console.log(`[aggregate-runner] Non-learner profile update: ${Object.keys(profileUpdates).join(', ')}`);
-      // TODO: Add generic profile update helper if needed
+      // Generic CallerAttribute upsert for non-learner profile types
+      for (const [key, value] of Object.entries(profileUpdates)) {
+        await prisma.callerAttribute.upsert({
+          where: { callerId_key_scope: { callerId, key, scope: specSlug } },
+          update: {
+            stringValue: String(value),
+            valueType: "STRING",
+            confidence: avgConfidence,
+            sourceSpecSlug: specSlug,
+          },
+          create: {
+            callerId,
+            key,
+            scope: specSlug,
+            valueType: "STRING",
+            stringValue: String(value),
+            confidence: avgConfidence,
+            sourceSpecSlug: specSlug,
+          },
+        });
+      }
+      console.log(`[aggregate-runner] Wrote ${Object.keys(profileUpdates).length} CallerAttribute(s) for ${specSlug}`);
     }
   } else {
     console.log(`[aggregate-runner] No profile updates for ${specSlug} (insufficient data)`);

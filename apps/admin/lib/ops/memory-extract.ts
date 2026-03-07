@@ -819,7 +819,7 @@ async function extractMemoriesFromPatterns(
 /**
  * Aggregate caller memories into summary
  */
-async function aggregateCallerMemorySummary(
+export async function aggregateCallerMemorySummary(
   callerId: string,
   verbose: boolean
 ): Promise<void> {
