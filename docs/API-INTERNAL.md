@@ -11478,6 +11478,7 @@ Create a new subject with optional qualification metadata.
 | qualificationBody | body | string | No | Awarding body |
 | qualificationRef | body | string | No | Qualification reference |
 | qualificationLevel | body | string | No | Qualification level |
+| teachingProfile | body | string | No | Teaching profile key (e.g. "comprehension-led") |
 
 **Response** `201`
 ```json
@@ -11487,6 +11488,11 @@ Create a new subject with optional qualification metadata.
 **Response** `400`
 ```json
 { error: "slug and name are required" }
+```
+
+**Response** `400`
+```json
+{ error: "Invalid teachingProfile: ..." }
 ```
 
 **Response** `409`
@@ -11579,6 +11585,11 @@ Update subject fields (name, description, trust level, qualification info, activ
 **Response** `200`
 ```json
 { subject: {...} }
+```
+
+**Response** `400`
+```json
+{ error: "Invalid teachingProfile: ..." }
 ```
 
 **Response** `500`

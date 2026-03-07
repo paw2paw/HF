@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { getSubjectsForPlaybook, getSourceIdsForDomain } from "@/lib/knowledge/domain-sources";
+import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
 
 type Params = { params: Promise<{ curriculumId: string }> };
 
@@ -212,29 +212,25 @@ function toSummary(a: {
 }
 
 /**
- * Resolve content source IDs with 3-tier fallback:
- * 1. Course-scoped: PlaybookSubject → Subject → SubjectSource (most precise)
+ * Resolve content source IDs with 2-tier lookup:
+ * 1. Course-scoped: PlaybookSubject → Subject → SubjectSource (precise)
  * 2. Direct SubjectSource via curriculum.subjectId (original behavior)
- * 3. Domain-wide: all SubjectDomain → Subject → SubjectSource (broadest)
  *
- * Tier 3 handles the case where PlaybookSubject exists but the linked subject
- * has 0 SubjectSource rows (content uploaded to sibling subjects in the domain).
+ * If both return empty, that's the correct answer — the data needs fixing
+ * (SubjectSource rows missing for the course's linked subject).
  */
 async function resolveSourceIds(
   courseId: string | null,
   subjectId: string | null,
 ): Promise<string[]> {
-  let domainId: string | null = null;
-
   // Tier 1: Course-aware resolution (PlaybookSubject → Subject → SubjectSource)
   if (courseId) {
     const playbook = await prisma.playbook.findUnique({
       where: { id: courseId },
       select: { domainId: true },
     });
-    domainId = playbook?.domainId ?? null;
-    if (domainId) {
-      const { subjects } = await getSubjectsForPlaybook(courseId, domainId);
+    if (playbook?.domainId) {
+      const { subjects } = await getSubjectsForPlaybook(courseId, playbook.domainId);
       const ids = [...new Set(subjects.flatMap((s) => s.sources.map((ss) => ss.sourceId)))];
       if (ids.length > 0) return ids;
     }
@@ -246,12 +242,7 @@ async function resolveSourceIds(
       where: { subjectId },
       select: { sourceId: true },
     });
-    if (subjectSources.length > 0) return subjectSources.map((ss) => ss.sourceId);
-  }
-
-  // Tier 3: Domain-wide fallback (all domain subjects' sources)
-  if (domainId) {
-    return getSourceIdsForDomain(domainId);
+    return subjectSources.map((ss) => ss.sourceId);
   }
 
   return [];
