@@ -304,6 +304,29 @@ Selective or full runtime data deletion. Optionally re-seeds metering data.
 
 ---
 
+### `POST` /api/admin/demo-reset-scoped
+
+Scoped demo reset for Aardvark Academy. Removes demo-created courses,
+
+**Auth**: session (SUPERADMIN) · **Scope**: `admin:write`
+
+**Response** `200`
+```json
+{ ok: true, deleted: { callers: number, playbooks: number, cohorts: number } }
+```
+
+**Response** `403`
+```json
+{ ok: false, error: "SUPERADMIN required" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ### `GET` /api/admin/entity-counts
 
 Returns row counts for all entity tables across all layers.
@@ -12989,8 +13012,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 382 |
-| Files with annotations | 381 |
+| Route files found | 383 |
+| Files with annotations | 382 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

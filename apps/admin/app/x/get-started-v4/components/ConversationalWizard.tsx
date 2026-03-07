@@ -29,6 +29,7 @@ import type { SourcesReadyData, SourcesPanelHandle } from "./SourcesPanel";
 import { FirstCallPreviewCard } from "./FirstCallPreviewCard";
 import type { FirstCallPreviewData } from "./FirstCallPreviewCard";
 import { ScaffoldPanel } from "../../get-started/components/ScaffoldPanel";
+import { parseOptionsFromText } from "@/lib/chat/parse-options";
 import "../get-started-v4.css";
 
 // ── Types ────────────────────────────────────────────────
@@ -370,6 +371,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
   const [welcomeSuggestion, setWelcomeSuggestion] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [demoResetState, setDemoResetState] = useState<"idle" | "confirm" | "running" | "done" | "error">("idle");
+  const [demoResetResult, setDemoResetResult] = useState<{ callers: number; playbooks: number; cohorts: number } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -806,6 +809,33 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
     return () => window.removeEventListener("keydown", handler);
   }, [hasActiveOptions]);
 
+  // ── Demo reset (SUPERADMIN only) ──────────────────────
+
+  const handleDemoReset = useCallback(async () => {
+    setDemoResetState("running");
+    try {
+      const res = await fetch("/api/admin/demo-reset-scoped", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setDemoResetResult(data.deleted);
+        setDemoResetState("done");
+        // Clear wizard conversation so the next demo starts fresh
+        setTimeout(() => {
+          setDemoResetState("idle");
+          setDemoResetResult(null);
+          setConfirmReset(false);
+          setResetKey((k) => k + 1);
+        }, 3000);
+      } else {
+        setDemoResetState("error");
+        setTimeout(() => setDemoResetState("idle"), 4000);
+      }
+    } catch {
+      setDemoResetState("error");
+      setTimeout(() => setDemoResetState("idle"), 4000);
+    }
+  }, []);
+
   // ── Flow setup ────────────────────────────────────────
 
   useEffect(() => {
@@ -883,7 +913,9 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
         {/* Messages */}
         <div className="cv4-messages" aria-live="polite">
           <div className="cv4-messages-spacer" />
-          {messages.map((msg) => {
+          {(() => {
+            const lastAssistantId = [...messages].reverse().find(m => m.role === "assistant")?.id;
+            return messages.map((msg) => {
             // Options card — skip if resolved (user already made a selection)
             if (msg.systemType === "options" && !msg.resolved && msg.optionsPanel) {
               return (
@@ -1008,12 +1040,34 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
             }
 
             if (msg.role === "assistant") {
+              const isLast = !isLoading && suggestions.items.length === 0 && !welcomeSuggestion && msg.id === lastAssistantId;
+              const inlineOptions = isLast ? parseOptionsFromText(msg.content) : [];
               return (
                 <div key={msg.id} className="cv4-row cv4-row--assistant">
                   {msg.thinking && <ThinkingBlock content={msg.thinking} />}
                   <div className="cv4-msg-actions-wrap">
                     <div className="cv4-bubble cv4-bubble--assistant">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      {inlineOptions.length > 0 && (
+                        <ul className="cv4-inline-options" role="listbox">
+                          {inlineOptions.map((opt, i) => (
+                            <li
+                              key={i}
+                              className="cv4-option-row"
+                              role="option"
+                              onClick={() => handleSend(opt.label)}
+                            >
+                              <span className="cv4-option-number">{i + 1}</span>
+                              <div className="cv4-option-body">
+                                <span className="cv4-option-label">{opt.label}</span>
+                                {opt.description && (
+                                  <span className="cv4-option-desc">{opt.description}</span>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                     <MessageActions
                       message={msg}
@@ -1033,7 +1087,8 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
                 </div>
               </div>
             );
-          })}
+          });
+          })()}
 
           {/* Typing indicator */}
           {isLoading && (
@@ -1196,6 +1251,57 @@ export function ConversationalWizard({ initialContext }: ConversationalWizardPro
 
       {/* Right panel — always visible, shows live course build progress */}
       <div className="cv4-panel-column">
+
+        {/* Demo Reset — SUPERADMIN only */}
+        {initialContext?.userRole === "SUPERADMIN" && (
+          <div className="cv4-demo-reset">
+            {demoResetState === "idle" && (
+              <button
+                type="button"
+                className="cv4-demo-reset-btn"
+                onClick={() => setDemoResetState("confirm")}
+              >
+                Reset Demo
+              </button>
+            )}
+            {demoResetState === "confirm" && (
+              <div className="cv4-demo-reset-confirm">
+                <span className="cv4-demo-reset-label">Remove demo courses + callers?</span>
+                <button
+                  type="button"
+                  className="cv4-demo-reset-yes"
+                  onClick={handleDemoReset}
+                >
+                  Yes, reset
+                </button>
+                <button
+                  type="button"
+                  className="cv4-demo-reset-cancel"
+                  onClick={() => setDemoResetState("idle")}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            {demoResetState === "running" && (
+              <div className="cv4-demo-reset-status">
+                <Loader2 size={12} className="hf-spinner" />
+                Resetting…
+              </div>
+            )}
+            {demoResetState === "done" && demoResetResult && (
+              <div className="cv4-demo-reset-status cv4-demo-reset-status--done">
+                Reset done — {demoResetResult.playbooks} course{demoResetResult.playbooks !== 1 ? "s" : ""} and {demoResetResult.callers} caller{demoResetResult.callers !== 1 ? "s" : ""} removed
+              </div>
+            )}
+            {demoResetState === "error" && (
+              <div className="cv4-demo-reset-status cv4-demo-reset-status--error">
+                Reset failed — check console
+              </div>
+            )}
+          </div>
+        )}
+
         <ScaffoldPanel
           getData={getData}
           currentStepIndex={99}

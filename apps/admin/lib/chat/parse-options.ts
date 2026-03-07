@@ -10,10 +10,12 @@
 export interface ParsedOption {
   /** Original marker, e.g. "1", "A", "a", "•" */
   marker: string;
-  /** Short label for chip display (first part before description separator) */
+  /** Short label (first part before description separator, or bold text) */
   label: string;
   /** Full matched text */
   fullText: string;
+  /** Optional secondary text shown below the label, e.g. "(currently Socratic)" */
+  description?: string;
 }
 
 /** Minimum options to qualify as a choice */
@@ -183,6 +185,30 @@ function parseBulletedOptions(text: string): ParsedOption[] | null {
 }
 
 /**
+ * Try to parse bold-prefixed lines: "**label** description"
+ * Matches markdown bold items on separate lines (common AI response format).
+ */
+function parseBoldPrefixedOptions(text: string): ParsedOption[] | null {
+  const regex = /^\s*\*\*(.+?)\*\*\s*(.*)$/gm;
+  const matches: RegExpMatchArray[] = [];
+  let match: RegExpMatchArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    matches.push(match);
+  }
+
+  if (matches.length < MIN_OPTIONS || matches.length > MAX_OPTIONS) return null;
+  if (!isContiguousBlock(text, matches)) return null;
+
+  return matches.map((m) => ({
+    marker: "**",
+    label: m[1].trim(),
+    description: m[2].trim() || undefined,
+    fullText: m[2].trim() ? `${m[1].trim()} ${m[2].trim()}` : m[1].trim(),
+  }));
+}
+
+/**
  * Parse options from AI response text.
  * Returns empty array if no valid option list is detected.
  *
@@ -191,6 +217,7 @@ function parseBulletedOptions(text: string): ParsedOption[] | null {
  * 2. Lettered: "A. X", "a) X"
  * 3. Prefixed: "Option 1: X", "Choice A: X"
  * 4. Bulleted: "- X", "• X"
+ * 5. Bold-prefixed: "**label** description"
  */
 export function parseOptionsFromText(text: string): ParsedOption[] {
   return (
@@ -198,6 +225,7 @@ export function parseOptionsFromText(text: string): ParsedOption[] {
     parseLetteredOptions(text) ??
     parsePrefixedOptions(text) ??
     parseBulletedOptions(text) ??
+    parseBoldPrefixedOptions(text) ??
     []
   );
 }

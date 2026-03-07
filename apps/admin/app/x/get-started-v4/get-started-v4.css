@@ -135,6 +135,7 @@
 }
 
 .cv4-bubble--assistant {
+  max-width: 90%;
   background: var(--surface-secondary);
   color: var(--text-primary);
   border-radius: 16px 16px 16px 4px;
@@ -408,6 +409,17 @@
 
 .cv4-suggestion-chip:hover {
   background: color-mix(in srgb, var(--accent-primary) 15%, var(--surface-primary));
+}
+
+/* ── Inline option list (parsed from AI prose fallback) ── */
+
+.cv4-inline-options {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 50%, transparent);
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
 }
 
 /* ── Upload panel ─────────────────────────────────────── */
@@ -1429,7 +1441,7 @@
 
 .cv4-msg-actions-wrap {
   position: relative;
-  max-width: 78%;
+  max-width: 90%;
 }
 
 .cv4-msg-actions-trigger {
@@ -1510,4 +1522,86 @@
   height: 1px;
   margin: 4px 0;
   background: var(--border-default);
+}
+
+/* ── Demo Reset (SUPERADMIN only) ─────────────────────── */
+
+.cv4-demo-reset {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+}
+
+.cv4-demo-reset-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.cv4-demo-reset-btn:hover {
+  border-color: var(--status-warning);
+  color: var(--status-warning);
+}
+
+.cv4-demo-reset-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cv4-demo-reset-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+}
+
+.cv4-demo-reset-yes {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--status-warning);
+  background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-primary));
+  color: var(--status-warning);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cv4-demo-reset-cancel {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cv4-demo-reset-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cv4-demo-reset-status--done {
+  color: var(--status-success);
+}
+
+.cv4-demo-reset-status--error {
+  color: var(--status-error);
 }

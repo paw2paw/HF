@@ -534,15 +534,20 @@ export default function CourseDetailPage() {
       );
       const data = await res.json();
       if (data.ok) {
-        setDrillStates(prev => ({
-          ...prev,
-          [method]: {
-            items: [...prev[method].items, ...(data.assertions || [])],
-            total: data.total || prev[method].total,
-            loading: false,
-            error: null,
-          },
-        }));
+        setDrillStates(prev => {
+          const combined = [...prev[method].items, ...(data.assertions || [])];
+          const seen = new Set<string>();
+          const deduped = combined.filter(item => !seen.has(item.id) && !!seen.add(item.id));
+          return {
+            ...prev,
+            [method]: {
+              items: deduped,
+              total: data.total || prev[method].total,
+              loading: false,
+              error: null,
+            },
+          };
+        });
       } else {
         setDrillStates(prev => ({
           ...prev,

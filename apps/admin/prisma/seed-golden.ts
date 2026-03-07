@@ -107,16 +107,16 @@ const PERSONA_LABELS: Record<string, string> = {
 const INSTITUTIONS: InstitutionDef[] = [
   // ── 1. School ──────────────────────────────────────────
   {
-    slug: "greenfield-academy",
-    name: "Greenfield Academy",
+    slug: "aardvark-academy",
+    name: "Aardvark Academy",
     typeSlug: "school",
     primaryColor: "#166534",
     secondaryColor: "#ca8a04",
-    welcomeMessage: "Welcome to Greenfield Academy! Our AI tutors help every student build confidence and understanding.",
+    welcomeMessage: "Welcome to Aardvark Academy! Our AI tutors help every student build confidence and understanding.",
     login: { email: "school@hff.com", name: "Sarah Thompson" },
     domain: {
-      slug: "greenfield-academy",
-      name: "Greenfield Academy",
+      slug: "aardvark-academy",
+      name: "Aardvark Academy",
       description: "Primary school with focus on literacy and numeracy across Key Stage 2.",
       subjects: [
         { slug: "golden-english-ks2", name: "Year 5 English", description: "Key Stage 2 English — reading comprehension, creative writing, and grammar for Year 5.", teachingProfile: "comprehension-led" },
@@ -128,7 +128,7 @@ const INSTITUTIONS: InstitutionDef[] = [
           name: "English",
           groupType: "DEPARTMENT",
           styleNotes: "Expressive, discussion-led, creative and analytical thinking. Encourage reading for pleasure.",
-          playbookSlugs: ["golden-year5-english"],
+          playbookSlugs: [],
         },
         {
           slug: "maths-dept",
@@ -139,15 +139,9 @@ const INSTITUTIONS: InstitutionDef[] = [
         },
       ],
       playbooks: [
-        { slug: "golden-year5-english", name: "Year 5 English", description: "Comprehension, creative writing, and SPAG for Year 5 students." },
         { slug: "golden-year5-maths", name: "Year 5 Maths", description: "Number, fractions, geometry, and problem-solving for Year 5 students." },
       ],
       cohorts: [
-        {
-          name: "Class 5A",
-          teacher: { name: "Mrs. Sarah Thompson", email: "s.thompson@greenfield.sch.uk" },
-          members: ["Emma Wilson", "Oliver Patel", "Amira Hassan", "Jack Chen"],
-        },
         {
           name: "Class 5B",
           teacher: { name: "Mr. David Clarke", email: "d.clarke@greenfield.sch.uk" },
@@ -420,7 +414,7 @@ const TRANSCRIPTS: Record<string, string[]> = {
 const MEMORY_TEMPLATES: Record<string, Array<{ category: "FACT" | "PREFERENCE" | "TOPIC" | "CONTEXT"; key: string; valueFn: (name: string) => string }>> = {
   school: [
     { category: "FACT", key: "year_group", valueFn: () => "Year 5" },
-    { category: "FACT", key: "school", valueFn: () => "Greenfield Academy" },
+    { category: "FACT", key: "school", valueFn: () => "Aardvark Academy" },
     { category: "PREFERENCE", key: "learning_style", valueFn: (n) => `${n} prefers visual explanations with diagrams` },
     { category: "PREFERENCE", key: "pace", valueFn: () => "Likes time to think before answering" },
     { category: "TOPIC", key: "current_focus", valueFn: () => "Reading comprehension and inference skills" },

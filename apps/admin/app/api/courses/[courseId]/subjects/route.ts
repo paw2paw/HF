@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * @api GET /api/courses/:courseId/subjects
- * @desc List subjects linked to a course (playbook-scoped, domain fallback)
+ * @desc List subjects explicitly linked to a course (playbook-scoped only)
  * @auth VIEWER+
  * @tags courses, subjects
  * @returns {object} { ok, subjects: Subject[], course: { id, name, domainId, domainName } }
@@ -33,7 +33,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Course not found' }, { status: 404 });
     }
 
-    // Course-scoped: PlaybookSubject first, domain fallback
+    // Course-scoped only — no domain fallback
     const playbookSubjects = await prisma.playbookSubject.findMany({
       where: { playbookId: courseId },
       include: {
@@ -56,29 +56,7 @@ export async function GET(
       },
     });
 
-    const subjectRecords = playbookSubjects.length > 0
-      ? playbookSubjects.map((ps) => ps.subject)
-      : (await prisma.subjectDomain.findMany({
-          where: { domainId: playbook.domainId },
-          include: {
-            subject: {
-              include: {
-                sources: {
-                  include: {
-                    source: {
-                      select: {
-                        id: true,
-                        name: true,
-                        _count: { select: { assertions: true } },
-                      },
-                    },
-                  },
-                },
-                _count: { select: { sources: true, curricula: true } },
-              },
-            },
-          },
-        })).map((sd) => sd.subject);
+    const subjectRecords = playbookSubjects.map((ps) => ps.subject);
 
     const subjects = subjectRecords
       .filter((s) => s.isActive)
