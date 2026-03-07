@@ -196,14 +196,29 @@ export async function generateLessonPlan(
     }
   }
 
+  // Reserve slots for assessment/review within the session budget
+  // so consolidation can pack teach sessions into the remaining slots
+  let assessSlots = 0;
+  if (targetSessionCount) {
+    if (includeAssessment && questions.length > 0) assessSlots++;
+    if (includeReview && sessions.length > 2) assessSlots++;
+  }
+
   // Consolidate small sessions into session-length blocks
-  const teachSessions = consolidateSessions(sessions, { sessionLength, targetSessionCount });
+  const teachTarget = targetSessionCount
+    ? Math.max(1, targetSessionCount - assessSlots)
+    : undefined;
+  const teachSessions = consolidateSessions(sessions, {
+    sessionLength,
+    targetSessionCount: teachTarget,
+  });
   sessions.length = 0;
   sessions.push(...teachSessions);
   sessionNumber = sessions.length + 1;
 
-  // Add assessment session if requested
-  if (includeAssessment && questions.length > 0) {
+  // Add assessment session if requested (only if budget allows)
+  const canAddAssess = !targetSessionCount || sessions.length < targetSessionCount;
+  if (includeAssessment && questions.length > 0 && canAddAssess) {
     sessions.push({
       sessionNumber,
       title: "Assessment",
@@ -217,8 +232,9 @@ export async function generateLessonPlan(
     sessionNumber++;
   }
 
-  // Add review session if requested
-  if (includeReview && sessions.length > 2) {
+  // Add review session if requested (only if budget allows)
+  const canAddReview = !targetSessionCount || sessions.length < targetSessionCount;
+  if (includeReview && sessions.length > 2 && canAddReview) {
     sessions.push({
       sessionNumber,
       title: "Review & Consolidation",
@@ -371,6 +387,24 @@ export function consolidateSessions(
     }
   }
   if (bucket) consolidated.push(bucket);
+
+  // Hard cap: if we still exceed targetSessionCount, force-merge smallest adjacent pairs
+  if (opts.targetSessionCount && consolidated.length > opts.targetSessionCount) {
+    while (consolidated.length > opts.targetSessionCount && consolidated.length > 1) {
+      // Find the adjacent pair with smallest combined duration (least disruption)
+      let bestIdx = 0;
+      let bestCombined = Infinity;
+      for (let i = 0; i < consolidated.length - 1; i++) {
+        const combined = consolidated[i].estimatedMinutes + consolidated[i + 1].estimatedMinutes;
+        if (combined < bestCombined) {
+          bestCombined = combined;
+          bestIdx = i;
+        }
+      }
+      const merged = mergeTwoSessions(consolidated[bestIdx], consolidated[bestIdx + 1]);
+      consolidated.splice(bestIdx, 2, merged);
+    }
+  }
 
   // Re-number
   for (let i = 0; i < consolidated.length; i++) {
