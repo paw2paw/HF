@@ -152,6 +152,9 @@ export type Goal = {
   startedAt: string | null;
   completedAt: string | null;
   targetDate: string | null;
+  isAssessmentTarget: boolean;
+  assessmentConfig: { threshold?: number; [key: string]: any } | null;
+  pendingSignal?: { id: string; evidence: string | null; createdAt: string } | null;
   playbook: {
     id: string;
     name: string;

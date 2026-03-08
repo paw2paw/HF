@@ -267,6 +267,8 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
 
   // --- SESSION PLAN ---
   parts.push("[SESSION PLAN]");
+  if (qs?.session_pacing) parts.push(`Pacing: ${qs.session_pacing}`);
+  if (qs?.lesson_model) parts.push(`Teaching model: ${qs.lesson_model}`);
   if (pedagogy?.sessionType) parts.push(`Type: ${pedagogy.sessionType}`);
   if (pedagogy?.flow?.length) {
     parts.push("Flow: " + pedagogy.flow.join(" → "));

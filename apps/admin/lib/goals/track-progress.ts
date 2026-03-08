@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { GoalType, GoalStatus } from "@prisma/client";
 import { PARAMS } from "@/lib/registry";
 import type { SpecConfig } from "@/lib/types/json-fields";
+import { computeExamReadiness } from "@/lib/curriculum/exam-readiness";
 
 export interface GoalProgressUpdate {
   goalId: string;
@@ -48,13 +49,15 @@ export async function trackGoalProgress(
     if (progressUpdate && progressUpdate.progressDelta > 0) {
       const newProgress = Math.min(1.0, goal.progress + progressUpdate.progressDelta);
 
+      // Assessment targets don't auto-complete — they need teacher confirmation (Story 4)
+      const shouldAutoComplete = newProgress >= 1.0 && !goal.isAssessmentTarget;
+
       await prisma.goal.update({
         where: { id: goal.id },
         data: {
           progress: newProgress,
           updatedAt: new Date(),
-          // Mark as completed if progress reaches 100%
-          ...(newProgress >= 1.0 && {
+          ...(shouldAutoComplete && {
             status: 'COMPLETED',
             completedAt: new Date(),
           }),
@@ -62,7 +65,7 @@ export async function trackGoalProgress(
       });
 
       updatedCount++;
-      if (newProgress >= 1.0) {
+      if (shouldAutoComplete) {
         completedCount++;
       }
     }
@@ -79,6 +82,11 @@ async function calculateProgressUpdate(
   callerId: string,
   callId: string
 ): Promise<GoalProgressUpdate | null> {
+  // Assessment targets with a contentSpec use exam readiness scoring
+  if (goal.isAssessmentTarget && goal.contentSpec) {
+    return await calculateAssessmentProgress(goal, callerId);
+  }
+
   switch (goal.type as GoalType) {
     case 'LEARN':
       return await calculateLearnProgress(goal, callerId, callId);
@@ -92,6 +100,39 @@ async function calculateProgressUpdate(
       return await calculateEngagementProgress(goal, callerId, callId);
     default:
       return null;
+  }
+}
+
+/**
+ * Calculate progress for assessment target goals using exam readiness.
+ * Uses computeExamReadiness() instead of the 5%/call heuristic.
+ */
+async function calculateAssessmentProgress(
+  goal: any,
+  callerId: string,
+): Promise<GoalProgressUpdate | null> {
+  try {
+    const readiness = await computeExamReadiness(callerId, goal.contentSpec.slug);
+    const readinessScore = readiness.readinessScore;
+
+    // Only update if readiness exceeds current progress
+    if (readinessScore > goal.progress) {
+      return {
+        goalId: goal.id,
+        progressDelta: readinessScore - goal.progress,
+        evidence: `Exam readiness: ${(readinessScore * 100).toFixed(0)}% (${readiness.level})${readiness.weakModules.length > 0 ? ` | Weak: ${readiness.weakModules.join(", ")}` : ""}`,
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    // Fallback to engagement heuristic if exam readiness fails (e.g., contract not seeded)
+    console.warn(`[track-progress] computeExamReadiness failed for goal ${goal.id}, falling back to engagement heuristic:`, error.message);
+    return {
+      goalId: goal.id,
+      progressDelta: 0.03, // Conservative fallback for assessment targets
+      evidence: `Assessment target engagement (readiness computation unavailable)`,
+    };
   }
 }
 
@@ -225,6 +266,70 @@ async function calculateEngagementProgress(
   }
 
   return null;
+}
+
+/**
+ * Apply assessment-aware target adjustments.
+ *
+ * When a caller has assessment target goals, adjusts behavior targets based on
+ * proximity to the assessment threshold:
+ * - Near threshold (>= 0.7): increase question rate, reduce scaffolding → exam prep mode
+ * - Far from threshold (< 0.3): increase scaffolding, focus foundations → build-up mode
+ * - Middle range: no adjustment (default behavior)
+ *
+ * Writes to CallerTarget entries, which are merged into behavior targets for prompt composition.
+ */
+export async function applyAssessmentAdaptation(
+  callerId: string,
+): Promise<{ adjustments: number }> {
+  const goals = await prisma.goal.findMany({
+    where: {
+      callerId,
+      isAssessmentTarget: true,
+      status: "ACTIVE",
+    },
+    select: { progress: true, assessmentConfig: true },
+  });
+
+  if (goals.length === 0) return { adjustments: 0 };
+
+  // Use the highest-priority (most advanced) assessment target for adaptation
+  const primaryGoal = goals.reduce((best, g) => g.progress > best.progress ? g : best, goals[0]);
+  const threshold = (primaryGoal.assessmentConfig as any)?.threshold ?? 0.8;
+  const progress = primaryGoal.progress;
+
+  let adjustments = 0;
+
+  if (progress >= 0.7) {
+    // Near threshold — exam prep mode: more questions, less hand-holding
+    const targets: Array<{ parameterId: string; value: number; rationale: string }> = [
+      { parameterId: PARAMS.BEH_QUESTION_RATE, value: 0.8, rationale: `Assessment target ${(progress * 100).toFixed(0)}% ready (threshold: ${(threshold * 100).toFixed(0)}%) — increase questioning for exam readiness` },
+    ];
+    for (const t of targets) {
+      await prisma.callerTarget.upsert({
+        where: { callerId_parameterId: { callerId, parameterId: t.parameterId } },
+        create: { callerId, parameterId: t.parameterId, targetValue: t.value, confidence: 0.7 },
+        update: { targetValue: t.value, confidence: 0.7 },
+      });
+      adjustments++;
+    }
+  } else if (progress < 0.3) {
+    // Far from threshold — foundation mode: more scaffolding, gentler pace
+    const targets: Array<{ parameterId: string; value: number; rationale: string }> = [
+      { parameterId: PARAMS.BEH_QUESTION_RATE, value: 0.3, rationale: `Assessment target only ${(progress * 100).toFixed(0)}% ready — reduce question pressure, build foundations` },
+    ];
+    for (const t of targets) {
+      await prisma.callerTarget.upsert({
+        where: { callerId_parameterId: { callerId, parameterId: t.parameterId } },
+        create: { callerId, parameterId: t.parameterId, targetValue: t.value, confidence: 0.6 },
+        update: { targetValue: t.value, confidence: 0.6 },
+      });
+      adjustments++;
+    }
+  }
+  // Middle range (0.3-0.7): no assessment-driven adjustment — default behavior targets apply
+
+  return { adjustments };
 }
 
 /**

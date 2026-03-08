@@ -494,6 +494,29 @@ export async function GET(
       }
     }
 
+    // Enrich assessment target goals with pending completion signals
+    const assessmentGoalIds = goals.filter((g: any) => g.isAssessmentTarget).map((g: any) => g.id);
+    const pendingSignals = assessmentGoalIds.length > 0
+      ? await prisma.callerAttribute.findMany({
+          where: {
+            callerId,
+            scope: "GOAL_EVENT",
+            key: { in: assessmentGoalIds.map((id: string) => `goal_completion_signal:${id}`) },
+            booleanValue: null, // pending only
+          },
+          select: { id: true, key: true, textValue: true, createdAt: true },
+        })
+      : [];
+    const signalByGoalId = new Map(
+      pendingSignals.map((s: any) => [s.key.replace("goal_completion_signal:", ""), s])
+    );
+    const goalsWithSignals = goals.map((g: any) => {
+      const signal = signalByGoalId.get(g.id);
+      return signal
+        ? { ...g, pendingSignal: { id: signal.id, evidence: signal.textValue, createdAt: signal.createdAt } }
+        : g;
+    });
+
     return NextResponse.json({
       ok: true,
       caller: {
@@ -515,7 +538,7 @@ export async function GET(
       callerTargets,
       curriculum,
       learnerProfile,
-      goals,
+      goals: goalsWithSignals,
       availableSlugNames: Array.from(availableSlugNames).sort(),
       counts: {
         calls: callCount,

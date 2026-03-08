@@ -49,7 +49,7 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention] =
+  const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention, assessmentGoals] =
     await Promise.all([
       prisma.cohortGroup.findMany({
         where: cohortWhere,
@@ -104,6 +104,24 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
         },
         take: 10,
       }),
+
+      // Assessment target goals across cohort learners
+      prisma.goal.findMany({
+        where: {
+          isAssessmentTarget: true,
+          status: { in: ["ACTIVE", "COMPLETED"] },
+          caller: {
+            cohortGroup: cohortWhere,
+            role: "LEARNER",
+          },
+        },
+        select: {
+          id: true,
+          progress: true,
+          status: true,
+          assessmentConfig: true,
+        },
+      }),
     ]);
 
   return NextResponse.json({
@@ -132,6 +150,30 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
       name: s.name ?? "Unknown",
       classroom: s.cohortGroup?.name ?? "Unknown",
     })),
+    assessmentSummary: (() => {
+      if (assessmentGoals.length === 0) return null;
+      const thresholdDefault = 0.8;
+      let ready = 0;
+      const distribution = { low: 0, mid: 0, high: 0, ready: 0 };
+      for (const g of assessmentGoals) {
+        const threshold = (g.assessmentConfig as any)?.threshold ?? thresholdDefault;
+        if (g.status === "COMPLETED" || g.progress >= threshold) {
+          ready++;
+          distribution.ready++;
+        } else if (g.progress >= 0.6) {
+          distribution.high++;
+        } else if (g.progress >= 0.3) {
+          distribution.mid++;
+        } else {
+          distribution.low++;
+        }
+      }
+      return {
+        totalWithTargets: assessmentGoals.length,
+        readyCount: ready,
+        distribution,
+      };
+    })(),
   });
 }
 

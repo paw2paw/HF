@@ -6730,6 +6730,33 @@ Update a goal (name, description, type, status, priority, targetDate).
 
 ---
 
+### `POST` /api/goals/:goalId/confirm
+
+Confirm or dismiss a goal completion signal. On confirm: marks goal COMPLETED.
+
+**Auth**: Session
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| goalId | path | string | Yes | The goal ID |
+
+**Response** `200`
+```json
+{ ok: true, goal?: Goal, message: string }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ## Groups
 
 ### `GET` /api/playbook-groups
@@ -13012,8 +13039,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 383 |
-| Files with annotations | 382 |
+| Route files found | 384 |
+| Files with annotations | 383 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

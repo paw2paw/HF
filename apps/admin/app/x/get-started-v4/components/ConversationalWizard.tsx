@@ -1178,6 +1178,8 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
                     {draftPlaybookId && (
                       <a
                         href={`/x/courses/${draftPlaybookId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hf-btn hf-btn-secondary cv4-success-btn-half"
                       >
                         View Course <ExternalLink size={12} />

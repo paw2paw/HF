@@ -28,6 +28,8 @@ export type RosterCaller = {
   momentum: Momentum;
   triage: TriageCategory;
   diagnostic: string;
+  pendingConfirmations: number;
+  assessmentTarget: { name: string; progress: number; threshold: number } | null;
 };
 
 /**
@@ -131,6 +133,44 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
+  // ── 2b. Pending goal completion signals per caller ──────────
+  const pendingSignals = await prisma.callerAttribute.groupBy({
+    by: ["callerId"],
+    where: {
+      callerId: { in: callerIds },
+      scope: "GOAL_EVENT",
+      key: { startsWith: "goal_completion_signal:" },
+      booleanValue: null, // pending only
+    },
+    _count: { _all: true },
+  });
+  const pendingMap = new Map(pendingSignals.map((s) => [s.callerId, s._count._all]));
+
+  // ── 2c. Primary assessment target per caller (highest priority active) ──
+  const assessmentTargets = await prisma.goal.findMany({
+    where: {
+      callerId: { in: callerIds },
+      isAssessmentTarget: true,
+      status: { in: ["ACTIVE", "PAUSED"] },
+    },
+    select: {
+      callerId: true,
+      name: true,
+      progress: true,
+      priority: true,
+      assessmentConfig: true,
+    },
+    orderBy: { priority: "desc" },
+    distinct: ["callerId"],
+  });
+  const assessmentMap = new Map(
+    assessmentTargets.map((g) => [g.callerId, {
+      name: g.name,
+      progress: g.progress,
+      threshold: (g.assessmentConfig as any)?.threshold ?? 0.8,
+    }])
+  );
+
   // Build lookup maps
   const masteryMap = new Map(masteryAgg.map((m) => [m.callerId, { avg: m._avg.mastery, total: m._count._all }]));
   const completedMap = new Map(completedAgg.map((c) => [c.callerId, c._count._all]));
@@ -172,6 +212,8 @@ export async function GET(request: NextRequest) {
       momentum,
       triage,
       diagnostic,
+      pendingConfirmations: pendingMap.get(c.id) ?? 0,
+      assessmentTarget: assessmentMap.get(c.id) ?? null,
     };
   });
 

@@ -56,6 +56,9 @@ const mockPrisma = {
   call: {
     findUnique: vi.fn(),
   },
+  callerTarget: {
+    upsert: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -68,7 +71,13 @@ vi.mock("@/lib/registry", () => ({
     BEH_WARMTH: "BEH-WARMTH",
     BEH_EMPATHY_RATE: "BEH-EMPATHY-RATE",
     BEH_INSIGHT_FREQUENCY: "BEH-INSIGHT-FREQUENCY",
+    BEH_QUESTION_RATE: "BEH-QUESTION-RATE",
   },
+}));
+
+const mockComputeExamReadiness = vi.fn();
+vi.mock("@/lib/curriculum/exam-readiness", () => ({
+  computeExamReadiness: (...args: any[]) => mockComputeExamReadiness(...args),
 }));
 
 // =====================================================
@@ -81,6 +90,8 @@ function makeGoal(overrides: Partial<{
   progress: number;
   contentSpec: any;
   callerId: string;
+  isAssessmentTarget: boolean;
+  assessmentConfig: any;
 }> = {}) {
   return {
     id: overrides.id ?? "goal-1",
@@ -88,6 +99,8 @@ function makeGoal(overrides: Partial<{
     progress: overrides.progress ?? 0,
     contentSpec: overrides.contentSpec ?? null,
     callerId: overrides.callerId ?? "caller-1",
+    isAssessmentTarget: overrides.isAssessmentTarget ?? false,
+    assessmentConfig: overrides.assessmentConfig ?? null,
   };
 }
 
@@ -112,6 +125,7 @@ function makeContentSpec(
 describe("lib/goals/track-progress.ts", () => {
   let trackGoalProgress: typeof import("@/lib/goals/track-progress").trackGoalProgress;
   let updateGoalProgress: typeof import("@/lib/goals/track-progress").updateGoalProgress;
+  let applyAssessmentAdaptation: typeof import("@/lib/goals/track-progress").applyAssessmentAdaptation;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -122,10 +136,17 @@ describe("lib/goals/track-progress.ts", () => {
     mockPrisma.callerAttribute.findMany.mockResolvedValue([]);
     mockPrisma.callScore.findMany.mockResolvedValue([]);
     mockPrisma.call.findUnique.mockResolvedValue(null);
+    mockPrisma.callerTarget.upsert.mockResolvedValue({});
+    mockComputeExamReadiness.mockResolvedValue({
+      readinessScore: 0.6,
+      level: "borderline",
+      weakModules: [],
+    });
 
     const mod = await import("@/lib/goals/track-progress");
     trackGoalProgress = mod.trackGoalProgress;
     updateGoalProgress = mod.updateGoalProgress;
+    applyAssessmentAdaptation = mod.applyAssessmentAdaptation;
   });
 
   // -------------------------------------------------
@@ -702,6 +723,190 @@ describe("lib/goals/track-progress.ts", () => {
       expect(updateCall.data.progress).toBe(0.99);
       expect(updateCall.data.status).toBeUndefined();
       expect(updateCall.data.completedAt).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------
+  // Assessment target goals
+  // -------------------------------------------------
+
+  describe("assessment target goals", () => {
+    it("uses exam readiness for assessment targets with contentSpec", async () => {
+      const goal = makeGoal({
+        id: "assess-1",
+        type: "ACHIEVE",
+        progress: 0.3,
+        isAssessmentTarget: true,
+        contentSpec: { slug: "hebrew-content", domain: "hebrew" },
+      });
+      mockPrisma.goal.findMany.mockResolvedValue([goal]);
+
+      mockComputeExamReadiness.mockResolvedValue({
+        readinessScore: 0.65,
+        level: "borderline",
+        weakModules: ["mod3"],
+      });
+
+      const result = await trackGoalProgress("caller-1", "call-1");
+
+      expect(result.updated).toBe(1);
+      expect(mockComputeExamReadiness).toHaveBeenCalledWith("caller-1", "hebrew-content");
+      expect(mockPrisma.goal.update).toHaveBeenCalledWith({
+        where: { id: "assess-1" },
+        data: expect.objectContaining({
+          progress: 0.65, // 0.3 + (0.65 - 0.3) = 0.65
+        }),
+      });
+    });
+
+    it("does not update when exam readiness is below current progress", async () => {
+      const goal = makeGoal({
+        id: "assess-2",
+        type: "ACHIEVE",
+        progress: 0.7,
+        isAssessmentTarget: true,
+        contentSpec: { slug: "hebrew-content", domain: "hebrew" },
+      });
+      mockPrisma.goal.findMany.mockResolvedValue([goal]);
+
+      mockComputeExamReadiness.mockResolvedValue({
+        readinessScore: 0.5,
+        level: "borderline",
+        weakModules: [],
+      });
+
+      const result = await trackGoalProgress("caller-1", "call-1");
+
+      expect(result.updated).toBe(0);
+      expect(mockPrisma.goal.update).not.toHaveBeenCalled();
+    });
+
+    it("does NOT auto-complete assessment targets at progress 1.0", async () => {
+      const goal = makeGoal({
+        id: "assess-3",
+        type: "ACHIEVE",
+        progress: 0.95,
+        isAssessmentTarget: true,
+        contentSpec: { slug: "hebrew-content", domain: "hebrew" },
+      });
+      mockPrisma.goal.findMany.mockResolvedValue([goal]);
+
+      mockComputeExamReadiness.mockResolvedValue({
+        readinessScore: 1.0,
+        level: "strong",
+        weakModules: [],
+      });
+
+      const result = await trackGoalProgress("caller-1", "call-1");
+
+      expect(result.updated).toBe(1);
+      expect(result.completed).toBe(0); // NOT auto-completed
+      const updateCall = mockPrisma.goal.update.mock.calls[0][0];
+      expect(updateCall.data.progress).toBe(1.0);
+      expect(updateCall.data.status).toBeUndefined(); // No COMPLETED status
+    });
+
+    it("falls back to conservative heuristic when exam readiness fails", async () => {
+      const goal = makeGoal({
+        id: "assess-4",
+        type: "ACHIEVE",
+        progress: 0.4,
+        isAssessmentTarget: true,
+        contentSpec: { slug: "broken-spec", domain: "test" },
+      });
+      mockPrisma.goal.findMany.mockResolvedValue([goal]);
+
+      mockComputeExamReadiness.mockRejectedValue(new Error("Contract not seeded"));
+
+      const result = await trackGoalProgress("caller-1", "call-1");
+
+      expect(result.updated).toBe(1);
+      const updateCall = mockPrisma.goal.update.mock.calls[0][0];
+      expect(updateCall.where.id).toBe("assess-4");
+      expect(updateCall.data.progress).toBeCloseTo(0.43, 10); // 0.4 + 0.03 conservative fallback
+    });
+
+    it("routes assessment targets without contentSpec through engagement heuristic", async () => {
+      const goal = makeGoal({
+        id: "assess-no-spec",
+        type: "ACHIEVE",
+        progress: 0.2,
+        isAssessmentTarget: true,
+        contentSpec: null,
+      });
+      mockPrisma.goal.findMany.mockResolvedValue([goal]);
+
+      mockPrisma.call.findUnique.mockResolvedValue({
+        transcript: "A".repeat(1500),
+      });
+
+      const result = await trackGoalProgress("caller-1", "call-1");
+
+      expect(result.updated).toBe(1);
+      expect(mockComputeExamReadiness).not.toHaveBeenCalled();
+      // Falls through to engagement-based progress (ACHIEVE type)
+      expect(mockPrisma.goal.update).toHaveBeenCalledWith({
+        where: { id: "assess-no-spec" },
+        data: expect.objectContaining({
+          progress: 0.25, // 0.2 + 0.05 engagement
+        }),
+      });
+    });
+  });
+
+  // -------------------------------------------------
+  // applyAssessmentAdaptation
+  // -------------------------------------------------
+
+  describe("applyAssessmentAdaptation", () => {
+    it("returns zero adjustments when no assessment targets", async () => {
+      mockPrisma.goal.findMany.mockResolvedValue([]);
+
+      const result = await applyAssessmentAdaptation("caller-1");
+
+      expect(result.adjustments).toBe(0);
+      expect(mockPrisma.callerTarget.upsert).not.toHaveBeenCalled();
+    });
+
+    it("increases question rate when near threshold (>= 0.7)", async () => {
+      mockPrisma.goal.findMany.mockResolvedValue([
+        { progress: 0.75, assessmentConfig: { threshold: 0.8 } },
+      ]);
+
+      const result = await applyAssessmentAdaptation("caller-1");
+
+      expect(result.adjustments).toBe(1);
+      expect(mockPrisma.callerTarget.upsert).toHaveBeenCalledWith({
+        where: { callerId_parameterId: { callerId: "caller-1", parameterId: "BEH-QUESTION-RATE" } },
+        create: expect.objectContaining({ targetValue: 0.8, confidence: 0.7 }),
+        update: expect.objectContaining({ targetValue: 0.8, confidence: 0.7 }),
+      });
+    });
+
+    it("decreases question rate when far from threshold (< 0.3)", async () => {
+      mockPrisma.goal.findMany.mockResolvedValue([
+        { progress: 0.15, assessmentConfig: { threshold: 0.8 } },
+      ]);
+
+      const result = await applyAssessmentAdaptation("caller-1");
+
+      expect(result.adjustments).toBe(1);
+      expect(mockPrisma.callerTarget.upsert).toHaveBeenCalledWith({
+        where: { callerId_parameterId: { callerId: "caller-1", parameterId: "BEH-QUESTION-RATE" } },
+        create: expect.objectContaining({ targetValue: 0.3, confidence: 0.6 }),
+        update: expect.objectContaining({ targetValue: 0.3, confidence: 0.6 }),
+      });
+    });
+
+    it("makes no adjustments in middle range (0.3-0.7)", async () => {
+      mockPrisma.goal.findMany.mockResolvedValue([
+        { progress: 0.5, assessmentConfig: { threshold: 0.8 } },
+      ]);
+
+      const result = await applyAssessmentAdaptation("caller-1");
+
+      expect(result.adjustments).toBe(0);
+      expect(mockPrisma.callerTarget.upsert).not.toHaveBeenCalled();
     });
   });
 });

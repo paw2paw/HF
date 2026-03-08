@@ -26,8 +26,8 @@ import { runAggregateSpecs } from "@/lib/pipeline/aggregate-runner";
 import { aggregateCallerMemorySummary } from "@/lib/ops/memory-extract";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
 import { validateSpecDependencies } from "@/lib/pipeline/validate-dependencies";
-import { trackGoalProgress } from "@/lib/goals/track-progress";
-import { extractGoals } from "@/lib/goals/extract-goals";
+import { trackGoalProgress, applyAssessmentAdaptation } from "@/lib/goals/track-progress";
+import { extractGoals, extractGoalCompletionSignals } from "@/lib/goals/extract-goals";
 import { extractArtifacts } from "@/lib/artifacts/extract-artifacts";
 import { deliverArtifacts } from "@/lib/artifacts/deliver-artifacts";
 import { extractActions } from "@/lib/actions/extract-actions";
@@ -735,6 +735,11 @@ async function runBatchedAgentAnalysis(
 
 /**
  * Compute reward score
+ *
+ * When the caller has active assessment target goals, computes a goalProgressScore
+ * (weighted average of goal progress * priority) and composites it with the behavior
+ * score: overallScore = 0.8 * behaviorScore + 0.2 * goalProgressScore.
+ * When no assessment targets exist, uses behavior score alone (backward compatible).
  */
 async function computeReward(
   callId: string,
@@ -764,16 +769,41 @@ async function computeReward(
   }
 
   const avgDiff = diffs.length > 0 ? diffs.reduce((sum, d) => sum + d.diff, 0) / diffs.length : 0;
-  const overallScore = Math.max(0, 1 - avgDiff);
+  const behaviorScore = Math.max(0, 1 - avgDiff);
+
+  // Compute goal progress reward for assessment targets
+  let goalProgressScore: number | null = null;
+  let overallScore = behaviorScore;
+
+  const assessmentGoals = await prisma.goal.findMany({
+    where: {
+      callerId: call.callerId,
+      isAssessmentTarget: true,
+      status: { in: ["ACTIVE", "PAUSED"] },
+    },
+    select: { id: true, progress: true, priority: true },
+  });
+
+  if (assessmentGoals.length > 0) {
+    // Weighted average of goal progress by priority
+    const totalWeight = assessmentGoals.reduce((sum, g) => sum + (g.priority || 5), 0);
+    goalProgressScore = assessmentGoals.reduce(
+      (sum, g) => sum + g.progress * (g.priority || 5), 0
+    ) / totalWeight;
+
+    // Composite: 80% behavior + 20% goal progress
+    overallScore = 0.8 * behaviorScore + 0.2 * goalProgressScore;
+    log.info(`Goal progress reward`, { goalProgressScore, assessmentGoals: assessmentGoals.length });
+  }
 
   // Store reward
   await prisma.rewardScore.upsert({
     where: { callId },
-    create: { callId, overallScore, modelVersion: "batched_v1", parameterDiffs: diffs },
-    update: { overallScore, parameterDiffs: diffs, scoredAt: new Date() },
+    create: { callId, overallScore, goalProgressScore, modelVersion: "batched_v1", parameterDiffs: diffs },
+    update: { overallScore, goalProgressScore, parameterDiffs: diffs, scoredAt: new Date() },
   });
 
-  log.info(`Reward computed`, { overallScore, diffs: diffs.length });
+  log.info(`Reward computed`, { overallScore, behaviorScore, goalProgressScore, diffs: diffs.length });
   return { overallScore };
 }
 
@@ -1966,6 +1996,18 @@ const stageExecutors: Record<string, StageExecutor> = {
       goalsCompleted: goalResult.completed,
     });
 
+    // 5. Extract goal completion signals — detects "I passed!" claims for teacher confirmation
+    const completionSignals = await extractGoalCompletionSignals(ctx.call, ctx.callerId, ctx.engine, ctx.log);
+    if (completionSignals.signalsDetected > 0) {
+      ctx.log.info(`Goal completion signals detected`, { signals: completionSignals.signalsDetected });
+    }
+
+    // 6. Assessment-aware adaptation — adjusts CallerTarget based on proximity to assessment threshold
+    const assessmentAdapt = await applyAssessmentAdaptation(ctx.callerId);
+    if (assessmentAdapt.adjustments > 0) {
+      ctx.log.info(`Assessment adaptation applied`, { adjustments: assessmentAdapt.adjustments });
+    }
+
     ctx.log.info(`ADAPT parallel ops completed in ${Date.now() - startTime}ms`);
 
     return {
@@ -1978,6 +2020,8 @@ const stageExecutors: Record<string, StageExecutor> = {
       goalsSkipped: goalExtractionResult.goalsSkipped,
       goalsProgressUpdated: goalResult.updated,
       goalsCompleted: goalResult.completed,
+      completionSignalsDetected: completionSignals.signalsDetected,
+      assessmentAdaptations: assessmentAdapt.adjustments,
     };
   },
 

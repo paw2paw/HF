@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, CheckSquare, Layers } from "lucide-react";
+import { BookOpen, CheckSquare, Layers, Target, Check, X } from "lucide-react";
 import { VerticalSlider, SliderGroup } from "@/components/shared/VerticalSlider";
 import { GoalPill, PlaybookPill, StatusBadge } from "@/src/components/shared/EntityPill";
 import { EXAM_LEVEL_CONFIG } from "@/lib/curriculum/constants";
@@ -391,6 +391,121 @@ function ProgressRing({ progress, size = 64, strokeWidth = 5, color }: { progres
         {Math.round(progress * 100)}%
       </text>
     </svg>
+  );
+}
+
+// =====================================================
+// AssessmentTargetsCard
+// =====================================================
+
+export function AssessmentTargetsCard({ goals, callerId }: { goals: Goal[]; callerId: string }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const assessmentGoals = goals.filter(g => g.isAssessmentTarget);
+  if (assessmentGoals.length === 0) return null;
+
+  const handleAction = async (goalId: string, action: "confirm" | "dismiss") => {
+    setConfirming(goalId);
+    try {
+      const res = await fetch(`/api/goals/${goalId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        // Reload the page to reflect changes
+        window.location.reload();
+      }
+    } finally {
+      setConfirming(null);
+    }
+  };
+
+  return (
+    <div className="hf-gradient-card-lg">
+      <div className="hf-flex hf-gap-sm hf-mb-md">
+        <Target size={16} className="hf-text-accent" />
+        <span className="hf-section-header-label">Assessment Targets</span>
+      </div>
+      <div className="hf-flex-col hf-gap-md">
+        {assessmentGoals.map((goal) => {
+          const threshold = goal.assessmentConfig?.threshold ?? 0.8;
+          const pct = Math.round(goal.progress * 100);
+          const thresholdPct = Math.round(threshold * 100);
+          const isNearReady = goal.progress >= threshold * 0.85;
+          const isCompleted = goal.status === "COMPLETED";
+          const hasPending = !!goal.pendingSignal;
+
+          const progressColor = isCompleted
+            ? "var(--status-success-text)"
+            : isNearReady
+              ? "var(--accent-primary)"
+              : goal.progress < 0.3
+                ? "var(--status-error-text)"
+                : "var(--status-warning-text)";
+
+          return (
+            <div key={goal.id} className="hf-card-compact">
+              <div className="hf-flex hf-gap-lg">
+                <ProgressRing progress={goal.progress} size={64} color={progressColor} />
+                <div className="hf-flex-1">
+                  <div className="hf-flex hf-gap-sm hf-mb-xs hf-items-center">
+                    <span className="hf-section-title">{goal.name}</span>
+                    {isCompleted && (
+                      <StatusBadge status="validated" size="compact" />
+                    )}
+                  </div>
+                  {goal.description && (
+                    <div className="hf-text-xs hf-text-muted hf-mb-xs">{goal.description}</div>
+                  )}
+                  <div className="hf-text-xs hf-text-secondary">
+                    {pct}% ready — target: {thresholdPct}%
+                  </div>
+
+                  {/* Pending self-report signal */}
+                  {hasPending && !isCompleted && (
+                    <div className="hf-flex hf-gap-sm hf-mt-sm hf-items-center hf-p-sm hf-border-radius-md"
+                      style={{ background: "var(--status-warning-bg)", border: "1px solid var(--status-warning-border)" }}>
+                      <span className="hf-text-xs hf-text-warning hf-flex-1">
+                        Learner reported passing
+                        {goal.pendingSignal?.evidence && (
+                          <span className="hf-text-muted"> — &ldquo;{goal.pendingSignal.evidence}&rdquo;</span>
+                        )}
+                      </span>
+                      <button
+                        className="hf-btn hf-btn-sm hf-btn-success"
+                        onClick={() => handleAction(goal.id, "confirm")}
+                        disabled={confirming === goal.id}
+                      >
+                        <Check size={12} /> Confirm
+                      </button>
+                      <button
+                        className="hf-btn hf-btn-sm hf-btn-ghost"
+                        onClick={() => handleAction(goal.id, "dismiss")}
+                        disabled={confirming === goal.id}
+                      >
+                        <X size={12} /> Dismiss
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Manual completion for goals without self-report */}
+                  {!hasPending && !isCompleted && (
+                    <button
+                      className="hf-btn hf-btn-sm hf-btn-outline hf-mt-sm"
+                      onClick={() => handleAction(goal.id, "confirm")}
+                      disabled={confirming === goal.id}
+                    >
+                      Mark as achieved
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

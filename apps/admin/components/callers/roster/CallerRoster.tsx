@@ -196,6 +196,7 @@ export function CallerRoster({ routePrefix = "/x", institutionId }: CallerRoster
             <span>Group</span>
             <span className="ros-col-subject">Subject</span>
             <span>Progress</span>
+            <span className="ros-col-assessment">Assessment</span>
             <span>Momentum</span>
             <span>Last</span>
             <span />
@@ -267,6 +268,7 @@ export function CallerRoster({ routePrefix = "/x", institutionId }: CallerRoster
             <span className="ros-col-subject ros-header-sortable" onClick={() => toggleSort("mastery")}>
               Subject
             </span>
+            <span className="ros-col-assessment">Assessment</span>
             <span />
           </div>
 

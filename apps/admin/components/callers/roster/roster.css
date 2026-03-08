@@ -53,7 +53,7 @@
 
 .ros-header {
   display: grid;
-  grid-template-columns: 2.5fr 1.2fr 1.2fr 1.4fr 0.8fr 0.8fr 80px;
+  grid-template-columns: 2.5fr 1.2fr 1.2fr 1.4fr 0.7fr 0.8fr 0.8fr 80px;
   gap: 8px;
   padding: 10px 16px;
   background: var(--surface-secondary);
@@ -85,7 +85,7 @@
 
 .ros-row {
   display: grid;
-  grid-template-columns: 2.5fr 1.2fr 1.2fr 1.4fr 0.8fr 0.8fr 80px;
+  grid-template-columns: 2.5fr 1.2fr 1.2fr 1.4fr 0.7fr 0.8fr 0.8fr 80px;
   gap: 8px;
   padding: 10px 16px;
   align-items: center;
@@ -185,6 +185,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ros-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 9px;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
+  flex-shrink: 0;
 }
 
 .ros-name-sub {
@@ -479,7 +499,7 @@
 
 .ros-skeleton-row {
   display: grid;
-  grid-template-columns: 2.5fr 1.2fr 1.2fr 1.4fr 0.8fr 0.8fr 80px;
+  grid-template-columns: 2.5fr 1.2fr 1.2fr 1.4fr 0.7fr 0.8fr 0.8fr 80px;
   gap: 8px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-subtle, var(--border-default));
@@ -523,7 +543,7 @@
   .ros-header,
   .ros-row,
   .ros-skeleton-row {
-    grid-template-columns: 2.5fr 1fr 1.4fr 0.7fr 0.7fr 60px;
+    grid-template-columns: 2.5fr 1fr 1.4fr 0.7fr 0.7fr 0.7fr 60px;
   }
 }
 
@@ -535,7 +555,49 @@
   }
 
   .ros-cell-group,
-  .ros-cell-momentum {
+  .ros-cell-momentum,
+  .ros-cell-assessment {
     display: none;
   }
+}
+
+/* ── Assessment Badge ──────────────────────────────────────── */
+
+.ros-cell-assessment {
+  display: flex;
+  align-items: center;
+}
+
+.ros-assess-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.ros-assess-red {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-border);
+}
+
+.ros-assess-orange {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
+}
+
+.ros-assess-blue {
+  background: var(--status-info-bg, color-mix(in srgb, var(--accent-primary) 10%, transparent));
+  color: var(--accent-primary);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.ros-assess-green {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--status-success-border);
 }

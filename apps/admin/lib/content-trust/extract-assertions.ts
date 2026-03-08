@@ -326,9 +326,7 @@ async function extractFromChunk(
           taxYear: item.taxYear || undefined,
           contentHash: hashAssertion(item.assertion || ""),
           figureRefs: Array.isArray(item.figureRefs) ? item.figureRefs : undefined,
-          teachMethod: options.teachingMode
-            ? categoryToTeachMethod(category, options.teachingMode)
-            : undefined,
+          teachMethod: categoryToTeachMethod(category, options.teachingMode || "recall"),
         };
       });
     } catch (err: any) {

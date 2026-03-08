@@ -263,6 +263,75 @@
 }
 .edu-empty-cta-link { text-decoration: none; }
 
+/* ── Assessment Progress Card ──────────────────── */
+
+.edu-assess-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edu-assess-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.edu-assess-ready {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--status-success-text);
+}
+
+.edu-assess-total {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.edu-assess-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.edu-assess-seg {
+  border-radius: 4px;
+  min-width: 4px;
+}
+
+.edu-assess-seg-green { background: var(--status-success-text); }
+.edu-assess-seg-blue { background: var(--accent-primary); }
+.edu-assess-seg-orange { background: var(--status-warning-text); }
+.edu-assess-seg-red { background: var(--status-error-text); }
+
+.edu-assess-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.edu-assess-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.edu-assess-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.edu-assess-dot-green { background: var(--status-success-text); }
+.edu-assess-dot-blue { background: var(--accent-primary); }
+.edu-assess-dot-orange { background: var(--status-warning-text); }
+.edu-assess-dot-red { background: var(--status-error-text); }
+
 /* Loading state */
 .edu-loading { padding: 32px; }
 .edu-loading-text {

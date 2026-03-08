@@ -136,6 +136,22 @@ function recencyLabel(lastCallAt: string | null, sessionLabel: string): string {
   return `${days}d ago`;
 }
 
+// ─── Assessment Badge ────────────────────────────────────
+
+function AssessmentBadge({ target }: { target: { name: string; progress: number; threshold: number } }) {
+  const pct = Math.round(target.progress * 100);
+  let colorClass = "ros-assess-red";
+  if (target.progress >= target.threshold) colorClass = "ros-assess-green";
+  else if (target.progress >= 0.6) colorClass = "ros-assess-blue";
+  else if (target.progress >= 0.3) colorClass = "ros-assess-orange";
+
+  return (
+    <span className={`ros-assess-badge ${colorClass}`} title={`${target.name} — ${pct}% (target: ${Math.round(target.threshold * 100)}%)`}>
+      {pct}%
+    </span>
+  );
+}
+
 // ─── Row Component ───────────────────────────────────────────
 
 export function RosterRow({
@@ -166,6 +182,11 @@ export function RosterRow({
         <div>
           <div className="ros-name">
             {caller.name || caller.email || caller.phone || "Unknown"}
+            {caller.pendingConfirmations > 0 && (
+              <span className="ros-pending-badge" title={`${caller.pendingConfirmations} pending confirmation${caller.pendingConfirmations > 1 ? "s" : ""}`}>
+                {caller.pendingConfirmations}
+              </span>
+            )}
           </div>
           <div className="ros-name-sub">{caller.diagnostic}</div>
         </div>
@@ -192,6 +213,15 @@ export function RosterRow({
       {/* Mastery bar */}
       <div className="ros-cell-mastery">
         <MasteryBar value={caller.mastery} />
+      </div>
+
+      {/* Assessment target */}
+      <div className="ros-cell-assessment ros-col-assessment">
+        {caller.assessmentTarget ? (
+          <AssessmentBadge target={caller.assessmentTarget} />
+        ) : (
+          <span className="ros-group-none">&mdash;</span>
+        )}
       </div>
 
       {/* Momentum */}

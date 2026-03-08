@@ -46,6 +46,9 @@ registerTransform("computeQuickStart", (
   const subjectRef = subjectDiscipline || playbook?.name || null;
   const audienceId = (playbook?.config as any)?.audience as string | undefined;
   const constraints = (playbook?.config as any)?.constraints as string[] | undefined;
+  const sessionCount = (playbook?.config as any)?.sessionCount as number | undefined;
+  const durationMins = (playbook?.config as any)?.durationMins as number | undefined;
+  const lessonPlanModel = (playbook?.config as any)?.lessonPlanModel as string | undefined;
 
   return {
     you_are: (() => {
@@ -73,6 +76,14 @@ registerTransform("computeQuickStart", (
     })(),
 
     course_context: courseContext || null,
+
+    session_pacing: sessionCount || durationMins
+      ? `${sessionCount ? `${sessionCount} sessions` : ""}${sessionCount && durationMins ? " x " : ""}${durationMins ? `${durationMins} min each` : ""}`
+      : null,
+
+    lesson_model: lessonPlanModel
+      ? lessonPlanModel.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+      : null,
 
     this_caller: `${caller?.name || "Unknown"} (call #${loadedData.callCount + 1})`,
 

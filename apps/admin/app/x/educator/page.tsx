@@ -32,6 +32,11 @@ interface DashboardData {
     name: string;
     classroom: string;
   }[];
+  assessmentSummary: {
+    totalWithTargets: number;
+    readyCount: number;
+    distribution: { low: number; mid: number; high: number; ready: number };
+  } | null;
 }
 
 interface InstitutionOption {
@@ -490,6 +495,59 @@ export default function EducatorDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Assessment Progress */}
+        {data?.assessmentSummary && (
+          <div className="hf-card edu-panel">
+            <h3 className="hf-category-label edu-panel-title">
+              Assessment Progress
+            </h3>
+            <div className="edu-assess-summary">
+              <div className="edu-assess-headline">
+                <span className="edu-assess-ready">{data.assessmentSummary.readyCount}</span>
+                <span className="edu-assess-total">
+                  of {data.assessmentSummary.totalWithTargets} {lowerPlural("caller")} ready
+                </span>
+              </div>
+              <div className="edu-assess-bar">
+                {data.assessmentSummary.distribution.ready > 0 && (
+                  <div
+                    className="edu-assess-seg edu-assess-seg-green"
+                    style={{ flex: data.assessmentSummary.distribution.ready }}
+                    title={`${data.assessmentSummary.distribution.ready} ready`}
+                  />
+                )}
+                {data.assessmentSummary.distribution.high > 0 && (
+                  <div
+                    className="edu-assess-seg edu-assess-seg-blue"
+                    style={{ flex: data.assessmentSummary.distribution.high }}
+                    title={`${data.assessmentSummary.distribution.high} near ready (60-80%)`}
+                  />
+                )}
+                {data.assessmentSummary.distribution.mid > 0 && (
+                  <div
+                    className="edu-assess-seg edu-assess-seg-orange"
+                    style={{ flex: data.assessmentSummary.distribution.mid }}
+                    title={`${data.assessmentSummary.distribution.mid} in progress (30-60%)`}
+                  />
+                )}
+                {data.assessmentSummary.distribution.low > 0 && (
+                  <div
+                    className="edu-assess-seg edu-assess-seg-red"
+                    style={{ flex: data.assessmentSummary.distribution.low }}
+                    title={`${data.assessmentSummary.distribution.low} early stage (<30%)`}
+                  />
+                )}
+              </div>
+              <div className="edu-assess-legend">
+                <span className="edu-assess-legend-item"><span className="edu-assess-dot edu-assess-dot-green" /> Ready</span>
+                <span className="edu-assess-legend-item"><span className="edu-assess-dot edu-assess-dot-blue" /> Near</span>
+                <span className="edu-assess-legend-item"><span className="edu-assess-dot edu-assess-dot-orange" /> In progress</span>
+                <span className="edu-assess-legend-item"><span className="edu-assess-dot edu-assess-dot-red" /> Early</span>
+              </div>
+            </div>
           </div>
         )}
       </div>

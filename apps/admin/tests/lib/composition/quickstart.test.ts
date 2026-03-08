@@ -397,6 +397,62 @@ describe("computeQuickStart transform", () => {
     expect(result.this_session).toContain("Assessment focus: IELTS Band 7");
   });
 
+  // ── Session pacing + lesson model (Story 3: dead wiring) ─────────
+
+  it("renders session_pacing from playbook config", () => {
+    const ctx = makeContext({
+      loadedData: {
+        ...makeContext().loadedData,
+        playbooks: [{
+          id: "pb-1", name: "GCSE English", status: "PUBLISHED", domain: null, items: [],
+          config: { sessionCount: 8, durationMins: 30 },
+        }],
+      },
+    });
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.session_pacing).toBe("8 sessions x 30 min each");
+  });
+
+  it("renders session_pacing with only sessionCount", () => {
+    const ctx = makeContext({
+      loadedData: {
+        ...makeContext().loadedData,
+        playbooks: [{
+          id: "pb-1", name: "Test", status: "PUBLISHED", domain: null, items: [],
+          config: { sessionCount: 5 },
+        }],
+      },
+    });
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.session_pacing).toBe("5 sessions");
+  });
+
+  it("returns null session_pacing when not configured", () => {
+    const ctx = makeContext();
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.session_pacing).toBeNull();
+  });
+
+  it("renders lesson_model from playbook config", () => {
+    const ctx = makeContext({
+      loadedData: {
+        ...makeContext().loadedData,
+        playbooks: [{
+          id: "pb-1", name: "Test", status: "PUBLISHED", domain: null, items: [],
+          config: { lessonPlanModel: "direct_instruction" },
+        }],
+      },
+    });
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.lesson_model).toBe("Direct Instruction");
+  });
+
+  it("returns null lesson_model when not configured", () => {
+    const ctx = makeContext();
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.lesson_model).toBeNull();
+  });
+
   it("does not append assessment focus when target is far from threshold", () => {
     const ctx = makeContext({
       loadedData: {

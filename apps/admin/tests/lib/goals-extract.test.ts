@@ -48,6 +48,10 @@ const mockPrisma = {
     create: vi.fn(),
     update: vi.fn(),
   },
+  callerAttribute: {
+    findFirst: vi.fn(),
+    create: vi.fn(),
+  },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -852,5 +856,143 @@ describe("lib/goals/extract-goals.ts", () => {
       expect(result.goalsSkipped).toBe(2);
       expect(result.errors).toHaveLength(0);
     });
+  });
+});
+
+// =====================================================
+// extractGoalCompletionSignals
+// =====================================================
+
+describe("extractGoalCompletionSignals", () => {
+  let extractGoalCompletionSignals: typeof import("@/lib/goals/extract-goals").extractGoalCompletionSignals;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+
+    mockPrisma.goal.findMany.mockResolvedValue([]);
+    mockPrisma.callerAttribute.findFirst.mockResolvedValue(null);
+    mockPrisma.callerAttribute.create.mockResolvedValue({ id: "attr-1" });
+    mockLogMockAIUsage.mockResolvedValue(undefined);
+
+    const mod = await import("@/lib/goals/extract-goals");
+    extractGoalCompletionSignals = mod.extractGoalCompletionSignals;
+  });
+
+  it("returns early for short transcripts", async () => {
+    const log = makeLogger();
+    const result = await extractGoalCompletionSignals(makeCall("Hi"), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(mockPrisma.goal.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns early when no assessment target goals exist", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([]);
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(mockGetConfiguredMeteredAICompletion).not.toHaveBeenCalled();
+  });
+
+  it("returns early for mock engine", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([{ id: "goal-1", name: "Pass exam" }]);
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "mock", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(mockGetConfiguredMeteredAICompletion).not.toHaveBeenCalled();
+  });
+
+  it("creates CallerAttribute when signal detected with high confidence", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([{ id: "goal-1", name: "Pass the Beit Din" }]);
+    mockGetConfiguredMeteredAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        signals: [{ goalId: "goal-1", evidence: "I passed the Beit Din!", confidence: 0.95 }],
+      }),
+      model: "claude-sonnet-4",
+      usage: { inputTokens: 100, outputTokens: 50 },
+    });
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(1);
+    expect(mockPrisma.callerAttribute.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        callerId: "caller-1",
+        key: "goal_completion_signal:goal-1",
+        scope: "GOAL_EVENT",
+        booleanValue: null,
+        confidence: 0.95,
+      }),
+    });
+  });
+
+  it("skips signal with low confidence (<0.7)", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([{ id: "goal-1", name: "Pass exam" }]);
+    mockGetConfiguredMeteredAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        signals: [{ goalId: "goal-1", evidence: "Maybe I passed?", confidence: 0.5 }],
+      }),
+      model: "claude-sonnet-4",
+      usage: { inputTokens: 100, outputTokens: 50 },
+    });
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(mockPrisma.callerAttribute.create).not.toHaveBeenCalled();
+  });
+
+  it("skips signal with invalid goalId", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([{ id: "goal-1", name: "Pass exam" }]);
+    mockGetConfiguredMeteredAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        signals: [{ goalId: "nonexistent", evidence: "I passed!", confidence: 0.95 }],
+      }),
+      model: "claude-sonnet-4",
+      usage: { inputTokens: 100, outputTokens: 50 },
+    });
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(mockPrisma.callerAttribute.create).not.toHaveBeenCalled();
+  });
+
+  it("skips when signal already pending for goal", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([{ id: "goal-1", name: "Pass exam" }]);
+    mockPrisma.callerAttribute.findFirst.mockResolvedValue({ id: "existing-attr" });
+    mockGetConfiguredMeteredAICompletion.mockResolvedValue({
+      content: JSON.stringify({
+        signals: [{ goalId: "goal-1", evidence: "I passed!", confidence: 0.95 }],
+      }),
+      model: "claude-sonnet-4",
+      usage: { inputTokens: 100, outputTokens: 50 },
+    });
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(mockPrisma.callerAttribute.create).not.toHaveBeenCalled();
+  });
+
+  it("handles AI failure gracefully", async () => {
+    const log = makeLogger();
+    mockPrisma.goal.findMany.mockResolvedValue([{ id: "goal-1", name: "Pass exam" }]);
+    mockGetConfiguredMeteredAICompletion.mockRejectedValue(new Error("AI down"));
+
+    const result = await extractGoalCompletionSignals(makeCall(LONG_TRANSCRIPT), "caller-1", "claude", log);
+
+    expect(result.signalsDetected).toBe(0);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toBe("AI down");
   });
 });

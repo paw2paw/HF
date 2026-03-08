@@ -399,6 +399,158 @@ function deduplicateGoal(
   return { action: "create" };
 }
 
+// =====================================================
+// GOAL COMPLETION SIGNAL EXTRACTION
+// =====================================================
+
+export interface CompletionSignalResult {
+  signalsDetected: number;
+  errors: string[];
+}
+
+/**
+ * Extract goal completion signals from a call transcript.
+ * When a caller says "I passed the Beit Din!" or similar, stores a pending
+ * CallerAttribute with scope GOAL_EVENT for teacher confirmation.
+ *
+ * Only checks assessment target goals — regular goals auto-complete via progress tracking.
+ */
+export async function extractGoalCompletionSignals(
+  call: { id: string; transcript: string | null },
+  callerId: string,
+  engine: AIEngine,
+  log: Logger
+): Promise<CompletionSignalResult> {
+  const result: CompletionSignalResult = { signalsDetected: 0, errors: [] };
+
+  if (!call.transcript || call.transcript.length < MIN_TRANSCRIPT_LENGTH) {
+    return result;
+  }
+
+  // Only check if caller has active assessment targets
+  const assessmentGoals = await prisma.goal.findMany({
+    where: {
+      callerId,
+      isAssessmentTarget: true,
+      status: GoalStatus.ACTIVE,
+    },
+    select: { id: true, name: true },
+  });
+
+  if (assessmentGoals.length === 0) return result;
+
+  if (engine === "mock") {
+    log.info("Mock completion signal extraction", { callId: call.id });
+    return result;
+  }
+
+  try {
+    const goalList = assessmentGoals.map(g => `${g.id}|${g.name}`).join("\n");
+    const prompt = `Analyze this conversation transcript for COMPLETION SIGNALS.
+
+The caller has these assessment targets:
+${goalList}
+
+A completion signal means the caller claims to have ACHIEVED one of these targets.
+Examples: "I passed!", "I got my certificate", "I did it — I passed the exam".
+
+RULES:
+- Only detect EXPLICIT claims of completion, NOT progress updates
+- Must match one of the listed assessment targets
+- Include the verbatim quote as evidence
+- Confidence: 0.9+ for clear claims, 0.7-0.9 for indirect claims
+
+TRANSCRIPT:
+${call.transcript.slice(0, TRANSCRIPT_LIMIT)}
+
+Return JSON (no markdown):
+{"signals":[{"goalId":"<id>","evidence":"verbatim quote","confidence":0.9}]}
+If no signals, return: {"signals":[]}`;
+
+    const timeouts = await getAITimeoutSettings();
+    // @ai-call pipeline.extract_completion_signals — Detect goal completion claims | config: /x/ai-config
+    const aiResult = await getConfiguredMeteredAICompletion(
+      {
+        callPoint: "pipeline.extract_completion_signals",
+        engineOverride: engine,
+        messages: [
+          { role: "system", content: "You detect when learners claim to have achieved assessment goals. Return valid JSON only." },
+          { role: "user", content: prompt },
+        ],
+        maxTokens: 512,
+        temperature: 0.1,
+        timeoutMs: timeouts.pipelineTimeoutMs,
+      },
+      { callId: call.id, callerId, sourceOp: "pipeline:extract_completion_signals" }
+    );
+
+    let jsonContent = aiResult.content.trim();
+    if (jsonContent.startsWith("```")) {
+      jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    }
+
+    const parsed = JSON.parse(jsonContent) as {
+      signals: Array<{ goalId: string; evidence: string; confidence: number }>;
+    };
+
+    if (parsed.signals && Array.isArray(parsed.signals)) {
+      for (const signal of parsed.signals) {
+        if (signal.confidence < 0.7) continue;
+
+        // Verify goalId is valid
+        const matchingGoal = assessmentGoals.find(g => g.id === signal.goalId);
+        if (!matchingGoal) continue;
+
+        // Check for existing unconfirmed signal for this goal
+        const existing = await prisma.callerAttribute.findFirst({
+          where: {
+            callerId,
+            key: `goal_completion_signal:${signal.goalId}`,
+            scope: "GOAL_EVENT",
+            booleanValue: null, // unconfirmed
+          },
+        });
+
+        if (existing) {
+          log.info("Completion signal already pending for goal", { goalId: signal.goalId });
+          continue;
+        }
+
+        await prisma.callerAttribute.create({
+          data: {
+            callerId,
+            key: `goal_completion_signal:${signal.goalId}`,
+            scope: "GOAL_EVENT",
+            jsonValue: {
+              goalId: signal.goalId,
+              goalName: matchingGoal.name,
+              evidence: signal.evidence,
+              confidence: signal.confidence,
+              callId: call.id,
+              extractedAt: new Date().toISOString(),
+            },
+            booleanValue: null, // null = pending, true = confirmed, false = dismissed
+            confidence: signal.confidence,
+            sourceSpecSlug: "GOAL-001",
+          },
+        });
+
+        result.signalsDetected++;
+        log.info("Goal completion signal detected", {
+          goalId: signal.goalId,
+          goalName: matchingGoal.name,
+          confidence: signal.confidence,
+        });
+      }
+    }
+  } catch (error: any) {
+    log.error("Goal completion signal extraction failed", { error: error.message });
+    result.errors.push(error.message);
+  }
+
+  return result;
+}
+
 /**
  * Simple string similarity (Jaccard index on words)
  */

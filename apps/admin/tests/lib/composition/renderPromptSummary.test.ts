@@ -213,3 +213,35 @@ describe("renderVoicePrompt — working_toward", () => {
     expect(result).not.toContain("Working toward:");
   });
 });
+
+describe("renderVoicePrompt — session pacing + lesson model", () => {
+  it("renders session pacing in SESSION PLAN section", () => {
+    const result = renderVoicePrompt({
+      _quickStart: {
+        session_pacing: "8 sessions x 30 min each",
+      },
+    } as any);
+
+    expect(result).toContain("[SESSION PLAN]");
+    expect(result).toContain("Pacing: 8 sessions x 30 min each");
+  });
+
+  it("renders lesson model in SESSION PLAN section", () => {
+    const result = renderVoicePrompt({
+      _quickStart: {
+        lesson_model: "Direct Instruction",
+      },
+    } as any);
+
+    expect(result).toContain("Teaching model: Direct Instruction");
+  });
+
+  it("omits pacing and model when not set", () => {
+    const result = renderVoicePrompt({
+      _quickStart: {},
+    } as any);
+
+    expect(result).not.toContain("Pacing:");
+    expect(result).not.toContain("Teaching model:");
+  });
+});
