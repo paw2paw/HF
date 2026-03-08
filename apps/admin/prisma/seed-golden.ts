@@ -751,37 +751,58 @@ export async function main(externalPrisma?: PrismaClient, opts?: { skipCleanup?:
     let learnerIndex = 0;
     for (const cohortDef of inst.domain.cohorts) {
       // Create teacher caller first (needed as cohort owner)
-      const teacherCaller = await prisma.caller.create({
-        data: {
+      const teacherExternalId = `${TAG}teacher-${inst.slug}-${slugify(cohortDef.name)}`;
+      const teacherCaller = await prisma.caller.upsert({
+        where: { externalId: teacherExternalId },
+        update: {
           name: cohortDef.teacher.name,
           email: cohortDef.teacher.email,
-          externalId: `${TAG}teacher-${inst.slug}-${slugify(cohortDef.name)}`,
+          role: "TEACHER",
+          domainId: domain.id,
+        },
+        create: {
+          name: cohortDef.teacher.name,
+          email: cohortDef.teacher.email,
+          externalId: teacherExternalId,
           role: "TEACHER",
           domainId: domain.id,
         },
       });
       totalTeachers++;
 
-      // Create cohort group
-      const cohort = await prisma.cohortGroup.create({
-        data: {
-          name: cohortDef.name,
-          domainId: domain.id,
-          ownerId: teacherCaller.id,
-          institutionId: institution.id,
-          maxMembers: 50,
-          isActive: true,
-        },
+      // Create cohort group (upsert by name + domainId)
+      let cohort = await prisma.cohortGroup.findFirst({
+        where: { name: cohortDef.name, domainId: domain.id },
       });
+      if (!cohort) {
+        cohort = await prisma.cohortGroup.create({
+          data: {
+            name: cohortDef.name,
+            domainId: domain.id,
+            ownerId: teacherCaller.id,
+            institutionId: institution.id,
+            maxMembers: 50,
+            isActive: true,
+          },
+        });
+      }
       console.log(`    + Cohort: ${cohort.name} (${cohortDef.members.length} members)`);
       totalCohorts++;
 
       // Create learner callers
       for (const memberName of cohortDef.members) {
-        const learner = await prisma.caller.create({
-          data: {
+        const learnerExternalId = `${TAG}learner-${inst.slug}-${slugify(memberName)}`;
+        const learner = await prisma.caller.upsert({
+          where: { externalId: learnerExternalId },
+          update: {
             name: memberName,
-            externalId: `${TAG}learner-${inst.slug}-${slugify(memberName)}`,
+            role: "LEARNER",
+            domainId: domain.id,
+            cohortGroupId: cohort.id,
+          },
+          create: {
+            name: memberName,
+            externalId: learnerExternalId,
             role: "LEARNER",
             domainId: domain.id,
             cohortGroupId: cohort.id,
@@ -807,8 +828,10 @@ export async function main(externalPrisma?: PrismaClient, opts?: { skipCleanup?:
 
         // Enroll in all playbooks for this domain
         for (const pb of playbooks) {
-          await prisma.callerPlaybook.create({
-            data: {
+          await prisma.callerPlaybook.upsert({
+            where: { callerId_playbookId: { callerId: learner.id, playbookId: pb.id } },
+            update: { status: "ACTIVE" },
+            create: {
               callerId: learner.id,
               playbookId: pb.id,
               status: "ACTIVE",
@@ -832,8 +855,10 @@ export async function main(externalPrisma?: PrismaClient, opts?: { skipCleanup?:
 
       // Link cohort to playbooks
       for (const pb of playbooks) {
-        await prisma.cohortPlaybook.create({
-          data: {
+        await prisma.cohortPlaybook.upsert({
+          where: { cohortGroupId_playbookId: { cohortGroupId: cohort.id, playbookId: pb.id } },
+          update: {},
+          create: {
             cohortGroupId: cohort.id,
             playbookId: pb.id,
             assignedBy: "golden-seed",

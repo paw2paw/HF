@@ -9,8 +9,6 @@
 
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
-
 const CURRICULUM_SLUG = "english-language-curriculum";
 
 const MODULES = [
@@ -62,7 +60,10 @@ const MODULES = [
   },
 ];
 
-async function main() {
+export async function main(externalPrisma?: PrismaClient): Promise<void> {
+  const prisma = externalPrisma ?? new PrismaClient();
+  const isStandalone = !externalPrisma;
+
   console.log("=== Seed English Curriculum Modules ===\n");
 
   const curriculum = await prisma.curriculum.findUnique({
@@ -70,8 +71,9 @@ async function main() {
   });
 
   if (!curriculum) {
-    console.error(`Curriculum "${CURRICULUM_SLUG}" not found — run full seed first.`);
-    process.exit(1);
+    console.log(`  [skip] Curriculum "${CURRICULUM_SLUG}" not found — skipping english modules`);
+    if (isStandalone) await prisma.$disconnect();
+    return;
   }
 
   console.log(`Found curriculum: ${curriculum.name} (${curriculum.id})\n`);
@@ -151,11 +153,17 @@ async function main() {
   console.log("\n=== Done ===");
   console.log(`  Modules: ${Object.keys(createdModules).length}`);
   console.log(`  IDs: ${JSON.stringify(createdModules, null, 2)}`);
+
+  if (isStandalone) await prisma.$disconnect();
 }
 
-main()
-  .catch((e) => {
-    console.error("Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+// Standalone entry point
+if (require.main === module || process.argv[1]?.endsWith("seed-english-modules.ts")) {
+  const prisma = new PrismaClient();
+  main(prisma)
+    .catch((e) => {
+      console.error("Seed failed:", e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

@@ -52,6 +52,7 @@ import { main as seedDemoLogins } from "./seed-demo-logins";
 import { main as seedGolden } from "./seed-golden";
 import { main as seedIdentityArchetypes } from "./seed-identity-archetypes";
 import { main as seedHolographicDemo } from "./seed-holographic-demo";
+import { main as seedEnglishModules } from "./seed-english-modules";
 
 type Profile = "core" | "test" | "full" | "golden";
 
@@ -82,6 +83,7 @@ const ALL_STEPS: Step[] = [
   { name: "seed-e2e", fn: seedE2E, profiles: ["test", "full"] },
 
   // ── Full (test + educator/school/legacy data) ───────────
+  { name: "seed-english-modules", fn: seedEnglishModules, profiles: ["full"] },
   { name: "seed-educator-demo", fn: seedEducatorDemo, profiles: ["full"] },
   { name: "seed-school-institutions", fn: seedSchoolInstitutions, profiles: ["full"] },
   { name: "seed-demo-fixtures", fn: seedDemoFixtures, profiles: ["full"] },
