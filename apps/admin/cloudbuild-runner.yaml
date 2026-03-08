@@ -21,10 +21,12 @@ steps:
       - '--cache=true'
       - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin/cache'
       - '--cache-ttl=720h'
-      - '--single-snapshot'
       - '--snapshotMode=redo'
+      - '--compressed-caching=false'
       - '--build-arg=NEXT_PUBLIC_APP_ENV=${_APP_ENV}'
+      - '--build-arg=NODE_OPTIONS=--max-old-space-size=4096'
 
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_HIGHCPU_8
+  diskSizeGb: 500
