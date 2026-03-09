@@ -615,8 +615,18 @@ export function SessionPlanViewer({
           </div>
         )}
 
-        {/* Collapsed: phase breadcrumbs */}
+        {/* Collapsed: phase breadcrumbs + material chips */}
         {!isExpanded && renderPhaseBreadcrumbs(entry)}
+        {!isExpanded && (entry.media?.length ?? 0) > 0 && (
+          <div className="spv-phase-materials" style={{ paddingLeft: "2rem" }}>
+            {entry.media!.map((m) => (
+              <span key={m.mediaId} className="spv-material-chip">
+                <Paperclip size={10} />
+                <span className="spv-material-name">{m.fileName || m.figureRef || "File"}</span>
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Expanded: zebra-striped phases */}
         {isExpanded && renderPhases(entry, sessionNum)}
@@ -632,8 +642,18 @@ export function SessionPlanViewer({
           />
         )}
 
-        {/* Expanded: Session media strip */}
+        {/* Expanded: Session media strip (full: drag/drop; timeline: read-only chips) */}
         {isExpanded && variant === "full" && renderSessionMedia(entry, index)}
+        {isExpanded && variant === "timeline" && (entry.media?.length ?? 0) > 0 && (
+          <div className="spv-phase-materials" style={{ padding: "0.375rem 0" }}>
+            {entry.media!.map((m) => (
+              <span key={m.mediaId} className="spv-material-chip">
+                <Paperclip size={10} />
+                <span className="spv-material-name">{m.fileName || m.figureRef || "File"}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
