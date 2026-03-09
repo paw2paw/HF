@@ -1,141 +1,138 @@
 "use client";
 
 /**
- * ScaffoldPanel — right-column live preview of what's being built.
+ * ScaffoldPanel — "Course Blueprint" live preview.
  *
- * Reads from the wizard data bag (getData) and renders a checklist
- * with status indicators. Labels adapt via terminology when available.
+ * Reads from the wizard data bag and renders a course card that
+ * progressively crystallises as the conversation fills in fields.
+ * Sections appear when they have data. Click any section to amend.
+ *
+ * Design: artifact-first (show the course, not a checklist).
  */
 
-import { Loader2, RotateCcw, ChevronRight, ExternalLink } from "lucide-react";
+import { Loader2, RotateCcw, ExternalLink, Pencil } from "lucide-react";
 import "./scaffold-panel.css";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
 
-/* ── Per-item segment colours (light → dark blue) ─────── */
-const ITEM_COLORS: Record<string, string> = {
-  institution: "var(--gs-seg-1)",
-  subject:     "var(--gs-seg-2)",
-  course:      "var(--gs-seg-3)",
-  content:     "var(--gs-seg-4)",
-  welcome:     "var(--gs-seg-5)",
-  lessons:     "var(--gs-seg-6)",
-  personality: "var(--gs-seg-7)",
+/* ── Label lookups ──────────────────────────────────── */
+
+const AUDIENCE_LABELS: Record<string, string> = {
+  primary: "Primary (5-11)",
+  secondary: "Secondary (11-16)",
+  "sixth-form": "Sixth Form (16-19)",
+  "higher-ed": "Higher Ed",
+  "adult-professional": "Professional",
+  "adult-casual": "Adult Learner",
+  mixed: "Mixed",
 };
 
-const WAITING_COLOR = "var(--border-default)";
+const ASSESSMENT_LABELS: Record<string, string> = {
+  formal: "Formal assessment",
+  light: "Light check-ins",
+  none: "No assessment",
+};
 
-/* ── Segmented Donut ──────────────────────────────────── */
+const LESSON_MODEL_LABELS: Record<string, string> = {
+  direct: "Direct Instruction",
+  "5e": "5E Model",
+  spiral: "Spiral",
+  mastery: "Mastery",
+  project: "Project-Based",
+};
 
-interface DonutItem { status: ScaffoldStatus; label: string; color: string }
+const PATTERN_LABELS: Record<string, string> = {
+  socratic: "Socratic",
+  "direct-instruction": "Direct Instruction",
+  "practice-coach": "Practice Coach",
+  "conversational-guide": "Conversational Guide",
+  "drill-sergeant": "Drill & Practice",
+};
 
-function ProgressDonut({ items }: { items: DonutItem[] }) {
-  const size = 120;
-  const strokeWidth = 10;
-  const center = size / 2;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+const EMPHASIS_LABELS: Record<string, string> = {
+  breadth: "Breadth-first",
+  balanced: "Balanced",
+  depth: "Depth-first",
+};
 
-  const GAP = 4; // px gap between segments
-  const gapDeg = (GAP / circumference) * 360;
-  const segDeg = (360 - items.length * gapDeg) / items.length;
-  const segArc = (segDeg / 360) * circumference;
+/* ── Readiness dots ─────────────────────────────────── */
 
-  const completedCount = items.filter(i => i.status === "ready" || i.status === "resolved" || i.status === "done").length;
-  const pct = Math.round((completedCount / items.length) * 100);
-  const allDone = completedCount === items.length;
+interface ReadinessDot { filled: boolean; active: boolean }
 
+function ReadinessBar({ dots, hint }: { dots: ReadinessDot[]; hint: string }) {
+  const filledCount = dots.filter(d => d.filled).length;
   return (
-    <div className="gs-donut-wrap">
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="gs-donut-svg"
-      >
-        {items.map((item, i) => {
-          const startAngle = -90 + i * (segDeg + gapDeg);
-          const isAnimated = item.status === "collecting" || item.status === "building";
-
-          return (
-            <circle
-              key={i}
-              cx={center}
-              cy={center}
-              r={radius}
-              fill="none"
-              stroke={item.status === "waiting" ? WAITING_COLOR : item.color}
-              strokeWidth={strokeWidth}
-              strokeDasharray={`${segArc} ${circumference - segArc}`}
-              className={`gs-donut-segment${isAnimated ? " gs-donut-segment--pulse" : ""}`}
-              style={{ transform: `rotate(${startAngle}deg)`, transformOrigin: `${center}px ${center}px` }}
-            />
-          );
-        })}
-      </svg>
-      <div className="gs-donut-center">
-        {allDone
-          ? <span className="gs-donut-check">&#10003;</span>
-          : <span className="gs-donut-pct">{pct}%</span>
-        }
+    <div className="gs-readiness">
+      <div className="gs-readiness-dots">
+        {dots.map((d, i) => (
+          <span
+            key={i}
+            className={
+              "gs-readiness-dot" +
+              (d.filled ? " gs-readiness-dot--filled" : "") +
+              (d.active ? " gs-readiness-dot--active" : "")
+            }
+          />
+        ))}
+      </div>
+      <div className="gs-readiness-label">
+        <span className="gs-readiness-count">{filledCount}/{dots.length}</span>
+        <span className="gs-readiness-hint">{hint}</span>
       </div>
     </div>
   );
 }
 
-interface ScaffoldItem {
-  key: string;
-  label: string;
-  value?: string;
-  chips?: string[];
-  status: ScaffoldStatus;
+/* ── Blueprint section (clickable row) ──────────────── */
+
+interface BlueprintSectionProps {
+  visible: boolean;
+  active: boolean;
+  clickable: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+  sectionKey?: string;
 }
 
-interface ScaffoldPanelProps {
-  getData: <T = unknown>(key: string) => T | undefined;
-  currentStepIndex?: number;
-  /** Current wizard phase ID for highlighting (e.g. "institution", "course") */
-  currentPhaseId?: string;
-  /** Terminology-resolved labels (or generic defaults) */
-  terms?: {
-    institution: string;
-    subject: string;
-    course: string;
-    content: string;
-    welcome: string;
-    lessons: string;
-    personality: string;
-  };
-  /** Called when user clicks "Start Afresh" — clears all wizard state */
-  onReset?: () => void;
-  /** Called when user clicks a scaffold item to review/amend it */
-  onItemClick?: (itemKey: string) => void;
+function BlueprintSection({ visible, active, clickable, onClick, children, sectionKey }: BlueprintSectionProps) {
+  if (!visible) return null;
+  return (
+    <div
+      className={
+        "gs-bp-section" +
+        (active ? " gs-bp-section--active" : "") +
+        (clickable ? " gs-bp-section--clickable" : "")
+      }
+      onClick={clickable ? onClick : undefined}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } } : undefined}
+      data-section={sectionKey}
+    >
+      {children}
+      {clickable && <Pencil size={12} className="gs-bp-edit-icon" />}
+    </div>
+  );
 }
 
-/** Map scaffold item keys to wizard phase IDs */
+/* ── Default indicator ──────────────────────────────── */
+
+function DefaultTag() {
+  return <span className="gs-bp-default" title="System default — click to customise">default</span>;
+}
+
+/* ── Status phase maps ──────────────────────────────── */
+
 const ITEM_TO_PHASE: Record<string, string> = {
   institution: "institution",
   subject: "subject",
   course: "course",
   content: "content",
   welcome: "welcome",
-  lessons: "welcome",      // lessons belong to "welcome" phase
+  lessons: "welcome",
   personality: "tune",
 };
 
-const DEFAULT_TERMS = {
-  institution: "Organisation",
-  subject: "Subject",
-  course: "Course",
-  content: "Content",
-  welcome: "Welcome Message",
-  lessons: "Lesson Plan",
-  personality: "AI Tutor",
-};
-
-/** Map phase index to which scaffold items are being "collected".
- *  Must match WIZARD_PHASES order: institution(0), subject(1), course(2),
- *  content(3), welcome(4), tune(5), launch(6). */
 const STEP_COLLECTING: Record<number, string[]> = {
   0: ["institution"],
   1: ["subject"],
@@ -143,14 +140,9 @@ const STEP_COLLECTING: Record<number, string[]> = {
   3: ["content"],
   4: ["welcome", "lessons"],
   5: ["personality"],
-  6: [], // launch
+  6: [],
 };
 
-/**
- * Per-item entity key resolution map.
- * "resolved" (green) = the system has the internal ID/slug needed to wire downstream steps.
- * "ready" (blue) = user data accepted but entity not yet created.
- */
 type ResolvedKeys = Record<string, boolean>;
 
 function getItemStatus(
@@ -167,44 +159,51 @@ function getItemStatus(
   return hasValue ? "ready" : "waiting";
 }
 
-/** Capitalize first letter */
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const LESSON_MODEL_LABELS: Record<string, string> = {
-  direct: "Direct Instruction",
-  "5e": "5E Model",
-  spiral: "Spiral",
-  mastery: "Mastery",
-  project: "Project-Based",
+/* ── Props ──────────────────────────────────────────── */
+
+interface ScaffoldPanelProps {
+  getData: <T = unknown>(key: string) => T | undefined;
+  currentStepIndex?: number;
+  currentPhaseId?: string;
+  terms?: {
+    institution: string;
+    subject: string;
+    course: string;
+    content: string;
+    welcome: string;
+    lessons: string;
+    personality: string;
+  };
+  onReset?: () => void;
+  onItemClick?: (itemKey: string) => void;
+}
+
+const DEFAULT_TERMS = {
+  institution: "Organisation",
+  subject: "Subject",
+  course: "Course",
+  content: "Content",
+  welcome: "Welcome Message",
+  lessons: "Lesson Plan",
+  personality: "AI Tutor",
 };
 
-function StatusDot({ status, color }: { status: ScaffoldStatus; color?: string }) {
-  const isAnimated = status === "collecting" || status === "building";
-  const showColor = color && status !== "waiting" && status !== "building";
-  return (
-    <span
-      className={`gs-dot${isAnimated ? " gs-dot--pulse" : ""}`}
-      data-status={status}
-      style={showColor ? { background: color } : undefined}
-    >
-      {status === "building" && <Loader2 size={10} className="hf-spinner" />}
-    </span>
-  );
-}
+/* ── Main component ─────────────────────────────────── */
 
 export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, terms, onReset, onItemClick }: ScaffoldPanelProps) {
   const t = terms ?? DEFAULT_TERMS;
   const launched = !!getData<boolean>("launched");
   const isCommunity = getData<string>("defaultDomainKind") === "COMMUNITY";
 
-  // Entity IDs — the internal keys that unlock downstream steps
+  // Entity IDs
   const hasDomainId = !!(getData<string>("draftDomainId") || getData<string>("existingDomainId"));
   const hasPlaybookId = !!getData<string>("draftPlaybookId");
   const hasSubjectIds = !!(getData<string[]>("packSubjectIds")?.length);
 
-  // Per-item resolution: green when the system has the entity key it needs
   const resolvedKeys: ResolvedKeys = {
     institution: hasDomainId,
     subject: hasDomainId && !!getData<string>("subjectDiscipline"),
@@ -215,261 +214,294 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
     personality: hasPlaybookId && !!getData<Record<string, number>>("behaviorTargets"),
   };
 
+  // Data reads
   const institutionName = getData<string>("institutionName") || getData<string>("existingInstitutionName");
-  const courseName = getData<string>("courseName");
-  const hasContent = !!(hasSubjectIds || getData<string>("sourceId"));
-  const welcomeMsg = getData<string>("welcomeMessage");
-  const sessionCount = getData<number>("sessionCount");
-  const hasTune = !!getData<Record<string, number>>("behaviorTargets");
-  const draftCallerId = getData<string>("draftCallerId");
-  const canTryCall = !!draftCallerId && (hasDomainId || launched);
-
-  // Detail chips for each section
   const typeSlug = getData<string>("typeSlug");
+  const courseName = getData<string>("courseName");
   const subjectDiscipline = getData<string>("subjectDiscipline");
   const interactionPattern = getData<string>("interactionPattern");
   const teachingMode = getData<string>("teachingMode");
-  const teachingProfile = getData<string>("teachingProfile");
-  const durationMins = getData<string>("durationMins");
-  const planEmphasis = getData<string>("planEmphasis");
-  const lessonPlanModel = getData<string>("lessonPlanModel");
   const audience = getData<string>("audience");
   const learningOutcomes = getData<string[]>("learningOutcomes");
+  const hasContent = !!(hasSubjectIds || getData<string>("sourceId"));
+  const welcomeMsg = getData<string>("welcomeMessage");
+  const sessionCount = getData<number>("sessionCount");
+  const durationMins = getData<string>("durationMins");
+  const planEmphasis = getData<string>("planEmphasis");
   const assessments = getData<string>("assessments");
+  const lessonPlanModel = getData<string>("lessonPlanModel");
+  const hasTune = !!getData<Record<string, number>>("behaviorTargets");
+  const draftCallerId = getData<string>("draftCallerId");
+  const canTryCall = !!draftCallerId && (hasDomainId || launched);
   const userSetFields = getData<string[]>("userSetFields") || [];
 
-  // Audience label lookup
-  const AUDIENCE_LABELS: Record<string, string> = {
-    primary: "Primary (5-11)",
-    secondary: "Secondary (11-16)",
-    "sixth-form": "Sixth Form (16-19)",
-    "higher-ed": "Higher Ed",
-    "adult-professional": "Professional",
-    "adult-casual": "Adult Learner",
-    mixed: "Mixed",
-  };
-  const ASSESSMENT_LABELS: Record<string, string> = {
-    formal: "Formal assessment",
-    light: "Light checks",
-    none: "No assessment",
-  };
-
-  const institutionChips: string[] = [];
-  if (typeSlug) institutionChips.push(capitalize(typeSlug));
-
-  const courseChips: string[] = [];
-  if (teachingProfile) courseChips.push(teachingProfile);
-  if (interactionPattern) courseChips.push(capitalize(interactionPattern));
-  if (teachingMode) courseChips.push(capitalize(teachingMode));
-  if (audience && audience !== "mixed") courseChips.push(AUDIENCE_LABELS[audience] || capitalize(audience));
-  if (learningOutcomes && learningOutcomes.length > 0) courseChips.push(`${learningOutcomes.length} outcome${learningOutcomes.length !== 1 ? "s" : ""}`);
-
-  const lessonChips: string[] = [];
-  if (durationMins) lessonChips.push(`${durationMins} min`);
-  if (planEmphasis) lessonChips.push(capitalize(planEmphasis));
-  if (assessments) lessonChips.push(ASSESSMENT_LABELS[assessments] || capitalize(assessments));
-
-  // Track which chips come from defaults (not explicitly set by user)
-  const defaultChips = new Set<string>();
-  if (audience && !userSetFields.includes("audience")) defaultChips.add(AUDIENCE_LABELS[audience] || capitalize(audience));
-  if (assessments && !userSetFields.includes("assessments")) defaultChips.add(ASSESSMENT_LABELS[assessments] || capitalize(assessments));
-  if (planEmphasis && !userSetFields.includes("planEmphasis")) defaultChips.add(capitalize(planEmphasis));
-  if (durationMins && !userSetFields.includes("durationMins")) defaultChips.add(`${durationMins} min`);
-  if (lessonPlanModel && !userSetFields.includes("lessonPlanModel")) defaultChips.add(LESSON_MODEL_LABELS[lessonPlanModel] || capitalize(lessonPlanModel));
-
-  const tuneChips: string[] = [];
-  if (lessonPlanModel) tuneChips.push(LESSON_MODEL_LABELS[lessonPlanModel] || capitalize(lessonPlanModel));
-
-  // Extraction progress — live (during extraction) or final (after completion)
+  // Extraction progress
   const extractionProgress = getData<{ assertions: number; questions: number; vocabulary: number; images: number }>("extractionProgress");
   const extractionTotals = getData<{ assertions: number; questions: number; vocabulary: number; images: number }>("extractionTotals");
   const isExtracting = !!extractionProgress;
   const contentTotals = isExtracting ? extractionProgress : extractionTotals;
-
-  const contentChips: string[] = [];
-  if (contentTotals) {
-    if (contentTotals.assertions > 0) contentChips.push(`${contentTotals.assertions} teaching points`);
-    if (contentTotals.questions > 0) contentChips.push(`${contentTotals.questions} questions`);
-    if (contentTotals.vocabulary > 0) contentChips.push(`${contentTotals.vocabulary} vocabulary`);
-    if (contentTotals.images > 0) contentChips.push(`${contentTotals.images} images`);
-  }
-
   const sourceCount = getData<number>("sourceCount");
 
-  const contentStatus = isExtracting
-    ? "building" as ScaffoldStatus
-    : getItemStatus("content", hasContent, currentStepIndex, resolvedKeys, launched);
-  const contentValue = isExtracting
-    ? "Extracting..."
-    : hasContent
-      ? sourceCount ? `${sourceCount} doc${sourceCount !== 1 ? "s" : ""} uploaded` : "Uploaded"
-      : undefined;
+  // Default detection helper
+  const isDefault = (field: string) => !userSetFields.includes(field);
 
-  const items: ScaffoldItem[] = [
-    {
-      key: "institution",
-      label: t.institution,
-      value: institutionName || undefined,
-      chips: institutionChips.length ? institutionChips : undefined,
-      status: getItemStatus("institution", !!institutionName, currentStepIndex, resolvedKeys, launched),
-    },
-    // Subject row hidden for communities — they don't have structured subjects
-    ...(!isCommunity ? [{
-      key: "subject",
-      label: t.subject,
-      value: subjectDiscipline || undefined,
-      status: getItemStatus("subject", !!subjectDiscipline, currentStepIndex, resolvedKeys, launched),
-    }] : []),
-    {
-      key: "course",
-      label: isCommunity ? "Community" : t.course,
-      value: courseName || undefined,
-      chips: courseChips.length ? courseChips : undefined,
-      status: getItemStatus("course", !!courseName, currentStepIndex, resolvedKeys, launched),
-    },
-    // Content row hidden for communities — they don't upload teaching materials
-    ...(!isCommunity ? [{
-      key: "content",
-      label: t.content,
-      value: contentValue,
-      chips: contentChips.length ? contentChips : undefined,
-      status: contentStatus,
-    }] : []),
-  ];
+  // Phase active detection
+  const isPhaseActive = (key: string) =>
+    currentPhaseId ? ITEM_TO_PHASE[key] === currentPhaseId : false;
 
-  const extraItems: ScaffoldItem[] = [
-    {
-      key: "welcome",
-      label: t.welcome,
-      value: welcomeMsg ? welcomeMsg.slice(0, 30) + (welcomeMsg.length > 30 ? "…" : "") : undefined,
-      status: getItemStatus("welcome", !!welcomeMsg, currentStepIndex, resolvedKeys, launched),
-    },
-    // Lessons row hidden for communities — no structured session plan
-    ...(!isCommunity ? [{
-      key: "lessons",
-      label: t.lessons,
-      value: sessionCount ? `${sessionCount} sessions` : undefined,
-      chips: lessonChips.length ? lessonChips : undefined,
-      status: getItemStatus("lessons", !!sessionCount, currentStepIndex, resolvedKeys, launched),
-    }] : []),
-    {
-      key: "personality",
-      label: isCommunity ? "AI Companion" : t.personality,
-      value: hasTune ? "Configured" : undefined,
-      chips: tuneChips.length ? tuneChips : undefined,
-      status: getItemStatus("personality", hasTune, currentStepIndex, resolvedKeys, launched),
-    },
-  ];
+  const clickable = !!onItemClick;
+  const click = (key: string) => onItemClick?.(key);
 
-  // Readiness: count ready/draft/done items out of total
-  const allItems = [...items, ...extraItems];
-  const completedCount = allItems.filter((i) => i.status === "ready" || i.status === "resolved" || i.status === "done").length;
+  // Readiness dots — one per section
+  const sections = isCommunity
+    ? ["institution", "course", "welcome", "personality"]
+    : ["institution", "subject", "course", "content", "welcome", "lessons", "personality"];
+
+  const sectionHasValue: Record<string, boolean> = {
+    institution: !!institutionName,
+    subject: !!subjectDiscipline,
+    course: !!courseName,
+    content: hasContent,
+    welcome: !!welcomeMsg,
+    lessons: !!sessionCount,
+    personality: hasTune,
+  };
+
+  const dots = sections.map(s => ({
+    filled: getItemStatus(s, sectionHasValue[s], currentStepIndex, resolvedKeys, launched) !== "waiting",
+    active: isPhaseActive(s),
+  }));
+
+  const completedCount = dots.filter(d => d.filled).length;
 
   const readinessHint = (() => {
-    if (launched) return "Ready to go!";
-    if (canTryCall) return "Enough to try a call";
-    if (completedCount >= 3) return "Almost there — finish setup to try a call";
-    if (completedCount >= 1) return `Need ${t.content.toLowerCase()} to try a call`;
-    return "Getting started...";
+    if (launched) return "Course is live";
+    if (canTryCall) return "Ready to try a call";
+    if (completedCount >= 3) return "Almost there";
+    if (completedCount >= 1) return "Keep going...";
+    return "Let's begin";
   })();
+
+  // Has anything at all been filled?
+  const hasAnyData = !!institutionName || !!courseName;
+
+  // Content section details
+  const contentParts: string[] = [];
+  if (contentTotals) {
+    if (contentTotals.assertions > 0) contentParts.push(`${contentTotals.assertions} teaching pts`);
+    if (contentTotals.questions > 0) contentParts.push(`${contentTotals.questions} questions`);
+    if (contentTotals.vocabulary > 0) contentParts.push(`${contentTotals.vocabulary} vocab`);
+    if (contentTotals.images > 0) contentParts.push(`${contentTotals.images} images`);
+  }
 
   return (
     <div className="gs-panel">
       <div className="gs-scaffold">
+
+        {/* ── Header ──────────────────────────────────── */}
         {launched ? (
-          <>
-            <div className="gs-scaffold-title gs-scaffold-title--done">
-              {courseName || (isCommunity ? "Your Community" : `Your ${t.course}`)} is ready
-            </div>
+          <div className="gs-bp-header gs-bp-header--done">
+            <div className="gs-bp-title">{courseName || (isCommunity ? "Your Community" : "Your Course")}</div>
+            <div className="gs-bp-subtitle gs-bp-subtitle--done">Ready to go</div>
             <a
               href={hasPlaybookId ? `/x/courses/${getData<string>("draftPlaybookId")}` : "/x/courses"}
-              className="gs-scaffold-course-link"
+              className="gs-bp-link"
               target="_blank"
               rel="noopener noreferrer"
             >
-              {hasPlaybookId ? "View full course details" : "View your courses"}
-              <ExternalLink size={12} />
+              View course details <ExternalLink size={11} />
             </a>
-          </>
+          </div>
         ) : (
-          <>
-            <div className="gs-scaffold-title">Building Your {isCommunity ? "Community" : t.course}</div>
-            {onItemClick && (
-              <div className="gs-scaffold-hint">Click any section to review or change it</div>
+          <div className="gs-bp-header">
+            <div className="gs-bp-title">
+              {courseName || (hasAnyData ? "Your Course" : "Course Blueprint")}
+            </div>
+            {institutionName && !courseName && (
+              <div className="gs-bp-subtitle">{institutionName}</div>
             )}
-          </>
+            {!hasAnyData && (
+              <div className="gs-bp-subtitle">Start chatting to build your course</div>
+            )}
+          </div>
         )}
 
-        <ul className="gs-scaffold-list">
-          {items.map((item) => (
-            <li
-              key={item.key}
-              className={
-                "gs-scaffold-item" +
-                (currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : "") +
-                (onItemClick ? " gs-scaffold-item--clickable" : "")
-              }
-              onClick={onItemClick ? () => onItemClick(item.key) : undefined}
-              role={onItemClick ? "button" : undefined}
-              tabIndex={onItemClick ? 0 : undefined}
-              onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
+        {/* ── Blueprint body ─────────────────────────── */}
+        <div className="gs-bp-body">
+
+          {/* Institution + type */}
+          <BlueprintSection
+            visible={!!institutionName}
+            active={isPhaseActive("institution")}
+            clickable={clickable}
+            onClick={() => click("institution")}
+            sectionKey="institution"
+          >
+            <div className="gs-bp-org">
+              <span className="gs-bp-org-name">{institutionName}</span>
+              {typeSlug && <span className="gs-bp-tag">{capitalize(typeSlug)}</span>}
+            </div>
+          </BlueprintSection>
+
+          {/* Course identity — name, subject, approach */}
+          <BlueprintSection
+            visible={!!courseName}
+            active={isPhaseActive("course")}
+            clickable={clickable}
+            onClick={() => click("course")}
+            sectionKey="course"
+          >
+            {courseName && <div className="gs-bp-course-name">{courseName}</div>}
+            <div className="gs-bp-meta">
+              {subjectDiscipline && <span className="gs-bp-meta-item">{subjectDiscipline}</span>}
+              {interactionPattern && (
+                <span className="gs-bp-meta-item">
+                  {PATTERN_LABELS[interactionPattern] || capitalize(interactionPattern)}
+                </span>
+              )}
+              {audience && audience !== "mixed" && (
+                <span className="gs-bp-meta-item">
+                  {AUDIENCE_LABELS[audience] || capitalize(audience)}
+                  {isDefault("audience") && <DefaultTag />}
+                </span>
+              )}
+              {teachingMode && (
+                <span className="gs-bp-meta-item">
+                  {capitalize(teachingMode)}
+                </span>
+              )}
+            </div>
+            {learningOutcomes && learningOutcomes.length > 0 && (
+              <div className="gs-bp-outcomes">
+                {learningOutcomes.length} learning outcome{learningOutcomes.length !== 1 ? "s" : ""}
+              </div>
+            )}
+          </BlueprintSection>
+
+          {/* Content upload */}
+          {!isCommunity && (hasContent || isExtracting) && (
+            <BlueprintSection
+              visible
+              active={isPhaseActive("content")}
+              clickable={clickable}
+              onClick={() => click("content")}
+              sectionKey="content"
             >
-              <StatusDot status={item.status} color={ITEM_COLORS[item.key]} />
-              <div className="gs-scaffold-item-content">
-                <div className="gs-scaffold-item-row">
-                  <span className="gs-scaffold-label">{item.label}</span>
-                  {item.value && <span className="gs-scaffold-value">{item.value}</span>}
-                </div>
-                {item.chips && item.chips.length > 0 && (
-                  <div className="gs-scaffold-chips">
-                    {item.chips.map((chip) => (
-                      <span key={chip} className={`gs-scaffold-chip${defaultChips.has(chip) ? " gs-scaffold-chip--default" : ""}`}>{chip}</span>
-                    ))}
-                  </div>
+              <div className="gs-bp-content">
+                {isExtracting ? (
+                  <span className="gs-bp-extracting">
+                    <Loader2 size={13} className="hf-spinner" />
+                    Extracting content...
+                  </span>
+                ) : (
+                  <>
+                    {sourceCount
+                      ? <span className="gs-bp-content-label">{sourceCount} document{sourceCount !== 1 ? "s" : ""}</span>
+                      : <span className="gs-bp-content-label">Content uploaded</span>
+                    }
+                    {contentParts.length > 0 && (
+                      <span className="gs-bp-content-detail">{contentParts.join(" · ")}</span>
+                    )}
+                  </>
                 )}
               </div>
-              {onItemClick && <ChevronRight size={14} className="gs-scaffold-item-chevron" />}
-            </li>
-          ))}
-        </ul>
+            </BlueprintSection>
+          )}
 
-        <ul className="gs-scaffold-list">
-          {extraItems.map((item) => (
-            <li
-              key={item.key}
-              className={
-                "gs-scaffold-item" +
-                (currentPhaseId && ITEM_TO_PHASE[item.key] === currentPhaseId ? " gs-scaffold-item--active" : "") +
-                (onItemClick ? " gs-scaffold-item--clickable" : "")
-              }
-              onClick={onItemClick ? () => onItemClick(item.key) : undefined}
-              role={onItemClick ? "button" : undefined}
-              tabIndex={onItemClick ? 0 : undefined}
-              onKeyDown={onItemClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onItemClick(item.key); } } : undefined}
+          {/* Session structure */}
+          {!isCommunity && (sessionCount || durationMins || planEmphasis || assessments || lessonPlanModel) && (
+            <BlueprintSection
+              visible
+              active={isPhaseActive("lessons")}
+              clickable={clickable}
+              onClick={() => click("lessons")}
+              sectionKey="lessons"
             >
-              <StatusDot status={item.status} color={ITEM_COLORS[item.key]} />
-              <div className="gs-scaffold-item-content">
-                <div className="gs-scaffold-item-row">
-                  <span className="gs-scaffold-label">{item.label}</span>
-                  {item.value && <span className="gs-scaffold-value">{item.value}</span>}
-                </div>
-                {item.chips && item.chips.length > 0 && (
-                  <div className="gs-scaffold-chips">
-                    {item.chips.map((chip) => (
-                      <span key={chip} className={`gs-scaffold-chip${defaultChips.has(chip) ? " gs-scaffold-chip--default" : ""}`}>{chip}</span>
-                    ))}
-                  </div>
+              <div className="gs-bp-sessions">
+                {sessionCount && (
+                  <span className="gs-bp-sessions-count">{sessionCount} sessions</span>
+                )}
+                {durationMins && (
+                  <span className="gs-bp-meta-item">
+                    {durationMins} min{isDefault("durationMins") && <DefaultTag />}
+                  </span>
                 )}
               </div>
-              {onItemClick && <ChevronRight size={14} className="gs-scaffold-item-chevron" />}
-            </li>
-          ))}
-        </ul>
+              <div className="gs-bp-meta">
+                {planEmphasis && (
+                  <span className="gs-bp-meta-item">
+                    {EMPHASIS_LABELS[planEmphasis] || capitalize(planEmphasis)}
+                    {isDefault("planEmphasis") && <DefaultTag />}
+                  </span>
+                )}
+                {assessments && (
+                  <span className="gs-bp-meta-item">
+                    {ASSESSMENT_LABELS[assessments] || capitalize(assessments)}
+                    {isDefault("assessments") && <DefaultTag />}
+                  </span>
+                )}
+                {lessonPlanModel && (
+                  <span className="gs-bp-meta-item">
+                    {LESSON_MODEL_LABELS[lessonPlanModel] || capitalize(lessonPlanModel)}
+                    {isDefault("lessonPlanModel") && <DefaultTag />}
+                  </span>
+                )}
+              </div>
+            </BlueprintSection>
+          )}
 
-        <div className="gs-readiness">
-          <ProgressDonut items={allItems.map(i => ({ status: i.status, label: i.label, color: ITEM_COLORS[i.key] ?? "var(--accent-primary)" }))} />
-          <div className="gs-readiness-hint">{readinessHint}</div>
+          {/* Welcome message */}
+          {welcomeMsg && (
+            <BlueprintSection
+              visible
+              active={isPhaseActive("welcome")}
+              clickable={clickable}
+              onClick={() => click("welcome")}
+              sectionKey="welcome"
+            >
+              <div className="gs-bp-welcome">
+                <span className="gs-bp-welcome-label">First call greeting</span>
+                <span className="gs-bp-welcome-text">
+                  &ldquo;{welcomeMsg.length > 60 ? welcomeMsg.slice(0, 60) + "..." : welcomeMsg}&rdquo;
+                </span>
+              </div>
+            </BlueprintSection>
+          )}
+
+          {/* Personality */}
+          {hasTune && (
+            <BlueprintSection
+              visible
+              active={isPhaseActive("personality")}
+              clickable={clickable}
+              onClick={() => click("personality")}
+              sectionKey="personality"
+            >
+              <div className="gs-bp-personality">
+                <span className="gs-bp-personality-label">
+                  {isCommunity ? "AI Companion" : "AI Tutor"} personality
+                </span>
+                <span className="gs-bp-personality-value">Configured</span>
+              </div>
+            </BlueprintSection>
+          )}
+
+          {/* Empty state — nothing captured yet */}
+          {!hasAnyData && (
+            <div className="gs-bp-empty">
+              <div className="gs-bp-empty-lines">
+                <div className="gs-bp-empty-line gs-bp-empty-line--wide" />
+                <div className="gs-bp-empty-line gs-bp-empty-line--medium" />
+                <div className="gs-bp-empty-line gs-bp-empty-line--narrow" />
+                <div className="gs-bp-empty-line gs-bp-empty-line--wide" />
+                <div className="gs-bp-empty-line gs-bp-empty-line--medium" />
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* ── Readiness + actions ─────────────────────── */}
+        <ReadinessBar dots={dots} hint={readinessHint} />
 
         <div className="gs-try-call">
           {canTryCall ? (
@@ -482,7 +514,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
               Try a Sim Call
             </a>
           ) : completedCount >= 3 ? (
-            <span className="gs-sim-btn gs-sim-btn-disabled" title={isCommunity ? "Create your community first" : "Create your course first using the button below"}>
+            <span className="gs-sim-btn gs-sim-btn-disabled" title={isCommunity ? "Create your community first" : "Create your course first"}>
               {isCommunity ? "Create community to try" : "Create course to try"}
             </span>
           ) : (
