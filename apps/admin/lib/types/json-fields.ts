@@ -99,6 +99,7 @@ export interface PlaybookConfig {
   teachingMode?: string; // WHAT: "recall" | "comprehension" | "practice" | "syllabus"
   subjectDiscipline?: string; // e.g. "GCSE Biology", "A-Level Economics"
   // Plan intents (used by lesson plan regeneration fallback)
+  suggestedSessionCount?: number; // Educator's initial suggestion — may differ from generated plan
   sessionCount?: number;
   durationMins?: number;
   emphasis?: string; // "breadth" | "balanced" | "depth"

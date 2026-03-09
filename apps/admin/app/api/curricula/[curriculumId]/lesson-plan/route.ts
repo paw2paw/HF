@@ -395,7 +395,30 @@ Total modules: ${modules.length}`;
       notes: e.notes || undefined,
       estimatedDurationMins: e.estimatedDurationMins || undefined,
       assertionCount: e.assertionCount || undefined,
+      assertionIds: [] as string[],
     }));
+
+    // Distribute content assertions across sessions (round-robin)
+    if (curriculum.subjectId) {
+      const sourceIds = (await prisma.subjectSource.findMany({
+        where: { subjectId: curriculum.subjectId },
+        select: { sourceId: true },
+      })).map((ss) => ss.sourceId);
+
+      if (sourceIds.length > 0) {
+        const assertions = await prisma.contentAssertion.findMany({
+          where: { sourceId: { in: sourceIds } },
+          select: { id: true },
+          orderBy: [{ depth: "asc" }, { orderIndex: "asc" }],
+        });
+
+        const teachingSessions = entries.filter((e) => !["onboarding"].includes(e.type));
+        const target = teachingSessions.length > 0 ? teachingSessions : entries;
+        for (let i = 0; i < assertions.length; i++) {
+          target[i % target.length].assertionIds!.push(assertions[i].id);
+        }
+      }
+    }
 
     // Save result to task context
     await updateTaskProgress(taskId, {

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   BookMarked, FileText, Plus,
   AlertTriangle, Upload, Target, ListOrdered, Link2, Zap,
-  CheckCircle2, XCircle, TrendingUp,
+  CheckCircle2, XCircle, TrendingUp, ShieldAlert,
 } from 'lucide-react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { TrustBadge } from '@/app/x/content-sources/_components/shared/badges';
@@ -180,6 +180,7 @@ export function CourseWhatTab({
 }: CourseWhatTabProps) {
   const config = (detail.config || {}) as PlaybookConfig;
   const goals = config.goals || [];
+  const constraints: string[] = (config as PlaybookConfig & { constraints?: string[] }).constraints || [];
 
   // ── Backfill state ────────────────────────────────────
   const [backfilling, setBackfilling] = useState(false);
@@ -198,8 +199,15 @@ export function CourseWhatTab({
     return guides;
   }, [subjects]);
 
-  // ── Success criteria from course reference ─────────────
+  // True when a course reference exists but hasn't finished extracting yet
+  const goalsExtracting = useMemo(
+    () => courseGuideSources.length > 0 && courseGuideSources.every((s) => s.assertionCount === 0),
+    [courseGuideSources],
+  );
+
+  // ── Success criteria + boundaries from course reference ──
   const [successCriteria, setSuccessCriteria] = useState<SuccessCriterion[]>([]);
+  const [extractedBoundaries, setExtractedBoundaries] = useState<string[]>([]);
   const [criteriaLoading, setCriteriaLoading] = useState(false);
 
   useEffect(() => {
@@ -208,13 +216,33 @@ export function CourseWhatTab({
     fetch(`/api/courses/${courseId}/course-instructions`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.ok && data.categories?.assessment_approach) {
-          setSuccessCriteria(data.categories.assessment_approach);
+        if (data.ok) {
+          if (data.categories?.assessment_approach) {
+            setSuccessCriteria(data.categories.assessment_approach);
+          }
+          // Extract boundary items from teaching_rule + edge_case
+          const prohibRe = /\b(never|do not|don'?t|avoid|must not|should not|shouldn'?t|forbidden|prohibited|not allowed)\b/i;
+          const boundaries = [
+            ...(data.categories?.teaching_rule || []),
+            ...(data.categories?.edge_case || []),
+          ]
+            .filter((item: { assertion: string }) => prohibRe.test(item.assertion))
+            .map((item: { assertion: string }) => item.assertion.replace(/^[\s•\-–—]+/, ''));
+          setExtractedBoundaries(boundaries);
         }
       })
       .catch(() => {})
       .finally(() => setCriteriaLoading(false));
   }, [courseId, courseGuideSources.length]);
+
+  // Merge manual constraints + extracted boundaries (deduped)
+  const allBoundaries = useMemo(() => {
+    const manualSet = new Set(constraints.map((c) => c.toLowerCase().trim()));
+    return [
+      ...constraints,
+      ...extractedBoundaries.filter((b) => !manualSet.has(b.toLowerCase().trim())),
+    ];
+  }, [constraints, extractedBoundaries]);
 
   // Group criteria by section or chapter (tier names like "Minimum", "Strong", "Fail conditions")
   const criteriaByTier = useMemo(() => {
@@ -289,16 +317,11 @@ export function CourseWhatTab({
           </div>
         )}
 
-        {/* Success criteria from course reference */}
+        {/* Success criteria from course reference (only if no synced goals — they're the same data) */}
         {criteriaLoading ? (
           <div className="hf-text-sm hf-text-muted">Loading success criteria...</div>
-        ) : successCriteria.length > 0 ? (
+        ) : successCriteria.length > 0 && goals.length === 0 ? (
           <div className="hf-flex hf-flex-col hf-gap-md">
-            {goals.length > 0 && (
-              <div className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">
-                From Course Reference
-              </div>
-            )}
             {[...criteriaByTier.entries()].map(([tier, items]) => {
               const tierConfig = getTierConfig(tier);
               const TierIcon = tierConfig.icon;
@@ -323,11 +346,42 @@ export function CourseWhatTab({
             })}
           </div>
         ) : goals.length === 0 ? (
-          <div className="hf-text-sm hf-text-muted">
-            No goals configured. Set goals in the Course Setup wizard to track learner progress.
-          </div>
+          goalsExtracting ? (
+            <div className="hf-flex hf-items-center hf-gap-sm hf-text-sm hf-text-muted">
+              <span className="hf-glow-active" style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} />
+              Extracting goals from course reference…
+            </div>
+          ) : (
+            <div className="hf-text-sm hf-text-muted">
+              No goals configured. Set goals in the Course Setup wizard to track learner progress.
+            </div>
+          )
         ) : null}
       </div>
+
+      {/* ── Boundaries ─────────────────────────────────── */}
+      {(allBoundaries.length > 0 || goalsExtracting) && (
+        <>
+          <SectionHeader title="Boundaries" icon={ShieldAlert} />
+          <div className="hf-card-compact hf-mb-lg">
+            {allBoundaries.length > 0 ? (
+              <div className="hf-flex hf-flex-col hf-gap-xs">
+                {allBoundaries.map((c, i) => (
+                  <div key={i} className="hf-flex hf-gap-sm hf-items-start hf-text-sm">
+                    <ShieldAlert size={13} className="hf-text-error hf-mt-xs" style={{ flexShrink: 0 }} />
+                    <span className="hf-text-secondary">{c}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="hf-flex hf-items-center hf-gap-sm hf-text-sm hf-text-muted">
+                <span className="hf-glow-active" style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} />
+                Extracting boundaries from course reference…
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* ── Course Guide ──────────────────────────────── */}
       {courseGuideSources.length > 0 && (

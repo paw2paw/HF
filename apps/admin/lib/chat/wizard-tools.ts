@@ -1997,7 +1997,87 @@ async function generateLessonPlanPreview(
       ? [primarySubjectId]
       : [];
 
-  if (subjectIds.length === 0) return fallback;
+  // Helper: persist a lesson plan (fallback or real) to the curriculum
+  async function persistPlanToCurriculum(
+    planEntries: Array<{ session: number; label: string; type: string; [k: string]: any }>,
+    generatedFrom: string,
+  ) {
+    const resolvedSubjectId = primarySubjectId || (subjectIds.length > 0 ? subjectIds[0] : null);
+    if (!resolvedSubjectId) return;
+
+    const subject = await prisma.subject.findUnique({
+      where: { id: resolvedSubjectId },
+      select: { id: true, slug: true, name: true },
+    });
+    if (!subject) return;
+
+    const curriculumSlug = `${subject.slug}-curriculum`;
+    const existingCurriculum = await prisma.curriculum.findFirst({
+      where: { subjectId: subject.id },
+      select: { id: true, deliveryConfig: true, notableInfo: true },
+    });
+
+    const lessonPlanData = {
+      estimatedSessions: planEntries.length,
+      entries: planEntries,
+      generatedAt: new Date().toISOString(),
+      generatedFrom,
+    };
+
+    const modulesFromPlan = planEntries.map((e, i) => ({
+      id: `MOD-${i + 1}`,
+      title: e.label,
+      description: `${e.type} session`,
+      sortOrder: i,
+      learningOutcomes: (e.assertionIds || []).slice(0, 3).map((_: string, j: number) => `LO${j + 1}`),
+    }));
+
+    if (existingCurriculum) {
+      const dc = (existingCurriculum.deliveryConfig as Record<string, any>) || {};
+      // Don't overwrite a real plan with a fallback
+      if (dc?.lessonPlan?.entries?.length && generatedFrom === "fallback-wizard") return;
+      const ni = (existingCurriculum as any).notableInfo as Record<string, any> || {};
+      await prisma.curriculum.update({
+        where: { id: existingCurriculum.id },
+        data: {
+          deliveryConfig: { ...dc, lessonPlan: lessonPlanData },
+          notableInfo: { ...ni, modules: modulesFromPlan },
+        },
+      });
+    } else {
+      await prisma.curriculum.create({
+        data: {
+          slug: curriculumSlug,
+          name: `${subject.name} Curriculum`,
+          subjectId: subject.id,
+          deliveryConfig: { lessonPlan: lessonPlanData },
+          notableInfo: { modules: modulesFromPlan },
+          constraints: [],
+        },
+      });
+    }
+
+    // Sync modules to first-class DB records
+    const curriculumId = existingCurriculum?.id
+      || (await prisma.curriculum.findFirst({ where: { subjectId: subject.id }, select: { id: true } }))?.id;
+    if (curriculumId && modulesFromPlan.length > 0) {
+      try {
+        const { syncModulesToDB } = await import("@/lib/curriculum/sync-modules");
+        await syncModulesToDB(curriculumId, modulesFromPlan);
+      } catch (syncErr: any) {
+        console.warn("[wizard-tools] Module sync failed (non-fatal):", syncErr.message);
+      }
+    }
+  }
+
+  if (subjectIds.length === 0) {
+    // No subjects — persist fallback so the course page shows sessions
+    await persistPlanToCurriculum(
+      fallback.map((f) => ({ ...f, moduleId: null, moduleLabel: "" })),
+      "fallback-wizard",
+    ).catch(() => {}); // non-fatal
+    return fallback;
+  }
 
   try {
     // Find content sources linked to these subjects
@@ -2006,7 +2086,13 @@ async function generateLessonPlanPreview(
       select: { sourceId: true, subjectId: true },
     });
 
-    if (subjectSources.length === 0) return fallback;
+    if (subjectSources.length === 0) {
+      await persistPlanToCurriculum(
+        fallback.map((f) => ({ ...f, moduleId: null, moduleLabel: "" })),
+        "fallback-wizard",
+      ).catch(() => {});
+      return fallback;
+    }
 
     const sourceIds = subjectSources.map((ss: any) => ss.sourceId);
 
@@ -2027,7 +2113,13 @@ async function generateLessonPlanPreview(
       });
     }
 
-    if (assertionCount === 0) return fallback;
+    if (assertionCount === 0) {
+      await persistPlanToCurriculum(
+        fallback.map((f) => ({ ...f, moduleId: null, moduleLabel: "" })),
+        "fallback-wizard",
+      ).catch(() => {});
+      return fallback;
+    }
 
     // Generate lesson plan from all content sources (not just the first)
     const { generateLessonPlan } = await import("@/lib/content-trust/lesson-planner");
@@ -2047,7 +2139,13 @@ async function generateLessonPlanPreview(
       skipAIRefinement: true,
     });
 
-    if (plan.sessions.length === 0) return fallback;
+    if (plan.sessions.length === 0) {
+      await persistPlanToCurriculum(
+        fallback.map((f) => ({ ...f, moduleId: null, moduleLabel: "" })),
+        "fallback-wizard",
+      ).catch(() => {});
+      return fallback;
+    }
 
     // Map LessonSession[] → LessonPlanEntry[] format
     const entries = plan.sessions.map((s) => ({
@@ -2082,75 +2180,8 @@ async function generateLessonPlanPreview(
       }
     }
 
-    // Create or find Curriculum record for the primary subject and persist the plan
-    const resolvedSubjectId = primarySubjectId || subjectIds[0];
-    const subject = await prisma.subject.findUnique({
-      where: { id: resolvedSubjectId },
-      select: { id: true, slug: true, name: true },
-    });
-
-    if (subject) {
-      const curriculumSlug = `${subject.slug}-curriculum`;
-      const existingCurriculum = await prisma.curriculum.findFirst({
-        where: { subjectId: subject.id },
-        select: { id: true, deliveryConfig: true, notableInfo: true },
-      });
-
-      const lessonPlanData = {
-        estimatedSessions: entries.length,
-        entries,
-        generatedAt: new Date().toISOString(),
-        generatedFrom: "auto-wizard",
-      };
-
-      // Build module summaries from plan entries so regenerate endpoint has data.
-      // Groups sessions by topic and creates one module per unique label prefix.
-      const modulesFromPlan = entries.map((e, i) => ({
-        id: `MOD-${i + 1}`,
-        title: e.label,
-        description: `${e.type} session`,
-        sortOrder: i,
-        learningOutcomes: (e.assertionIds || []).slice(0, 3).map((_: string, j: number) => `LO${j + 1}`),
-      }));
-
-      if (existingCurriculum) {
-        // Update existing curriculum with lesson plan + modules
-        const dc = (existingCurriculum.deliveryConfig as Record<string, any>) || {};
-        const ni = (existingCurriculum as any).notableInfo as Record<string, any> || {};
-        await prisma.curriculum.update({
-          where: { id: existingCurriculum.id },
-          data: {
-            deliveryConfig: { ...dc, lessonPlan: lessonPlanData },
-            notableInfo: { ...ni, modules: modulesFromPlan },
-          },
-        });
-      } else {
-        // Create new curriculum with the lesson plan + modules
-        await prisma.curriculum.create({
-          data: {
-            slug: curriculumSlug,
-            name: `${subject.name} Curriculum`,
-            subjectId: subject.id,
-            deliveryConfig: { lessonPlan: lessonPlanData },
-            notableInfo: { modules: modulesFromPlan },
-            constraints: [],
-          },
-        });
-      }
-
-      // Sync modules to first-class DB records (CurriculumModule + LearningObjective)
-      // so the regenerate endpoint has both JSON and DB fallback paths available.
-      const curriculumId = existingCurriculum?.id
-        || (await prisma.curriculum.findFirst({ where: { subjectId: subject.id }, select: { id: true } }))?.id;
-      if (curriculumId && modulesFromPlan.length > 0) {
-        try {
-          const { syncModulesToDB } = await import("@/lib/curriculum/sync-modules");
-          await syncModulesToDB(curriculumId, modulesFromPlan);
-        } catch (syncErr: any) {
-          console.warn("[wizard-tools] Module sync failed (non-fatal):", syncErr.message);
-        }
-      }
-    }
+    // Persist the real plan to the curriculum
+    await persistPlanToCurriculum(entries, "auto-wizard");
 
     // ── Resolve content text for preview ──────────────
     const allAssertionIds = entries.flatMap((e) => e.assertionIds || []);
@@ -2205,6 +2236,10 @@ async function generateLessonPlanPreview(
     });
   } catch (err: any) {
     console.warn("[wizard-tools] Lesson plan generation failed, using fallback preview:", err.message);
+    await persistPlanToCurriculum(
+      fallback.map((f) => ({ ...f, moduleId: null, moduleLabel: "" })),
+      "fallback-wizard",
+    ).catch(() => {});
     return fallback;
   }
 }

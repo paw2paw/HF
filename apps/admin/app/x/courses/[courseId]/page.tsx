@@ -30,6 +30,7 @@ import { SESSION_TYPES, SESSION_TYPE_ICONS, getSessionTypeColor, getSessionTypeL
 import { getLessonPlanModel } from '@/lib/lesson-plan/models';
 import { PlanSummary, type PlanSession } from '@/app/x/courses/_components/PlanSummary';
 import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
+import { CourseSetupTracker } from '@/components/shared/CourseSetupTracker';
 import './course-detail.css';
 
 // ── Types ──────────────────────────────────────────────
@@ -850,6 +851,15 @@ export default function CourseDetailPage() {
           </div>
         )}
       </div>
+
+      {/* ── Setup Tracker ──────────────────────────────── */}
+      <CourseSetupTracker
+        courseId={courseId!}
+        detail={detail}
+        subjects={subjects}
+        sessions={sessions}
+        onSimCall={() => setShowSimModal(true)}
+      />
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <DraggableTabs

@@ -5015,6 +5015,23 @@ Returns the lesson plan sessions for a course. Looks up subjects via
 
 ---
 
+### `GET` /api/courses/:courseId/setup-status
+
+Returns aggregated setup status for stages 4-6 of the Course Setup Tracker.
+
+**Auth**: VIEWER · **Scope**: `courses:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook UUID |
+
+**Response** `200`
+```json
+{ ok, lessonPlanBuilt, onboardingConfigured, promptComposable, allCriticalPass, details }
+```
+
+---
+
 ### `GET` /api/courses/:courseId/subjects
 
 **Auth**: VIEWER+
@@ -13130,8 +13147,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 389 |
-| Files with annotations | 388 |
+| Route files found | 390 |
+| Files with annotations | 389 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

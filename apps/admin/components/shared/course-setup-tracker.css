@@ -1,0 +1,242 @@
+/* ── Course Setup Tracker ── cst-* prefix ── */
+
+.cst-tracker {
+  margin-bottom: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-primary);
+  overflow: hidden;
+}
+
+/* ── Header bar (always visible) ─────────────── */
+.cst-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.cst-header:hover {
+  background: var(--surface-secondary);
+}
+
+.cst-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cst-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cst-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.cst-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Ready badge ─────────────────────────────── */
+.cst-ready-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--status-success-text);
+}
+
+/* ── Step dots (horizontal bar) ──────────────── */
+.cst-dots {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.cst-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.cst-dot--done {
+  background: var(--status-success-text);
+  color: white;
+}
+.cst-dot--active {
+  background: var(--warning, #f59e0b);
+  color: white;
+  animation: cst-pulse 1.5s ease-in-out infinite;
+}
+.cst-dot--pending {
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  border: 1.5px solid var(--border-default);
+}
+.cst-dot--error {
+  background: var(--status-error-text);
+  color: white;
+}
+
+.cst-connector {
+  width: 16px;
+  height: 2px;
+  flex-shrink: 0;
+}
+.cst-connector--done {
+  background: var(--status-success-text);
+}
+.cst-connector--pending {
+  background: var(--border-default);
+}
+
+@keyframes cst-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Expanded detail section ─────────────────── */
+.cst-detail {
+  padding: 0 16px 14px 16px;
+  border-top: 1px solid var(--border-default);
+}
+
+.cst-stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 0 0;
+}
+
+.cst-stage-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.cst-stage-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cst-stage-num--done {
+  background: var(--status-success-text);
+  color: white;
+}
+.cst-stage-num--active {
+  background: var(--warning, #f59e0b);
+  color: white;
+  animation: cst-pulse 1.5s ease-in-out infinite;
+}
+.cst-stage-num--pending {
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  border: 1.5px solid var(--border-default);
+}
+.cst-stage-num--error {
+  background: var(--status-error-text);
+  color: white;
+}
+
+.cst-stage-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cst-stage-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.cst-stage-label--pending {
+  color: var(--text-muted);
+}
+
+.cst-stage-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.cst-stage-status {
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.cst-stage-status--done {
+  color: var(--status-success-text);
+}
+.cst-stage-status--active {
+  color: var(--warning, #f59e0b);
+}
+.cst-stage-status--error {
+  color: var(--status-error-text);
+}
+
+/* ── Source sub-items (stage 3 detail) ───────── */
+.cst-source-list {
+  margin: 4px 0 0 30px;
+  list-style: none;
+  padding: 0;
+}
+
+.cst-source-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cst-source-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Next hint bar ───────────────────────────── */
+.cst-hint {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+}
+
+/* ── Chevron ─────────────────────────────────── */
+.cst-chevron {
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+.cst-chevron--open {
+  transform: rotate(180deg);
+}

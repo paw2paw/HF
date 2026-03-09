@@ -165,7 +165,7 @@ function InstructionCategory({
           ) : validItems.map((item) => (
             <div key={item.id} className="cd-instruction-item">
               <span className="cd-instruction-bullet" />
-              <span className="hf-text-sm">{item.assertion}</span>
+              <span className="hf-text-sm">{item.assertion.replace(/^[\s•\-–—]+/, '')}</span>
             </div>
           ))}
         </div>
@@ -323,7 +323,36 @@ export function CourseHowTab({
   const planModel = sessionPlan?.model ? getLessonPlanModel(sessionPlan.model) : null;
   const planModelLabel = planModel?.label || sessionPlan?.model || 'Custom';
 
-  // totalTPs not currently displayed in HOW tab — available if needed
+  // Auto-extract boundary items from teaching_rule + edge_case assertions
+  const PROHIBITION_RE = /\b(never|do not|don'?t|avoid|must not|should not|shouldn'?t|forbidden|prohibited|not allowed)\b/i;
+  const boundaryItemIds = new Set<string>();
+  const extractedBoundaries = instructions
+    ? [...(instructions.categories.teaching_rule || []), ...(instructions.categories.edge_case || [])]
+        .filter((item) => {
+          if (!PROHIBITION_RE.test(item.assertion)) return false;
+          boundaryItemIds.add(item.id);
+          return true;
+        })
+        .map((item) => item.assertion.replace(/^[\s•\-–—]+/, ''))
+    : [];
+  // Merge: manual constraints first, then extracted (deduped)
+  const manualSet = new Set(constraints.map((c) => c.toLowerCase().trim()));
+  const allBoundaries = [
+    ...constraints,
+    ...extractedBoundaries.filter((b) => !manualSet.has(b.toLowerCase().trim())),
+  ];
+
+  // Filter boundary items out of instruction categories to avoid duplication
+  const filteredCategories = instructions
+    ? Object.fromEntries(
+        Object.entries(instructions.categories).map(([key, items]) => [
+          key,
+          (key === 'teaching_rule' || key === 'edge_case')
+            ? items.filter((item) => !boundaryItemIds.has(item.id))
+            : items,
+        ]),
+      )
+    : {};
 
   return (
     <>
@@ -481,16 +510,18 @@ export function CourseHowTab({
       {/* ── 5. Extracted Teaching Instructions ───────────── */}
       <SectionHeader title="Teaching Instructions" icon={Sparkles} />
       <div className="hf-mb-lg">
-        {instructionsLoading ? (
+        {instructionsLoading || reExtracting ? (
           <div className="hf-card-compact">
-            <div className="hf-text-sm hf-text-muted hf-glow-active">Loading teaching instructions...</div>
+            <div className="hf-text-sm hf-text-muted hf-glow-active">
+              {reExtracting ? 'Extracting teaching instructions from your sources...' : 'Loading teaching instructions...'}
+            </div>
           </div>
         ) : instructions && instructions.grandTotal > 0 ? (
           <>
             {/* Summary line + re-extract button */}
             <div className="cd-instruction-summary hf-flex hf-flex-between hf-items-center hf-mb-sm">
               <span className="hf-text-xs hf-text-muted">
-                {instructions.grandTotal} teaching instruction{instructions.grandTotal !== 1 ? 's' : ''}
+                {instructions.grandTotal - (instructions.totals?.assessment_approach || 0) - boundaryItemIds.size} teaching instruction{(instructions.grandTotal - (instructions.totals?.assessment_approach || 0) - boundaryItemIds.size) !== 1 ? 's' : ''}
                 {' '}&middot; {instructions.sourceCount} reference doc{instructions.sourceCount !== 1 ? 's' : ''}
                 {reExtractResult && (
                   <span className="hf-text-success"> &mdash; Re-extracted {reExtractResult.triggered} source{reExtractResult.triggered !== 1 ? 's' : ''}</span>
@@ -510,17 +541,18 @@ export function CourseHowTab({
               )}
             </div>
 
-            {/* Category cards — skip session_flow (rendered above as pipeline) */}
+            {/* Category cards — skip session_flow (pipeline above), assessment_approach (What tab), boundary items (below) */}
             {CATEGORY_ORDER
               .filter((key) => {
-                const items = instructions.categories[key];
+                if (key === 'assessment_approach') return false;
+                const items = filteredCategories[key];
                 return items && items.length > 0;
               })
               .map((key) => (
                 <InstructionCategory
                   key={key}
                   categoryKey={key}
-                  items={instructions.categories[key]}
+                  items={filteredCategories[key] as InstructionItem[]}
                   expanded={expandedCategories.has(key)}
                   onToggle={() => toggleCategory(key)}
                 />
@@ -582,7 +614,7 @@ export function CourseHowTab({
       {/* ── 6. Boundaries ───────────────────────────────── */}
       <SectionHeader title="Boundaries" icon={Ban} />
       <div className="hf-card-compact hf-mb-lg">
-        {constraints.length === 0 && !editingConstraints ? (
+        {allBoundaries.length === 0 && !editingConstraints ? (
           <div className="hf-flex hf-flex-between hf-items-center">
             <span className="hf-text-sm hf-text-muted">No boundaries set. These are things the AI should never do.</span>
             {isOperator && (
@@ -593,12 +625,12 @@ export function CourseHowTab({
           </div>
         ) : (
           <>
-            <div className="hf-flex hf-flex-wrap hf-gap-sm">
-              {constraints.map((c, i) => (
-                <span key={i} className="cov-constraint-chip">
-                  <Ban size={11} className="hf-flex-shrink-0" />
-                  <span>{c}</span>
-                  {isOperator && editingConstraints && (
+            <div className="hf-flex hf-flex-col hf-gap-xs">
+              {allBoundaries.map((c, i) => (
+                <div key={i} className="cd-instruction-item">
+                  <Ban size={12} className="hf-text-error" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span className="hf-text-sm">{c}</span>
+                  {isOperator && editingConstraints && i < constraints.length && (
                     <button
                       className="cov-chip-remove"
                       onClick={async () => {
@@ -612,7 +644,7 @@ export function CourseHowTab({
                       <XIcon size={10} />
                     </button>
                   )}
-                </span>
+                </div>
               ))}
             </div>
             {isOperator && (

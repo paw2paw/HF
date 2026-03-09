@@ -513,24 +513,9 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
         <ReadinessBar dots={dots} />
 
         <div className="gs-try-call">
-          {canTryCall ? (
-            <a
-              href={`/x/sim/${draftCallerId}?${new URLSearchParams({ ...(getData<string>("draftPlaybookId") ? { playbookId: getData<string>("draftPlaybookId")! } : {}), ...(getData<string>("draftDomainId") || getData<string>("existingDomainId") ? { domainId: (getData<string>("draftDomainId") || getData<string>("existingDomainId"))! } : {}) }).toString()}`}
-              className="gs-sim-btn gs-sim-btn-ready"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Try a Sim Call
-            </a>
-          ) : completedCount >= 3 ? (
-            <span className="gs-sim-btn gs-sim-btn-disabled" title={isCommunity ? "Create your community first" : "Create your course first"}>
-              {isCommunity ? "Create community to try" : "Create course to try"}
-            </span>
-          ) : (
-            <span className="gs-sim-btn gs-sim-btn-disabled">
-              Try a Sim Call
-            </span>
-          )}
+          <span className="gs-sim-btn gs-sim-btn-disabled" title="Practice calls are available on the Course page after setup completes">
+            Practice call available on Course page
+          </span>
         </div>
 
         {onReset && (

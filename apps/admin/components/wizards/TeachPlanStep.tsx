@@ -440,11 +440,11 @@ export function TeachPlanStep({
           {/* Session Count */}
           <div>
             <div style={{ marginBottom: 8 }}>
-              <FieldHint label="How many sessions?" hint={WIZARD_HINTS["teach.plan"]} labelClass="hf-label" />
+              <FieldHint label="Suggested number of sessions" hint={WIZARD_HINTS["teach.plan"]} labelClass="hf-label" />
             </div>
-            <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+            <SessionCountPicker value={sessionCount} onChange={setSessionCount} hideLabel />
             <div className="hf-hint" style={{ marginTop: 4 }}>
-              Leave blank for AI to decide based on content volume
+              Starting target — adjusts based on your content. Leave blank for AI to decide.
             </div>
           </div>
 

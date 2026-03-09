@@ -5,26 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import {
-  ChevronLeft, ChevronRight, ArrowLeft, Zap, BookOpen,
-  Pencil, Image, Clock, Layers as LayersIcon,
+  ChevronLeft, ChevronRight, ArrowLeft, BookOpen,
+  Image, Layers as LayersIcon,
 } from 'lucide-react';
 import { EditableTitle } from '@/components/shared/EditableTitle';
-import { SessionTPList, UnassignedTPList, type TPItem, type SessionOption } from '@/components/shared/SessionTPList';
+import { SessionTPList, type TPItem, type SessionOption } from '@/components/shared/SessionTPList';
 import {
   SESSION_TYPES, SESSION_TYPE_ICONS, getSessionTypeColor, getSessionTypeLabel,
 } from '@/lib/lesson-plan/session-ui';
 import './session-detail.css';
 
 // ── Types ──────────────────────────────────────────────
-
-type SessionPhaseEntry = {
-  id: string;
-  label: string;
-  durationMins?: number;
-  teachMethods?: string[];
-  learningOutcomeRefs?: string[];
-  guidance?: string;
-};
 
 type SessionMediaRef = {
   mediaId: string;
@@ -43,7 +34,6 @@ type SessionEntry = {
   notes?: string | null;
   estimatedDurationMins?: number | null;
   assertionCount?: number | null;
-  phases?: SessionPhaseEntry[] | null;
   learningOutcomeRefs?: string[] | null;
   assertionIds?: string[] | null;
   media?: SessionMediaRef[] | null;
@@ -121,19 +111,22 @@ export function SessionDetailClient({ courseId, sessionNum }: SessionDetailClien
                   }
                   setSessionTPs(bySession);
                   setUnassignedTPs(tpData.unassigned || []);
-                  setTpLoaded(true);
                 }
               })
-              .catch(() => {});
+              .catch(() => {})
+              .finally(() => setTpLoaded(true));
 
             // Load media map
             fetch(`/api/curricula/${data.curriculumId}/lesson-plan/media-map`)
               .then((r) => r.json())
               .then((mmData) => { if (mmData.ok) setMediaMap(mmData); })
               .catch(() => {});
+          } else {
+            setTpLoaded(true);
           }
         } else {
           setError(data.error || 'Failed to load sessions');
+          setTpLoaded(true);
         }
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Network error'))
@@ -329,7 +322,6 @@ export function SessionDetailClient({ courseId, sessionNum }: SessionDetailClien
   const typeColor = getSessionTypeColor(entry.type);
   const typeLabel = getSessionTypeLabel(entry.type);
   const TypeIcon = SESSION_TYPE_ICONS[entry.type];
-  const phases = entry.phases || [];
   const loRefs = entry.learningOutcomeRefs || [];
   const tpsForSession = sessionTPs[sessionNum] || [];
   const module = sessionsData?.modules?.find((m) => m.id === entry.moduleId);
@@ -470,43 +462,6 @@ export function SessionDetailClient({ courseId, sessionNum }: SessionDetailClien
             )}
           </div>
         </div>
-      </div>
-
-      {/* Phases */}
-      <div className="hf-card sd-section">
-        <div className="sd-section-header">
-          <Clock size={15} className="hf-text-muted" />
-          <span className="sd-section-title">Phases</span>
-          <span className="sd-section-count">({phases.length})</span>
-        </div>
-        {phases.length > 0 ? (
-          <div className="sd-phase-list">
-            {phases.map((phase, pi) => (
-              <div key={phase.id + pi} className="sd-phase-card">
-                <div className="sd-phase-header">
-                  <span className="sd-phase-num">{pi + 1}</span>
-                  <span className="sd-phase-label">{phase.label}</span>
-                  {phase.durationMins && (
-                    <span className="sd-phase-duration">{phase.durationMins}m</span>
-                  )}
-                </div>
-                {phase.teachMethods && phase.teachMethods.length > 0 && (
-                  <div className="sd-phase-methods">
-                    <Zap size={10} className="hf-text-muted" />
-                    {phase.teachMethods.map((m) => (
-                      <span key={m} className="hf-chip hf-chip-sm">{m}</span>
-                    ))}
-                  </div>
-                )}
-                {phase.guidance && (
-                  <div className="sd-phase-guidance">{phase.guidance}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="sd-empty">No phases defined for this session.</div>
-        )}
       </div>
 
       {/* Teaching Points */}

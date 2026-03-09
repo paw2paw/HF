@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText, Mic, Sparkles, ChevronRight, ChevronDown, MessageCircle } from 'lucide-react';
+import { PlayCircle, BookOpen, Users, GraduationCap, Building2, FileText, Sparkles, ChevronRight, ChevronDown, MessageCircle } from 'lucide-react';
 import { OnboardingPreview } from '@/components/shared/OnboardingPreview';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
@@ -279,14 +279,6 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
                 onClick: () => {
                   endFlow();
                   router.push(domainId ? `/x/teach?domainId=${domainId}` : '/x/courses');
-                },
-              },
-              {
-                label: 'Preview Call',
-                icon: <Mic className="hf-icon-md" />,
-                onClick: () => {
-                  endFlow();
-                  router.push('/x/educator/try');
                 },
               },
             ]}

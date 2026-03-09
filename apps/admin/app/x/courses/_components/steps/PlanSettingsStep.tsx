@@ -184,7 +184,12 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
           </div>
 
           {/* Session count */}
-          <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+          <div>
+            <div className="hf-mb-xs">
+              <FieldHint label="Suggested number of sessions" hint={WIZARD_HINTS["course.sessions"] ?? "Starting target — the system adjusts based on your content once extracted."} labelClass="hf-label" />
+            </div>
+            <SessionCountPicker value={sessionCount} onChange={setSessionCount} hideLabel />
+          </div>
 
           {/* Duration */}
           <div>

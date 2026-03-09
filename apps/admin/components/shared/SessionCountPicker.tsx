@@ -11,14 +11,20 @@ const PRESET_COUNTS = TEMPLATES.map((t) => t.sessions);
 interface SessionCountPickerProps {
   value: number | null;
   onChange: (count: number | null) => void;
+  /** Override the label. Defaults to "Suggested number of sessions" */
+  label?: string;
+  /** Hide the built-in label (when parent provides its own via FieldHint) */
+  hideLabel?: boolean;
 }
 
-export function SessionCountPicker({ value, onChange }: SessionCountPickerProps) {
+export function SessionCountPicker({ value, onChange, label, hideLabel }: SessionCountPickerProps) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
-        How many sessions?
-      </div>
+      {!hideLabel && (
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>
+          {label ?? "Suggested number of sessions"}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         {TEMPLATES.map((t) => (
           <button
@@ -71,7 +77,7 @@ export function SessionCountPicker({ value, onChange }: SessionCountPickerProps)
       </div>
       {value && (
         <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
-          AI will generate a {value}-session plan with onboarding, teaching, review, and assessment phases.
+          Starting target: {value} sessions. The system adjusts based on your content once extracted.
         </div>
       )}
     </div>

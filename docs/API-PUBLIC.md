@@ -34,6 +34,7 @@
   - [Cohorts](#cohorts)
   - [Communities](#communities)
   - [Content Trust](#content-trust)
+  - [Courses](#courses)
   - [Curricula](#curricula)
   - [Domains](#domains)
   - [Goals](#goals)
@@ -2411,6 +2412,25 @@ Find all COURSE_REFERENCE sources for a course and trigger
 **Response** `404`
 ```json
 { ok: false, error }
+```
+
+---
+
+## Courses
+
+### `GET` /api/v1/courses/:courseId/setup-status
+
+Returns aggregated setup status for stages 4-6 of the Course Setup Tracker.
+
+**Auth**: VIEWER · **Scope**: `courses:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook UUID |
+
+**Response** `200`
+```json
+{ ok, lessonPlanBuilt, onboardingConfigured, promptComposable, allCriticalPass, details }
 ```
 
 ---
