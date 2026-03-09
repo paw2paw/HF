@@ -31,6 +31,8 @@ import { getLessonPlanModel } from '@/lib/lesson-plan/models';
 import { PlanSummary, type PlanSession } from '@/app/x/courses/_components/PlanSummary';
 import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
 import { CourseSetupTracker } from '@/components/shared/CourseSetupTracker';
+import { SessionPlanViewer } from '@/components/shared/SessionPlanViewer';
+import type { SessionEntry, SessionMediaRef as SessionMediaRefType, SessionMediaMap, StudentProgress } from '@/lib/lesson-plan/types';
 import './course-detail.css';
 
 // ── Types ──────────────────────────────────────────────
@@ -81,38 +83,7 @@ type MethodBreakdown = {
 
 
 // ── Sessions Tab Types ────────────────────────────────
-
-type SessionPhaseEntry = {
-  id: string;
-  label: string;
-  durationMins?: number;
-  teachMethods?: string[];
-  learningOutcomeRefs?: string[];
-  guidance?: string;
-};
-
-type SessionMediaRef = {
-  mediaId: string;
-  fileName?: string;
-  captionText?: string | null;
-  figureRef?: string | null;
-  mimeType?: string;
-};
-
-type SessionEntry = {
-  session: number;
-  type: string;
-  moduleId: string | null;
-  moduleLabel: string;
-  label: string;
-  notes?: string | null;
-  estimatedDurationMins?: number | null;
-  assertionCount?: number | null;
-  phases?: SessionPhaseEntry[] | null;
-  learningOutcomeRefs?: string[] | null;
-  assertionIds?: string[] | null;
-  media?: SessionMediaRef[] | null;
-};
+// SessionEntry, SessionMediaRef, StudentProgress imported from @/lib/lesson-plan/types
 
 type ModuleSummary = {
   id: string;
@@ -122,12 +93,6 @@ type ModuleSummary = {
   estimatedDurationMinutes: number | null;
   sortOrder: number;
   learningObjectiveCount: number;
-};
-
-type StudentProgress = {
-  callerId: string;
-  name: string;
-  currentSession: number | null;
 };
 
 type SessionTabData = {
@@ -194,9 +159,8 @@ export default function CourseDetailPage() {
   const [unassignedTPs, setUnassignedTPs] = useState<TPItem[]>([]);
   const [tpLoaded, setTpLoaded] = useState(false);
 
-  // Session media map
-  type MediaRef = { mediaId: string; fileName: string; captionText: string | null; figureRef: string | null; mimeType: string };
-  type SessionMediaMap = { sessions: Array<{ session: number; label: string; images: MediaRef[] }>; unassigned: MediaRef[]; stats: { total: number; assigned: number; unassigned: number } };
+  // Session media map (SessionMediaMap imported from @/lib/lesson-plan/types)
+  type MediaRef = SessionMediaRefType & { mimeType: string };
   const [sessionMediaMap, setSessionMediaMap] = useState<SessionMediaMap | null>(null);
   const [mediaMapLoading, setMediaMapLoading] = useState(false);
   const [editingSessionMedia, setEditingSessionMedia] = useState<number | null>(null);
@@ -940,25 +904,60 @@ export default function CourseDetailPage() {
       {/* LESSON PLAN TAB                                */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'lessons' && (
-        <div className="hf-mt-lg">
-          {sessionsLoading ? (
-            /* Loading state */
-            <div className="hf-empty-compact">
-              <div className="hf-spinner" />
-            </div>
-          ) : sessionsError ? (
-            /* Error state */
-            <div className="hf-flex-col hf-items-center hf-gap-sm hf-py-xl">
-              <div className="hf-banner hf-banner-error">
-                <AlertTriangle size={14} />
-                <span>{sessionsError}</span>
-              </div>
-              <button onClick={handleRetrySessionsLoad} className="hf-btn hf-btn-secondary hf-btn-sm">
-                Retry
-              </button>
-            </div>
-          ) : sessions?.plan && sessions.plan.entries.length > 0 ? (
-            /* Populated: plan header + session cards */
+        <SessionPlanViewer
+          variant="full"
+          entries={sessions?.plan?.entries ?? []}
+          model={sessions?.plan?.model}
+          generatedAt={sessions?.plan?.generatedAt}
+          estimatedSessions={sessions?.plan?.estimatedSessions}
+          sessionTPs={sessionTPs}
+          unassignedTPs={unassignedTPs}
+          mediaMap={sessionMediaMap}
+          studentProgress={sessions?.studentProgress}
+          onReorder={(from, to) => {
+            if (!sessions?.plan?.entries || !sessions?.curriculumId) return;
+            const reordered = reorderItems(sessions.plan.entries, from, to)
+              .map((e, i) => ({ ...e, session: i + 1 }));
+            setSessions((prev) => prev?.plan ? { ...prev, plan: { ...prev.plan, entries: reordered } } : prev);
+            fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ entries: reordered }),
+            }).catch(() => {});
+          }}
+          onRemove={(index) => {
+            if (!sessions?.plan?.entries || !sessions?.curriculumId) return;
+            const updated = sessions.plan.entries.filter((_, i) => i !== index)
+              .map((e, i) => ({ ...e, session: i + 1 }));
+            setSessions((prev) => prev?.plan ? { ...prev, plan: { ...prev.plan, entries: updated } } : prev);
+            fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ entries: updated }),
+            }).catch(() => {});
+          }}
+          onTPMove={handleTPMove}
+          onSessionMediaAssign={handleAssignImageToSession}
+          onSessionMediaRemove={handleRemoveSessionImage}
+          onMediaReorder={handleReorderSessionImages}
+          onRegenerate={handleRegenerate}
+          regenerating={regenerating}
+          regenSessionCount={regenSessionCount}
+          onRegenSessionCountChange={setRegenSessionCount}
+          courseId={courseId!}
+          readonly={!isOperator}
+          loading={sessionsLoading}
+          error={sessionsError}
+          onRetry={handleRetrySessionsLoad}
+          modules={sessions?.modules}
+          curriculumId={sessions?.curriculumId}
+          isOperator={isOperator}
+          domainId={detail?.domain?.id}
+        />
+      )}
+
+      {/* OLD_BLOCK_MARKER_START */}
+      {false && (
             <>
               {/* ── Plan Header Card ──────────────────── */}
               <div className="cd-plan-header hf-card hf-mb-lg">
@@ -1447,6 +1446,7 @@ export default function CourseDetailPage() {
           )}
         </div>
       )}
+      {/* OLD LESSON PLAN TAB CODE — REMOVE BLOCK END */}
 
       {/* ═══════════════════════════════════════════════ */}
       {/* SETTINGS TAB                                   */}

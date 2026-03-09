@@ -17,6 +17,14 @@ export type LessonPlanModel =
   | "mastery"
   | "project";
 
+export interface SessionMediaRef {
+  mediaId: string;
+  fileName?: string;
+  captionText?: string | null;
+  figureRef?: string | null;
+  mimeType?: string;
+}
+
 export interface SessionPhase {
   /** Phase identifier (e.g., "hook", "direct_instruction", "guided_practice") */
   id: string;
@@ -30,6 +38,8 @@ export interface SessionPhase {
   learningOutcomeRefs?: string[];
   /** AI-generated guidance text for the voice AI */
   guidance?: string;
+  /** Materials attached to this specific phase */
+  media?: SessionMediaRef[];
 }
 
 export interface LessonPlanModelConfig {
@@ -91,4 +101,39 @@ export interface LessonPlanModelDefinition {
   phaseTemplates: Record<string, PhaseTemplate[]>;
   /** TP distribution hints for AI prompt */
   tpDistributionHints: string;
+}
+
+// ---------------------------------------------------------------------------
+// Session viewer types (shared by SessionPlanViewer, course detail, wizard)
+// ---------------------------------------------------------------------------
+
+export interface SessionEntry {
+  session: number;
+  type: string;
+  moduleId: string | null;
+  moduleLabel: string;
+  label: string;
+  notes?: string | null;
+  estimatedDurationMins?: number | null;
+  assertionCount?: number | null;
+  phases?: SessionPhase[] | null;
+  learningOutcomeRefs?: string[] | null;
+  assertionIds?: string[] | null;
+  media?: SessionMediaRef[] | null;
+}
+
+export interface StudentProgress {
+  callerId: string;
+  name: string;
+  currentSession: number | null;
+}
+
+export interface SessionMediaMap {
+  sessions: Array<{
+    session: number;
+    label: string;
+    images: Array<SessionMediaRef & { mimeType: string }>;
+  }>;
+  unassigned: Array<SessionMediaRef & { mimeType: string }>;
+  stats: { total: number; assigned: number; unassigned: number };
 }

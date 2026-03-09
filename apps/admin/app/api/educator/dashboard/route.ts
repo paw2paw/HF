@@ -155,8 +155,10 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
     console.warn("[educator/dashboard] Assessment goals query failed (migration pending?):", (err as Error).message);
   }
 
-  // Deduplicate playbooks across cohorts, aggregate counts
-  const courseMap = new Map<string, {
+  // Deduplicate playbooks across cohorts, aggregate counts.
+  // First pass: group by playbook ID (same playbook in multiple cohorts).
+  // Second pass: merge by name (handles duplicate Playbook records with same name).
+  const courseById = new Map<string, {
     id: string;
     name: string;
     status: string;
@@ -166,11 +168,11 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
   }>();
   for (const cp of cohortPlaybooks) {
     const pb = cp.playbook;
-    const existing = courseMap.get(pb.id);
+    const existing = courseById.get(pb.id);
     if (existing) {
       existing.cohortCount++;
     } else {
-      courseMap.set(pb.id, {
+      courseById.set(pb.id, {
         id: pb.id,
         name: pb.name,
         status: pb.status,
@@ -178,6 +180,18 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
         cohortCount: 1,
         studentCount: pb._count.enrollments,
       });
+    }
+  }
+
+  // Merge duplicates by name (keeps the first ID, sums cohort/student counts)
+  const courseMap = new Map<string, typeof courseById extends Map<string, infer V> ? V : never>();
+  for (const course of courseById.values()) {
+    const existing = courseMap.get(course.name);
+    if (existing) {
+      existing.cohortCount += course.cohortCount;
+      existing.studentCount += course.studentCount;
+    } else {
+      courseMap.set(course.name, { ...course });
     }
   }
 
