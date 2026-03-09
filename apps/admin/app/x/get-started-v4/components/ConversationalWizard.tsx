@@ -392,6 +392,8 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
   const dragCounterRef = useRef(0);
   // Pending upload notification — queued when upload completes while AI is loading
   const pendingUploadRef = useRef<{ text: string; overrides: Record<string, unknown> } | null>(null);
+  const inputHistoryRef = useRef<string[]>([]);
+  const historyIndexRef = useRef(-1);
 
   // ── Scroll ───────────────────────────────────────────
 
@@ -662,6 +664,16 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         return;
       }
 
+      // Track input history for arrow-up recall (only real user input, not auto-messages)
+      if (!text) {
+        const history = inputHistoryRef.current;
+        if (history[history.length - 1] !== msg) {
+          history.push(msg);
+          if (history.length > 50) history.shift();
+        }
+        historyIndexRef.current = -1;
+      }
+
       setInputValue("");
       setSuggestions({ items: [] });
       setWelcomeSuggestion(null);
@@ -767,11 +779,17 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         return withUpload;
       });
 
-      // Tell the AI about the uploaded files so it can continue the conversation
+      // Tell the AI about the uploaded files so it can continue the conversation.
+      // Queue behind any user-typed text to avoid overwriting their input.
       setData("lastUploadClassifications", data.classifications);
-      handleSend("Teaching materials uploaded", { lastUploadClassifications: data.classifications });
+      const uploadOverrides = { lastUploadClassifications: data.classifications };
+      if (isLoading || inputValue.trim()) {
+        pendingUploadRef.current = { text: "Teaching materials uploaded", overrides: uploadOverrides };
+      } else {
+        handleSend("Teaching materials uploaded", uploadOverrides);
+      }
     },
-    [setData, handleSend],
+    [setData, handleSend, isLoading, inputValue],
   );
 
   // ── Extraction done (from SourcesPanel) ─────────────
@@ -819,15 +837,41 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
   const hasActiveOptions = messages.some((m) => m.systemType === "options" && !m.resolved);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       // Let the OptionsCard handle keys when it's active
       if (hasActiveOptions) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         handleSend();
+        return;
+      }
+
+      // Arrow-up/down: cycle through input history (only at cursor start / empty input)
+      const history = inputHistoryRef.current;
+      if (!history.length) return;
+      const ta = e.currentTarget;
+      const atStart = ta.selectionStart === 0 && ta.selectionEnd === 0;
+
+      if (e.key === "ArrowUp" && (atStart || !inputValue)) {
+        e.preventDefault();
+        const idx = historyIndexRef.current === -1
+          ? history.length - 1
+          : Math.max(historyIndexRef.current - 1, 0);
+        historyIndexRef.current = idx;
+        setInputValue(history[idx]);
+      } else if (e.key === "ArrowDown" && historyIndexRef.current !== -1) {
+        e.preventDefault();
+        const idx = historyIndexRef.current + 1;
+        if (idx >= history.length) {
+          historyIndexRef.current = -1;
+          setInputValue("");
+        } else {
+          historyIndexRef.current = idx;
+          setInputValue(history[idx]);
+        }
       }
     },
-    [handleSend, hasActiveOptions],
+    [handleSend, hasActiveOptions, inputValue],
   );
 
   // Global Esc to dismiss active options card
@@ -1017,6 +1061,8 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
             }
 
             if (msg.systemType === "lesson-plan" && msg.lessonEntries) {
+              // When launched, these are pinned above the success card instead
+              if (launched) return null;
               return (
                 <div key={msg.id} className="cv4-row cv4-row--system">
                   <LessonPlanAccordion
@@ -1037,6 +1083,8 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
             }
 
             if (msg.systemType === "first-call-preview" && msg.firstCallPreview) {
+              // When launched, these are pinned above the success card instead
+              if (launched) return null;
               return (
                 <div key={msg.id} className="cv4-row cv4-row--system">
                   <FirstCallPreviewCard
@@ -1113,6 +1161,35 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
                 <div className="cv4-typing-dot" />
                 <div className="cv4-typing-dot" />
               </div>
+            </div>
+          )}
+
+          {/* Lesson Plan + First Call Preview — pinned above success card */}
+          {launched && getData<LessonEntry[]>("lessonPlanPreview")?.length && (
+            <div className="cv4-row cv4-row--system">
+              <LessonPlanAccordion
+                entries={getData<LessonEntry[]>("lessonPlanPreview")!}
+                courseName={getData<string>("courseName") || undefined}
+                courseId={draftPlaybookId || undefined}
+                onTestLesson={draftCallerId ? (session) => {
+                  const params = new URLSearchParams({
+                    ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
+                    ...(draftDomainId ? { domainId: draftDomainId } : {}),
+                    session: String(session),
+                  });
+                  window.open(`/x/sim/${draftCallerId}?${params.toString()}`, "_blank", "noopener,noreferrer");
+                } : undefined}
+              />
+            </div>
+          )}
+          {launched && getData<FirstCallPreviewData>("firstCallPreview")?.phases?.length && (
+            <div className="cv4-row cv4-row--system">
+              <FirstCallPreviewCard
+                preview={getData<FirstCallPreviewData>("firstCallPreview")!}
+                onUpdated={(updated) => {
+                  setData("firstCallPreview", updated);
+                }}
+              />
             </div>
           )}
 
@@ -1301,7 +1378,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
             <textarea
               ref={inputRef}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => { setInputValue(e.target.value); historyIndexRef.current = -1; }}
               onKeyDown={handleKeyDown}
               placeholder="Describe your course, ask a question, or tell me what to change..."
               rows={1}

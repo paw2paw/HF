@@ -177,7 +177,7 @@ export async function PATCH(
 
     const { playbookId } = await params;
     const body = await request.json();
-    const { name, description, items, specs, agentId, toggleSpec, sortOrder, domainId, status, configSettings, audience } = body;
+    const { name, description, items, specs, agentId, toggleSpec, sortOrder, domainId, status, configSettings, audience, config } = body;
 
     const existing = await prisma.playbook.findUnique({
       where: { id: playbookId },
@@ -240,12 +240,12 @@ export async function PATCH(
       }
     }
 
-    // For published playbooks, only allow system spec toggle updates
-    const isToggleOnlyUpdate = (specs !== undefined || toggleSpec !== undefined) &&
+    // For published playbooks, allow config + spec toggle updates but not structural changes
+    const isConfigOnlyUpdate = (specs !== undefined || toggleSpec !== undefined || config !== undefined || configSettings !== undefined || audience !== undefined) &&
       name === undefined && description === undefined &&
       items === undefined && agentId === undefined;
 
-    if (existing.status === "PUBLISHED" && !isToggleOnlyUpdate) {
+    if (existing.status === "PUBLISHED" && !isConfigOnlyUpdate) {
       return NextResponse.json(
         { ok: false, error: "Cannot modify a published playbook. Create a new version instead." },
         { status: 400 }
@@ -416,6 +416,19 @@ export async function PATCH(
         data: {
           config: { ...currentConfig, configSettings },
         },
+      });
+    }
+
+    // Merge arbitrary config fields (goals, constraints, teachingFocus, etc.)
+    if (config !== undefined && typeof config === "object" && config !== null) {
+      const current = await prisma.playbook.findUnique({
+        where: { id: playbookId },
+        select: { config: true },
+      });
+      const currentConfig = (current?.config as Record<string, any>) || {};
+      await prisma.playbook.update({
+        where: { id: playbookId },
+        data: { config: { ...currentConfig, ...config } },
       });
     }
 

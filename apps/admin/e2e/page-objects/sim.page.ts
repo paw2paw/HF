@@ -33,7 +33,8 @@ export class SimPage extends BasePage {
     super(page);
     this.path = `/x/sim/${callerId}`;
 
-    this.headerTitle = page.locator('.wa-header-title');
+    // Use .last() — first match is conversation list header ("HF Simulator"), second is the chat pane header (caller name)
+    this.headerTitle = page.locator('.wa-header-title').last();
     this.messageBubbles = page.locator('.wa-bubble');
     this.typingIndicator = page.locator('.wa-typing');
     this.messageInput = page.locator('.wa-input-field');
@@ -44,7 +45,7 @@ export class SimPage extends BasePage {
 
     // End call sheet elements
     this.pipelineToggle = page.locator('.wa-toggle');
-    this.confirmEndButton = page.getByRole('button', { name: 'End Call' });
+    this.confirmEndButton = page.getByRole('button', { name: 'End Call', exact: true });
     this.cancelEndButton = page.getByRole('button', { name: 'Cancel' });
 
     this.toast = page.locator('.wa-toast');

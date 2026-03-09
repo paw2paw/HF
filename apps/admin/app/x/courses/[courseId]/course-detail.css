@@ -176,3 +176,70 @@
   font-weight: 500;
   color: var(--text-secondary);
 }
+
+/* ── Course Overview Tab ── cov-* prefix ── */
+
+/* Goal row */
+.cov-goal-row {
+  padding: 8px 0;
+}
+.cov-goal-row:not(:last-child) {
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Constraint chips */
+.cov-constraint-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--status-error-text) 8%, transparent);
+  color: var(--status-error-text);
+  border: 1px solid color-mix(in srgb, var(--status-error-text) 20%, transparent);
+}
+.cov-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--status-error-text) 15%, transparent);
+  color: var(--status-error-text);
+  cursor: pointer;
+  padding: 0;
+}
+.cov-chip-remove:hover {
+  background: color-mix(in srgb, var(--status-error-text) 30%, transparent);
+}
+
+/* Audience option picker */
+.cov-audience-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cov-audience-option:hover {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 4%, transparent);
+}
+.cov-audience-active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+/* Teaching focus box */
+.cov-teaching-focus-box {
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}

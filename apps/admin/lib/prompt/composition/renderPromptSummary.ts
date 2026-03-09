@@ -25,6 +25,10 @@ interface LLMPrompt {
     key_memories?: string[];
     voice_style?: string;
     learner_goals?: string;
+    working_toward?: string;
+    constraints?: string;
+    session_pacing?: string;
+    lesson_model?: string;
     curriculum_progress?: string | null;
     first_line?: string;
     critical_voice?: {
@@ -497,6 +501,7 @@ export function renderPromptSummary(llmPrompt: LLMPrompt): string {
     if (qs.this_session) parts.push(`**Session**: ${qs.this_session}`);
     if (qs.voice_style) parts.push(`**Voice**: ${qs.voice_style}`);
     if (qs.learner_goals) parts.push(`**Goals**: ${qs.learner_goals}`);
+    if (qs.working_toward) parts.push(`**Working toward**:\n${qs.working_toward}`);
     if (qs.key_memories?.length) {
       parts.push(`**Key Memories**: ${qs.key_memories.join(" | ")}`);
     } else if (qs.key_memory) {

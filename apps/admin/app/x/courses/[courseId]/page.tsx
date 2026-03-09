@@ -5,35 +5,33 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
-  Sparkles, BarChart3, Sliders, Shield, Compass, AlertTriangle,
+  Sparkles, Compass, AlertTriangle,
   Settings as SettingsIcon, ChevronRight, CheckCircle2,
   School, GraduationCap, Users2, Image, Upload,
-  ListOrdered, Zap, RefreshCw, Target, BookOpen,
-  Layers, PlayCircle,
+  ListOrdered, Zap, RefreshCw, BookOpen,
+  PlayCircle,
 } from 'lucide-react';
 import { StudentJourneyTab } from './StudentJourneyTab';
+import { CourseOverviewTab } from './CourseOverviewTab';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
 import { EditableTitle } from '@/components/shared/EditableTitle';
 import { StatusBadge, DomainPill } from '@/src/components/shared/EntityPill';
 import { TrustBadge } from '@/app/x/content-sources/_components/shared/badges';
 import { DraggableTabs, type TabDefinition } from '@/components/shared/DraggableTabs';
-import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { SessionTPList, UnassignedTPList, type TPItem, type SessionOption } from '@/components/shared/SessionTPList';
 import {
   groupSpecs,
-  archetypeLabel,
   type PlaybookItem,
   type SystemSpec,
   type SpecDetail,
   type SpecGroup,
 } from '@/lib/course/group-specs';
-import { TEACH_METHOD_CONFIG, TEACHING_MODE_LABELS, INTERACTION_PATTERN_LABELS, type TeachingMode, type InteractionPattern } from '@/lib/content-trust/resolve-config';
+import { TEACH_METHOD_CONFIG } from '@/lib/content-trust/resolve-config';
 import { SESSION_TYPES, SESSION_TYPE_ICONS, getSessionTypeColor, getSessionTypeLabel } from '@/lib/lesson-plan/session-ui';
 import { getLessonPlanModel } from '@/lib/lesson-plan/models';
 import { PlanSummary, type PlanSession } from '@/app/x/courses/_components/PlanSummary';
 import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
-import { getTeachingProfile, resolveTeachingProfile } from '@/lib/content-trust/teaching-profiles';
 import './course-detail.css';
 
 // ── Types ──────────────────────────────────────────────
@@ -209,39 +207,6 @@ function SectionHeader({ title, icon: Icon }: { title: string; icon: React.Compo
   );
 }
 
-// ── Spec Chip List ─────────────────────────────────────
-
-function SpecChipList({ specs, icon: Icon, label }: {
-  specs: SpecGroup;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  label: string;
-}) {
-  if (specs.length === 0) return null;
-  return (
-    <div className="hf-card-compact">
-      <div className="hf-flex hf-gap-sm hf-items-center hf-mb-sm">
-        <Icon size={15} className="hf-text-muted" />
-        <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">{label}</span>
-      </div>
-      <div className="hf-flex hf-flex-col hf-gap-xs">
-        {specs.map(s => (
-          <div key={s.slug} className="hf-flex hf-gap-sm hf-items-start">
-            <ChevronRight size={12} className="hf-text-placeholder hf-flex-shrink-0 hf-mt-xs" />
-            <div>
-              <div className="hf-text-sm">{s.name}</div>
-              {s.description && (
-                <div className="hf-text-xs hf-text-muted">
-                  {s.description.length > 100 ? s.description.slice(0, 100) + '...' : s.description}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ─────────────────────────────────────
 
 export default function CourseDetailPage() {
@@ -263,11 +228,6 @@ export default function CourseDetailPage() {
   const [contentBySubject, setContentBySubject] = useState<BreakdownBySubject[]>([]);
   const [contentTotal, setContentTotal] = useState(0);
   const [contentReviewed, setContentReviewed] = useState(0);
-
-  // Teaching focus
-  const [teachingFocusDraft, setTeachingFocusDraft] = useState("");
-  const [teachingFocusSaving, setTeachingFocusSaving] = useState(false);
-  const [teachingFocusSaved, setTeachingFocusSaved] = useState(false);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -314,7 +274,6 @@ export default function CourseDetailPage() {
   const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [backfilling, setBackfilling] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Description editing
@@ -336,7 +295,6 @@ export default function CourseDetailPage() {
       .then(([pbData, subData, breakdownData, mediaData]) => {
         if (pbData.ok) {
           setDetail(pbData.playbook);
-          setTeachingFocusDraft((pbData.playbook.config as any)?.teachingFocus || "");
           pushEntity({
             type: 'playbook',
             id: pbData.playbook.id,
@@ -1091,258 +1049,26 @@ export default function CourseDetailPage() {
       {/* OVERVIEW TAB                                   */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
-        <>
-          {/* TeachMethod summary stats */}
-          {contentMethods.length > 0 && (
-            <div className="hf-mb-lg hf-mt-md">
-              <div className="hf-flex hf-items-center hf-gap-sm hf-mb-sm">
-                <div className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">
-                  Teaching Methods
-                </div>
-                {isOperator && contentMethods.some((m: any) => m.teachMethod === 'unassigned') && (
-                  <button
-                    className="hf-btn hf-btn-xs hf-btn-outline"
-                    disabled={backfilling}
-                    onClick={async () => {
-                      setBackfilling(true);
-                      try {
-                        const res = await fetch(`/api/courses/${courseId}/backfill-teach-methods`, { method: 'POST' });
-                        const data = await res.json();
-                        if (data.ok && data.updated > 0) {
-                          // Refresh content breakdown
-                          const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());
-                          if (bd.ok) {
-                            setContentMethods(bd.methods || []);
-                            setContentBySubject(bd.bySubject || []);
-                            setContentTotal(bd.total || 0);
-                            setContentReviewed(bd.reviewedCount || 0);
-                          }
-                        }
-                      } catch { /* ignore */ }
-                      setBackfilling(false);
-                    }}
-                  >
-                    {backfilling ? 'Assigning…' : `Assign ${contentMethods.find((m: any) => m.teachMethod === 'unassigned')?.count ?? 0} unassigned`}
-                  </button>
-                )}
-              </div>
-              <TeachMethodStats methods={contentMethods} total={contentTotal} />
-            </div>
-          )}
-
-          {/* Teaching Approach summary — shows subject profiles */}
-          {subjects.some((s) => s.teachingProfile) && (
-            <div className="hf-card-compact hf-mb-lg">
-              <div className="hf-flex hf-gap-sm hf-items-center hf-mb-sm">
-                <Sparkles size={15} className="hf-text-accent" />
-                <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">Teaching Approach</span>
-              </div>
-              {subjects.filter((s) => s.teachingProfile).map((sub) => {
-                const profile = getTeachingProfile(sub.teachingProfile);
-                if (!profile) return null;
-                const modeLabel = TEACHING_MODE_LABELS[profile.teachingMode as TeachingMode]?.label ?? profile.teachingMode;
-                const patternLabel = INTERACTION_PATTERN_LABELS[profile.interactionPattern as InteractionPattern]?.label ?? profile.interactionPattern;
-                return (
-                  <div key={sub.id} className="hf-mb-sm">
-                    <div className="hf-flex hf-gap-sm hf-items-center hf-text-sm">
-                      <strong>{sub.name}</strong>
-                      <span className="hf-badge hf-badge-sm hf-badge-accent">{profile.key}</span>
-                    </div>
-                    <p className="hf-text-xs hf-text-muted hf-mt-xs hf-mb-0">
-                      {profile.description}
-                    </p>
-                    <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted hf-mt-xs">
-                      <span>Teaching mode: {modeLabel}</span>
-                      <span>Interaction: {patternLabel}</span>
-                    </div>
-                    <div className="hf-text-xs hf-text-muted hf-mt-xs">
-                      Best for: {profile.bestFor}
-                    </div>
-                  </div>
-                );
-              })}
-              {/* Editable teaching focus (course-level override) */}
-              {isOperator && (
-                <div className="hf-mt-md" style={{ padding: 12, border: '1px solid var(--border-default)', borderRadius: 8 }}>
-                  <label className="hf-label hf-text-xs">Teaching Focus (course-level)</label>
-                  <textarea
-                    value={teachingFocusDraft}
-                    onChange={(e) => { setTeachingFocusDraft(e.target.value); setTeachingFocusSaved(false); }}
-                    placeholder={(() => {
-                      const sub = subjects.find((s) => s.teachingProfile);
-                      if (!sub) return 'Describe what students should take away...';
-                      const resolved = resolveTeachingProfile(sub);
-                      return resolved?.teachingFocus || 'Describe what students should take away...';
-                    })()}
-                    className="hf-input hf-text-sm"
-                    rows={3}
-                    style={{ width: '100%', resize: 'vertical' }}
-                  />
-                  <div className="hf-flex hf-gap-sm hf-items-center hf-mt-xs">
-                    <button
-                      onClick={async () => {
-                        if (!detail) return;
-                        setTeachingFocusSaving(true);
-                        try {
-                          await fetch(`/api/playbooks/${detail.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ config: { ...(detail.config || {}), teachingFocus: teachingFocusDraft.trim() || null } }),
-                          });
-                          setTeachingFocusSaved(true);
-                          setDetail((prev) => prev ? { ...prev, config: { ...(prev.config || {}), teachingFocus: teachingFocusDraft.trim() || null } } : prev);
-                        } finally {
-                          setTeachingFocusSaving(false);
-                        }
-                      }}
-                      disabled={teachingFocusSaving}
-                      className="hf-btn hf-btn-primary hf-btn-xs"
-                    >
-                      {teachingFocusSaving ? 'Saving...' : 'Save'}
-                    </button>
-                    {teachingFocusSaved && <span className="hf-text-xs hf-text-success">Saved</span>}
-                    {!teachingFocusDraft && subjects.some((s) => s.teachingProfile) && (
-                      <span className="hf-text-xs hf-text-muted">
-                        Inherited from subject profile
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Show course reference docs if any exist */}
-              {subjects.some((s) => s.sourceCount > 0) && (
-                <div className="hf-text-xs hf-text-muted hf-mt-xs">
-                  Course-level overrides and uploaded reference docs take priority.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* What You're Teaching */}
-          <div className="hf-flex hf-flex-between hf-items-center hf-mb-md hf-section-divider">
-            <div className="hf-flex hf-gap-sm hf-items-center">
-              <BookMarked size={18} className="hf-text-muted" />
-              <h2 className="hf-section-title hf-mb-0">What You&apos;re Teaching</h2>
-            </div>
-            {isOperator && subjects.length > 0 && (
-              <Link
-                href={`/x/courses/new?domainId=${detail.domain.id}`}
-                className="hf-btn-sm hf-btn-secondary"
-              >
-                <Plus size={13} />
-                Add Subject
-              </Link>
-            )}
-          </div>
-
-          {subjects.length === 0 ? (
-            <div className="hf-empty-compact hf-mb-lg">
-              <BookMarked size={36} className="hf-text-tertiary hf-mb-sm" />
-              <div className="hf-heading-sm hf-text-secondary hf-mb-sm">No subjects yet</div>
-              <p className="hf-text-xs hf-text-muted hf-mb-md">Subjects are created when you upload content or use the Course Setup wizard.</p>
-              {isOperator && (
-                <Link href={`/x/courses/new?domainId=${detail.domain.id}`} className="hf-btn hf-btn-primary">
-                  <Plus size={14} />
-                  Set Up Course
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="hf-card-grid-md hf-mb-lg">
-              {subjects.map((sub) => (
-                <div key={sub.id} className="hf-card-compact">
-                  <Link
-                    href={`/x/courses/${courseId}/subjects/${sub.id}`}
-                    className="hf-card-link-inner"
-                  >
-                    <div className="hf-flex hf-gap-sm hf-items-center hf-mb-sm">
-                      <BookMarked size={16} className="hf-text-accent hf-flex-shrink-0" />
-                      <h3 className="hf-heading-sm hf-mb-0 hf-flex-1">{sub.name}</h3>
-                      <TrustBadge level={sub.defaultTrustLevel} />
-                    </div>
-                    {sub.description && (
-                      <p className="hf-text-xs hf-text-muted hf-mb-sm hf-line-clamp-2">{sub.description}</p>
-                    )}
-                    <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted">
-                      {sub.sourceCount === 0 ? (
-                        <span className="hf-text-warning hf-flex hf-items-center hf-gap-xs">
-                          <AlertTriangle size={12} />No content yet
-                        </span>
-                      ) : (
-                        <span><FileText size={12} className="hf-icon-inline" />{sub.sourceCount} sources</span>
-                      )}
-                      <span>{sub.assertionCount} teaching points</span>
-                      {sub.curriculumCount > 0 && <span>{sub.curriculumCount} curricula</span>}
-                    </div>
-                  </Link>
-                  {isOperator && sub.sourceCount === 0 && (
-                    <Link
-                      href={`/x/courses/${courseId}/subjects/${sub.id}`}
-                      className="hf-btn-sm hf-btn-primary hf-mt-sm"
-                    >
-                      <Upload size={13} />
-                      Upload Content
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* How It's Taught */}
-          <SectionHeader title="How It's Taught" icon={Sparkles} />
-
-          <div className="hf-mb-lg">
-            {persona ? (
-              <div className="hf-card-compact hf-mb-md">
-                <div className="hf-flex hf-gap-sm hf-items-center hf-mb-sm">
-                  <Sparkles size={15} className="hf-text-accent" />
-                  <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">AI Personality</span>
-                </div>
-                <div className="hf-heading-sm hf-mb-xs">{persona.name}</div>
-                {persona.extendsAgent && (
-                  <div className="hf-mb-sm">
-                    <span className="hf-text-xs hf-tag-pill">
-                      {archetypeLabel(persona.extendsAgent)} archetype
-                    </span>
-                  </div>
-                )}
-                {persona.roleStatement && (
-                  <p className="hf-text-sm hf-text-secondary hf-mb-xs hf-quote">
-                    &ldquo;{persona.roleStatement}&rdquo;
-                  </p>
-                )}
-                {persona.primaryGoal && (
-                  <p className="hf-text-xs hf-text-muted">Goal: {persona.primaryGoal}</p>
-                )}
-              </div>
-            ) : (
-              <div className="hf-card-compact hf-mb-md">
-                <div className="hf-text-sm hf-text-muted">
-                  No AI personality configured. The system will use the default archetype.
-                </div>
-              </div>
-            )}
-
-            {(specGroups.measure.length > 0 || specGroups.adapt.length > 0 || specGroups.guard.length > 0) && (
-              <div className="hf-card-grid-md">
-                <SpecChipList specs={specGroups.measure} icon={BarChart3} label="What's Measured" />
-                <SpecChipList specs={specGroups.adapt} icon={Sliders} label="How It Adapts" />
-                <SpecChipList specs={specGroups.guard} icon={Shield} label="Guardrails" />
-              </div>
-            )}
-
-            {specGroups.measure.length === 0 && specGroups.adapt.length === 0 && specGroups.guard.length === 0 && (
-              <div className="hf-card-compact">
-                <div className="hf-text-sm hf-text-muted">
-                  System measurement and adaptation specs will be shown here once configured.
-                </div>
-              </div>
-            )}
-          </div>
-
-        </>
+        <CourseOverviewTab
+          courseId={courseId!}
+          detail={detail}
+          subjects={subjects}
+          contentMethods={contentMethods}
+          contentTotal={contentTotal}
+          isOperator={isOperator}
+          persona={persona}
+          specGroups={specGroups}
+          sessionPlan={sessions?.plan ? {
+            estimatedSessions: sessions.plan.estimatedSessions,
+            totalDurationMins: totalSessionDuration,
+            generatedAt: sessions.plan.generatedAt,
+          } : null}
+          onContentRefresh={(methods, total) => {
+            setContentMethods(methods);
+            setContentTotal(total);
+          }}
+          onDetailUpdate={setDetail}
+        />
       )}
 
       {/* ═══════════════════════════════════════════════ */}

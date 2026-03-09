@@ -119,6 +119,12 @@ export default function EducatorDashboard() {
         return;
       }
 
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        setLoadError(errorBody?.error || "Failed to load dashboard. Please try again.");
+        return;
+      }
+
       const body = await res.json();
       if (body?.ok) {
         setData(body);

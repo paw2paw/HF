@@ -53,7 +53,7 @@ interface AvailableMedia {
 // ── Component ──────────────────────────────────────────
 
 export function FirstCallPreviewCard({ preview, onUpdated }: FirstCallPreviewCardProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [phases, setPhases] = useState<FirstCallPhase[]>(preview.phases);
   const [availableMedia, setAvailableMedia] = useState<AvailableMedia[]>([]);
   const [dropdownPhase, setDropdownPhase] = useState<number | null>(null);

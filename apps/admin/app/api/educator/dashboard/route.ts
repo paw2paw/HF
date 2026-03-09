@@ -14,26 +14,34 @@ import { requireEducator, isEducatorAuthError } from "@/lib/educator-access";
  * @response 200 { ok: true, classrooms: [...], stats: { classroomCount, totalStudents, activeThisWeek }, recentCalls: [...], needsAttention: [...] }
  */
 export async function GET(request: NextRequest) {
-  const institutionId = request.nextUrl.searchParams.get("institutionId");
+  try {
+    const institutionId = request.nextUrl.searchParams.get("institutionId");
 
-  // ADMIN+ with institutionId: view any school's dashboard (all cohorts in that institution)
-  if (institutionId) {
-    const authResult = await requireAuth("ADMIN");
-    if (isAuthError(authResult)) return authResult.error;
-    return buildDashboardForInstitution(institutionId);
+    // ADMIN+ with institutionId: view any school's dashboard (all cohorts in that institution)
+    if (institutionId) {
+      const authResult = await requireAuth("ADMIN");
+      if (isAuthError(authResult)) return authResult.error;
+      return buildDashboardForInstitution(institutionId);
+    }
+
+    // Educator path: scoped to own cohorts (or institution for ADMIN+)
+    const auth = await requireEducator();
+    if (isEducatorAuthError(auth)) return auth.error;
+
+    // ADMIN+ with educator profile: show all cohorts in their institution
+    const role = auth.session.user.role;
+    if (ROLE_LEVEL[role] >= ROLE_LEVEL.ADMIN && auth.institutionId) {
+      return buildDashboardForInstitution(auth.institutionId);
+    }
+
+    return buildDashboardForEducator(auth.callerId);
+  } catch (error: any) {
+    console.error("[educator/dashboard] GET error:", error);
+    return NextResponse.json(
+      { ok: false, error: error.message || "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  // Educator path: scoped to own cohorts (or institution for ADMIN+)
-  const auth = await requireEducator();
-  if (isEducatorAuthError(auth)) return auth.error;
-
-  // ADMIN+ with educator profile: show all cohorts in their institution
-  const role = auth.session.user.role;
-  if (ROLE_LEVEL[role] >= ROLE_LEVEL.ADMIN && auth.institutionId) {
-    return buildDashboardForInstitution(auth.institutionId);
-  }
-
-  return buildDashboardForEducator(auth.callerId);
 }
 
 // ── Shared dashboard builder ────────────────────────────────────
@@ -49,7 +57,7 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention, assessmentGoals] =
+  const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention] =
     await Promise.all([
       prisma.cohortGroup.findMany({
         where: cohortWhere,
@@ -104,25 +112,30 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
         },
         take: 10,
       }),
-
-      // Assessment target goals across cohort learners
-      prisma.goal.findMany({
-        where: {
-          isAssessmentTarget: true,
-          status: { in: ["ACTIVE", "COMPLETED"] },
-          caller: {
-            cohortGroup: cohortWhere,
-            role: "LEARNER",
-          },
-        },
-        select: {
-          id: true,
-          progress: true,
-          status: true,
-          assessmentConfig: true,
-        },
-      }),
     ]);
+
+  // Assessment query is non-critical — degrade gracefully if Goal schema not yet migrated
+  let assessmentGoals: { id: string; progress: number; status: string; assessmentConfig: any }[] = [];
+  try {
+    assessmentGoals = await prisma.goal.findMany({
+      where: {
+        isAssessmentTarget: true,
+        status: { in: ["ACTIVE", "COMPLETED"] },
+        caller: {
+          cohortGroup: cohortWhere,
+          role: "LEARNER",
+        },
+      },
+      select: {
+        id: true,
+        progress: true,
+        status: true,
+        assessmentConfig: true,
+      },
+    });
+  } catch (err) {
+    console.warn("[educator/dashboard] Assessment goals query failed (migration pending?):", (err as Error).message);
+  }
 
   return NextResponse.json({
     ok: true,

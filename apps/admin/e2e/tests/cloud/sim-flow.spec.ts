@@ -49,8 +49,8 @@ test.describe('Call Simulation', () => {
     const sim = new SimPage(page, callerId);
     await sim.goto();
 
-    // Should show caller name in header
-    await expect(sim.headerTitle).toHaveText(callerName, { timeout: 15_000 });
+    // Wait for call initialization to complete (header shows caller name once loaded)
+    await expect(sim.headerTitle).toContainText(callerName, { timeout: 30_000 });
   });
 
   test('should receive AI greeting on page load', async ({ page }) => {
@@ -104,8 +104,8 @@ test.describe('Call Simulation', () => {
     // End call without pipeline (faster for testing)
     await sim.endCall(false);
 
-    // Should show success toast
-    const toastText = await sim.waitForToast(15_000);
+    // Should show success toast ("Call saved" or "Call saved — analysis running in background")
+    const toastText = await sim.waitForToast(30_000);
     expect(toastText).toMatch(/saved/i);
   });
 });

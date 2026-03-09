@@ -34,7 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function LessonPlanAccordion({ entries, courseName, courseId, onTestLesson }: LessonPlanAccordionProps) {
-  const [listOpen, setListOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(true);
   const [openSessions, setOpenSessions] = useState<Set<number>>(new Set());
 
   if (!entries.length) {
