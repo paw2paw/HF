@@ -343,6 +343,16 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 25%, transparent);
 }
 
+.gs-readiness-dot--processing {
+  background: var(--warning, #f59e0b);
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .gs-readiness-count {
   font-size: 13px;
   font-weight: 600;

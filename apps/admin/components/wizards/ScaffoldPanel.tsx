@@ -57,14 +57,17 @@ const EMPHASIS_LABELS: Record<string, string> = {
 
 /* ── Readiness dots ─────────────────────────────────── */
 
-interface ReadinessDot { filled: boolean; active: boolean; label: string }
+interface ReadinessDot { filled: boolean; active: boolean; processing?: boolean; label: string }
 
 function ReadinessBar({ dots }: { dots: ReadinessDot[] }) {
   const filledCount = dots.filter(d => d.filled).length;
-  const missing = dots.filter(d => !d.filled).map(d => d.label);
-  const tooltipText = missing.length > 0
-    ? `Needs: ${missing.join(", ")}`
-    : "All sections complete";
+  const missing = dots.filter(d => !d.filled && !d.processing).map(d => d.label);
+  const processing = dots.filter(d => d.processing).map(d => d.label);
+  const tooltipText = processing.length > 0
+    ? `Processing: ${processing.join(", ")}` + (missing.length > 0 ? ` · Needs: ${missing.join(", ")}` : "")
+    : missing.length > 0
+      ? `Needs: ${missing.join(", ")}`
+      : "All sections complete";
   return (
     <div className="gs-readiness" title={tooltipText}>
       <div className="gs-readiness-dots">
@@ -73,10 +76,10 @@ function ReadinessBar({ dots }: { dots: ReadinessDot[] }) {
             key={i}
             className={
               "gs-readiness-dot" +
-              (d.filled ? " gs-readiness-dot--filled" : "") +
+              (d.processing ? " gs-readiness-dot--processing" : d.filled ? " gs-readiness-dot--filled" : "") +
               (d.active ? " gs-readiness-dot--active" : "")
             }
-            title={`${d.label}: ${d.filled ? "✓" : "needed"}`}
+            title={`${d.label}: ${d.processing ? "processing…" : d.filled ? "✓" : "needed"}`}
           />
         ))}
       </div>
@@ -282,6 +285,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   const dots = sections.map(s => ({
     filled: getItemStatus(s, sectionHasValue[s], currentStepIndex, resolvedKeys, launched) !== "waiting",
     active: isPhaseActive(s),
+    processing: s === "content" && isExtracting,
     label: SECTION_LABELS[s] || capitalize(s),
   }));
 
