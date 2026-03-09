@@ -337,8 +337,9 @@ export async function POST(
             select: { domainId: true },
           });
           if (domainLink) {
+            // Include DRAFT playbooks — not just PUBLISHED — so in-progress courses get teachMethod assignment
             const playbook = await prisma.playbook.findFirst({
-              where: { domainId: domainLink.domainId, status: "PUBLISHED" },
+              where: { domainId: domainLink.domainId, status: { in: ["PUBLISHED", "DRAFT"] } },
               select: { config: true },
             });
             const pbConfig = playbook?.config as Record<string, any> | null;
@@ -347,6 +348,24 @@ export async function POST(
             }
             if (!resolvedTeachingMode && pbConfig?.teachingMode) {
               resolvedTeachingMode = pbConfig.teachingMode as TeachingMode;
+            }
+          }
+          // Fall back to subject's teaching profile if playbook didn't provide teachingMode
+          if (!resolvedTeachingMode) {
+            const subject = await prisma.subject.findUnique({
+              where: { id: subjectId },
+              select: { teachingProfile: true, teachingOverrides: true },
+            });
+            if (subject?.teachingProfile) {
+              const { getTeachingProfile } = await import("@/lib/content-trust/teaching-profiles");
+              const profile = getTeachingProfile(subject.teachingProfile);
+              if (profile) {
+                const overrides = subject.teachingOverrides as Record<string, any> | null;
+                resolvedTeachingMode = (overrides?.teachingMode || profile.teachingMode) as TeachingMode;
+                if (!interactionPattern) {
+                  interactionPattern = (overrides?.interactionPattern || profile.interactionPattern) as InteractionPattern;
+                }
+              }
             }
           }
         }

@@ -314,6 +314,7 @@ export default function CourseDetailPage() {
   const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Description editing
@@ -1094,8 +1095,36 @@ export default function CourseDetailPage() {
           {/* TeachMethod summary stats */}
           {contentMethods.length > 0 && (
             <div className="hf-mb-lg hf-mt-md">
-              <div className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-mb-sm">
-                Teaching Methods
+              <div className="hf-flex hf-items-center hf-gap-sm hf-mb-sm">
+                <div className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">
+                  Teaching Methods
+                </div>
+                {isOperator && contentMethods.some((m: any) => m.teachMethod === 'unassigned') && (
+                  <button
+                    className="hf-btn hf-btn-xs hf-btn-outline"
+                    disabled={backfilling}
+                    onClick={async () => {
+                      setBackfilling(true);
+                      try {
+                        const res = await fetch(`/api/courses/${courseId}/backfill-teach-methods`, { method: 'POST' });
+                        const data = await res.json();
+                        if (data.ok && data.updated > 0) {
+                          // Refresh content breakdown
+                          const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());
+                          if (bd.ok) {
+                            setContentMethods(bd.methods || []);
+                            setContentBySubject(bd.bySubject || []);
+                            setContentTotal(bd.total || 0);
+                            setContentReviewed(bd.reviewedCount || 0);
+                          }
+                        }
+                      } catch { /* ignore */ }
+                      setBackfilling(false);
+                    }}
+                  >
+                    {backfilling ? 'Assigning…' : `Assign ${contentMethods.find((m: any) => m.teachMethod === 'unassigned')?.count ?? 0} unassigned`}
+                  </button>
+                )}
               </div>
               <TeachMethodStats methods={contentMethods} total={contentTotal} />
             </div>
