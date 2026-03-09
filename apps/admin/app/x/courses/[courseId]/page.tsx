@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
-  Sparkles, AlertTriangle,
+  Sparkles, AlertTriangle, Compass,
   Settings as SettingsIcon, Users2,
   ListOrdered, Zap,
   PlayCircle,
@@ -13,6 +13,7 @@ import {
 import { CourseWhatTab } from './CourseWhatTab';
 import { CourseHowTab } from './CourseHowTab';
 import { CourseWhoTab } from './CourseWhoTab';
+import { StudentJourneyTab } from './StudentJourneyTab';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
 import { EditableTitle } from '@/components/shared/EditableTitle';
@@ -244,6 +245,7 @@ export default function CourseDetailPage() {
   const tabs: TabDefinition[] = useMemo(() => [
     { id: 'what', label: 'What', icon: <BookMarked size={14} />, count: contentTotal || null },
     { id: 'how', label: 'How', icon: <Sparkles size={14} /> },
+    { id: 'onboarding', label: 'Onboarding', icon: <Compass size={14} /> },
     { id: 'who', label: 'Who', icon: <Users2 size={14} /> },
     { id: 'lessons', label: 'Lesson Plan', icon: <ListOrdered size={14} />, count: sessions?.plan?.estimatedSessions || null },
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
@@ -877,6 +879,18 @@ export default function CourseDetailPage() {
           } : null}
           onTabChange={handleTabChange}
           onDetailUpdate={setDetail}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* ONBOARDING TAB                                 */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'onboarding' && (
+        <StudentJourneyTab
+          courseId={courseId!}
+          domainId={detail.domain.id}
+          domainName={detail.domain.name}
+          isOperator={isOperator}
         />
       )}
 

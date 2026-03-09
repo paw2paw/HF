@@ -401,17 +401,26 @@ export function CourseHowTab({
         {onboardingLoading ? (
           <div className="hf-text-sm hf-text-muted hf-glow-active">Loading first call structure...</div>
         ) : onboarding && onboarding.phases.length > 0 ? (
-          <OnboardingPreview
-            phases={onboarding.phases}
-            personaName={onboarding.personaName}
-            greeting={onboarding.domainWelcome}
-            maxHeight={280}
-          />
+          <>
+            <OnboardingPreview
+              phases={onboarding.phases}
+              personaName={onboarding.personaName}
+              greeting={onboarding.domainWelcome}
+              maxHeight={280}
+            />
+            <button
+              className="hf-btn hf-btn-xs hf-btn-ghost hf-mt-sm"
+              onClick={() => onTabChange?.('onboarding')}
+              type="button"
+            >
+              Edit on Onboarding tab →
+            </button>
+          </>
         ) : (
           <div className="hf-flex hf-flex-col hf-items-center hf-gap-sm hf-py-md">
             <div className="hf-text-sm hf-text-muted">No first call flow configured.</div>
-            <button className="hf-btn hf-btn-xs hf-btn-outline" onClick={() => onTabChange?.('settings')}>
-              Configure in Settings
+            <button className="hf-btn hf-btn-xs hf-btn-outline" onClick={() => onTabChange?.('onboarding')}>
+              Configure on Onboarding tab
             </button>
           </div>
         )}
