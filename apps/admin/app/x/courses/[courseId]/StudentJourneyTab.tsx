@@ -54,12 +54,12 @@ export function StudentJourneyTab({ courseId, domainId, domainName, isOperator }
       const res = await fetch(`/api/courses/${courseId}/onboarding`);
       const data = await res.json();
       if (data.ok) {
-        setOnboardingSource(data.source);
+        setOnboardingSource(data.source === 'fallback' ? 'domain' : data.source);
         setDomainWelcome(data.domainWelcome || null);
         setPersonaName(data.personaName || null);
         setDomainMedia(data.media || []);
 
-        const phasesArr = data.phases?.phases;
+        const phasesArr = Array.isArray(data.phases) ? data.phases : data.phases?.phases;
         if (Array.isArray(phasesArr) && phasesArr.length > 0) {
           const withIds = phasesArr.map((p: OnboardingPhase) => ({
             ...p,
