@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+  console.log("[roster] Step 1: Fetching callers...");
   // ── 1. Fetch callers with recent call dates ──────────────────
   const callers = await prisma.caller.findMany({
     where,
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
     orderBy: { name: "asc" },
   });
 
+  console.log("[roster] Step 1 done:", callers.length, "callers");
   if (callers.length === 0) {
     return NextResponse.json({ ok: true, roster: [] });
   }
@@ -132,6 +134,7 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
+  console.log("[roster] Step 2 done: mastery/module queries");
   // ── 2b. Pending goal completion signals per caller ──────────
   const pendingSignals = await prisma.callerAttribute.groupBy({
     by: ["callerId"],
@@ -145,6 +148,7 @@ export async function GET(request: NextRequest) {
   });
   const pendingMap = new Map(pendingSignals.map((s) => [s.callerId, s._count._all]));
 
+  console.log("[roster] Step 2b done: pending signals");
   // ── 2c. Primary assessment target per caller (highest priority active) ──
   const assessmentTargets = await prisma.goal.findMany({
     where: {
@@ -170,6 +174,7 @@ export async function GET(request: NextRequest) {
     }])
   );
 
+  console.log("[roster] Step 2c done: assessment targets");
   // Build lookup maps
   const masteryMap = new Map(masteryAgg.map((m) => [m.callerId, { avg: m._avg.mastery, total: m._count._all }]));
   const completedMap = new Map(completedAgg.map((c) => [c.callerId, c._count._all]));
@@ -216,6 +221,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
+  console.log("[roster] Step 3 done: assembled", roster.length, "entries, serializing...");
   return NextResponse.json({ ok: true, roster });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
