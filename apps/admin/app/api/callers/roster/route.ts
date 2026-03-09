@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ ok: true, roster });
   } catch (err) {
-    console.error("[roster] Failed to load roster:", (err as Error).message);
+    console.error("[roster] Failed to load roster:", err);
     return NextResponse.json(
       { ok: false, error: "Failed to load roster" },
       { status: 500 },
