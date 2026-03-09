@@ -70,7 +70,8 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
   });
 
   if (!curriculum) {
-    throw new Error(`Curriculum "${CURRICULUM_SLUG}" not found — run seed-golden first.`);
+    console.log(`Curriculum "${CURRICULUM_SLUG}" not found — skipping English modules seed.`);
+    return;
   }
 
   console.log(`Found curriculum: ${curriculum.name} (${curriculum.id})\n`);
