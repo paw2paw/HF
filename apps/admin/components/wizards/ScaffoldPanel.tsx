@@ -233,6 +233,26 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   const durationMins = getData<string>("durationMins");
   const planEmphasis = getData<string>("planEmphasis");
   const lessonPlanModel = getData<string>("lessonPlanModel");
+  const audience = getData<string>("audience");
+  const learningOutcomes = getData<string[]>("learningOutcomes");
+  const assessments = getData<string>("assessments");
+  const userSetFields = getData<string[]>("userSetFields") || [];
+
+  // Audience label lookup
+  const AUDIENCE_LABELS: Record<string, string> = {
+    primary: "Primary (5-11)",
+    secondary: "Secondary (11-16)",
+    "sixth-form": "Sixth Form (16-19)",
+    "higher-ed": "Higher Ed",
+    "adult-professional": "Professional",
+    "adult-casual": "Adult Learner",
+    mixed: "Mixed",
+  };
+  const ASSESSMENT_LABELS: Record<string, string> = {
+    formal: "Formal assessment",
+    light: "Light checks",
+    none: "No assessment",
+  };
 
   const institutionChips: string[] = [];
   if (typeSlug) institutionChips.push(capitalize(typeSlug));
@@ -241,10 +261,21 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   if (teachingProfile) courseChips.push(teachingProfile);
   if (interactionPattern) courseChips.push(capitalize(interactionPattern));
   if (teachingMode) courseChips.push(capitalize(teachingMode));
+  if (audience && audience !== "mixed") courseChips.push(AUDIENCE_LABELS[audience] || capitalize(audience));
+  if (learningOutcomes && learningOutcomes.length > 0) courseChips.push(`${learningOutcomes.length} outcome${learningOutcomes.length !== 1 ? "s" : ""}`);
 
   const lessonChips: string[] = [];
   if (durationMins) lessonChips.push(`${durationMins} min`);
   if (planEmphasis) lessonChips.push(capitalize(planEmphasis));
+  if (assessments) lessonChips.push(ASSESSMENT_LABELS[assessments] || capitalize(assessments));
+
+  // Track which chips come from defaults (not explicitly set by user)
+  const defaultChips = new Set<string>();
+  if (audience && !userSetFields.includes("audience")) defaultChips.add(AUDIENCE_LABELS[audience] || capitalize(audience));
+  if (assessments && !userSetFields.includes("assessments")) defaultChips.add(ASSESSMENT_LABELS[assessments] || capitalize(assessments));
+  if (planEmphasis && !userSetFields.includes("planEmphasis")) defaultChips.add(capitalize(planEmphasis));
+  if (durationMins && !userSetFields.includes("durationMins")) defaultChips.add(`${durationMins} min`);
+  if (lessonPlanModel && !userSetFields.includes("lessonPlanModel")) defaultChips.add(LESSON_MODEL_LABELS[lessonPlanModel] || capitalize(lessonPlanModel));
 
   const tuneChips: string[] = [];
   if (lessonPlanModel) tuneChips.push(LESSON_MODEL_LABELS[lessonPlanModel] || capitalize(lessonPlanModel));
@@ -392,7 +423,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                 {item.chips && item.chips.length > 0 && (
                   <div className="gs-scaffold-chips">
                     {item.chips.map((chip) => (
-                      <span key={chip} className="gs-scaffold-chip">{chip}</span>
+                      <span key={chip} className={`gs-scaffold-chip${defaultChips.has(chip) ? " gs-scaffold-chip--default" : ""}`}>{chip}</span>
                     ))}
                   </div>
                 )}
@@ -425,7 +456,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                 {item.chips && item.chips.length > 0 && (
                   <div className="gs-scaffold-chips">
                     {item.chips.map((chip) => (
-                      <span key={chip} className="gs-scaffold-chip">{chip}</span>
+                      <span key={chip} className={`gs-scaffold-chip${defaultChips.has(chip) ? " gs-scaffold-chip--default" : ""}`}>{chip}</span>
                     ))}
                   </div>
                 )}

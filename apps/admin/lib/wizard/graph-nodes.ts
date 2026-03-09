@@ -1,7 +1,7 @@
 /**
  * Wizard Graph Nodes — static definitions for all wizard fields.
  *
- * 13 user-facing nodes + 4 auto-resolved nodes.
+ * 16 user-facing nodes + 4 auto-resolved nodes.
  * These are the DAG vertices; dependsOn arrays are the edges.
  *
  * Pure data — no React, no side effects, no DB calls.
@@ -118,6 +118,31 @@ export const WIZARD_GRAPH_NODES: WizardGraphNode[] = [
     mutablePostScaffold: true,
     affinityTags: ["course", "pedagogy"],
   },
+  {
+    key: "audience",
+    label: "Audience",
+    group: "course",
+    inputType: "options",
+    required: false,
+    priority: 3,
+    dependsOn: [],
+    optionsKey: "audiences",
+    promptHint: "PROPOSE based on institution type and subject level. Options: primary, secondary, sixth-form, higher-ed, adult-professional, adult-casual. E.g. 'Since this is a GCSE course, I'll set the audience to Secondary (11-16) — sound right?'",
+    mutablePostScaffold: true,
+    affinityTags: ["audience", "course"],
+  },
+  {
+    key: "learningOutcomes",
+    label: "Learning outcomes",
+    group: "course",
+    inputType: "free-text",
+    required: false,
+    priority: 2,
+    dependsOn: [],
+    promptHint: "What students should be able to do by the end. Save as array of strings. Extract from casual mentions. E.g. 'So the main goals are: understand photosynthesis, identify plant structures, and describe nutrient cycles.'",
+    mutablePostScaffold: true,
+    affinityTags: ["course", "goals"],
+  },
 
   // ── WELCOME GROUP ──────────────────────────────────────
 
@@ -176,6 +201,20 @@ export const WIZARD_GRAPH_NODES: WizardGraphNode[] = [
     promptHint: "Breadth, Balanced, or Depth.",
     mutablePostScaffold: true,
     affinityTags: ["structure", "pedagogy"],
+  },
+  {
+    key: "assessments",
+    label: "Assessment style",
+    group: "welcome",
+    inputType: "options",
+    required: false,
+    priority: 4,
+    dependsOn: [],
+    optionsKey: "assessmentStyles",
+    skipWhen: { type: "community" },
+    promptHint: "Formal (structured quizzes), Light (gentle check-ins), or None (conversational only). PROPOSE based on context.",
+    mutablePostScaffold: true,
+    affinityTags: ["assessment", "pedagogy"],
   },
 
   // ── TUNE GROUP ─────────────────────────────────────────

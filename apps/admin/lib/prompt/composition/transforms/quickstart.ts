@@ -8,7 +8,7 @@
 
 import { registerTransform } from "../TransformRegistry";
 import { classifyValue } from "../types";
-import type { SpecConfig } from "@/lib/types/json-fields";
+import type { SpecConfig, PlaybookConfig } from "@/lib/types/json-fields";
 import type { AssembledContext } from "../types";
 import { PARAMS } from "@/lib/registry";
 import { getAudienceOption } from "./audience";
@@ -41,20 +41,24 @@ registerTransform("computeQuickStart", (
 
   // Subject/course context for greeting and session orientation
   const playbook = loadedData.playbooks?.[0];
-  const subjectDiscipline = (playbook?.config as any)?.subjectDiscipline as string | undefined;
-  const courseContext = (playbook?.config as any)?.courseContext as string | undefined;
+  const pbConfig = (playbook?.config || {}) as PlaybookConfig;
+  const subjectDiscipline = pbConfig.subjectDiscipline;
+  const courseContext = pbConfig.courseContext;
   const subjectRef = subjectDiscipline || playbook?.name || null;
-  const audienceId = (playbook?.config as any)?.audience as string | undefined;
-  const constraints = (playbook?.config as any)?.constraints as string[] | undefined;
-  const sessionCount = (playbook?.config as any)?.sessionCount as number | undefined;
-  const durationMins = (playbook?.config as any)?.durationMins as number | undefined;
-  const lessonPlanModel = (playbook?.config as any)?.lessonPlanModel as string | undefined;
+  const audienceId = pbConfig.audience;
+  const constraints = pbConfig.constraints;
+  const sessionCount = pbConfig.sessionCount;
+  const durationMins = pbConfig.durationMins;
+  const lessonPlanModel = pbConfig.lessonPlanModel;
+  const courseLearningOutcomes = pbConfig.courseLearningOutcomes;
+  const emphasis = pbConfig.emphasis;
+  const assessments = pbConfig.assessments;
 
   return {
     you_are: (() => {
       let role = getRoleStatement();
       if (callerDomain?.name && (role === "A helpful voice assistant" || role.toLowerCase().includes("generic"))) {
-        const discipline = (loadedData.playbooks?.[0]?.config as any)?.subjectDiscipline as string | undefined;
+        const discipline = pbConfig.subjectDiscipline;
         role = `A ${discipline || callerDomain.name} tutor and voice assistant`;
       }
       // Append audience context (e.g. "for secondary school students (age 11-16)")
@@ -83,6 +87,24 @@ registerTransform("computeQuickStart", (
 
     lesson_model: lessonPlanModel
       ? lessonPlanModel.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+      : null,
+
+    course_goals: courseLearningOutcomes?.length
+      ? courseLearningOutcomes.join("; ")
+      : null,
+
+    teaching_emphasis: emphasis && emphasis !== "balanced"
+      ? emphasis === "breadth"
+        ? "Breadth-first: cover more topics at a lighter level rather than going deep on fewer"
+        : "Depth-first: go deep on fewer topics rather than covering many superficially"
+      : null,
+
+    assessment_style: assessments
+      ? assessments === "formal"
+        ? "Use structured assessment: quiz questions, scored exercises, and explicit progress checks"
+        : assessments === "none"
+          ? "No formal assessment: keep it conversational, gauge understanding through discussion"
+          : "Light assessment: occasional check-in questions and gentle comprehension checks"
       : null,
 
     this_caller: `${caller?.name || "Unknown"} (call #${loadedData.callCount + 1})`,
@@ -199,7 +221,8 @@ registerTransform("computeQuickStart", (
       // 1. Identity spec instruction (highest priority — persona spec)
       const identityOpening = (identitySpec?.config as SpecConfig)?.sessionStructure?.opening?.instruction;
       if (identityOpening) return identityOpening;
-      // 2. Domain welcome message (educator-configured via Settings page)
+      // 2. Course-scoped welcome (playbook.config) > Domain welcome (institution default)
+      if (isFirstCall && pbConfig.welcomeMessage) return pbConfig.welcomeMessage;
       if (isFirstCall && callerDomain?.onboardingWelcome) return callerDomain.onboardingWelcome;
       // 3. Generic fallback
       if (isFirstCall) {

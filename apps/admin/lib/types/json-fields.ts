@@ -94,6 +94,21 @@ export interface PlaybookConfig {
   physicalMaterials?: string;
   audience?: string;
   constraints?: string[]; // teacher-level "NEVER do this" pedagogical anti-patterns
+  // Identity axes (stored by course-setup wizard)
+  interactionPattern?: string; // HOW: "socratic" | "directive" | "advisory" | "coaching" | ...
+  teachingMode?: string; // WHAT: "recall" | "comprehension" | "practice" | "syllabus"
+  subjectDiscipline?: string; // e.g. "GCSE Biology", "A-Level Economics"
+  // Plan intents (used by lesson plan regeneration fallback)
+  sessionCount?: number;
+  durationMins?: number;
+  emphasis?: string; // "breadth" | "balanced" | "depth"
+  assessments?: string; // "formal" | "light" | "none"
+  lessonPlanModel?: string; // "direct_instruction" | "socratic" | etc.
+  // Course goals — educator's stated learning outcomes (distinct from module LOs)
+  courseLearningOutcomes?: string[];
+  // Course-scoped welcome (overrides Domain.onboardingWelcome)
+  welcomeMessage?: string;
+  courseContext?: string;
   [key: string]: any;
 }
 

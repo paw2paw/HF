@@ -1432,15 +1432,16 @@ async function trackCurriculumAfterCall(
 ): Promise<boolean> {
   // If we have a learning assessment, write mastery and potentially advance
   if (learningAssessment) {
-    const { specSlug, moduleId, overallMastery, masteryThreshold, allModuleIds } = learningAssessment;
+    const { specSlug, moduleId, overallMastery, outcomes, masteryThreshold, allModuleIds } = learningAssessment;
 
     try {
-      // Write mastery score for this module
+      // Write mastery score for this module + per-LO outcomes
       await updateCurriculumProgress(callerId, specSlug, {
         moduleMastery: { [moduleId]: overallMastery },
+        loMastery: Object.keys(outcomes).length > 0 ? { moduleId, outcomes } : undefined,
         lastAccessedAt: new Date(),
       });
-      log.info(`Mastery written for ${specSlug}:${moduleId}`, { mastery: overallMastery, threshold: masteryThreshold });
+      log.info(`Mastery written for ${specSlug}:${moduleId}`, { mastery: overallMastery, threshold: masteryThreshold, loCount: Object.keys(outcomes).length });
 
       // Check if mastery meets threshold → advance to next module
       if (overallMastery >= masteryThreshold) {

@@ -320,8 +320,11 @@ export interface CallerData {
     slug: string;
     name: string;
     description: string | null;
+    onboardingWelcome?: string | null;
     onboardingFlowPhases?: unknown;
     onboardingDefaultTargets?: unknown;
+    onboardingIdentitySpecId?: string | null;
+    onboardingIdentitySpec?: { id: string; slug: string; name: string } | null;
   } | null;
   domainId?: string | null;
   /** @deprecated Use cohortMemberships instead. Legacy single-cohort FK during migration. */

@@ -7462,13 +7462,13 @@ List all overlay identity specs grouped by their base archetype
 
 ### `GET` /api/lesson-plan-defaults
 
-Get resolved lesson plan defaults (flat values). Cascades: Domain → SystemSettings → hardcoded.
+Get resolved lesson plan defaults. Cascades: Course → Domain → SystemSettings → hardcoded.
 
 **Auth**: session (VIEWER+) · **Scope**: `courses:read`
 
 **Response** `200`
 ```json
-{ ok: true, defaults: LessonPlanSettings }
+{ ok: true, defaults: LessonPlanSettings } | { ok: true, defaults: LessonPlanDefaultsWithSource }
 ```
 
 ---
@@ -8627,6 +8627,12 @@ Get deep logging status
 Toggle deep logging on/off
 
 **Auth**: ADMIN · **Scope**: `admin:write`
+
+---
+
+### `GET` /api/callers/:callerId/lo-progress
+
+**Auth**: session (VIEWER+) · **Scope**: `callers:read`
 
 ---
 
@@ -13124,8 +13130,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 388 |
-| Files with annotations | 387 |
+| Route files found | 389 |
+| Files with annotations | 388 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

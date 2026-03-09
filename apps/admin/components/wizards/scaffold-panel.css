@@ -120,6 +120,18 @@
   white-space: nowrap;
 }
 
+.gs-scaffold-chip--default {
+  border: 1px dashed var(--border-default);
+  opacity: 0.65;
+  background: transparent;
+}
+
+.gs-scaffold-chip--default::after {
+  content: " ⚙";
+  font-size: 0.8em;
+  opacity: 0.6;
+}
+
 .gs-scaffold-item--active {
   background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
 }

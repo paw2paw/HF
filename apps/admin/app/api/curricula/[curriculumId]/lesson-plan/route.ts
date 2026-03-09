@@ -241,9 +241,40 @@ async function runBackgroundLessonPlanGeneration(
       return;
     }
 
-    // Extract modules from notableInfo
+    // Extract modules from notableInfo, falling back to CurriculumModule records
     const notableInfo = (curriculum.notableInfo as Record<string, any>) || {};
-    const modules: any[] = notableInfo.modules || [];
+    let modules: any[] = notableInfo.modules || [];
+
+    if (modules.length === 0) {
+      // Fallback: load first-class CurriculumModule records from DB
+      const dbModules = await prisma.curriculumModule.findMany({
+        where: { curriculumId, isActive: true },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          description: true,
+          sortOrder: true,
+          estimatedDurationMinutes: true,
+          keyTerms: true,
+          learningObjectives: {
+            select: { description: true },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      });
+
+      modules = dbModules.map((m) => ({
+        id: m.slug,
+        title: m.title,
+        description: m.description,
+        sortOrder: m.sortOrder,
+        estimatedDurationMinutes: m.estimatedDurationMinutes,
+        keyTerms: m.keyTerms,
+        learningOutcomes: m.learningObjectives.map((lo) => lo.description),
+      }));
+    }
 
     if (modules.length === 0) {
       await updateTaskProgress(taskId, {
@@ -406,8 +437,8 @@ export async function POST(
 
     const { curriculumId } = await params;
     const body = await request.json().catch(() => ({}));
-    const emphasis: string = body.emphasis || "balanced";
-    const includeAssessments: string = body.includeAssessments || "light";
+    let emphasis: string = body.emphasis || "";
+    let includeAssessments: string = body.includeAssessments || "";
 
     // Verify curriculum exists
     const curriculum = await prisma.curriculum.findUnique({
@@ -419,11 +450,11 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Curriculum not found" }, { status: 404 });
     }
 
-    // If no explicit session count/duration in body, fall back to playbook config
-    // (the "Regenerate Plan" button sends {} — read saved educator preferences)
+    // If no explicit params in body, fall back to playbook config
+    // (the "Regenerate Plan" button may send {} — read saved educator preferences)
     let totalSessionTarget: number | null = body.totalSessionTarget || null;
     let durationMins: number | null = body.durationMins || null;
-    if ((!totalSessionTarget || !durationMins) && curriculum.subjectId) {
+    if ((!totalSessionTarget || !durationMins || !emphasis || !includeAssessments) && curriculum.subjectId) {
       const playbookSubject = await prisma.playbookSubject.findFirst({
         where: { subject: { curricula: { some: { id: curriculumId } } } },
         select: { playbook: { select: { config: true } } },
@@ -431,7 +462,12 @@ export async function POST(
       const config = (playbookSubject?.playbook?.config as Record<string, any>) || {};
       if (!totalSessionTarget && config.sessionCount) totalSessionTarget = Number(config.sessionCount);
       if (!durationMins && config.durationMins) durationMins = Number(config.durationMins);
+      if (!emphasis && config.emphasis) emphasis = String(config.emphasis);
+      if (!includeAssessments && config.assessments) includeAssessments = String(config.assessments);
     }
+    // Final defaults
+    if (!emphasis) emphasis = "balanced";
+    if (!includeAssessments) includeAssessments = "light";
 
     // Check curriculum has modules
     const notableInfo = (curriculum.notableInfo as Record<string, any>) || {};

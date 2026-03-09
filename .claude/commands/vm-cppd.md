@@ -44,13 +44,16 @@ If the push is rejected, suggest `git pull --rebase` first.
 
 ## 5. Pull + migrate + restart on VM (single SSH call)
 
-First, check locally if seed files changed in the commit:
+First, check locally which files changed:
 
 ```bash
 git diff --name-only HEAD~1 HEAD -- 'apps/admin/prisma/seed*.ts' 'apps/admin/prisma/schema.prisma'
+git diff --name-only HEAD~1 HEAD -- 'apps/admin/prisma/' 'apps/admin/lib/' 'apps/admin/docs-archive/' 'apps/admin/scripts/'
 ```
 
-Then run **everything in ONE SSH connection**. Build the bash script dynamically — include the seed block only if seed files changed above. The `set -e` ensures migration failures stop execution before restarting:
+Set two flags: `SEED_CHANGED` (seed files changed) and `SEED_IMAGE_CHANGED` (prisma/lib/docs-archive/scripts changed — seed image needs rebuild).
+
+Then run **everything in ONE SSH connection**. Build the bash script dynamically — include the seed block only if seed files changed. The `set -e` ensures migration failures stop execution before restarting:
 
 ```bash
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
@@ -89,30 +92,33 @@ If migrations fail (`set -e` will cause the script to exit), report the error an
 
 Report what changed: pull results, migration output, seed status.
 
-## 6. Open tunnel
+## 6. Open tunnel + start Cloud Builds (PARALLEL)
 
-Kill stale local tunnels and open a new one:
+Do ALL of these in parallel (they are independent):
+
+### 6a. Open tunnel
+Kill stale local tunnels and open a new one in the background:
 
 ```bash
 lsof -ti:3000 | xargs kill 2>/dev/null; sleep 1
 gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- -L 3000:localhost:3000 -N
 ```
 
-Run the tunnel in the background.
-
-## 7. Build runner image via Cloud Build (on VM)
-
-Build the DEV runner image on the VM (source is already pulled from step 5):
-
+### 6b. Build runner image (always)
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
-  cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-runner.yaml \
-    --project hf-admin-prod --region europe-west2 \
-    --substitutions=_TAG=latest,_APP_ENV=DEV .
-'
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- 'cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-runner.yaml --project hf-admin-prod --region europe-west2 --substitutions=_TAG=latest,_APP_ENV=DEV . 2>&1' | tail -10
 ```
 
-## 8. Deploy to DEV Cloud Run
+### 6c. Build seed image (ONLY if SEED_IMAGE_CHANGED)
+Skip this entirely if only UI/component/CSS/page files changed. Only rebuild when prisma/, lib/, docs-archive/, or scripts/ changed.
+
+```bash
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- 'cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-seed.yaml --project hf-admin-prod --region europe-west2 --substitutions=_TAG=latest . 2>&1' | tail -10
+```
+
+Wait for runner build to complete before proceeding.
+
+## 7. Deploy to DEV Cloud Run
 
 ```bash
 gcloud run deploy hf-admin-dev \
@@ -120,22 +126,18 @@ gcloud run deploy hf-admin-dev \
   --region=europe-west2 --project=hf-admin-prod
 ```
 
-## 9. Seed demo accounts (DEV always)
+## 8. Seed demo accounts (ONLY if seed image was rebuilt)
+
+Skip entirely if seed image was NOT rebuilt in step 6c. The existing seed image is already deployed.
 
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
-  cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-seed.yaml \
-    --project hf-admin-prod --region europe-west2 \
-    --substitutions=_TAG=latest .
-'
-
 gcloud run jobs update hf-seed-dev \
   --set-env-vars=SEED_PROFILE=full \
   --region=europe-west2 --project=hf-admin-prod
 gcloud run jobs execute hf-seed-dev --region=europe-west2 --project=hf-admin-prod --wait
 ```
 
-## 10. Smoke tests
+## 9. Smoke tests
 
 ```bash
 APP_URL="https://hf-admin-dev-311250123759.europe-west2.run.app"
@@ -144,7 +146,7 @@ curl -f "$APP_URL/api/ready"
 curl -f "$APP_URL/api/system/readiness"
 ```
 
-## 11. Cloudflare cache purge
+## 10. Cloudflare cache purge
 
 ```bash
 curl -s -X POST "https://api.cloudflare.com/client/v4/zones/a75655f1818c73eaaecc232b1076dbf3/purge_cache" \
@@ -154,7 +156,7 @@ curl -s -X POST "https://api.cloudflare.com/client/v4/zones/a75655f1818c73eaaecc
   --data '{"purge_everything":true}'
 ```
 
-## 12. Deploy tagging
+## 11. Deploy tagging
 
 ```bash
 git tag -f deploy-dev-latest

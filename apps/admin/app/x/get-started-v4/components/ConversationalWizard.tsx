@@ -80,7 +80,7 @@ const REVIEW_LABELS: Record<string, string> = {
   subject: "subject",
   course: "course details",
   content: "teaching materials",
-  welcome: "welcome message",
+  welcome: "welcome message and session settings",
   lessons: "session settings",
   personality: "AI personality",
 };
@@ -509,9 +509,13 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         switch (tc.name) {
           case "update_setup": {
             const fields = tc.input.fields as Record<string, unknown>;
+            const prevSet = (getData<string[]>("userSetFields") ?? []);
+            const newSet = new Set(prevSet);
             for (const [k, v] of Object.entries(fields)) {
               setData(k, v);
+              newSet.add(k);
             }
+            setData("userSetFields", Array.from(newSet));
             // Progress panel is now always-visible in the right column — no inline injection needed
             break;
           }
@@ -578,7 +582,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
           case "mark_complete": {
             setData("launched", true);
             extras.push({
-              id: uid(),
+              id: "success-card",
               role: "system",
               systemType: "success-card",
               content: "Course launched",
@@ -705,10 +709,10 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
       const toolExtras = response.toolCalls?.length ? processToolCalls(response.toolCalls) : [];
       const contentExtras = processResponseContent(response.content, response.toolCalls || []);
 
-      // Upsert progress card (stable id "progress-card" — add once, never duplicate)
-      const hasProgressCard = newMessages.some((m) => m.id === "progress-card");
-      const filteredExtras = hasProgressCard
-        ? toolExtras.filter((m) => m.id !== "progress-card")
+      // Deduplicate stable-id cards (progress-card, success-card) — add once, never duplicate
+      const stableIds = new Set(newMessages.filter((m) => m.id === "progress-card" || m.id === "success-card").map((m) => m.id));
+      const filteredExtras = stableIds.size > 0
+        ? toolExtras.filter((m) => !stableIds.has(m.id))
         : toolExtras;
 
       let finalMessages = [...newMessages, ...filteredExtras];

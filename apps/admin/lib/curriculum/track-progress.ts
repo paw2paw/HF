@@ -20,6 +20,8 @@ import { getTrustSettings, TRUST_DEFAULTS } from "@/lib/system-settings";
 interface ProgressUpdate {
   currentModuleId?: string;
   moduleMastery?: Record<string, number>;
+  /** Per-LO mastery outcomes for a specific module */
+  loMastery?: { moduleId: string; outcomes: Record<string, number> };
   lastAccessedAt?: Date;
   /** Current lesson plan session number (1-based) */
   currentSession?: number;
@@ -29,7 +31,7 @@ interface ProgressUpdate {
  * Build storage key using contract-defined pattern
  * NO HARDCODING - reads pattern from CURRICULUM_PROGRESS_V1 contract
  */
-async function buildStorageKey(specSlug: string, keyName: string, moduleId?: string): Promise<string> {
+async function buildStorageKey(specSlug: string, keyName: string, moduleId?: string, loRef?: string): Promise<string> {
   const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
   const storageKeys = await ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
 
@@ -51,6 +53,11 @@ async function buildStorageKey(specSlug: string, keyName: string, moduleId?: str
   // Replace moduleId if present in template
   if (moduleId && key.includes('{moduleId}')) {
     key = key.replace('{moduleId}', moduleId);
+  }
+
+  // Replace loRef if present in template
+  if (loRef && key.includes('{loRef}')) {
+    key = key.replace('{loRef}', loRef);
   }
 
   return key;
@@ -116,6 +123,34 @@ export async function updateCurriculumProgress(
           },
           update: {
             numberValue: mastery,
+          },
+        })
+      );
+    }
+  }
+
+  // Update per-LO mastery outcomes
+  if (updates.loMastery) {
+    for (const [loRef, score] of Object.entries(updates.loMastery.outcomes)) {
+      const key = await buildStorageKey(specSlug, 'loMastery', updates.loMastery.moduleId, loRef);
+      writes.push(
+        prisma.callerAttribute.upsert({
+          where: {
+            callerId_key_scope: {
+              callerId,
+              key,
+              scope: 'CURRICULUM',
+            },
+          },
+          create: {
+            callerId,
+            key,
+            scope: 'CURRICULUM',
+            valueType: 'NUMBER',
+            numberValue: score,
+          },
+          update: {
+            numberValue: score,
           },
         })
       );
@@ -245,6 +280,8 @@ export async function getCurriculumProgress(
 ): Promise<{
   currentModuleId: string | null;
   modulesMastery: Record<string, number>;
+  /** Per-LO mastery: { moduleId: { loRef: score } } */
+  loMastery: Record<string, Record<string, number>>;
   lastAccessedAt: string | null;
   currentSession: number | null;
 }> {
@@ -273,17 +310,34 @@ export async function getCurriculumProgress(
   const progress = {
     currentModuleId: null as string | null,
     modulesMastery: {} as Record<string, number>,
+    loMastery: {} as Record<string, Record<string, number>>,
     lastAccessedAt: null as string | null,
     currentSession: null as number | null,
   };
+
+  // Build match prefixes from contract keys
+  const masteryPrefix = storageKeys.mastery.replace(':{moduleId}', ':');
+  const loMasteryPrefix = storageKeys.loMastery
+    ? storageKeys.loMastery.replace(':{moduleId}:{loRef}', ':')
+    : null;
 
   for (const attr of attributes) {
     const key = attr.key.replace(prefix, '');
 
     if (key === storageKeys.currentModule) {
       progress.currentModuleId = attr.stringValue;
-    } else if (key.startsWith(storageKeys.mastery.replace(':{moduleId}', ':'))) {
-      const moduleId = key.replace(storageKeys.mastery.replace(':{moduleId}', ':'), '');
+    } else if (loMasteryPrefix && key.startsWith(loMasteryPrefix)) {
+      // Parse lo_mastery:MODULE_ID:LO_REF
+      const rest = key.replace(loMasteryPrefix, '');
+      const colonIdx = rest.indexOf(':');
+      if (colonIdx > 0) {
+        const moduleId = rest.substring(0, colonIdx);
+        const loRef = rest.substring(colonIdx + 1);
+        if (!progress.loMastery[moduleId]) progress.loMastery[moduleId] = {};
+        progress.loMastery[moduleId][loRef] = attr.numberValue || 0;
+      }
+    } else if (key.startsWith(masteryPrefix)) {
+      const moduleId = key.replace(masteryPrefix, '');
       progress.modulesMastery[moduleId] = attr.numberValue || 0;
     } else if (key === storageKeys.lastAccessed) {
       progress.lastAccessedAt = attr.stringValue;

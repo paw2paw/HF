@@ -43,6 +43,7 @@ export interface CourseSetupInput {
   curriculumId?: string;
   planIntents?: PlanIntents;
   lessonPlanMode?: "accept" | "reviewed" | "skipped";
+  lessonPlanModel?: string; // "direct_instruction" | "socratic" | etc.
   // Students step — cohort/individual enrollment
   cohortGroupIds?: string[];
   selectedCallerIds?: string[];
@@ -56,6 +57,7 @@ export interface CourseSetupInput {
   interactionPattern?: string; // HOW to interact: "socratic" | "directive" | "advisory" | "coaching" | ...
   teachingMode?: string; // WHAT to emphasise: "recall" | "comprehension" | "practice" | "syllabus"
   subjectDiscipline?: string; // Subject/discipline name for prompt identity (e.g. "GCSE Biology")
+  audience?: string; // Audience segment: "primary" | "secondary" | "sixth-form" | "higher-ed" | "adult-professional" | "adult-casual" | "mixed"
   // Wizard task tracking — reuse wizard task for launch progress
   wizardTaskId?: string;
   // Optional department/division/track grouping
@@ -283,13 +285,20 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
       ctx.results.playbookId = scaffoldResult.playbook.id;
       ctx.results.playbookName = scaffoldResult.playbook.name;
 
-      // Store interactionPattern + teachingMode + subjectDiscipline in playbook config if provided
-      if (ctx.input.interactionPattern || ctx.input.teachingMode || ctx.input.subjectDiscipline) {
+      // Store identity + plan intents + course goals in playbook config
+      // (prompt composition + regenerate plan read these back via playbook.config)
+      const hasIdentity = ctx.input.interactionPattern || ctx.input.teachingMode || ctx.input.subjectDiscipline;
+      const hasPlanIntents = ctx.input.planIntents || ctx.input.sessionCount || ctx.input.durationMins;
+      const hasGoals = ctx.input.learningOutcomes?.length;
+      const hasModel = ctx.input.lessonPlanModel;
+      const hasAudience = ctx.input.audience;
+      if (hasIdentity || hasPlanIntents || hasGoals || hasModel || hasAudience) {
         const pb = await prisma.playbook.findUnique({
           where: { id: scaffoldResult.playbook.id },
           select: { config: true },
         });
-        const existingConfig = (pb?.config as Record<string, any>) || {};
+        const existingConfig = (pb?.config || {}) as Record<string, any>;
+        const planIntents = ctx.input.planIntents;
         await prisma.playbook.update({
           where: { id: scaffoldResult.playbook.id },
           data: {
@@ -298,6 +307,21 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
               ...(ctx.input.interactionPattern && { interactionPattern: ctx.input.interactionPattern }),
               ...(ctx.input.teachingMode && { teachingMode: ctx.input.teachingMode }),
               ...(ctx.input.subjectDiscipline && { subjectDiscipline: ctx.input.subjectDiscipline }),
+              // Plan intents — used by "Regenerate Plan" fallback
+              ...(planIntents?.sessionCount && { sessionCount: planIntents.sessionCount }),
+              ...(planIntents?.durationMins && { durationMins: planIntents.durationMins }),
+              ...(planIntents?.emphasis && { emphasis: planIntents.emphasis }),
+              ...(planIntents?.assessments && { assessments: planIntents.assessments }),
+              // Top-level fallbacks (when planIntents not provided)
+              ...(!planIntents?.sessionCount && ctx.input.sessionCount && { sessionCount: ctx.input.sessionCount }),
+              ...(!planIntents?.durationMins && ctx.input.durationMins && { durationMins: ctx.input.durationMins }),
+              ...(!planIntents?.emphasis && ctx.input.emphasis && { emphasis: ctx.input.emphasis }),
+              // Lesson plan model — used by quickstart.ts for prompt composition
+              ...(ctx.input.lessonPlanModel && { lessonPlanModel: ctx.input.lessonPlanModel }),
+              // Course learning outcomes — the educator's stated goals (distinct from module LOs)
+              ...(ctx.input.learningOutcomes?.length && { courseLearningOutcomes: ctx.input.learningOutcomes }),
+              // Audience segment — per-course override (falls back to domain/system default)
+              ...(ctx.input.audience && { audience: ctx.input.audience }),
             },
           },
         });
@@ -428,9 +452,29 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
       },
     });
 
+    // Also store welcome + flow phases in Playbook.config (course-scoped)
+    // so different courses in the same domain can have different onboarding
+    const playbookId = ctx.results.playbookId || domain?.playbooks?.[0]?.id;
+    if (playbookId && (resolvedWelcome || resolvedFlowPhases)) {
+      const pb = await prisma.playbook.findUnique({
+        where: { id: playbookId },
+        select: { config: true },
+      });
+      const existingPbConfig = (pb?.config || {}) as Record<string, any>;
+      await prisma.playbook.update({
+        where: { id: playbookId },
+        data: {
+          config: {
+            ...existingPbConfig,
+            ...(resolvedWelcome && { welcomeMessage: resolvedWelcome }),
+            ...(resolvedFlowPhases && { onboardingFlowPhases: resolvedFlowPhases }),
+          },
+        },
+      });
+    }
+
     // Also create PLAYBOOK-scoped BehaviorTarget rows so values are visible in PlaybookBuilder
     // applyBehaviorTargets expects flat Record<string, number>, not the structured format
-    const playbookId = domain?.playbooks?.[0]?.id;
     if (playbookId && ctx.input.behaviorTargets && Object.keys(ctx.input.behaviorTargets).length > 0) {
       await applyBehaviorTargets(playbookId, ctx.input.behaviorTargets);
     }

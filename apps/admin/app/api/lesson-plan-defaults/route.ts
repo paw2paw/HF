@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { getLessonPlanDefaults } from "@/lib/lesson-plan/defaults";
+import { getLessonPlanDefaults, getCourseDefaultsWithSource } from "@/lib/lesson-plan/defaults";
 
 /**
  * @api GET /api/lesson-plan-defaults
@@ -8,10 +8,12 @@ import { getLessonPlanDefaults } from "@/lib/lesson-plan/defaults";
  * @scope courses:read
  * @auth session (VIEWER+)
  * @tags lesson-plan
- * @description Get resolved lesson plan defaults (flat values). Cascades: Domain → SystemSettings → hardcoded.
- * Used by Course Setup Wizard IntentStep for eager plan generation.
+ * @description Get resolved lesson plan defaults. Cascades: Course → Domain → SystemSettings → hardcoded.
+ * If playbookId + domainId provided, returns values with source badges ("course" | "domain" | "system").
+ * Used by Course Setup Wizard IntentStep and Course Settings tab.
  * @query domainId string? - Optional domain ID for institution-level overrides
- * @response 200 { ok: true, defaults: LessonPlanSettings }
+ * @query playbookId string? - Optional playbook ID for course-level overrides (enables source badges)
+ * @response 200 { ok: true, defaults: LessonPlanSettings } | { ok: true, defaults: LessonPlanDefaultsWithSource }
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,8 +21,15 @@ export async function GET(request: NextRequest) {
     if (isAuthError(auth)) return auth.error;
 
     const domainId = request.nextUrl.searchParams.get("domainId");
-    const defaults = await getLessonPlanDefaults(domainId);
+    const playbookId = request.nextUrl.searchParams.get("playbookId");
 
+    // If both playbookId and domainId provided, return 3-layer cascade with source badges
+    if (playbookId && domainId) {
+      const defaults = await getCourseDefaultsWithSource(playbookId, domainId);
+      return NextResponse.json({ ok: true, defaults, withSource: true });
+    }
+
+    const defaults = await getLessonPlanDefaults(domainId);
     return NextResponse.json({ ok: true, defaults });
   } catch (error: any) {
     console.error("[lesson-plan-defaults] GET error:", error);

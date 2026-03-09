@@ -13,6 +13,7 @@ import {
 } from '@/lib/content-trust/resolve-config';
 import { LessonPlanModelPicker } from '@/components/shared/LessonPlanModelPicker';
 import type { LessonPlanModel } from '@/lib/lesson-plan/types';
+import { AUDIENCE_OPTIONS, type AudienceId } from '@/lib/prompt/composition/transforms/audience';
 import type { StepProps } from '../CourseSetupWizard';
 
 interface ExistingCourse {
@@ -41,6 +42,9 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
   const [existingCourse, setExistingCourse] = useState<ExistingCourse | null>(null);
   const [hoveredPattern, setHoveredPattern] = useState<InteractionPattern | null>(null);
   const [lessonPlanModel, setLessonPlanModel] = useState<LessonPlanModel>('direct_instruction');
+  const [teachingMode, setTeachingMode] = useState<string | null>(null);
+  const [subjectDiscipline, setSubjectDiscipline] = useState('');
+  const [audience, setAudience] = useState<AudienceId | null>(null);
 
   // Cascade-resolved lesson plan defaults (System → Domain → Runtime)
   const [resolvedDefaults, setResolvedDefaults] = useState<{
@@ -108,6 +112,12 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     if (savedGroupId) setGroupId(savedGroupId);
     if (savedModel) setLessonPlanModel(savedModel);
     if (savedSuggestions) setOutcomeSuggestions(savedSuggestions);
+    const savedTeachingMode = getData<string>('teachingMode');
+    if (savedTeachingMode) setTeachingMode(savedTeachingMode);
+    const savedDiscipline = getData<string>('subjectDiscipline');
+    if (savedDiscipline) setSubjectDiscipline(savedDiscipline);
+    const savedAudience = getData<AudienceId>('audience');
+    if (savedAudience) setAudience(savedAudience);
   }, [getData]);
 
   // Load available groups when domain is selected
@@ -250,6 +260,9 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
     setData('interactionPatternName', patternInfo?.label || selectedPattern);
     setData('teachingStyle', 'tutor');
     setData('lessonPlanModel', lessonPlanModel);
+    if (teachingMode) setData('teachingMode', teachingMode);
+    if (subjectDiscipline.trim()) setData('subjectDiscipline', subjectDiscipline.trim());
+    if (audience) setData('audience', audience);
     if (groupId) setData('groupId', groupId);
 
     // Store resolved defaults in data bag for LessonPlanStep
@@ -293,6 +306,7 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
   const effectivePattern = pattern || suggestedPattern;
   const showPattern = showOutcomes && (hasOutcome || !!suggestedPattern);
   const showModel = !!pattern; // only when explicitly selected
+  const showAdvanced = showModel; // teaching mode + subject discipline appear with model
 
   const isValid = courseName.trim().length > 0 && !!effectivePattern && !!selectedDomainId;
 
@@ -519,6 +533,86 @@ export function IntentStep({ setData, getData, onNext, onPrev, endFlow }: StepPr
               <FieldHint label="Teaching model" hint={WIZARD_HINTS["course.model"]} labelClass="hf-label" />
             </div>
             <LessonPlanModelPicker value={lessonPlanModel} onChange={setLessonPlanModel} />
+          </div>
+        )}
+
+        {/* ── Section 5: Teaching mode + Subject discipline (optional, advanced) ─── */}
+        {showAdvanced && (
+          <div className="hf-phase-reveal hf-mb-lg">
+            <FieldHint
+              label="What should the AI emphasise?"
+              hint={WIZARD_HINTS["course.teachingMode"]}
+              labelClass="hf-label"
+            />
+            <div className="hf-chip-row" role="radiogroup" aria-label="Teaching mode">
+              {([
+                { id: 'recall', label: 'Recall', desc: 'Facts, quizzes, retrieval practice' },
+                { id: 'comprehension', label: 'Comprehension', desc: 'Reading, analysis, discussion' },
+                { id: 'practice', label: 'Practice', desc: 'Worked examples, exercises' },
+                { id: 'syllabus', label: 'Syllabus', desc: 'Structured topic coverage' },
+              ] as const).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setTeachingMode(teachingMode === m.id ? null : m.id)}
+                  className={teachingMode === m.id ? 'hf-chip hf-chip-selected' : 'hf-chip'}
+                  role="radio"
+                  aria-checked={teachingMode === m.id}
+                  title={m.desc}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {!teachingMode && (
+              <p className="hf-text-xs hf-text-muted hf-mt-xs">Optional — the AI will adapt based on content if not set</p>
+            )}
+
+            <div className="hf-mt-md">
+              <FieldHint
+                label="Subject / qualification"
+                hint={WIZARD_HINTS["course.subjectDiscipline"] ?? {
+                  why: "Gives the AI a precise identity — 'GCSE Biology tutor' is better than using the course name.",
+                  effect: "Appears in the AI's self-introduction and shapes how it frames topics.",
+                  examples: ["GCSE Biology", "A-Level Economics", "Year 5 English"],
+                }}
+                labelClass="hf-label"
+              />
+              <input
+                type="text"
+                value={subjectDiscipline}
+                onChange={(e) => setSubjectDiscipline(e.target.value)}
+                placeholder="e.g. GCSE Biology, A-Level Economics (optional)"
+                className="hf-input"
+              />
+              {!subjectDiscipline && (
+                <p className="hf-text-xs hf-text-muted hf-mt-xs">Optional — falls back to course name</p>
+              )}
+            </div>
+
+            <div className="hf-mt-md">
+              <FieldHint
+                label="Who are the learners?"
+                hint={WIZARD_HINTS["course.audience"]}
+                labelClass="hf-label"
+              />
+              <div className="hf-chip-row hf-chip-row-wrap" role="radiogroup" aria-label="Audience">
+                {AUDIENCE_OPTIONS.filter(o => o.id !== 'mixed').map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setAudience(audience === opt.id ? null : opt.id)}
+                    className={audience === opt.id ? 'hf-chip hf-chip-selected' : 'hf-chip'}
+                    role="radio"
+                    aria-checked={audience === opt.id}
+                    title={`${opt.description} (${opt.ages})`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {!audience && (
+                <p className="hf-text-xs hf-text-muted hf-mt-xs">Optional — AI will adapt to the caller if not set</p>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -7,6 +7,7 @@ import { GoalPill, PlaybookPill, StatusBadge } from "@/src/components/shared/Ent
 import { EXAM_LEVEL_CONFIG } from "@/lib/curriculum/constants";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { TwoColumnTargetsDisplay } from "./CallsTab";
+import { ModuleDetailPanel } from "./cards/ModuleDetailPanel";
 import type { CallScore, CurriculumProgress, LearnerProfile, Goal, Call, MemorySummary } from "./types";
 import { CATEGORY_COLORS } from "./constants";
 
@@ -525,6 +526,7 @@ export function LearningSection({
   callerId: string;
 }) {
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedModule, setSelectedModule] = useState<{ id: string; name: string; mastery: number } | null>(null);
   const hasCurriculum = curriculum && curriculum.hasData;
   const hasProfile = learnerProfile && (
     learnerProfile.learningStyle ||
@@ -576,6 +578,7 @@ export function LearningSection({
           <div key={goal.id}>
             {isLearn ? (
               /* LEARN goal: SliderGroup with curriculum modules as sliders */
+              <>
               <SliderGroup
                 title={`${typeConfig.icon} ${goal.name} — ${Math.round(goal.progress * 100)}% — ${curriculum.completedCount}/${curriculum.totalModules} modules`}
                 color={{ primary: typeConfig.color, glow: typeConfig.glow }}
@@ -591,26 +594,43 @@ export function LearningSection({
                     </span>
                   )}
                 </div>
-                {/* One slider per curriculum module */}
+                {/* One slider per curriculum module — click to drill into LOs */}
                 {curriculum.modules.map((mod) => {
                   const modColor = MODULE_STATUS_COLORS[mod.status] || MODULE_STATUS_COLORS.not_started;
                   const isCurrent = mod.id === curriculum.nextModule;
+                  const isSelected = selectedModule?.id === mod.id;
                   return (
                     <VerticalSlider
                       key={mod.id}
                       value={mod.mastery}
                       targetValue={0.8}
-                      color={modColor}
+                      color={isSelected
+                        ? { primary: "var(--accent-primary)", glow: "var(--accent-primary)" }
+                        : modColor}
                       label={mod.name}
-                      tooltip={`${mod.name}\nStatus: ${mod.status}\nMastery: ${Math.round(mod.mastery * 100)}%\n${mod.description}`}
+                      tooltip={`${mod.name}\nStatus: ${mod.status}\nMastery: ${Math.round(mod.mastery * 100)}%\n${mod.description}\n\nClick for learning outcomes`}
                       width={56}
                       height={120}
-                      isActive={isCurrent}
+                      isActive={isCurrent || isSelected}
                       showSparkline={false}
+                      onClick={() => setSelectedModule(
+                        isSelected ? null : { id: mod.id, name: mod.name, mastery: mod.mastery }
+                      )}
                     />
                   );
                 })}
               </SliderGroup>
+              {/* Module detail panel — LO breakdown + assertions */}
+              {selectedModule && (
+                <ModuleDetailPanel
+                  callerId={callerId}
+                  moduleSlug={selectedModule.id}
+                  moduleTitle={selectedModule.name}
+                  moduleMastery={selectedModule.mastery}
+                  onClose={() => setSelectedModule(null)}
+                />
+              )}
+              </>
             ) : (
               /* Non-LEARN goal: Progress ring card */
               <div className="hf-gradient-card">

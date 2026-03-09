@@ -460,8 +460,8 @@ Before creating anything, present a structured summary:
   - **Approach:** [plain language description of teaching approach]
   - **Sessions:** [count] × [duration] min
   - **Coverage:** [plan emphasis in plain language]
-  - **Content:** [uploaded count / skipped]
-  - **Materials:** [physical materials or 'none mentioned']
+  - **Teaching materials:** [uploaded count / skipped]
+  - **Physical resources:** [textbooks/workbooks students need, or omit this line if none]
   - **Personality:** [preset names + brief description]
   - **Welcome:** [first ~20 words of welcomeMessage, or 'default']
 

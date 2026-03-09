@@ -588,3 +588,191 @@
 .hf-explore-lens {
   /* Inherits existing cdp-* styles */
 }
+
+/* ── Module Detail Panel (LO + Assertions) ──────────────── */
+
+.hf-lo-panel {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  margin-top: 12px;
+  overflow: hidden;
+  animation: hf-lo-slide-in 0.2s ease-out;
+}
+
+@keyframes hf-lo-slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hf-lo-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.hf-lo-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-muted);
+  padding: 0 2px;
+  transition: color 0.1s;
+}
+.hf-lo-close:hover { color: var(--text-primary); }
+
+.hf-lo-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.hf-lo-empty {
+  padding: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── LO Grid ──────────────────────────────────────────── */
+
+.hf-lo-grid {
+  padding: 4px 0;
+}
+
+.hf-lo-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.hf-lo-row:last-child { border-bottom: none; }
+.hf-lo-row:hover { background: var(--surface-secondary); }
+.hf-lo-row-active { background: color-mix(in srgb, var(--accent-primary) 5%, transparent); }
+
+.hf-lo-score {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  text-align: center;
+}
+
+.hf-lo-desc {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.hf-lo-ref {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.hf-lo-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-lo-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hf-lo-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  padding: 1px 5px;
+  border-radius: 4px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.hf-lo-chevron {
+  color: var(--text-placeholder);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.hf-lo-chevron-open {
+  transform: rotate(180deg);
+}
+
+/* ── Assertion Chips ──────────────────────────────────── */
+
+.hf-lo-assertions {
+  padding: 4px 16px 12px 52px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  animation: hf-lo-slide-in 0.15s ease-out;
+}
+
+.hf-assertion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  max-width: 100%;
+  transition: filter 0.1s;
+}
+
+.hf-assertion-chip:hover {
+  filter: brightness(0.95);
+}
+
+.hf-assertion-trust-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hf-assertion-cat {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.hf-assertion-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.hf-assertion-exam {
+  font-size: 10px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}

@@ -56,6 +56,10 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
   const interactionPatternName = getData<string>('interactionPatternName') || interactionPattern || '—';
   const learningOutcomes = getData<string[]>('learningOutcomes') || [];
   const lessonPlanMode = getData<string>('lessonPlanMode') || 'skipped';
+  const lessonPlanModel = getData<string>('lessonPlanModel') || 'direct_instruction';
+  const teachingMode = getData<string>('teachingMode');
+  const subjectDiscipline = getData<string>('subjectDiscipline');
+  const audience = getData<string>('audience');
   const planIntents = getData<{ sessionCount: number; durationMins: number; emphasis: string; assessments: string }>('planIntents');
   const sessionCount = getData<number>('sessionCount') || planIntents?.sessionCount || 6;
   const durationMins = getData<number>('durationMins') || planIntents?.durationMins || 15;
@@ -155,9 +159,12 @@ export function CourseDoneStep({ getData, setData, onPrev, endFlow }: StepProps)
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          courseName, learningOutcomes, teachingStyle, sessionCount, durationMins, emphasis,
+          courseName, learningOutcomes, teachingStyle, sessionCount, durationMins, emphasis, lessonPlanModel,
           domainId: getData<string>('domainId') || undefined,
           interactionPattern: interactionPattern || undefined,
+          teachingMode: teachingMode || undefined,
+          subjectDiscipline: subjectDiscipline || undefined,
+          audience: audience || undefined,
           welcomeMessage: getData<string>('welcomeMessage') || '',
           studentEmails,
           subjectId: getData<string>('subjectId') || undefined,

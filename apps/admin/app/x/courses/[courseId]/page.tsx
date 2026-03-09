@@ -186,6 +186,7 @@ export default function CourseDetailPage() {
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [regenSessionCount, setRegenSessionCount] = useState<number | null>(null);
 
   // Session Teaching Points
   const [sessionTPs, setSessionTPs] = useState<Record<number, TPItem[]>>({});
@@ -212,6 +213,11 @@ export default function CourseDetailPage() {
   const [editingDescription, setEditingDescription] = useState(false);
   const [descDraft, setDescDraft] = useState('');
   const [savingDescription, setSavingDescription] = useState(false);
+
+  // Course config defaults (Settings tab)
+  type ConfigWithSource = Record<string, { value: any; source: 'system' | 'domain' | 'course' }>;
+  const [configDefaults, setConfigDefaults] = useState<ConfigWithSource | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
 
   // ── Data Loading ─────────────────────────────────────
   useEffect(() => {
@@ -293,6 +299,10 @@ export default function CourseDetailPage() {
         .then((data) => {
           if (data.ok) {
             setSessions(data);
+            // Initialize regenerate session count from loaded plan
+            if (data.plan?.estimatedSessions && regenSessionCount === null) {
+              setRegenSessionCount(data.plan.estimatedSessions);
+            }
             // Fetch session TPs if curriculum exists
             if (data.curriculumId && !tpLoaded) {
               fetch(`/api/curricula/${data.curriculumId}/session-assertions`)
@@ -326,7 +336,16 @@ export default function CourseDetailPage() {
         .catch((e) => setSessionsError(e instanceof Error ? e.message : 'Network error'))
         .finally(() => setSessionsLoading(false));
     }
-  }, [courseId, sessions, sessionsLoading]);
+    // Lazy load course config defaults for Settings tab
+    if (tab === 'settings' && configDefaults === null && !configLoading && detail) {
+      setConfigLoading(true);
+      fetch(`/api/lesson-plan-defaults?playbookId=${detail.id}&domainId=${detail.domain.id}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.ok && data.withSource) setConfigDefaults(data.defaults); })
+        .catch(() => {})
+        .finally(() => setConfigLoading(false));
+    }
+  }, [courseId, sessions, sessionsLoading, regenSessionCount, configDefaults, configLoading, detail]);
 
   // ── Action Handlers ──────────────────────────────────
   const handlePublish = async () => {
@@ -446,7 +465,9 @@ export default function CourseDetailPage() {
       const res = await fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          ...(regenSessionCount ? { totalSessionTarget: regenSessionCount } : {}),
+        }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed to start generation');
@@ -475,7 +496,10 @@ export default function CourseDetailPage() {
             // Re-fetch sessions to get the saved plan
             const refreshRes = await fetch(`/api/courses/${courseId}/sessions`);
             const refreshData = await refreshRes.json();
-            if (refreshData.ok) setSessions(refreshData);
+            if (refreshData.ok) {
+              setSessions(refreshData);
+              if (refreshData.plan?.estimatedSessions) setRegenSessionCount(refreshData.plan.estimatedSessions);
+            }
             // Re-fetch TP assignments (plan changed, old assignments are stale)
             if (sessions.curriculumId) {
               fetch(`/api/curricula/${sessions.curriculumId}/session-assertions`)
@@ -514,7 +538,7 @@ export default function CourseDetailPage() {
       setSessionsError(err instanceof Error ? err.message : 'Regeneration failed');
       setRegenerating(false);
     }
-  }, [courseId, sessions, regenerating]);
+  }, [courseId, sessions, regenerating, regenSessionCount]);
 
   const handleRetrySessionsLoad = useCallback(() => {
     setSessionsError(null);
@@ -934,13 +958,30 @@ export default function CourseDetailPage() {
                     <span className="hf-section-title hf-mb-0">Your Lesson Plan</span>
                   </div>
                   {isOperator && sessions.curriculumId && (
-                    <button onClick={handleRegenerate} disabled={regenerating} className="hf-btn hf-btn-secondary hf-btn-sm">
-                      {regenerating ? (
-                        <><div className="hf-spinner hf-spinner-xs" /> Regenerating...</>
-                      ) : (
-                        <><RefreshCw size={13} /> Regenerate Plan</>
-                      )}
-                    </button>
+                    <div className="hf-flex hf-items-center hf-gap-sm">
+                      <label className="hf-flex hf-items-center hf-gap-xs hf-text-xs hf-text-muted">
+                        Sessions
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={regenSessionCount ?? ''}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value);
+                            setRegenSessionCount(v > 0 && v <= 100 ? v : null);
+                          }}
+                          className="hf-input hf-input-sm"
+                          style={{ width: 56 }}
+                        />
+                      </label>
+                      <button onClick={handleRegenerate} disabled={regenerating} className="hf-btn hf-btn-secondary hf-btn-sm">
+                        {regenerating ? (
+                          <><div className="hf-spinner hf-spinner-xs" /> Regenerating...</>
+                        ) : (
+                          <><RefreshCw size={13} /> Regenerate Plan</>
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="hf-flex hf-items-center hf-gap-md hf-mb-sm">
@@ -1352,13 +1393,30 @@ export default function CourseDetailPage() {
                 ))}
               </div>
               {isOperator && sessions.curriculumId && (
-                <button onClick={handleRegenerate} disabled={regenerating} className="hf-btn hf-btn-primary">
-                  {regenerating ? (
-                    <><div className="hf-spinner hf-spinner-xs" /> Generating...</>
-                  ) : (
-                    <><Sparkles size={14} /> Generate Lesson Plan</>
-                  )}
-                </button>
+                <div className="hf-flex hf-flex-col hf-items-center hf-gap-sm">
+                  <label className="hf-flex hf-items-center hf-gap-xs hf-text-xs hf-text-muted">
+                    Sessions
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={regenSessionCount ?? ''}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        setRegenSessionCount(v > 0 && v <= 100 ? v : null);
+                      }}
+                      className="hf-input hf-input-sm"
+                      style={{ width: 56 }}
+                    />
+                  </label>
+                  <button onClick={handleRegenerate} disabled={regenerating} className="hf-btn hf-btn-primary">
+                    {regenerating ? (
+                      <><div className="hf-spinner hf-spinner-xs" /> Generating...</>
+                    ) : (
+                      <><Sparkles size={14} /> Generate Lesson Plan</>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           ) : (
@@ -1409,6 +1467,49 @@ export default function CourseDetailPage() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* ── Course Configuration ─────────────────── */}
+              <SectionHeader title="Course Configuration" icon={Zap} />
+              <div className="hf-card hf-mb-lg">
+                {configLoading ? (
+                  <div className="hf-flex hf-items-center hf-gap-sm hf-text-xs hf-text-muted">
+                    <div className="hf-spinner hf-spinner-xs" /> Loading configuration...
+                  </div>
+                ) : configDefaults ? (
+                  <div className="hf-grid-2col hf-gap-sm">
+                    {([
+                      { key: 'sessionCount', label: 'Sessions' },
+                      { key: 'durationMins', label: 'Duration (min)' },
+                      { key: 'emphasis', label: 'Emphasis' },
+                      { key: 'assessments', label: 'Assessments' },
+                      { key: 'lessonPlanModel', label: 'Teaching Model' },
+                      { key: 'audience', label: 'Audience' },
+                    ] as const).map(({ key, label }) => {
+                      const entry = configDefaults[key];
+                      if (!entry) return null;
+                      const sourceBadge = entry.source === 'course'
+                        ? 'hf-chip hf-chip-xs hf-chip-success'
+                        : entry.source === 'domain'
+                          ? 'hf-chip hf-chip-xs hf-chip-info'
+                          : 'hf-chip hf-chip-xs';
+                      const sourceLabel = entry.source === 'course' ? 'Course' : entry.source === 'domain' ? 'Institution' : 'System default';
+                      return (
+                        <div key={key} className="hf-flex hf-flex-between hf-items-center hf-py-xs">
+                          <span className="hf-text-xs hf-text-muted">{label}</span>
+                          <div className="hf-flex hf-items-center hf-gap-xs">
+                            <span className="hf-text-sm hf-text-primary">
+                              {typeof entry.value === 'string' ? entry.value.replace(/_/g, ' ') : entry.value}
+                            </span>
+                            <span className={sourceBadge}>{sourceLabel}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="hf-text-xs hf-text-muted">Configuration not available</p>
+                )}
               </div>
 
               {detail.status === 'DRAFT' && (

@@ -21,11 +21,16 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
       "courseName = specific course within that subject (GCSE Biology, 11+ Comprehension). " +
       "NEVER put a broad discipline into courseName or a specific course into subjectDiscipline. " +
       "Valid field keys: institutionName, typeSlug, websiteUrl, courseName, subjectDiscipline, " +
-      "interactionPattern, teachingMode, welcomeMessage, sessionCount, durationMins, " +
-      "planEmphasis, behaviorTargets, lessonPlanModel, existingInstitutionId, existingDomainId, defaultDomainKind, " +
+      "interactionPattern, teachingMode, audience, learningOutcomes, " +
+      "welcomeMessage, sessionCount, durationMins, " +
+      "planEmphasis, assessments, behaviorTargets, lessonPlanModel, " +
+      "existingInstitutionId, existingDomainId, defaultDomainKind, " +
       "physicalMaterials, personalityPreset, personalityDescription, " +
       "courseContext, assessmentTargets, constraints, communityMode, " +
       "contentSkipped, welcomeSkipped, tuneSkipped. " +
+      "audience = learner age group (primary, secondary, sixth-form, higher-ed, adult-professional, adult-casual). " +
+      "learningOutcomes = array of strings, what students should achieve by course end. " +
+      "assessments = assessment style (formal, light, none). " +
       "courseContext = 3-5 sentence synthesis of the teacher's course philosophy, learner profile, " +
       "and teaching rationale. Capture during Phase 1b — distill WHY the course exists, WHO the learners are, " +
       "and WHAT makes the teaching approach distinctive. This reaches the voice AI on every call. " +

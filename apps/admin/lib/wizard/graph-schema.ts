@@ -60,6 +60,8 @@ export type OptionsKey =
   | "institutionTypes"
   | "interactionPatterns"
   | "teachingModes"
+  | "audiences"
+  | "assessmentStyles"
   | "sessionCounts"
   | "durations"
   | "planEmphases"

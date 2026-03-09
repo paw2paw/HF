@@ -15,6 +15,7 @@
     "keys": {
       "currentModule": "current_module",
       "mastery": "mastery:{moduleId}",
+      "loMastery": "lo_mastery:{moduleId}:{loRef}",
       "lastAccessed": "last_accessed",
       "currentSession": "current_session",
       "startedAt": "started_at",
@@ -31,6 +32,11 @@
     "mastery": {
       "type": "object",
       "description": "Map of moduleId to mastery score (0.0-1.0)",
+      "required": false
+    },
+    "loMastery": {
+      "type": "object",
+      "description": "Map of moduleId:loRef to mastery score (0.0-1.0). Per-LO breakdown of module mastery.",
       "required": false
     },
     "lastAccessed": {
