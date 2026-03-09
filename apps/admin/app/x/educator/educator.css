@@ -121,6 +121,41 @@
 .edu-dept-card:hover { border-color: var(--accent-primary); }
 .edu-dept-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
 
+/* Course cards */
+.edu-courses-section { margin-bottom: 24px; }
+.edu-courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.edu-course-card {
+  text-decoration: none;
+  transition: border-color 0.15s;
+  padding: 16px;
+}
+.edu-course-card:hover { border-color: var(--accent-primary); }
+.edu-course-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.edu-course-subject {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.edu-course-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  flex-shrink: 0;
+}
+
 /* Quick actions section */
 .edu-actions-section { margin-bottom: 32px; }
 .edu-actions-title { margin-bottom: 12px; }

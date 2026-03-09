@@ -57,7 +57,7 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention] =
+  const [classrooms, totalStudents, activeStudents, recentCalls, needsAttention, cohortPlaybooks] =
     await Promise.all([
       prisma.cohortGroup.findMany({
         where: cohortWhere,
@@ -112,6 +112,24 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
         },
         take: 10,
       }),
+
+      // Courses: playbooks assigned to educator's cohorts
+      prisma.cohortPlaybook.findMany({
+        where: { cohortGroup: cohortWhere },
+        include: {
+          playbook: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              subjects: {
+                include: { subject: { select: { name: true } } },
+              },
+              _count: { select: { enrollments: true } },
+            },
+          },
+        },
+      }),
     ]);
 
   // Assessment query is non-critical — degrade gracefully if Goal schema not yet migrated
@@ -137,6 +155,32 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
     console.warn("[educator/dashboard] Assessment goals query failed (migration pending?):", (err as Error).message);
   }
 
+  // Deduplicate playbooks across cohorts, aggregate counts
+  const courseMap = new Map<string, {
+    id: string;
+    name: string;
+    status: string;
+    subjects: string[];
+    cohortCount: number;
+    studentCount: number;
+  }>();
+  for (const cp of cohortPlaybooks) {
+    const pb = cp.playbook;
+    const existing = courseMap.get(pb.id);
+    if (existing) {
+      existing.cohortCount++;
+    } else {
+      courseMap.set(pb.id, {
+        id: pb.id,
+        name: pb.name,
+        status: pb.status,
+        subjects: pb.subjects.map((s) => s.subject.name),
+        cohortCount: 1,
+        studentCount: pb._count.enrollments,
+      });
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     classrooms: classrooms.map((c) => ({
@@ -152,6 +196,7 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
       totalStudents,
       activeThisWeek: activeStudents,
     },
+    courses: Array.from(courseMap.values()),
     recentCalls: recentCalls.map((c) => ({
       id: c.id,
       createdAt: c.createdAt,

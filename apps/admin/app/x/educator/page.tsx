@@ -21,6 +21,14 @@ interface DashboardData {
     totalStudents: number;
     activeThisWeek: number;
   };
+  courses: {
+    id: string;
+    name: string;
+    status: string;
+    subjects: string[];
+    cohortCount: number;
+    studentCount: number;
+  }[];
   recentCalls: {
     id: string;
     createdAt: string;
@@ -294,6 +302,33 @@ export default function EducatorDashboard() {
           </div>
         ))}
       </div>
+
+      {/* My Courses */}
+      {(data?.courses?.length ?? 0) > 0 && (
+        <div className="edu-courses-section">
+          <h2 className="hf-section-title">My {plural("playbook")}</h2>
+          <div className="edu-courses-grid">
+            {data!.courses.map((course) => (
+              <Link
+                key={course.id}
+                href={`/x/educator/classrooms${instQuery}`}
+                className="hf-card-compact edu-course-card"
+              >
+                <div className="edu-course-name">{course.name}</div>
+                {course.subjects.length > 0 && (
+                  <div className="edu-course-subject">
+                    <span className="edu-course-dot" />
+                    {course.subjects.join(", ")}
+                  </div>
+                )}
+                <div className="hf-text-xs hf-text-muted">
+                  {course.cohortCount} {course.cohortCount === 1 ? lower("cohort") : lowerPlural("cohort")} · {course.studentCount} {course.studentCount === 1 ? lower("caller") : lowerPlural("caller")}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Teaching Approach */}
       {subjectProfiles.length > 0 && (
