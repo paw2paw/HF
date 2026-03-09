@@ -722,7 +722,11 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         filteredExtras.push(m);
       }
 
-      let finalMessages = [...newMessages, ...filteredExtras];
+      // Success card should appear AFTER the AI text so it stays visible on scroll
+      const preExtras = filteredExtras.filter((m) => m.systemType !== "success-card");
+      const postExtras = filteredExtras.filter((m) => m.systemType === "success-card");
+
+      let finalMessages = [...newMessages, ...preExtras];
       if (response.content) {
         finalMessages = [...finalMessages, {
           id: uid(),
@@ -731,7 +735,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
           ...(response.thinkingContent ? { thinking: response.thinkingContent } : {}),
         }];
       }
-      finalMessages = [...finalMessages, ...contentExtras];
+      finalMessages = [...finalMessages, ...contentExtras, ...postExtras];
 
       // Deduplicate stable-id cards (progress-card, success-card) — keep last occurrence
       const stableCardIds = ["progress-card", "success-card"];
@@ -1182,36 +1186,36 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
                     <div className="cv4-success-title">Your AI tutor is ready</div>
                     <div className="cv4-success-sub">
                       {draftCallerId
-                        ? "Try it out, view your course, or share it with someone."
+                        ? "View your course, share it with someone, or try it out."
                         : "View your course or head to your dashboard."}
                     </div>
                     <div className="cv4-success-actions">
-                      {/* Primary — sim call */}
-                      {draftCallerId && (
+                      {/* Primary — view course */}
+                      {draftPlaybookId && (
                         <a
-                          href={`/x/sim/${draftCallerId}?${new URLSearchParams({
-                            forceFirstCall: "true",
-                            ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
-                            ...(draftDomainId ? { domainId: draftDomainId } : {}),
-                          }).toString()}`}
-                          className="hf-btn hf-btn-primary cv4-success-primary"
+                          href={`/x/courses/${draftPlaybookId}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          className="hf-btn hf-btn-primary cv4-success-primary"
                         >
-                          <Headphones size={16} /> Try a Sim Call
+                          <BookMarked size={16} /> View Your Course
                         </a>
                       )}
 
-                      {/* Secondary row — course + sharing */}
+                      {/* Secondary row — sharing + sim call */}
                       <div className="cv4-success-row">
-                        {draftPlaybookId && (
+                        {draftCallerId && (
                           <a
-                            href={`/x/courses/${draftPlaybookId}`}
+                            href={`/x/sim/${draftCallerId}?${new URLSearchParams({
+                              forceFirstCall: "true",
+                              ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
+                              ...(draftDomainId ? { domainId: draftDomainId } : {}),
+                            }).toString()}`}
+                            className="hf-btn hf-btn-secondary cv4-success-btn-half"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hf-btn hf-btn-secondary cv4-success-btn-half"
                           >
-                            <BookMarked size={14} /> View Your Course
+                            <Headphones size={14} /> Try a Sim Call
                           </a>
                         )}
                         {(communityJoinToken || draftCallerId) && (

@@ -203,8 +203,12 @@ function SourceSubProgress({
   subjects: SetupStatusInput['subjects'];
   sourceStatusMap: Record<string, import('@/components/shared/SourceStatusDots').SourceStatusData>;
 }) {
-  const sources = subjects.flatMap(
-    (s) => s.sources?.map((src) => ({ ...src, subjectName: s.name })) ?? []
+  const sources = Array.from(
+    new Map(
+      subjects.flatMap(
+        (s) => s.sources?.map((src) => ({ ...src, subjectName: s.name })) ?? []
+      ).map((src) => [src.id, src])
+    ).values()
   );
 
   if (sources.length === 0) return null;

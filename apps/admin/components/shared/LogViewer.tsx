@@ -399,6 +399,13 @@ export function LogViewer({
                       {log.usage?.inputTokens ? ` \u00b7 ${log.usage.inputTokens + (log.usage?.outputTokens || 0)} tok` : ''}
                     </div>
                   </div>
+                  <button
+                    className="logs-popup-copy-btn"
+                    title="Copy full log entry"
+                    onClick={(e) => { e.stopPropagation(); copyToClipboard(formatForClaude(log), `popup-${idx}`); }}
+                  >
+                    {copied === `popup-${idx}` ? <ClipboardCopy size={12} /> : <Copy size={12} />}
+                  </button>
                 </div>
               ))}
             </div>
