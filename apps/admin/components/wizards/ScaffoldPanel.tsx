@@ -55,14 +55,16 @@ const EMPHASIS_LABELS: Record<string, string> = {
   depth: "Depth-first",
 };
 
-/* ── Readiness dots ─────────────────────────────────── */
+/* ── Readiness dots (three-phase grouped) ──────────── */
 
 interface ReadinessDot { filled: boolean; active: boolean; processing?: boolean; label: string }
+interface ReadinessPhase { label: string; dots: ReadinessDot[]; sequential?: boolean }
 
-function ReadinessBar({ dots }: { dots: ReadinessDot[] }) {
-  const filledCount = dots.filter(d => d.filled).length;
-  const missing = dots.filter(d => !d.filled && !d.processing).map(d => d.label);
-  const processing = dots.filter(d => d.processing).map(d => d.label);
+function ReadinessBar({ phases }: { phases: ReadinessPhase[] }) {
+  const allDots = phases.flatMap(p => p.dots);
+  const filledCount = allDots.filter(d => d.filled).length;
+  const missing = allDots.filter(d => !d.filled && !d.processing).map(d => d.label);
+  const processing = allDots.filter(d => d.processing).map(d => d.label);
   const tooltipText = processing.length > 0
     ? `Processing: ${processing.join(", ")}` + (missing.length > 0 ? ` · Needs: ${missing.join(", ")}` : "")
     : missing.length > 0
@@ -71,19 +73,28 @@ function ReadinessBar({ dots }: { dots: ReadinessDot[] }) {
   return (
     <div className="gs-readiness" title={tooltipText}>
       <div className="gs-readiness-dots">
-        {dots.map((d, i) => (
-          <span
-            key={i}
-            className={
-              "gs-readiness-dot" +
-              (d.processing ? " gs-readiness-dot--processing" : d.filled ? " gs-readiness-dot--filled" : "") +
-              (d.active ? " gs-readiness-dot--active" : "")
-            }
-            title={`${d.label}: ${d.processing ? "processing…" : d.filled ? "✓" : "needed"}`}
-          />
+        {phases.map((phase, pi) => (
+          <span key={phase.label} className={`gs-phase-group${phase.sequential === false ? " gs-phase-group--parallel" : ""}`}>
+            {phase.dots.map((d, di) => (
+              <span key={di}>
+                <span
+                  className={
+                    "gs-readiness-dot" +
+                    (d.processing ? " gs-readiness-dot--processing" : d.filled ? " gs-readiness-dot--filled" : "") +
+                    (d.active ? " gs-readiness-dot--active" : "")
+                  }
+                  title={`${d.label}: ${d.processing ? "processing…" : d.filled ? "✓" : "needed"}`}
+                />
+                {phase.sequential !== false && di < phase.dots.length - 1 && (
+                  <span className={`gs-phase-connector${d.filled ? " gs-phase-connector--filled" : ""}`} />
+                )}
+              </span>
+            ))}
+            {pi < phases.length - 1 && <span className="gs-phase-sep" />}
+          </span>
         ))}
       </div>
-      <span className="gs-readiness-count">{filledCount}/{dots.length}</span>
+      <span className="gs-readiness-count">{filledCount}/{allDots.length}</span>
     </div>
   );
 }
@@ -257,11 +268,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   const clickable = !!onItemClick;
   const click = (key: string) => onItemClick?.(key);
 
-  // Readiness dots — one per section
-  const sections = isCommunity
-    ? ["institution", "course", "welcome", "personality"]
-    : ["institution", "subject", "course", "content", "welcome", "lessons", "personality"];
-
+  // Readiness — three-phase grouped dots (matches CourseSetupTracker)
   const sectionHasValue: Record<string, boolean> = {
     institution: !!institutionName,
     subject: !!subjectDiscipline,
@@ -282,14 +289,28 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
     personality: t.personality,
   };
 
-  const dots = sections.map(s => ({
+  const makeDot = (s: string): ReadinessDot => ({
     filled: getItemStatus(s, sectionHasValue[s], currentStepIndex, resolvedKeys, launched) !== "waiting",
     active: isPhaseActive(s),
     processing: s === "content" && isExtracting,
     label: SECTION_LABELS[s] || capitalize(s),
-  }));
+  });
 
-  const completedCount = dots.filter(d => d.filled).length;
+  // Phase grouping: Foundation (sequential) → Configure (parallel) → Launch
+  const phases: ReadinessPhase[] = isCommunity
+    ? [
+        { label: "Foundation", dots: ["institution", "course"].map(makeDot), sequential: true },
+        { label: "Configure", dots: ["welcome"].map(makeDot), sequential: false },
+        { label: "Launch", dots: ["personality"].map(makeDot) },
+      ]
+    : [
+        { label: "Foundation", dots: ["institution", "subject", "course"].map(makeDot), sequential: true },
+        { label: "Configure", dots: ["content", "lessons"].map(makeDot), sequential: false },
+        { label: "Launch", dots: ["welcome", "personality"].map(makeDot) },
+      ];
+
+  const allDots = phases.flatMap(p => p.dots);
+  const completedCount = allDots.filter(d => d.filled).length;
 
   // Has anything at all been filled?
   const hasAnyData = !!institutionName || !!courseName;
@@ -510,7 +531,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
         </div>
 
         {/* ── Readiness + actions ─────────────────────── */}
-        <ReadinessBar dots={dots} />
+        <ReadinessBar phases={phases} />
 
         <div className="gs-try-call">
           {launched ? (

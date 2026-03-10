@@ -3,8 +3,10 @@
 /**
  * CourseSetupTracker — numbered pipeline showing course setup progress.
  *
- * 6 stages: Course Created → Content Uploaded → Teaching Points Ready →
- * Lesson Plan Built → Tutor Configured → Ready to Teach.
+ * Three phases:
+ *   Foundation (sequential): ①②③ — Course Created → Content → Teaching Points
+ *   Configure  (parallel):   ④⑤  — Lesson Plan + Tutor (independent, any order)
+ *   Launch     (gates both): ⑥   — Ready to Teach (needs 4+5)
  *
  * Always visible above tabs. Collapsed to a single bar when all complete.
  * Expandable to show per-stage detail + source-level sub-progress.
@@ -130,35 +132,45 @@ export function CourseSetupTracker({
         </div>
       </div>
 
-      {/* ── Expanded detail ──────────────────────── */}
+      {/* ── Expanded detail (grouped by phase) ──── */}
       {expanded && (
         <div className="cst-detail">
-          <ul className="cst-stage-list">
-            {stages.map((stage) => (
-              <li key={stage.number} className="cst-stage-item">
-                <span className={`cst-stage-num cst-stage-num--${stage.status}`}>
-                  {stage.status === 'done' ? (
-                    <Check size={12} />
-                  ) : stage.status === 'error' ? (
-                    <AlertCircle size={12} />
-                  ) : (
-                    stage.number
-                  )}
-                </span>
-                <div className="cst-stage-info">
-                  <div className={`cst-stage-label${stage.status === 'pending' ? ' cst-stage-label--pending' : ''}`}>
-                    {stage.label}
-                  </div>
-                  <div className="cst-stage-detail">{stage.detail}</div>
-                  {/* Stage 3: show per-source sub-progress */}
-                  {stage.number === 3 && allSourceIds.length > 0 && stage.status !== 'pending' && (
-                    <SourceSubProgress subjects={subjects} sourceStatusMap={sourceStatusMap} />
-                  )}
-                </div>
-                <StageStatusLabel status={stage.status} />
-              </li>
-            ))}
-          </ul>
+          {[
+            { label: 'Foundation', stageNums: [1, 2, 3] },
+            { label: 'Configure', stageNums: [4, 5] },
+            { label: 'Launch', stageNums: [6] },
+          ].map((phase) => (
+            <div key={phase.label} className="cst-phase-section">
+              <div className="cst-phase-label">{phase.label}</div>
+              <ul className="cst-stage-list">
+                {stages
+                  .filter((s) => phase.stageNums.includes(s.number))
+                  .map((stage) => (
+                    <li key={stage.number} className="cst-stage-item">
+                      <span className={`cst-stage-num cst-stage-num--${stage.status}`}>
+                        {stage.status === 'done' ? (
+                          <Check size={12} />
+                        ) : stage.status === 'error' ? (
+                          <AlertCircle size={12} />
+                        ) : (
+                          stage.number
+                        )}
+                      </span>
+                      <div className="cst-stage-info">
+                        <div className={`cst-stage-label${stage.status === 'pending' ? ' cst-stage-label--pending' : ''}`}>
+                          {stage.label}
+                        </div>
+                        <div className="cst-stage-detail">{stage.detail}</div>
+                        {stage.number === 3 && allSourceIds.length > 0 && stage.status !== 'pending' && (
+                          <SourceSubProgress subjects={subjects} sourceStatusMap={sourceStatusMap} />
+                        )}
+                      </div>
+                      <StageStatusLabel status={stage.status} />
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
 
@@ -174,23 +186,55 @@ export function CourseSetupTracker({
 
 // ── Sub-components ────────────────────────────────────
 
-/** Horizontal dot bar in the header */
+/** Phase-aware horizontal dot bar: Foundation ①②③ · Configure ④ ⑤ · Launch ⑥ */
 function StepDots({ stages }: { stages: { number: number; status: StageStatus }[] }) {
+  const foundation = stages.filter((s) => s.number <= 3);
+  const configure = stages.filter((s) => s.number === 4 || s.number === 5);
+  const launch = stages.filter((s) => s.number === 6);
+
+  const renderDot = (stage: { number: number; status: StageStatus }) => (
+    <span
+      key={stage.number}
+      className={`cst-dot cst-dot--${stage.status}`}
+      title={`Step ${stage.number}`}
+    >
+      {stage.status === 'done' ? <Check size={11} /> : stage.number}
+    </span>
+  );
+
+  const renderConnector = (status: StageStatus) => (
+    <span className={`cst-connector cst-connector--${status === 'done' ? 'done' : 'pending'}`} />
+  );
+
   return (
     <div className="cst-dots">
-      {stages.map((stage, i) => (
-        <span key={stage.number}>
-          <span
-            className={`cst-dot cst-dot--${stage.status}`}
-            title={`Step ${stage.number}`}
-          >
-            {stage.status === 'done' ? <Check size={11} /> : stage.number}
+      {/* Foundation: ①─②─③ (sequential connectors) */}
+      <span className="cst-phase-group">
+        {foundation.map((stage, i) => (
+          <span key={stage.number}>
+            {renderDot(stage)}
+            {i < foundation.length - 1 && renderConnector(stage.status)}
           </span>
-          {i < stages.length - 1 && (
-            <span className={`cst-connector cst-connector--${stage.status === 'done' ? 'done' : 'pending'}`} />
-          )}
-        </span>
-      ))}
+        ))}
+      </span>
+
+      <span className="cst-phase-sep" />
+
+      {/* Configure: ④ ⑤ (parallel — no connector between them) */}
+      <span className="cst-phase-group cst-phase-group--parallel">
+        {configure.map((stage) => (
+          <span key={stage.number}>{renderDot(stage)}</span>
+        ))}
+      </span>
+
+      <span className="cst-phase-sep" />
+
+      {/* Launch: ⑥ */}
+      <span className="cst-phase-group">
+        {launch.map((stage) => (
+          <span key={stage.number}>{renderDot(stage)}</span>
+        ))}
+      </span>
     </div>
   );
 }

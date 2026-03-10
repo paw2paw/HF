@@ -310,7 +310,7 @@
 .gs-bp-empty-line--medium { width: 60%; }
 .gs-bp-empty-line--narrow { width: 40%; }
 
-/* ── Readiness bar ──────────────────────────────── */
+/* ── Readiness bar (three-phase grouped) ───────── */
 
 .gs-readiness {
   margin-top: 20px;
@@ -323,8 +323,39 @@
 
 .gs-readiness-dots {
   display: flex;
-  gap: 5px;
+  align-items: center;
+  gap: 0;
   flex-shrink: 0;
+}
+
+/* Phase groups — match CourseSetupTracker pattern */
+.gs-phase-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.gs-phase-group--parallel {
+  gap: 4px;
+}
+
+.gs-phase-sep {
+  width: 6px;
+  height: 2px;
+  margin: 0 2px;
+  background: var(--border-default);
+  border-radius: 1px;
+  opacity: 0.5;
+}
+
+.gs-phase-connector {
+  width: 8px;
+  height: 2px;
+  background: var(--border-default);
+  flex-shrink: 0;
+}
+
+.gs-phase-connector--filled {
+  background: var(--accent-primary);
 }
 
 .gs-readiness-dot {
@@ -333,6 +364,7 @@
   border-radius: 50%;
   background: var(--surface-secondary);
   transition: background 0.4s, box-shadow 0.4s;
+  flex-shrink: 0;
 }
 
 .gs-readiness-dot--filled {

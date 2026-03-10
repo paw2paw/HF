@@ -192,47 +192,61 @@ export function deriveStages(input: SetupStatusInput): CourseSetupStatus {
     detail: stage4Detail,
   });
 
-  // ── Stage 5: Tutor Configured ───────────────────────
+  // ── Stage 5: Tutor Configured (parallel with stage 4) ──
+  // Unlocks after stage 3 (Foundation complete), NOT after stage 4
   const onboardingOk = readiness?.onboardingConfigured ?? false;
   stages.push({
     number: 5,
     label: 'Tutor Configured',
-    status: onboardingOk ? 'done' : hasPlan ? 'active' : 'pending',
+    status: onboardingOk ? 'done' : stage3Status === 'done' ? 'active' : 'pending',
     detail: onboardingOk ? 'Welcome experience ready' : 'Set up the welcome message',
   });
 
-  // ── Stage 6: Ready to Teach ─────────────────────────
+  // ── Stage 6: Ready to Teach (gates on BOTH 4 + 5) ────
   const allCritical = readiness?.allCriticalPass ?? false;
+  const bothConfigured = hasPlan && onboardingOk;
   stages.push({
     number: 6,
     label: 'Ready to Teach',
-    status: allCritical ? 'done' : onboardingOk ? 'active' : 'pending',
-    detail: allCritical ? 'Ready for practice calls' : 'Complete all steps above',
+    status: allCritical ? 'done' : bothConfigured ? 'active' : 'pending',
+    detail: allCritical
+      ? 'Ready for practice calls'
+      : bothConfigured
+        ? 'Running final checks...'
+        : 'Complete steps 4 and 5',
   });
 
   // ── Summary ────────────────────────────────────────
   const completedCount = stages.filter((s) => s.status === 'done').length;
   const allComplete = completedCount === 6;
 
-  // Find current active or first pending
-  let currentStageIndex = stages.findIndex((s) => s.status === 'active');
-  if (currentStageIndex === -1) {
-    currentStageIndex = stages.findIndex((s) => s.status === 'pending');
-  }
-  if (currentStageIndex === -1) currentStageIndex = 5; // all done
+  // Parallel-aware: stages 4+5 can both be active simultaneously
+  const activeStages = stages.filter((s) => s.status === 'active');
+  const pendingStages = stages.filter((s) => s.status === 'pending');
+  const currentStageIndex = activeStages.length > 0
+    ? stages.indexOf(activeStages[0])
+    : pendingStages.length > 0
+      ? stages.indexOf(pendingStages[0])
+      : 5;
 
-  // Build next hint
-  const nextHints: Record<number, string> = {
-    0: 'Add a subject to your course',
-    1: 'Upload content files to begin',
-    2: 'Teaching points are being extracted...',
-    3: 'Review teaching points, then generate a lesson plan',
-    4: 'Configure the welcome message and tutor persona',
-    5: 'All steps complete — try a practice call!',
-  };
-  const nextHint = allComplete
-    ? 'Course is ready — try a practice call!'
-    : nextHints[currentStageIndex] ?? '';
+  // Build next hint — parallel-aware
+  let nextHint: string;
+  if (allComplete) {
+    nextHint = 'Course is ready — try a practice call!';
+  } else if (activeStages.length > 1) {
+    // Multiple active (stages 4+5 both in progress)
+    nextHint = 'Build your lesson plan and configure the tutor — in any order';
+  } else {
+    const hints: Record<number, string> = {
+      0: 'Add a subject to your course',
+      1: 'Upload content files to begin',
+      2: 'Teaching points are being extracted...',
+      3: 'Build a lesson plan and configure the tutor',
+      4: 'Configure the welcome message and tutor persona',
+      5: 'All steps complete — try a practice call!',
+    };
+    nextHint = hints[currentStageIndex] ?? '';
+  }
 
   return { stages, completedCount, allComplete, currentStageIndex, nextHint };
 }

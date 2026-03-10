@@ -56,11 +56,29 @@
   color: var(--status-success-text);
 }
 
-/* ── Step dots (horizontal bar) ──────────────── */
+/* ── Step dots (phase-grouped bar) ────────────── */
 .cst-dots {
   display: flex;
   align-items: center;
   gap: 0;
+}
+
+.cst-phase-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.cst-phase-group--parallel {
+  gap: 4px;
+}
+
+.cst-phase-sep {
+  width: 8px;
+  height: 2px;
+  margin: 0 2px;
+  background: var(--border-default);
+  border-radius: 1px;
+  opacity: 0.5;
 }
 
 .cst-dot {
@@ -118,10 +136,28 @@
   border-top: 1px solid var(--border-default);
 }
 
+.cst-phase-section {
+  padding-top: 10px;
+}
+
+.cst-phase-section + .cst-phase-section {
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 50%, transparent);
+}
+
+.cst-phase-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
 .cst-stage-list {
   list-style: none;
   margin: 0;
-  padding: 10px 0 0 0;
+  padding: 2px 0 0 0;
 }
 
 .cst-stage-item {
