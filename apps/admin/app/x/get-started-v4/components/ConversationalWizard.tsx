@@ -48,6 +48,8 @@ export interface WizardInitialContext {
 interface ConversationalWizardProps {
   initialContext?: WizardInitialContext;
   userRole?: string;
+  /** Override wizard version sent to API. Defaults to "v4". */
+  wizardVersion?: string;
 }
 
 type MessageRole = "assistant" | "user" | "system";
@@ -327,20 +329,18 @@ const WIZARD_STEPS: StepDefinition[] = [
 
 // ── Storage ──────────────────────────────────────────────
 
-const HISTORY_KEY = "gs-v4-history";
-
-function loadHistory(): Message[] {
+function loadHistory(version: string): Message[] {
   try {
-    const raw = sessionStorage.getItem(HISTORY_KEY);
+    const raw = sessionStorage.getItem(`gs-${version}-history`);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveHistory(messages: Message[]) {
+function saveHistory(messages: Message[], version: string) {
   try {
-    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(messages));
+    sessionStorage.setItem(`gs-${version}-history`, JSON.stringify(messages));
   } catch { /* quota */ }
 }
 
@@ -411,7 +411,7 @@ function previewToSessionEntries(preview: FirstCallPreviewData): SessionEntry[] 
 
 // ── Component ────────────────────────────────────────────
 
-export function ConversationalWizard({ initialContext, userRole }: ConversationalWizardProps) {
+export function ConversationalWizard({ initialContext, userRole, wizardVersion = "v4" }: ConversationalWizardProps) {
   const { getData, setData, clearData, isActive, startFlow } = useStepFlow();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -456,7 +456,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
 
   const handleStartOver = useCallback(() => {
     abortRef.current?.abort();
-    sessionStorage.removeItem(HISTORY_KEY);
+    sessionStorage.removeItem(`gs-${wizardVersion}-history`);
     clearData();
     setMessages([]);
     setInputValue("");
@@ -513,7 +513,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         const setupData = {
           ...getSetupData(),
           ...(overrides || {}),
-          _wizardVersion: "v4",
+          _wizardVersion: wizardVersion,
           _wizardThinkingEnabled: thinkingEnabled,
         };
 
@@ -539,7 +539,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         return { data: await res.json() };
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return null;
-        console.error("[wizard-v4] API error:", err);
+        console.error(`[wizard-${wizardVersion}] API error:`, err);
         return { error: "Network issue — check your connection and try again." };
       }
     },
@@ -726,7 +726,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
       const userMsg: Message = { id: uid(), role: "user", content: msg };
       const newMessages = [...messages, userMsg];
       setMessages(newMessages);
-      saveHistory(newMessages);
+      saveHistory(newMessages, wizardVersion);
       scrollToBottom();
 
       setIsLoading(true);
@@ -749,7 +749,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         };
         const withErr = [...newMessages, errMsg];
         setMessages(withErr);
-        saveHistory(withErr);
+        saveHistory(withErr, wizardVersion);
         scrollToBottom();
         setTimeout(() => inputRef.current?.focus(), 150);
         return;
@@ -797,7 +797,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
       }).reverse();
 
       setMessages(finalMessages);
-      saveHistory(finalMessages);
+      saveHistory(finalMessages, wizardVersion);
       scrollToBottom();
       setTimeout(() => inputRef.current?.focus(), 150);
 
@@ -840,7 +840,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
           m.systemType === "upload-zone" ? { ...m, resolved: true } : m,
         );
         const withUpload = [...updated, uploadMsg];
-        saveHistory(withUpload);
+        saveHistory(withUpload, wizardVersion);
         return withUpload;
       });
 
@@ -937,7 +937,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
           const assistantMsg: Message = { id: uid(), role: "assistant", content: result.data.content };
           const updated = [...messagesRef.current, assistantMsg];
           setMessages(updated);
-          saveHistory(updated);
+          saveHistory(updated, wizardVersion);
           scrollToBottom();
         }
       } catch {
@@ -1046,9 +1046,9 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
   useEffect(() => {
     if (!isActive) {
       startFlow({
-        flowId: "get-started-v4",
+        flowId: `get-started-${wizardVersion}`,
         steps: WIZARD_STEPS,
-        returnPath: "/x/get-started-v4",
+        returnPath: `/x/get-started-${wizardVersion}`,
         initialData: initialContext ? contextToInitialData(initialContext) : undefined,
       });
     }
@@ -1061,7 +1061,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
     if (!isActive || initialised.current) return;
     initialised.current = true;
 
-    const saved = loadHistory();
+    const saved = loadHistory(wizardVersion);
     if (saved.length > 0) {
       setMessages(saved);
       scrollToBottom();
@@ -1077,7 +1077,7 @@ export function ConversationalWizard({ initialContext, userRole }: Conversationa
         : "Hi! I'll help you set up your AI tutor. Tell me about the course you want to create — what subject, who it's for, and roughly how many sessions.",
     };
     setMessages([greeting]);
-    saveHistory([greeting]);
+    saveHistory([greeting], wizardVersion);
     scrollToBottom();
     setTimeout(() => inputRef.current?.focus(), 150);
   // eslint-disable-next-line react-hooks/exhaustive-deps

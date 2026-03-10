@@ -14,6 +14,7 @@ import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
 import { WIZARD_TOOLS, executeWizardTool } from "@/lib/chat/wizard-tools";
 import { buildWizardSystemPrompt, buildGraphSystemPrompt } from "@/lib/chat/wizard-system-prompt";
 import { buildConversationalSystemPrompt } from "@/lib/chat/conversational-system-prompt";
+import { buildV5SystemPrompt } from "@/lib/chat/v5-system-prompt";
 import { CONVERSATIONAL_TOOLS } from "@/lib/chat/conversational-wizard-tools";
 import { computeCurrentPhase } from "@/lib/chat/wizard-schema";
 import { evaluateGraph, buildGraphFallback } from "@/lib/wizard/graph-evaluator";
@@ -107,7 +108,12 @@ export async function POST(request: NextRequest) {
       let wizardPrompt: string;
       let wizardTools = WIZARD_TOOLS;
 
-      if (wizardVersion === "v4") {
+      if (wizardVersion === "v5") {
+        // V5: Graph-driven — no linear phases, content-first possible
+        const graphEval = evaluateGraph(setupData || {});
+        wizardPrompt = buildV5SystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
+        wizardTools = CONVERSATIONAL_TOOLS;
+      } else if (wizardVersion === "v4") {
         // V4: Conversational — no show_options/show_sliders/show_actions
         const graphEval = evaluateGraph(setupData || {});
         wizardPrompt = buildConversationalSystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
@@ -829,7 +835,11 @@ async function handleWizardModeWithTools(
     let continuationPrompt: string;
     let logPhase: string;
 
-    if (wizardVersionCont === "v4") {
+    if (wizardVersionCont === "v5") {
+      const graphEval = evaluateGraph(mergedSetupData);
+      continuationPrompt = buildV5SystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
+      logPhase = `v5:${graphEval.readinessPct}%`;
+    } else if (wizardVersionCont === "v4") {
       const graphEval = evaluateGraph(mergedSetupData);
       continuationPrompt = buildConversationalSystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
       logPhase = `conv:${graphEval.readinessPct}%`;
@@ -861,10 +871,10 @@ async function handleWizardModeWithTools(
       mergedSetupData.subjectDiscipline ||
       mergedSetupData.institutionName
     );
-    const needsV4Phase1b = wizardVersionCont === "v4" && hasIntakeData && !phase2Started;
+    const needsPlayback = (wizardVersionCont === "v4" || wizardVersionCont === "v5") && hasIntakeData && !phase2Started;
     loopMessages.push({
       role: "user",
-      content: needsV4Phase1b
+      content: needsPlayback
         ? "[System: Intake data has been saved. Write the Phase 1b playback now. Open with 'Let me play back what I've understood.' Cover the course, learners, and goals in 6-10 rich sentences. Do NOT ask about teaching approach or any other field yet.]"
         : "[System: phase advanced — continue the conversation naturally. Ask about the next field.]",
     });
@@ -903,7 +913,7 @@ async function handleWizardModeWithTools(
     // Last-resort fallback — version-aware.
     // V4 and V3 both use buildGraphFallback (graph-aware, no V2 phase prompts).
     // V2 uses buildWizardFallback (phase-based with V2 FIELD_PROMPTS).
-    if (mergedSetupData._wizardVersion === "v4" || mergedSetupData._wizardVersion === "v3") {
+    if (mergedSetupData._wizardVersion === "v5" || mergedSetupData._wizardVersion === "v4" || mergedSetupData._wizardVersion === "v3") {
       const graphEval = evaluateGraph(mergedSetupData);
       finalContent = buildGraphFallback(graphEval, mergedSetupData, allToolCalls);
     } else {
