@@ -12,7 +12,8 @@ import { getLearnerProfile } from "@/lib/learner/profile";
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
 import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
-import type { LoadedDataContext } from "./types";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
+import type { LoadedDataContext, SystemSpecData } from "./types";
 
 /** Pre-resolved content scope passed to content loaders via config. */
 type ContentScope = {
@@ -103,6 +104,12 @@ export async function loadAllData(
     loaderRegistry.get("visualAids")!(callerId, { contentScope }),
   ]);
 
+  // Filter systemSpecs by playbook's systemSpecToggles (if configured)
+  const filteredSystemSpecs = filterSpecsByToggles(
+    (systemSpecs || []) as SystemSpecData[],
+    (playbooks || []) as Array<{ config?: any }>,
+  );
+
   return {
     caller,
     memories: memories || [],
@@ -115,7 +122,7 @@ export async function loadAllData(
     callerAttributes: callerAttributes || [],
     goals: goals || [],
     playbooks: playbooks || [],
-    systemSpecs: systemSpecs || [],
+    systemSpecs: filteredSystemSpecs,
     onboardingSpec: onboardingSpec || null,
     onboardingSession: onboardingSession || null,
     subjectSources: subjectSources || null,
@@ -126,6 +133,23 @@ export async function loadAllData(
     openActions: openActions || [],
     visualAids: visualAids || [],
   };
+}
+
+/**
+ * Filter system specs by the primary playbook's systemSpecToggles.
+ * Specs toggled to isEnabled: false are excluded from composition.
+ * If no toggles are configured, all specs pass through.
+ */
+export function filterSpecsByToggles<T extends { id: string; slug: string }>(
+  specs: T[],
+  playbooks: Array<{ config?: any }>,
+): T[] {
+  const toggles = (playbooks[0]?.config as PlaybookConfig)?.systemSpecToggles || {};
+  if (Object.keys(toggles).length === 0) return specs;
+  return specs.filter((spec) => {
+    const toggle = toggles[spec.id] || toggles[spec.slug];
+    return !(toggle && toggle.isEnabled === false);
+  });
 }
 
 // =============================================================
