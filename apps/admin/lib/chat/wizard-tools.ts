@@ -1122,21 +1122,36 @@ export async function executeWizardTool(
         });
 
         // 7. Link content-upload subjects from PackUploadStep (if any)
-        if (packSubjectIds && packSubjectIds.length > 0) {
-          for (const packSubId of packSubjectIds) {
-            await prisma.playbookSubject.upsert({
-              where: { playbookId_subjectId: { playbookId, subjectId: packSubId } },
-              update: {},
-              create: { playbookId, subjectId: packSubId },
+        //    Fallback: if AI didn't pass packSubjectIds, auto-discover content
+        //    subjects already on this domain and link them to the new playbook.
+        let subjectIdsToLink = packSubjectIds ?? [];
+        if (subjectIdsToLink.length === 0 && domainId) {
+          const domainSubjects = await prisma.subjectDomain.findMany({
+            where: { domainId },
+            select: { subjectId: true },
+          });
+          const withSources = await prisma.subjectSource.findMany({
+            where: { subjectId: { in: domainSubjects.map(ds => ds.subjectId) } },
+            select: { subjectId: true },
+            distinct: ["subjectId"],
+          });
+          subjectIdsToLink = withSources
+            .map(ss => ss.subjectId)
+            .filter(id => id !== subject.id);
+        }
+        for (const packSubId of subjectIdsToLink) {
+          await prisma.playbookSubject.upsert({
+            where: { playbookId_subjectId: { playbookId, subjectId: packSubId } },
+            update: {},
+            create: { playbookId, subjectId: packSubId },
+          });
+          const domainLink = await prisma.subjectDomain.findFirst({
+            where: { subjectId: packSubId, domainId },
+          });
+          if (!domainLink) {
+            await prisma.subjectDomain.create({
+              data: { subjectId: packSubId, domainId },
             });
-            const domainLink = await prisma.subjectDomain.findFirst({
-              where: { subjectId: packSubId, domainId },
-            });
-            if (!domainLink) {
-              await prisma.subjectDomain.create({
-                data: { subjectId: packSubId, domainId },
-              });
-            }
           }
         }
 
@@ -1172,7 +1187,7 @@ export async function executeWizardTool(
         // 8b. Wire student-visible media into onboarding flow phases
         //     So the AI proactively shares materials during the first call,
         //     and the educator can see/edit attachments in the First Call Preview.
-        const allSubjectIds = [subject.id, ...(packSubjectIds || [])];
+        const allSubjectIds = [subject.id, ...subjectIdsToLink];
         const { isStudentVisibleDefault } = await import("@/lib/doc-type-icons");
         const studentMedia = await prisma.subjectMedia.findMany({
           where: { subjectId: { in: allSubjectIds } },
@@ -1284,7 +1299,7 @@ export async function executeWizardTool(
           playbookId,
           subjectName: subjectDiscipline,
           persona: interactionPattern,
-          subjectIds: packSubjectIds,
+          subjectIds: subjectIdsToLink.length > 0 ? subjectIdsToLink : packSubjectIds,
           intents: {
             sessionCount: input.sessionCount ? Number(input.sessionCount) : undefined,
             durationMins: input.durationMins ? Number(input.durationMins) : undefined,
@@ -1294,7 +1309,7 @@ export async function executeWizardTool(
 
         // Generate real lesson plan from content sources (with IDs for session-scoped content)
         const lessonPlanPreview = await generateLessonPlanPreview(
-          prisma, packSubjectIds, subject.id,
+          prisma, subjectIdsToLink.length > 0 ? subjectIdsToLink : packSubjectIds, subject.id,
           input.sessionCount ? Number(input.sessionCount) : undefined,
           input.durationMins ? Number(input.durationMins) : undefined,
         );
