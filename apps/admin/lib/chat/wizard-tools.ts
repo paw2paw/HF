@@ -1028,6 +1028,7 @@ export async function executeWizardTool(
         }
 
         // 1. Create or find Subject
+        console.log(`[wizard-tools] create_course: NEW COURSE PATH — domainId=${domainId}, courseName=${courseName}`);
         const subjectSlug = slugify(subjectDiscipline, { lower: true, strict: true });
         let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
         if (!subject) {
@@ -1147,6 +1148,7 @@ export async function executeWizardTool(
             .map(ss => ss.subjectId)
             .filter(id => id !== subject.id);
         }
+        console.log(`[wizard-tools] auto-link: packSubjectIds=${JSON.stringify(packSubjectIds?.length ?? 'undefined')}, resolved=${subjectIdsToLink.length} subjects to link for playbook ${playbookId}`);
         for (const packSubId of subjectIdsToLink) {
           await prisma.playbookSubject.upsert({
             where: { playbookId_subjectId: { playbookId, subjectId: packSubId } },
