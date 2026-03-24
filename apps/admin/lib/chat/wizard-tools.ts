@@ -364,14 +364,26 @@ export async function executeWizardTool(
                 `Proceed to the Course phase.`;
             } else if (resolved.subjects.length === 1 && resolved.subjects[0].courses.length === 1) {
               // Smart auto-commit: if only 1 subject with only 1 course, include full chain
+              // BUT respect user's explicit courseName if it differs from the existing course
               const sub = resolved.subjects[0];
               const course = sub.courses[0];
-              subjectContext +=
-                `\nAUTO-COMMIT CHAIN: Only one subject ("${sub.name}") with one course ("${course.name}"` +
-                `${course.interactionPattern ? `, ${course.interactionPattern}` : ""}). ` +
-                `Call update_setup with: { subjectDiscipline: "${sub.name}", courseName: "${course.name}"` +
-                `${course.interactionPattern ? `, interactionPattern: "${course.interactionPattern}"` : ""} ` +
-                `} — tell the user what you found and skip to next uncollected field.`;
+              const userCourse = (fields.courseName as string | undefined) || (setupData?.courseName as string | undefined);
+              const userWantsDifferent = userCourse && course.name.toLowerCase() !== userCourse.toLowerCase();
+              if (userWantsDifferent) {
+                subjectContext +=
+                  `\nAUTO-COMMIT SUBJECT: Only one subject ("${sub.name}"). ` +
+                  `Call update_setup with: { subjectDiscipline: "${sub.name}" }. ` +
+                  `Existing course "${course.name}" found but user named their course "${userCourse}". ` +
+                  `Do NOT auto-commit the existing course. Ask user: use existing "${course.name}" or create new "${userCourse}"?` +
+                  `\nShow as show_options for courseName: "${course.name}" and "Create '${userCourse}' as new course".`;
+              } else {
+                subjectContext +=
+                  `\nAUTO-COMMIT CHAIN: Only one subject ("${sub.name}") with one course ("${course.name}"` +
+                  `${course.interactionPattern ? `, ${course.interactionPattern}` : ""}). ` +
+                  `Call update_setup with: { subjectDiscipline: "${sub.name}", courseName: "${course.name}"` +
+                  `${course.interactionPattern ? `, interactionPattern: "${course.interactionPattern}"` : ""} ` +
+                  `} — tell the user what you found and skip to next uncollected field.`;
+              }
             } else if (resolved.subjects.length === 1) {
               const sub = resolved.subjects[0];
               subjectContext +=
@@ -495,15 +507,28 @@ export async function executeWizardTool(
             const sub = resolved.subjects[0];
 
             // Build course context so the AI knows what courses exist for this subject
+            // If the user already provided a courseName that differs from the only existing course,
+            // don't auto-commit — they want a NEW course with that name.
+            const userCourseName = (fields.courseName as string | undefined) || (setupData?.courseName as string | undefined);
             let courseContext = "";
             if (sub.courses.length === 1) {
               const c = sub.courses[0];
-              courseContext =
-                `\nAUTO-COMMIT COURSE: Only one course for this subject: "${c.name}" (playbookId: ${c.id}` +
-                `${c.interactionPattern ? `, interactionPattern: ${c.interactionPattern}` : ""}). ` +
-                `Call update_setup with: { courseName: "${c.name}", draftPlaybookId: "${c.id}"` +
-                `${c.interactionPattern ? `, interactionPattern: "${c.interactionPattern}"` : ""} }. ` +
-                `Tell the user what you found. Skip to the next uncollected field (likely content upload).`;
+              const userWantsDifferentCourse = userCourseName &&
+                c.name.toLowerCase() !== userCourseName.toLowerCase();
+              if (userWantsDifferentCourse) {
+                courseContext =
+                  `\nExisting course "${c.name}" found, but user already named their course "${userCourseName}". ` +
+                  `Do NOT auto-commit the existing course. Create a new course named "${userCourseName}" instead. ` +
+                  `Ask: "There's already a course called '${c.name}' — would you like to use it, or create '${userCourseName}' as a new course?"` +
+                  `\nShow as show_options for courseName (radio mode): "${c.name}" and "Create '${userCourseName}' as new course".`;
+              } else {
+                courseContext =
+                  `\nAUTO-COMMIT COURSE: Only one course for this subject: "${c.name}" (playbookId: ${c.id}` +
+                  `${c.interactionPattern ? `, interactionPattern: ${c.interactionPattern}` : ""}). ` +
+                  `Call update_setup with: { courseName: "${c.name}", draftPlaybookId: "${c.id}"` +
+                  `${c.interactionPattern ? `, interactionPattern: "${c.interactionPattern}"` : ""} }. ` +
+                  `Tell the user what you found. Skip to the next uncollected field (likely content upload).`;
+              }
             } else if (sub.courses.length > 1) {
               const courseLines = sub.courses.map((c) =>
                 `  - "${c.name}" (playbookId: ${c.id}${c.interactionPattern ? `, ${c.interactionPattern}` : ""})`
@@ -515,9 +540,12 @@ export async function executeWizardTool(
               courseContext = "\nNo existing courses for this subject — ask for course name next.";
             }
 
+            // Only auto-inject the existing course if user didn't name a different one
+            const shouldAutoInjectCourse = sub.courses.length === 1 &&
+              !(userCourseName && sub.courses[0].name.toLowerCase() !== userCourseName.toLowerCase());
             return {
               ...base,
-              autoInjectFields: sub.courses.length === 1 ? {
+              autoInjectFields: shouldAutoInjectCourse ? {
                 draftPlaybookId: sub.courses[0].id,
                 courseName: sub.courses[0].name,
                 ...(sub.courses[0].interactionPattern ? { interactionPattern: sub.courses[0].interactionPattern } : {}),
@@ -833,7 +861,19 @@ export async function executeWizardTool(
         // ── Guard: existing course resolved via entity resolution ──
         // If draftPlaybookId is already set, skip scaffolding — just apply config tweaks
         // and create a test caller enrolled in the existing course.
-        const existingPlaybookId = setupData?.draftPlaybookId as string | undefined;
+        // BUT: if the user explicitly named a different course, ignore the draftPlaybookId
+        // and create a brand new course with their chosen name.
+        let existingPlaybookId = setupData?.draftPlaybookId as string | undefined;
+        if (existingPlaybookId && courseName) {
+          const existingPbName = await prisma.playbook.findUnique({
+            where: { id: existingPlaybookId },
+            select: { name: true },
+          });
+          if (existingPbName && existingPbName.name.toLowerCase() !== courseName.toLowerCase()) {
+            console.log(`[wizard-tools] create_course: user named course "${courseName}" but draftPlaybookId points to "${existingPbName.name}" — creating new course instead`);
+            existingPlaybookId = undefined;
+          }
+        }
         if (existingPlaybookId) {
           const existingPb = await prisma.playbook.findUnique({
             where: { id: existingPlaybookId },
