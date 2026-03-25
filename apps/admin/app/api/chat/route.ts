@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     // Build mode-specific system prompt with terminology
     const userInstitutionId = authResult.session.user.institutionId;
-    const systemPrompt = await buildSystemPrompt(mode as "DATA" | "CALL" | "BUG", entityContext, bugContext, userRole, userInstitutionId);
+    const { prompt: systemPrompt, llmPrompt } = await buildSystemPrompt(mode as "DATA" | "CALL" | "BUG", entityContext, bugContext, userRole, userInstitutionId);
 
     // Prepare messages with conversation history
     const lastHistoryMessage = conversationHistory[conversationHistory.length - 1];
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
       if (callerEntity && requestCallId) {
         return await handleCallModeWithTools(
           messages, callPoint, engine, selectedEngine, mode, message,
-          entityContext, conversationHistory, callerEntity.id, requestCallId
+          entityContext, conversationHistory, callerEntity.id, requestCallId, llmPrompt
         );
       }
 
@@ -373,9 +373,10 @@ async function handleCallModeWithTools(
   conversationHistory: { role: string; content: string }[],
   callerId: string,
   callId: string,
+  llmPrompt?: unknown,
 ): Promise<Response> {
-  // Check if there's any content to share
-  const catalog = await buildContentCatalog(callerId, callId);
+  // Check if there's any content to share (scoped to current session when lesson plan exists)
+  const catalog = await buildContentCatalog(callerId, callId, llmPrompt);
 
   // No content available — fall back to standard streaming (no tools needed)
   if (!catalog) {
@@ -533,6 +534,8 @@ function detectComplexWizardTurn(
   setupData: Record<string, unknown>,
 ): boolean {
   const words = message.trim().split(/\s+/);
+  // Post-upload analysis: AI must digest classifications + course reference material
+  if (setupData.lastUploadClassifications) return true;
   // Long message: likely multi-field or nuanced intent
   if (words.length > 35) return true;
   // Amendment/correction language

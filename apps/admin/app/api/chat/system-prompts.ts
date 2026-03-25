@@ -40,13 +40,19 @@ Always use the user-facing labels above when talking to this user. Never expose 
 /**
  * Build mode-specific system prompt with entity context
  */
+export interface SystemPromptResult {
+  prompt: string;
+  /** Stored llmPrompt JSON from the most recent ComposedPrompt (CALL mode only) */
+  llmPrompt?: unknown;
+}
+
 export async function buildSystemPrompt(
   mode: ChatMode,
   entityContext: EntityBreadcrumb[],
   bugContext?: BugContext,
   userRole?: string,
   institutionId?: string | null,
-): Promise<string> {
+): Promise<SystemPromptResult> {
   // Resolve terminology for this user
   const terms = await resolveTerminology(
     (userRole as any) || "ADMIN",
@@ -58,11 +64,11 @@ export async function buildSystemPrompt(
 
   switch (mode) {
     case "DATA":
-      return DATA_SYSTEM_PROMPT + termBlock + `\n\n${baseContext}`;
+      return { prompt: DATA_SYSTEM_PROMPT + termBlock + `\n\n${baseContext}` };
     case "CALL":
       return await buildCallSimPrompt(entityContext, terms, termBlock);
     case "BUG":
-      return await buildBugDiagnosisPrompt(entityContext, bugContext, termBlock);
+      return { prompt: await buildBugDiagnosisPrompt(entityContext, bugContext, termBlock) };
   }
 }
 
@@ -823,7 +829,7 @@ async function getDomainContext(domainId: string): Promise<string | null> {
  * Uses renderVoicePrompt() for the same voice-optimized format that VAPI receives,
  * giving a realistic simulation of the actual call experience.
  */
-async function buildCallSimPrompt(entityContext: EntityBreadcrumb[], terms?: TermMap, termBlock?: string): Promise<string> {
+async function buildCallSimPrompt(entityContext: EntityBreadcrumb[], terms?: TermMap, termBlock?: string): Promise<SystemPromptResult> {
   const callerEntity = entityContext.find((e) => e.type === "caller");
   const goalEntity = entityContext.find((e) => e.type === "demonstrationGoal");
   const goalPrefix = goalEntity?.label
@@ -831,11 +837,11 @@ async function buildCallSimPrompt(entityContext: EntityBreadcrumb[], terms?: Ter
     : "";
 
   if (!callerEntity) {
-    return `You are simulating a VAPI voice AI call.
+    return { prompt: `You are simulating a VAPI voice AI call.
 
 No caller is currently selected. Please navigate to a caller to enable personalized simulation.
 
-For now, respond as a friendly, helpful voice AI assistant. Keep responses short (1-3 sentences) and conversational.`;
+For now, respond as a friendly, helpful voice AI assistant. Keep responses short (1-3 sentences) and conversational.` };
   }
 
   try {
@@ -848,9 +854,12 @@ For now, respond as a friendly, helpful voice AI assistant. Keep responses short
     // If we have a composed prompt with llmPrompt JSON, use the voice-optimized renderer
     if (composedPrompt?.llmPrompt) {
       const voicePrompt = renderVoicePrompt(composedPrompt.llmPrompt as any);
-      return `You are simulating a VAPI voice AI call. This is the EXACT prompt the voice AI receives.
+      return {
+        prompt: `You are simulating a VAPI voice AI call. This is the EXACT prompt the voice AI receives.
 Keep responses SHORT (1-3 sentences) — this is voice, not text.
-${goalPrefix}${voicePrompt}${termBlock || ""}`;
+${goalPrefix}${voicePrompt}${termBlock || ""}`,
+        llmPrompt: composedPrompt.llmPrompt,
+      };
     }
 
     // Fallback: no composed prompt — use basic caller info
@@ -887,12 +896,12 @@ No composed prompt found — run "Compose Prompt" for this caller first for the 
       }
     }
 
-    return parts.join("\n") + (termBlock || "");
+    return { prompt: parts.join("\n") + (termBlock || "") };
   } catch {
-    return `You are simulating a VAPI voice AI call with caller ${callerEntity.label}.
+    return { prompt: `You are simulating a VAPI voice AI call with caller ${callerEntity.label}.
 
 Keep responses short (1-3 sentences) and conversational.
-Be helpful, warm, and natural.${termBlock || ""}`;
+Be helpful, warm, and natural.${termBlock || ""}` };
   }
 }
 

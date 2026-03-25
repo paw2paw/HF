@@ -11627,6 +11627,7 @@ List all subjects with source, domain, curriculum counts, and lesson plan sessio
 |-----------|-----|------|----------|-------------|
 | activeOnly | query | string | No | "false" to include inactive (default: true) |
 | domainId | query | string | No | Filter to subjects linked to this domain |
+| courseId | query | string | No | Filter to subjects linked to this course (playbook) |
 
 **Response** `200`
 ```json

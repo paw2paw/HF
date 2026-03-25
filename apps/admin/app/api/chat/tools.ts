@@ -112,10 +112,14 @@ async function handleShareContent(
  * Build a list of available teaching materials for the system prompt.
  * Loaded from the caller's domain subjects.
  *
+ * When a composed prompt with lesson plan data is available, filters to only
+ * the media assigned to the current session (via visualAids.available[].currentSession).
+ * Falls back to the full catalog when no lesson plan / first call / no visualAids.
+ *
  * For first calls, annotates media with phase assignments from the domain's
  * onboardingFlowPhases config (phases[].content[].mediaId).
  */
-export async function buildContentCatalog(callerId: string, callId?: string): Promise<string | null> {
+export async function buildContentCatalog(callerId: string, callId?: string, llmPrompt?: unknown): Promise<string | null> {
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: {
@@ -210,11 +214,30 @@ export async function buildContentCatalog(callerId: string, callId?: string): Pr
 
   // Deduplicate
   const seen = new Set<string>();
-  const unique = items.filter((i) => {
+  const deduped = items.filter((i) => {
     if (seen.has(i.media.id)) return false;
     seen.add(i.media.id);
     return true;
   });
+
+  // Session-scope: when a composed prompt has lesson plan media assignments,
+  // filter to only show the current session's materials (+ already-shared items).
+  // Falls back to full catalog when no lesson plan or first call.
+  let unique = deduped;
+  let sessionScoped = false;
+  if (!isFirstCallInDomain && llmPrompt) {
+    const visualAids = (llmPrompt as any)?.visualAids;
+    const available: Array<{ mediaId: string; currentSession?: boolean }> = visualAids?.available;
+    if (available?.length) {
+      const sessionMediaIds = new Set(
+        available.filter((a) => a.currentSession === true).map((a) => a.mediaId),
+      );
+      if (sessionMediaIds.size > 0) {
+        unique = deduped.filter((i) => sessionMediaIds.has(i.media.id));
+        sessionScoped = true;
+      }
+    }
+  }
 
   // Batch-load assertion context for each media item
   const mediaIds = unique.map((i) => i.media.id);
@@ -253,7 +276,9 @@ export async function buildContentCatalog(callerId: string, callId?: string): Pr
 
   let instructions = "When discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. \"Take a look at the passage I just sent you\").\n\nIMPORTANT: Never re-share content already sent to the learner. Items marked \"ALREADY SHARED\" must NOT be shared again — just reference them naturally.";
 
-  if (phaseMediaMap.size > 0) {
+  if (sessionScoped) {
+    instructions += "\n\nThese materials are specifically assigned to THIS session's lesson plan. Share them at the appropriate point in the conversation — don't rush through all at once.";
+  } else if (phaseMediaMap.size > 0) {
     instructions += "\n\nItems marked with \"SHARE DURING\" are assigned to specific onboarding phases. Share them at the indicated point in the session flow.";
   }
 
