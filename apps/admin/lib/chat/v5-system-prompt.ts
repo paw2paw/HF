@@ -58,8 +58,10 @@ export function buildV5SystemPrompt(
       ? `### Subject catalog\n${formatSubjectCatalog(subjectsCatalog)}\n\nWhen discussing the subject, mention 3-4 relevant options from this catalog if helpful.\nIf the user's subject isn't listed, accept whatever they say.`
       : "No predefined subjects available — accept whatever subject the user describes.";
 
-  // Detect if the user has described their course but Phase 1b hasn't happened yet
-  const hasIntakeData = !!(setupData.courseName || setupData.subjectDiscipline);
+  // Detect if the user has described their course but Phase 1b hasn't happened yet.
+  // Content-first: classifications exist from upload → also needs playback.
+  const hasIntakeData = !!(setupData.courseName || setupData.subjectDiscipline ||
+    (Array.isArray(setupData.lastUploadClassifications) && setupData.lastUploadClassifications.length > 0));
   const phase2Started = !!(setupData.interactionPattern || setupData.planEmphasis || setupData.draftPlaybookId);
   const needsPlayback = hasIntakeData && !phase2Started && !setupData.courseContext;
 
@@ -286,6 +288,8 @@ A skipped field is SATISFIED — never ask about it again.
 3. **Follow the graph priority ordering.** No fixed phases.
 4. **PROPOSE, DON'T ASK** for any field you can infer. BANNED: "What teaching approach would you like?"
 5. **AFFIRMATION = CONFIRMED. ADVANCE IMMEDIATELY.** Call update_setup with the value, move to next priority.
+5b. **After playback is confirmed**, call update_setup with courseContext — a 3-5 sentence third-person
+    synthesis (e.g. "This is a GCSE English Language course for Year 10..."). This feeds the voice AI.
 6. NEVER re-ask something already collected.
 7. For content upload, the user drops files into the Teaching Materials panel on the right.
 8. Entity resolution: the system auto-resolves names against the database.

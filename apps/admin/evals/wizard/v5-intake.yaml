@@ -299,6 +299,38 @@ tests:
           }
           return true;
 
+  # ── Content-first intake (upload before describing) ──────────────────────
+
+  - description: "INTAKE: Content upload message → triggers playback, not field questions"
+    vars:
+      userMessage: "Teaching materials uploaded — I've added my GCSE English past papers and a comprehension textbook."
+    assert:
+      - type: llm-rubric
+        value: "Responds with a rich playback (6+ sentences) reflecting what the uploaded materials suggest about the course. Does NOT jump to asking about teaching approach or sessions. Ends with a confirmation question."
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const opts = _tc.find(t => t.name === 'show_options');
+          if (opts) return { pass: false, score: 0, reason: 'show_options called during content-first playback — should do playback first' };
+          return true;
+
+  # ── courseContext synthesis after playback confirmation ───────────────────
+
+  - description: "INTAKE: Playback confirmation → saves courseContext via update_setup"
+    vars:
+      userMessage: "That's right"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const update = _tc.find(t => t.name === 'update_setup');
+          if (!update) return { pass: false, score: 0, reason: 'No update_setup after playback confirmation — courseContext not saved' };
+          const fields = update.args?.fields || update.args || {};
+          if (!fields.courseContext) return { pass: false, score: 0, reason: 'courseContext not saved — this feeds the voice AI on every call' };
+          return true;
+
   # ── No XML tags in playback ─────────────────────────────────────────────
 
   - description: "INTAKE: Playback contains no XML tags"
