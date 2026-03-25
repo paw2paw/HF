@@ -50,6 +50,8 @@ interface SourcesPanelProps {
   onSourcesReady?: (data: SourcesReadyData) => void;
   /** Called when background extraction finishes (all sources have assertions) */
   onExtractionDone?: (totals: { assertions: number; questions: number; vocabulary: number }) => void;
+  /** Called when file processing begins (classification step) — use for chat-level indicators */
+  onProcessingStart?: () => void;
 }
 
 type Phase = "idle" | "analyzing" | "uploading" | "tracking" | "done" | "error";
@@ -69,6 +71,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
   glow,
   onSourcesReady,
   onExtractionDone,
+  onProcessingStart,
 }, ref) {
   const [files, setFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -156,6 +159,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
 
     setPhase("analyzing");
     setError(null);
+    onProcessingStart?.();
 
     try {
       // Step 1: Classify files

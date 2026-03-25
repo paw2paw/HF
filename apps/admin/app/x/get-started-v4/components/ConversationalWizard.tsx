@@ -809,6 +809,13 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
     [inputValue, isLoading, messages, sendToAPI, processToolCalls, processResponseContent, scrollToBottom],
   );
 
+  // ── File processing started (from SourcesPanel) — show typing dots immediately ──
+
+  const handleProcessingStart = useCallback(() => {
+    setUploadPending(true);
+    scrollToBottom();
+  }, [scrollToBottom]);
+
   // ── Sources ready (from SourcesPanel in right column) ──
 
   const handleSourcesReady = useCallback(
@@ -1002,8 +1009,14 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        // When an OptionsCard is active, block the newline but don't send
-        if (hasActiveOptions) return;
+        // If user typed text, auto-resolve any active options card and send
+        if (hasActiveOptions && inputValue.trim()) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.systemType === "options" && !m.resolved ? { ...m, resolved: true } : m,
+            ),
+          );
+        }
         handleSend();
         return;
       }
@@ -1581,6 +1594,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
               subjectDiscipline={getData<string>("subjectDiscipline") || undefined}
               institutionName={getData<string>("institutionName") || undefined}
               glow={sourcesGlow}
+              onProcessingStart={handleProcessingStart}
               onSourcesReady={handleSourcesReady}
               onExtractionDone={handleExtractionDone}
             />

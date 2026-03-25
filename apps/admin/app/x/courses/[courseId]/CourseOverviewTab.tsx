@@ -108,7 +108,7 @@ function SpecChipList({ specs, icon: Icon, label }: {
         <Icon size={15} className="hf-text-muted" />
         <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase">{label}</span>
       </div>
-      <div className="hf-flex hf-flex-col hf-gap-xs">
+      <div className="hf-flex-col hf-gap-xs">
         {specs.map(s => (
           <div key={s.slug} className="hf-flex hf-gap-sm hf-items-start">
             <ChevronRight size={12} className="hf-text-placeholder hf-flex-shrink-0 hf-mt-xs" />
@@ -221,7 +221,7 @@ export function CourseOverviewTab({
             No goals configured. Set goals in the Course Setup wizard to track learner progress.
           </div>
         ) : (
-          <div className="hf-flex hf-flex-col hf-gap-sm">
+          <div className="hf-flex-col hf-gap-sm">
             {goals.map((g, i) => {
               const typeConfig = GOAL_TYPE_CONFIG[g.type] || { label: g.type, color: 'var(--text-muted)' };
               return (
@@ -347,7 +347,7 @@ export function CourseOverviewTab({
             )}
           </div>
         ) : editingAudience ? (
-          <div className="hf-flex hf-flex-col hf-gap-xs">
+          <div className="hf-flex-col hf-gap-xs">
             {AUDIENCE_OPTIONS.map((opt) => (
               <button
                 key={opt.id}

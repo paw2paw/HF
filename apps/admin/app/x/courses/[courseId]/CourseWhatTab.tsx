@@ -128,7 +128,7 @@ function SourceTree({ sources, courseId, subjectId }: { sources: SourceDetail[];
   if (sources.length === 0) return null;
 
   return (
-    <div className="hf-flex hf-flex-col hf-gap-xs hf-mt-sm">
+    <div className="hf-flex-col hf-gap-xs hf-mt-sm">
       {roots.map((src) => {
         const children = childrenOf(src.id);
         const info = getDocTypeInfo(src.documentType);
@@ -407,7 +407,7 @@ export function CourseWhatTab({
       <div className="hf-card-compact hf-mb-lg">
         {/* Wizard-defined goals */}
         {goals.length > 0 && (
-          <div className="hf-flex hf-flex-col hf-gap-sm hf-mb-md">
+          <div className="hf-flex-col hf-gap-sm hf-mb-md">
             {goals.map((g, i) => {
               const typeConfig = GOAL_TYPE_CONFIG[g.type] || { label: g.type, color: 'var(--text-muted)' };
               return (
