@@ -315,7 +315,7 @@ export function SortableList<T>({
   // Empty state
   if (items.length === 0) {
     return (
-      <div className="hf-flex hf-flex-col hf-gap-sm">
+      <div className="hf-flex-col hf-gap-sm">
         <div className="hf-sortable-empty" data-testid="empty-state">
           {emptyLabel}
         </div>
@@ -329,7 +329,7 @@ export function SortableList<T>({
   // Sectioned layout
   if (grouped && sections) {
     return (
-      <div className="hf-flex hf-flex-col">
+      <div className="hf-flex-col">
         {sections.map((section, sectionIdx) => {
           const sectionItems = grouped.get(section.key) || [];
           return (
@@ -380,7 +380,7 @@ export function SortableList<T>({
 
   // Flat layout
   return (
-    <div className="hf-flex hf-flex-col">
+    <div className="hf-flex-col">
       {items.map((item, index) => renderItem(item, index))}
       {onAdd && !disabled && (
         <AddButton label={addLabel} onClick={() => onAdd()} />

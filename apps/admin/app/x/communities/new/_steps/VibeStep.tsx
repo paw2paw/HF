@@ -246,7 +246,7 @@ export function VibeStep({ getData, setData, onNext, onPrev }: StepRenderProps) 
           <p className="hf-page-subtitle">Add topics — each gets its own AI interaction style</p>
         </div>
 
-        <div className="hf-flex hf-flex-col hf-gap-md hf-mb-lg">
+        <div className="hf-flex-col hf-gap-md hf-mb-lg">
           {topics.map((topic, index) => (
             <div
               key={index}

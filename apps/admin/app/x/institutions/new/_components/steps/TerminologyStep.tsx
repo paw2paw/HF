@@ -105,7 +105,7 @@ export function TerminologyStep({ getData, setData, onNext, onPrev }: StepRender
             <span className="hf-text-sm hf-text-muted">Loading terminology…</span>
           </div>
         ) : baseTerminology ? (
-          <div className="hf-flex hf-flex-col hf-gap-md">
+          <div className="hf-flex-col hf-gap-md">
             {TERM_PREVIEW_KEYS.map(({ key, label }) => {
               const isCustom = overrides[key] && !TERM_SUGGESTIONS[key]?.includes(overrides[key]);
               const openEditor = () => {

@@ -169,7 +169,7 @@ function SpecMiniCard({
         </span>
       </div>
       {extra && <div className="hf-mb-xs">{extra}</div>}
-      <div className="hf-flex hf-flex-col hf-gap-xs">
+      <div className="hf-flex-col hf-gap-xs">
         {specs.map((s) => (
           <div key={s.slug} className="hf-text-xs hf-text-secondary">
             {s.name}
