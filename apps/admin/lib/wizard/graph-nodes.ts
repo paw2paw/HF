@@ -32,6 +32,7 @@ export const WIZARD_GRAPH_NODES: WizardGraphNode[] = [
     promptHint: "Ask for their school or organisation name. Extract it if mentioned casually.",
     mutablePostScaffold: false,
     affinityTags: ["identity", "institution"],
+    satisfiedAlso: ["existingInstitutionId"],
   },
   {
     key: "typeSlug",

@@ -158,8 +158,10 @@ export function evaluateGraph(
       continue;
     }
 
-    // Already has a value?
-    if (hasValue(blackboard, node.key)) {
+    // Already has a value (primary key or alternative keys)?
+    const hasPrimaryValue = hasValue(blackboard, node.key);
+    const hasAlternativeValue = node.satisfiedAlso?.some((k) => hasValue(blackboard, k)) ?? false;
+    if (hasPrimaryValue || hasAlternativeValue) {
       if (isPostScaffold && !node.mutablePostScaffold) {
         statuses.set(node.key, "locked");
       } else {

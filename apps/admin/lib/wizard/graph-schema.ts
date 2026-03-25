@@ -130,6 +130,14 @@ export interface WizardGraphNode {
    * are good to ask in sequence (e.g., "timing" groups sessions + duration).
    */
   affinityTags: string[];
+
+  /**
+   * Alternative blackboard keys that also satisfy this node.
+   * If ANY of these has a value, the node is treated as "satisfied"
+   * even if its own key is empty. Supports OR-style satisfaction
+   * (e.g., institutionName is satisfied when existingInstitutionId is set).
+   */
+  satisfiedAlso?: string[];
 }
 
 // ── Graph evaluation result ───────────────────────────────
