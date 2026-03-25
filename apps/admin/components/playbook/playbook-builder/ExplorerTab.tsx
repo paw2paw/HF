@@ -182,7 +182,7 @@ export function ExplorerTabContent({
                                     {subGroup.name}
                                   </div>
                                   <div className="exp-spec-list">
-                                    {subSpecs.map((specNode) => {
+                                    {subSpecs.filter((sn) => systemSpecToggles.get(sn.id) ?? true).map((specNode) => {
                                       const spec = (availableItems?.systemSpecs || []).find(s => s.id === specNode.id);
                                       const isEnabled = systemSpecToggles.get(specNode.id) ?? true;
                                       const isGloballyActive = specNode.meta?.isActive !== false;
@@ -288,7 +288,7 @@ export function ExplorerTabContent({
                             // Render flat list of specs
                             return (
                               <div className="exp-spec-list">
-                                {specNodes.map((specNode) => {
+                                {specNodes.filter((sn) => !sn.meta?.isSystemSpec || (systemSpecToggles.get(sn.id) ?? true)).map((specNode) => {
                                   const spec = (availableItems?.systemSpecs || []).find(s => s.id === specNode.id) ||
                                                items.find(i => i.spec?.id === specNode.id)?.spec;
                                   const isSystemSpec = specNode.meta?.isSystemSpec;

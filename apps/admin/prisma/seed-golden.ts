@@ -690,14 +690,19 @@ export async function main(externalPrisma?: PrismaClient, opts?: { skipCleanup?:
       },
     });
 
-    // Get all active system specs for playbook toggles
+    // All system specs enabled EXCEPT unused archetype identities
     const systemSpecs = await prisma.analysisSpec.findMany({
       where: { specType: "SYSTEM", isActive: true },
-      select: { id: true },
+      select: { id: true, slug: true, specRole: true },
     });
+    const disabledIds = new Set<string>(
+      systemSpecs
+        .filter((s) => s.specRole === "IDENTITY" && s.slug !== archetypeSlug)
+        .map((s) => s.id)
+    );
     const systemSpecToggles: Record<string, { isEnabled: boolean }> = {};
     for (const ss of systemSpecs) {
-      systemSpecToggles[ss.id] = { isEnabled: true };
+      systemSpecToggles[ss.id] = { isEnabled: !disabledIds.has(ss.id) };
     }
 
     // Create playbooks (idempotent — reuse existing by name+domain)

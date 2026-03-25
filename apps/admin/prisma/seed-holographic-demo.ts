@@ -929,14 +929,20 @@ async function createPlaybook(
   domainId: string,
   subjectMap: Map<string, string>,
 ): Promise<string> {
-  // Find system specs to enable
+  // All system specs enabled EXCEPT unused archetype identities
   const systemSpecs = await prisma.analysisSpec.findMany({
     where: { specType: "SYSTEM", isActive: true },
-    select: { id: true },
+    select: { id: true, slug: true, specRole: true },
   });
+  const archetypeSlug = cfg.archetypeSlug || "TUT-001";
+  const disabledIds = new Set<string>(
+    systemSpecs
+      .filter((s) => s.specRole === "IDENTITY" && s.slug !== archetypeSlug)
+      .map((s) => s.id)
+  );
   const systemSpecToggles: Record<string, { isEnabled: boolean }> = {};
   for (const ss of systemSpecs) {
-    systemSpecToggles[ss.id] = { isEnabled: true };
+    systemSpecToggles[ss.id] = { isEnabled: !disabledIds.has(ss.id) };
   }
 
   let playbook = await prisma.playbook.findFirst({
@@ -966,7 +972,6 @@ async function createPlaybook(
   }
 
   // Link identity spec to playbook — use domain's archetype (COMPANION-001 for community, TUT-001 for schools)
-  const archetypeSlug = cfg.archetypeSlug || "TUT-001";
   const identitySpec = await prisma.analysisSpec.findFirst({
     where: { slug: { contains: archetypeSlug.toLowerCase(), mode: "insensitive" }, isActive: true },
     select: { id: true },

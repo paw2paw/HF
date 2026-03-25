@@ -77,12 +77,12 @@ async function main() {
   const playbook = playbookArg
     ? await prisma.playbook.findUnique({
         where: { id: playbookArg },
-        include: { domain: true, items: true },
+        include: { domain: true },
       })
     : await prisma.playbook.findFirst({
         where: { status: "PUBLISHED" },
         orderBy: { updatedAt: "desc" },
-        include: { domain: true, items: true },
+        include: { domain: true },
       });
 
   if (!playbook) {
@@ -97,15 +97,15 @@ async function main() {
   if (shouldRun("v1.1")) {
     heading("V1.1 — Course Creation + Content Ingestion");
 
-    // ContentSource exists
+    // ContentSource exists (ContentSource → SubjectSource → Subject → PlaybookSubject → Playbook)
     const sources = await prisma.contentSource.findMany({
       where: {
-        subjects: { some: { subject: { playbookSubjects: { some: { playbookId: playbook.id } } } } },
+        subjects: { some: { subject: { playbooks: { some: { playbookId: playbook.id } } } } },
       },
-      select: { id: true, name: true, status: true },
+      select: { id: true, name: true, documentType: true },
     });
     check(sources.length > 0, `ContentSource records found (${sources.length})`, "No ContentSource linked to this playbook");
-    for (const s of sources) detail(`${s.name} — ${s.status}`);
+    for (const s of sources) detail(`${s.name} — ${s.documentType}`);
 
     // ContentAssertions
     const sourceIds = sources.map((s) => s.id);
@@ -121,9 +121,13 @@ async function main() {
     check(contentAssertions.length > 0, `Content assertions: ${contentAssertions.length}`, "No content assertions extracted");
     advisory(instructionAssertions.length > 0, `Instruction assertions: ${instructionAssertions.length}`, "No instruction assertions (OK if source has no tutor instructions)");
 
-    // Curriculum + lesson plan
+    // Curriculum + lesson plan (Curriculum → Subject → PlaybookSubject → Playbook)
     const curriculum = await prisma.curriculum.findFirst({
-      where: { playbookId: playbook.id },
+      where: {
+        subject: {
+          playbooks: { some: { playbookId: playbook.id } },
+        },
+      },
       select: { id: true, deliveryConfig: true },
     });
     check(!!curriculum, "Curriculum exists", "No curriculum for this playbook");
@@ -144,21 +148,34 @@ async function main() {
   if (shouldRun("v1.2")) {
     heading("V1.2 — Playbook Configuration");
 
-    const config = playbook.items?.[0] || playbook;
     const pbConfig = (playbook as any).config as Record<string, any> | null;
-    const toggles = pbConfig?.systemSpecToggles as Record<string, boolean> | undefined;
+    const toggles = pbConfig?.systemSpecToggles as Record<string, { isEnabled: boolean }> | undefined;
 
     check(!!toggles, "systemSpecToggles exists in playbook config", "systemSpecToggles missing — composition won't filter specs");
 
     if (toggles) {
-      const activeSpecs = Object.entries(toggles).filter(([, v]) => v).map(([k]) => k);
-      const inactiveSpecs = Object.entries(toggles).filter(([, v]) => !v).map(([k]) => k);
+      // Resolve toggle IDs to spec slugs for readable output
+      const specIds = Object.keys(toggles);
+      const specs = await prisma.analysisSpec.findMany({
+        where: { id: { in: specIds } },
+        select: { id: true, slug: true },
+      });
+      const idToSlug = new Map(specs.map((s) => [s.id, s.slug]));
+
+      const activeSpecs = Object.entries(toggles)
+        .filter(([, v]) => v?.isEnabled)
+        .map(([k]) => idToSlug.get(k) ?? k);
+      const inactiveCount = Object.entries(toggles)
+        .filter(([, v]) => !v?.isEnabled)
+        .length;
 
       detail(`Active:   ${activeSpecs.join(", ") || "(none)"}`);
-      detail(`Inactive: ${inactiveSpecs.length} specs disabled`);
+      detail(`Inactive: ${inactiveCount} specs disabled`);
 
-      // Check for the three required specs
-      const hasTutor = activeSpecs.some((s) => s.includes("TUT-") || s.includes("COACH-") || s.includes("COMPANION-") || s.includes("ADVISOR-") || s.includes("FACILITATOR-") || s.includes("CONVGUIDE-") || s.includes("MENTOR-"));
+      // Check for the three required specs (by slug)
+      const hasTutor = activeSpecs.some((s) =>
+        /^(TUT|COACH|COMPANION|ADVISOR|FACILITATOR|CONVGUIDE|MENTOR)-/.test(s)
+      );
       const hasVoice = activeSpecs.some((s) => s.toLowerCase().includes("voice"));
       advisory(hasTutor, "Base archetype spec active", "No archetype spec found in active toggles");
       advisory(hasVoice, "Voice spec active", "No voice spec in active toggles");
@@ -227,26 +244,28 @@ async function main() {
   if (shouldRun("v1.4")) {
     heading("V1.4 — Post-Session Pipeline");
 
-    // Find most recent call for this playbook
+    // Find most recent call for this playbook (Call has playbookId directly)
     const recentCall = await prisma.call.findFirst({
-      where: {
-        caller: { callerPlaybooks: { some: { playbookId: playbook.id } } },
-      },
+      where: { playbookId: playbook.id },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        callerId: true,
         createdAt: true,
         source: true,
         endedAt: true,
-        caller: { select: { name: true } },
       },
     });
 
     if (!check(!!recentCall, `Recent call found: ${recentCall?.source} on ${recentCall?.createdAt?.toISOString().slice(0, 16)}`, "No calls found for this playbook — run a Sim session first")) {
       warn("Skipping pipeline checks (no call)");
     } else {
+      // Look up caller name separately
+      const caller = recentCall!.callerId
+        ? await prisma.caller.findUnique({ where: { id: recentCall!.callerId }, select: { name: true } })
+        : null;
       detail(`Call ID: ${recentCall!.id}`);
-      detail(`Caller:  ${recentCall!.caller?.name}`);
+      detail(`Caller:  ${caller?.name ?? "unknown"}`);
       detail(`Ended:   ${recentCall!.endedAt?.toISOString() ?? "STILL ACTIVE"}`);
 
       // Transcript
@@ -277,17 +296,11 @@ async function main() {
       }
 
       // CallerMemorySummary
-      if (recentCall!.caller) {
-        const callerId = (await prisma.call.findUnique({
-          where: { id: recentCall!.id },
-          select: { callerId: true },
-        }))?.callerId;
-        if (callerId) {
-          const summary = await prisma.callerMemorySummary.findUnique({
-            where: { callerId },
-          });
-          advisory(!!summary, "CallerMemorySummary aggregated", "No summary yet — AGGREGATE stage may not have run");
-        }
+      if (recentCall!.callerId) {
+        const summary = await prisma.callerMemorySummary.findUnique({
+          where: { callerId: recentCall!.callerId },
+        });
+        advisory(!!summary, "CallerMemorySummary aggregated", "No summary yet — AGGREGATE stage may not have run");
       }
     }
   }

@@ -295,15 +295,26 @@ export async function scaffoldDomain(domainId: string, options?: ScaffoldOptions
     });
   }
 
-  // 6. Enable system specs via config.systemSpecToggles
+  // 6. Configure system spec toggles
+  //    All specs enabled EXCEPT unused archetype identities.
+  //    Only the chosen archetype should be active — others disabled to prevent
+  //    resolveSpecs() from picking the wrong identity from system specs.
+  //    Pipeline specs (MEASURE, LEARN, ADAPT, GUARD, etc.) stay enabled.
   const systemSpecs = await p.analysisSpec.findMany({
     where: { specType: "SYSTEM", isActive: true },
-    select: { id: true },
+    select: { id: true, slug: true, specRole: true },
   });
+
+  // All IDENTITY-role system specs except the chosen archetype get disabled
+  const disabledIds = new Set<string>(
+    systemSpecs
+      .filter((s) => s.specRole === "IDENTITY" && s.slug !== archetypeSlug)
+      .map((s) => s.id)
+  );
 
   const toggles: Record<string, { isEnabled: boolean }> = {};
   for (const ss of systemSpecs) {
-    toggles[ss.id] = { isEnabled: true };
+    toggles[ss.id] = { isEnabled: !disabledIds.has(ss.id) };
   }
 
   // Merge with any existing config
