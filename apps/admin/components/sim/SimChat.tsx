@@ -88,6 +88,7 @@ function formatDateChip(date: Date): string {
 
 interface HistoryGroup {
   dateLabel: string;
+  sessionLabel?: string;
   messages: Message[];
 }
 
@@ -141,29 +142,28 @@ export function SimChat({
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  // Parse past calls into grouped history (computed once)
+  // Parse past calls into grouped history — one group per call, never merged
   const historyGroups: HistoryGroup[] = useMemo(() => {
     if (!pastCalls?.length) return [];
     const groups: HistoryGroup[] = [];
-    let lastLabel = '';
-    for (const call of pastCalls) {
+    for (let ci = 0; ci < pastCalls.length; ci++) {
+      const call = pastCalls[ci];
       const parsed = parseTranscript(call.transcript);
       if (parsed.length === 0) continue;
       const callDate = new Date(call.createdAt);
       const label = formatDateChip(callDate);
+      const timeStr = callDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       const msgs: Message[] = parsed.map((m, i) => ({
         id: `history-${call.createdAt}-${i}`,
         role: m.role,
         content: m.content,
         timestamp: callDate,
       }));
-      if (label === lastLabel && groups.length > 0) {
-        // Same date — merge into existing group with a separator
-        groups[groups.length - 1].messages.push(...msgs);
-      } else {
-        groups.push({ dateLabel: label, messages: msgs });
-        lastLabel = label;
-      }
+      groups.push({
+        dateLabel: label,
+        sessionLabel: `Session ${ci + 1} · ${label}, ${timeStr} · ${parsed.length} messages`,
+        messages: msgs,
+      });
     }
     return groups;
   }, [pastCalls]);
@@ -697,7 +697,7 @@ export function SimChat({
           padding: '8px 12px 12px',
         }}
       >
-        {/* History — past calls grouped by date */}
+        {/* History — past calls, one group per session */}
         {historyGroups.map((group, gi) => (
           <div key={`hg-${gi}`}>
             <div style={{
@@ -714,7 +714,7 @@ export function SimChat({
               marginLeft: 'auto',
               marginRight: 'auto',
             }}>
-              {group.dateLabel}
+              {group.sessionLabel || group.dateLabel}
             </div>
             {group.messages.map((msg) => (
               <MessageBubble
