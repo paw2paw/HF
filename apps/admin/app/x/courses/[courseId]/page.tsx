@@ -30,8 +30,7 @@ import {
 } from '@/lib/course/group-specs';
 import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
 import { CourseSetupTracker } from '@/components/shared/CourseSetupTracker';
-// SessionPlanViewer retained — handlers below will wire back for admin editing in follow-up
-// import { SessionPlanViewer } from '@/components/shared/SessionPlanViewer';
+import { SessionPlanViewer } from '@/components/shared/SessionPlanViewer';
 import { JourneyRail } from '@/components/shared/JourneyRail';
 import { reorderItems } from '@/lib/sortable/reorder';
 import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS } from '@/lib/content-trust/resolve-config';
@@ -800,24 +799,24 @@ export default function CourseDetailPage() {
 
       {/* ── Stats Row ─────────────────────────────────── */}
       <div className="hf-flex hf-gap-lg hf-mb-lg">
-        <div className="hf-stat-card hf-stat-card-compact">
+        <Link href={`/x/subjects?courseId=${courseId}`} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
           <div className="hf-stat-value-sm">{subjects.length}</div>
           <div className="hf-text-xs hf-text-muted">Subjects</div>
-        </div>
-        <div className="hf-stat-card hf-stat-card-compact">
+        </Link>
+        <button type="button" onClick={() => handleTabChange('what')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
           <div className="hf-stat-value-sm">{contentOnlyCount}</div>
           <div className="hf-text-xs hf-text-muted">Content</div>
-        </div>
+        </button>
         {instructionTotal > 0 && (
-          <div className="hf-stat-card hf-stat-card-compact">
+          <button type="button" onClick={() => handleTabChange('how')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
             <div className="hf-stat-value-sm">{instructionTotal}</div>
             <div className="hf-text-xs hf-text-muted">Rules</div>
-          </div>
+          </button>
         )}
-        <div className="hf-stat-card hf-stat-card-compact">
+        <Link href={`/x/content-sources?courseId=${courseId}`} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
           <div className="hf-stat-value-sm">{totalSources}</div>
           <div className="hf-text-xs hf-text-muted">Sources</div>
-        </div>
+        </Link>
         {detail.publishedAt && (
           <div className="hf-stat-card hf-stat-card-compact">
             <div className="hf-text-sm hf-text-bold">{new Date(detail.publishedAt).toLocaleDateString()}</div>
@@ -903,39 +902,84 @@ export default function CourseDetailPage() {
       {/* SESSIONS TAB — Rail-first: click stop to expand */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'sessions' && (
-        <JourneyRail
-          sessions={sessions?.plan?.entries ?? []}
-          callers={sessions?.studentProgress}
-          courseId={courseId!}
-          loading={sessionsLoading}
-          error={sessionsError}
-          onRetry={handleRetrySessionsLoad}
-          onRegenerate={isOperator ? handleRegenerate : undefined}
-          regenerating={regenerating}
-          regenSessionCount={regenSessionCount}
-          onRegenSessionCountChange={setRegenSessionCount}
-          renderSessionDetail={(entry) => {
-            if (entry.type === 'onboarding') {
+        <>
+          <JourneyRail
+            sessions={sessions?.plan?.entries ?? []}
+            callers={sessions?.studentProgress}
+            courseId={courseId!}
+            loading={sessionsLoading}
+            error={sessionsError}
+            onRetry={handleRetrySessionsLoad}
+            onRegenerate={isOperator ? handleRegenerate : undefined}
+            regenerating={regenerating}
+            regenSessionCount={regenSessionCount}
+            onRegenSessionCountChange={setRegenSessionCount}
+            renderSessionDetail={(entry) => {
+              if (entry.type === 'onboarding') {
+                return (
+                  <OnboardingEditor
+                    courseId={courseId!}
+                    domainId={detail.domain.id}
+                    domainName={detail.domain.name}
+                    isOperator={isOperator}
+                    compact
+                  />
+                );
+              }
               return (
-                <OnboardingEditor
+                <SessionDetailPanel
+                  entry={entry}
                   courseId={courseId!}
-                  domainId={detail.domain.id}
-                  domainName={detail.domain.name}
-                  isOperator={isOperator}
-                  compact
+                  tps={sessionTPs[entry.session]}
+                  showEditLink={isOperator}
                 />
               );
-            }
-            return (
-              <SessionDetailPanel
-                entry={entry}
+            }}
+          />
+
+          {/* Session Plan Viewer — media assignment per session */}
+          {sessions?.plan?.entries && sessions.plan.entries.length > 0 && (
+            <div className="hf-mt-lg">
+              <SessionPlanViewer
+                variant="full"
+                entries={sessions.plan.entries}
+                model={sessions.plan.model}
+                generatedAt={sessions.plan.generatedAt}
+                estimatedSessions={sessions.plan.estimatedSessions}
+                sessionTPs={sessionTPs}
+                unassignedTPs={unassignedTPs}
+                mediaMap={sessionMediaMap}
+                studentProgress={sessions.studentProgress}
+                onReorder={isOperator ? (from, to) => {
+                  if (!sessions?.curriculumId || !sessions?.plan?.entries) return;
+                  const reordered = reorderItems(sessions.plan.entries, from, to);
+                  setSessions(prev => prev ? { ...prev, plan: prev.plan ? { ...prev.plan, entries: reordered } : null } : null);
+                  fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: reordered }),
+                  }).catch(() => {});
+                } : undefined}
+                onTPMove={isOperator ? handleTPMove : undefined}
+                onSessionMediaAssign={isOperator ? handleAssignImageToSession : undefined}
+                onSessionMediaRemove={isOperator ? handleRemoveSessionImage : undefined}
+                onMediaReorder={isOperator ? handleReorderSessionImages : undefined}
+                availableMedia={sessionMediaMap?.unassigned.map(u => ({
+                  id: u.mediaId,
+                  fileName: u.fileName || u.mediaId,
+                  title: u.captionText || null,
+                })) ?? []}
+                onRegenerate={isOperator ? handleRegenerate : undefined}
+                regenerating={regenerating}
+                regenSessionCount={regenSessionCount}
+                onRegenSessionCountChange={setRegenSessionCount}
                 courseId={courseId!}
-                tps={sessionTPs[entry.session]}
-                showEditLink={isOperator}
+                curriculumId={sessions.curriculumId}
+                isOperator={isOperator}
               />
-            );
-          }}
-        />
+            </div>
+          )}
+        </>
       )}
 
 
