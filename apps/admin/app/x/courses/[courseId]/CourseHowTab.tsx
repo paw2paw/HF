@@ -84,7 +84,7 @@ function SectionHeader({ title, icon: Icon, subtitle }: {
   subtitle?: string;
 }) {
   return (
-    <div className="hf-flex hf-flex-col hf-mb-md hf-section-divider">
+    <div className="hf-flex-col hf-mb-md hf-section-divider">
       <div className="hf-flex hf-gap-sm hf-items-center">
         <Icon size={18} className="hf-text-muted" />
         <h2 className="hf-section-title hf-mb-0">{title}</h2>
@@ -148,7 +148,7 @@ function InstructionCategory({
       </button>
 
       {expanded && (
-        <div className="hf-flex hf-flex-col hf-gap-xs hf-mt-sm">
+        <div className="hf-flex-col hf-gap-xs hf-mt-sm">
           {validItems.length === 0 ? (
             <span className="hf-text-sm hf-text-muted">No instructions extracted — try re-extracting the reference document.</span>
           ) : validItems.map((item) => (
@@ -529,7 +529,7 @@ export function CourseHowTab({
           </div>
         ) : (
           <>
-            <div className="hf-flex hf-flex-col hf-gap-xs">
+            <div className="hf-flex-col hf-gap-xs">
               {allBoundaries.map((c, i) => (
                 <div key={i} className="cd-instruction-item">
                   <Ban size={12} className="hf-text-error" style={{ flexShrink: 0, marginTop: 2 }} />

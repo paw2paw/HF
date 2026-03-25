@@ -221,7 +221,7 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
                 <p className="hf-text-xs hf-text-muted hf-mt-xs">Create a classroom first, or use another enrollment method.</p>
               </div>
             ) : (
-              <div className="hf-flex hf-flex-col hf-gap-sm">
+              <div className="hf-flex-col hf-gap-sm">
                 {cohorts.map((cohort) => {
                   const selected = selectedCohortIds.includes(cohort.id);
                   return (
@@ -296,7 +296,7 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
                 </p>
               </div>
             ) : (
-              <div className="hf-list-scroll hf-flex hf-flex-col hf-gap-xs">
+              <div className="hf-list-scroll hf-flex-col hf-gap-xs">
                 {filteredCallers.map((caller) => {
                   const selected = selectedCallerIds.includes(caller.id);
                   return (
@@ -333,7 +333,7 @@ export function StudentsStep({ setData, getData, onNext, onPrev }: StepProps) {
         {/* ── Email Mode ─────────────────────────────── */}
         {mode === 'email' && (
           <div>
-            <div className="hf-flex hf-flex-col hf-gap-sm hf-mb-md">
+            <div className="hf-flex-col hf-gap-sm hf-mb-md">
               {emails.map((email, i) => (
                 <div key={i} className="hf-flex hf-gap-sm">
                   <input

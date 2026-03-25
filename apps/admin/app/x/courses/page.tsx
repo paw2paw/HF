@@ -402,7 +402,7 @@ export default function CoursesPage() {
         </div>
       ) : groupedCourses ? (
         /* Group-by department view */
-        <div className="hf-flex hf-flex-col hf-gap-lg">
+        <div className="hf-flex-col hf-gap-lg">
           {groupedCourses.map((group) => (
             <div key={group.label}>
               <div className="hf-flex hf-items-center hf-gap-sm hf-mb-sm">
