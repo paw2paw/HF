@@ -2063,6 +2063,16 @@ html.light {
   gap: 12px;
 }
 .hf-stat-card-compact { min-width: 90px; gap: 0; }
+.hf-stat-card-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-decoration: none;
+  color: inherit;
+}
+.hf-stat-card-clickable:hover {
+  border-color: var(--border-active);
+  background: color-mix(in srgb, var(--surface-secondary) 85%, var(--accent-primary));
+}
 
 /* Code / prompt display blocks (dark monospace panels) */
 .hf-code-block {

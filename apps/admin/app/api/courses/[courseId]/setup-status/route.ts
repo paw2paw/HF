@@ -47,25 +47,31 @@ export async function GET(
     }
 
     // ── Stage 4: Lesson Plan Built ──────────────────
-    // Check if any CONTENT spec linked to this playbook has a lessonPlan
-    const contentSpec = await prisma.analysisSpec.findFirst({
-      where: {
-        specRole: "CONTENT",
-        isActive: true,
-        playbookItems: {
-          some: {
-            playbookId: courseId,
-            isEnabled: true,
-          },
-        },
-      },
-      select: { config: true },
+    // Lesson plan lives on Curriculum.deliveryConfig.lessonPlan (not on AnalysisSpec)
+    // Path: Playbook → PlaybookSubject → Subject → Curriculum
+    const subjectIds = await prisma.playbookSubject.findMany({
+      where: { playbookId: courseId },
+      select: { subjectId: true },
     });
 
-    const specConfig = contentSpec?.config as Record<string, any> | null;
-    const deliveryConfig = specConfig?.deliveryConfig;
-    const lessonPlan = deliveryConfig?.lessonPlan;
-    const lessonPlanBuilt = Array.isArray(lessonPlan) && lessonPlan.length > 0;
+    let lessonPlanBuilt = false;
+    if (subjectIds.length > 0) {
+      const curriculum = await prisma.curriculum.findFirst({
+        where: {
+          subjectId: { in: subjectIds.map((s) => s.subjectId) },
+        },
+        select: { deliveryConfig: true },
+      });
+      const dc = curriculum?.deliveryConfig as Record<string, any> | null;
+      const lessonPlan = dc?.lessonPlan;
+      // lessonPlan can be { entries: [...], estimatedSessions, ... } or a raw array
+      const entries = Array.isArray(lessonPlan)
+        ? lessonPlan
+        : Array.isArray(lessonPlan?.entries)
+          ? lessonPlan.entries
+          : [];
+      lessonPlanBuilt = entries.length > 0;
+    }
 
     // ── Stage 5: Tutor Configured ───────────────────
     const hasIdentity = !!playbook.domain.onboardingIdentitySpecId;

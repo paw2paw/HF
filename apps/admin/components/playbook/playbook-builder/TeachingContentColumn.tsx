@@ -35,7 +35,24 @@ export function TeachingContentColumn({
     fetch(`/api/courses/${playbookId}/content-breakdown?bySubject=true`)
       .then((r) => r.json())
       .then((res) => {
-        if (res.ok) setData(res);
+        if (res.ok) {
+          // API returns bySubject with { subjectId, subjectName, methods } —
+          // transform to the shape the component expects
+          const subjects = res.bySubject?.map((s: { subjectId: string; subjectName: string; methods: Array<{ teachMethod: string; count: number }> }) => {
+            const instructionCount = s.methods
+              .filter((m: { teachMethod: string }) => m.teachMethod === "instruction")
+              .reduce((sum: number, m: { count: number }) => sum + m.count, 0);
+            const totalCount = s.methods.reduce((sum: number, m: { count: number }) => sum + m.count, 0);
+            return {
+              id: s.subjectId,
+              name: s.subjectName,
+              assertionCount: totalCount - instructionCount,
+              instructionCount,
+              sources: [] as Array<{ id: string; name: string; documentType: string; assertionCount: number }>,
+            };
+          }) ?? [];
+          setData({ ...res, subjects });
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -98,7 +115,7 @@ export function TeachingContentColumn({
           </div>
 
           {/* Per-subject breakdown with sources */}
-          {data.subjects.map((sub) => (
+          {data.subjects?.map((sub) => (
             <div key={sub.id} className="hf-flex-col" style={{ borderLeft: "2px solid var(--status-success-border)", paddingLeft: 10 }}>
               <div className="hf-flex hf-items-center hf-gap-xs hf-mb-xs">
                 <Layers size={13} className="hf-text-muted" />

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { BookOpen, Plus } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
@@ -52,6 +53,8 @@ const TRUST_PILLS = [
 
 export default function SubjectsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get('courseId');
   const { data: session } = useSession();
   const isOperator = ['OPERATOR', 'EDUCATOR', 'ADMIN', 'SUPERADMIN'].includes((session?.user?.role as string) || '');
   const { terms, plural } = useTerminology();
@@ -77,7 +80,8 @@ export default function SubjectsPage() {
   const loadSubjects = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/subjects');
+      const qs = courseId ? `?courseId=${courseId}` : '';
+      const res = await fetch(`/api/subjects${qs}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setSubjects(data.subjects || []);
@@ -96,7 +100,7 @@ export default function SubjectsPage() {
         if (data.ok) setDomains(data.domains || []);
       })
       .catch((e) => console.warn('[Subjects] Failed to load domains:', e));
-  }, []);
+  }, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter subjects
   const filteredSubjects = useMemo(() => {
@@ -162,7 +166,14 @@ export default function SubjectsPage() {
       {/* Header + Filters */}
       <div className="hf-card-compact hf-mb-md" style={{ borderRadius: 8, position: 'relative', zIndex: 2 }}>
         <div className="hf-flex hf-flex-between" style={{ marginBottom: 10 }}>
-          <h1 className="hf-section-title">Subjects</h1>
+          <h1 className="hf-section-title">
+            Subjects
+            {courseId && (
+              <Link href={`/x/courses/${courseId}`} className="hf-text-xs hf-text-muted" style={{ marginLeft: 8, fontWeight: 400 }}>
+                (course-filtered — view course)
+              </Link>
+            )}
+          </h1>
           <div className="hf-flex hf-gap-md hf-items-center">
             {isOperator && (
               <button

@@ -442,7 +442,7 @@ export function CourseWhatTab({
         {criteriaLoading ? (
           <div className="hf-text-sm hf-text-muted">Loading success criteria...</div>
         ) : successCriteria.length > 0 && goals.length === 0 ? (
-          <div className="hf-flex hf-flex-col hf-gap-md">
+          <div className="hf-flex-col hf-gap-md">
             {[...criteriaByTier.entries()].map(([tier, items]) => {
               const tierConfig = getTierConfig(tier);
               const TierIcon = tierConfig.icon;
@@ -454,7 +454,7 @@ export function CourseWhatTab({
                       {tier}
                     </span>
                   </div>
-                  <div className="hf-flex hf-flex-col hf-gap-xs">
+                  <div className="hf-flex-col hf-gap-xs">
                     {items.map((c) => (
                       <div key={c.id} className="hf-flex hf-gap-sm hf-items-start hf-text-sm">
                         <span className="hf-text-placeholder hf-mt-xs" style={{ flexShrink: 0 }}>&#8226;</span>
@@ -486,7 +486,7 @@ export function CourseWhatTab({
           <SectionHeader title="Boundaries" icon={ShieldAlert} />
           <div className="hf-card-compact hf-mb-lg">
             {allBoundaries.length > 0 ? (
-              <div className="hf-flex hf-flex-col hf-gap-xs">
+              <div className="hf-flex-col hf-gap-xs">
                 {allBoundaries.map((c, i) => (
                   <div key={i} className="hf-flex hf-gap-sm hf-items-start hf-text-sm">
                     <ShieldAlert size={13} className="hf-text-error hf-mt-xs" style={{ flexShrink: 0 }} />

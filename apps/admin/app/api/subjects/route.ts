@@ -12,6 +12,7 @@ import { TEACHING_PROFILE_KEYS, type TeachingProfileKey } from "@/lib/content-tr
  * @description List all subjects with source, domain, curriculum counts, and lesson plan session counts.
  * @query activeOnly string - "false" to include inactive (default: true)
  * @query domainId string - Filter to subjects linked to this domain
+ * @query courseId string - Filter to subjects linked to this course (playbook)
  * @response 200 { subjects: [...{ ..., lessonPlanSessions: number }] }
  * @response 500 { error: "..." }
  */
@@ -23,10 +24,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get("activeOnly") !== "false";
     const domainId = searchParams.get("domainId");
+    const courseId = searchParams.get("courseId");
 
     const where: any = {};
     if (activeOnly) where.isActive = true;
     if (domainId) where.domains = { some: { domainId } };
+    if (courseId) where.playbooks = { some: { playbookId: courseId } };
 
     const subjects = await prisma.subject.findMany({
       where,

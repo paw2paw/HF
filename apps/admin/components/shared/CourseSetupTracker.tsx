@@ -72,9 +72,15 @@ export function CourseSetupTracker({
     }
   }, [courseId]);
 
+  // Poll readiness every 10s while stages 4-6 aren't all complete, then stop
   useEffect(() => {
     fetchReadiness();
-  }, [fetchReadiness]);
+    const id = setInterval(() => {
+      if (readiness?.allCriticalPass) return;
+      fetchReadiness();
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [fetchReadiness, readiness?.allCriticalPass]);
 
   // Derive the 6 stages
   const setupStatus = useCourseSetupStatus({
