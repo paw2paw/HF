@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { FancySelect } from "@/components/shared/FancySelect";
 import type { FancySelectOption } from "@/components/shared/FancySelect";
-import { ConversationalWizard } from "../get-started-v4/components/ConversationalWizard";
-import type { WizardInitialContext } from "../get-started-v4/components/ConversationalWizard";
+import { ConversationalWizard } from "../wizard/components/ConversationalWizard";
+import type { WizardInitialContext } from "../wizard/components/ConversationalWizard";
 import "./get-started-v5.css";
 
 /* ── Types ──────────────────────────────────────────────── */

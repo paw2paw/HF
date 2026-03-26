@@ -33,7 +33,7 @@ import { MiniJourneyRail } from "@/components/shared/MiniJourneyRail";
 import { ScaffoldPanel } from "@/components/wizards/ScaffoldPanel";
 import { parseOptionsFromText, stripParameterTags } from "@/lib/chat/parse-options";
 import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
-import "../get-started-v4.css";
+import "../wizard.css";
 
 
 // ── Types ────────────────────────────────────────────────

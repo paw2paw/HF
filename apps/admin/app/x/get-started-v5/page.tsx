@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ConversationalWizard } from "../get-started-v4/components/ConversationalWizard";
+import { ConversationalWizard } from "../wizard/components/ConversationalWizard";
 import { V5WizardWithSelector } from "./V5WizardWithSelector";
 
 /**

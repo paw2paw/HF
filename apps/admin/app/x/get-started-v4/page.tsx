@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ConversationalWizard } from "./components/ConversationalWizard";
-import type { WizardInitialContext } from "./components/ConversationalWizard";
+import { ConversationalWizard } from "../wizard/components/ConversationalWizard";
+import type { WizardInitialContext } from "../wizard/components/ConversationalWizard";
 
 export default async function GetStartedV4Page() {
   const session = await auth();

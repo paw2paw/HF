@@ -11,7 +11,7 @@
 import { useMemo } from "react";
 import { DotRail, type DotRailStep, type DotState } from "./DotRail";
 import { getSessionTypeLabel } from "@/lib/lesson-plan/session-ui";
-import type { LessonEntry } from "@/app/x/get-started-v4/components/LessonPlanAccordion";
+import type { LessonEntry } from "@/app/x/wizard/components/LessonPlanAccordion";
 import "./journey-rail.css";
 
 export interface OnboardingPhaseCompact {
