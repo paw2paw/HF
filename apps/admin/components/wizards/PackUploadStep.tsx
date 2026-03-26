@@ -152,6 +152,7 @@ export function PackUploadStep({
   const [files, setFiles] = useState<File[]>(() => initialFiles ?? []);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
 
   // Analysis state
   const [analyzing, setAnalyzing] = useState(false);
@@ -192,10 +193,18 @@ export function PackUploadStep({
   // ── File handling ──────────────────────────────────
 
   const addFiles = useCallback((newFiles: FileList | File[]) => {
-    const valid = Array.from(newFiles).filter((f) => {
+    const allFiles = Array.from(newFiles);
+    const valid = allFiles.filter((f) => {
       const name = f.name.toLowerCase();
       return VALID_EXTENSIONS.some((ext) => name.endsWith(ext));
     });
+
+    // Compute rejected file names and update warning state (cleared on every drop)
+    const rejected = allFiles
+      .filter((f) => !valid.includes(f))
+      .map((f) => f.name);
+    setRejectedFiles(rejected);
+
     if (valid.length === 0) return;
 
     setFiles((prev) => {
@@ -795,6 +804,13 @@ export function PackUploadStep({
               e.target.value = '';
             }}
           />
+
+          {/* Rejected file warning */}
+          {rejectedFiles.length > 0 && (
+            <div className="pack-upload-warning">
+              Skipped: {rejectedFiles.join(', ')} — Supported: PDF, DOCX, TXT, MD, JSON
+            </div>
+          )}
 
           {analyzeError && (
             <div className="dtw-upload-error">{analyzeError}</div>

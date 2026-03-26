@@ -76,6 +76,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
   const [files, setFiles] = useState<File[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
   const [classifications, setClassifications] = useState<SourcesReadyData["classifications"]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -115,10 +116,18 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
   // ── File handling ─────────────────────────────────────
 
   const addFiles = useCallback((newFiles: FileList | File[]) => {
-    const valid = Array.from(newFiles).filter((f) => {
+    const allFiles = Array.from(newFiles);
+    const valid = allFiles.filter((f) => {
       const name = f.name.toLowerCase();
       return VALID_EXTENSIONS.some((ext) => name.endsWith(ext));
     });
+
+    // Compute rejected file names and update warning state (cleared on every drop)
+    const rejected = allFiles
+      .filter((f) => !valid.includes(f))
+      .map((f) => f.name);
+    setRejectedFiles(rejected);
+
     if (valid.length === 0) return;
 
     // If we already processed a batch, set files to ONLY the new ones
@@ -374,13 +383,20 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
         }}
       />
 
+      {/* Rejected file warning */}
+      {rejectedFiles.length > 0 && (
+        <div className="cv4-sources-warning">
+          Skipped: {rejectedFiles.join(", ")} — Supported: PDF, DOCX, TXT, MD, JSON
+        </div>
+      )}
+
       {/* Queued files (before classification) */}
       {files.length > 0 && !hasResults && !isProcessing && (
         <div className="cv4-sources-files">
           {files.map((f) => (
             <div key={f.name} className="cv4-sources-file">
               <FileText size={12} />
-              <span className="cv4-sources-filename">{f.name}</span>
+              <span className="cv4-sources-filename" title={f.name}>{f.name}</span>
               {!domainId && <span className="cv4-sources-queued">queued</span>}
               <button
                 className="cv4-sources-remove"
@@ -411,7 +427,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
             return (
               <div key={c.fileName} className="cv4-sources-file">
                 <FileText size={12} />
-                <span className="cv4-sources-filename">{c.fileName}</span>
+                <span className="cv4-sources-filename" title={c.fileName}>{c.fileName}</span>
                 <span
                   className="cv4-sources-doctype"
                   style={{ "--badge-color": info.color, "--badge-bg": info.bg } as React.CSSProperties}
@@ -461,6 +477,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
         <div className="cv4-sources-done">
           <Check size={14} />
           <span>{totalAssertions} item{totalAssertions !== 1 ? "s" : ""} ready</span>
+          <span className="cv4-sources-done-hint">Available across all sessions</span>
         </div>
       )}
 

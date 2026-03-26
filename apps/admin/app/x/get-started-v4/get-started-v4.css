@@ -1453,6 +1453,14 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--status-success-text);
+  flex-wrap: wrap;
+}
+
+.cv4-sources-done-hint {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
 .cv4-sources-error {
@@ -1461,6 +1469,14 @@
   gap: 6px;
   font-size: 12px;
   color: var(--status-error-text);
+}
+
+.cv4-sources-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-warning, #b45309);
 }
 
 .cv4-sources-retry {

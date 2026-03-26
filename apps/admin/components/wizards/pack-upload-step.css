@@ -523,6 +523,16 @@
   100% { background-position: -200% 0; }
 }
 
+/* ── Upload warning (rejected files) ─────────────── */
+
+.pack-upload-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-warning, #b45309);
+}
+
 /* ── Upload error ────────────────────────────────── */
 
 .dtw-upload-error {
