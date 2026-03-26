@@ -126,7 +126,7 @@ export function V5WizardWithSelector({
     ? courses.find((c) => c.id === selectedCourseId)
     : null;
 
-  // Key includes courseId so wizard resets when switching courses
+  // Key includes institution + course so wizard resets when switching
   const wizardKey = `v5-${selectedId}-${selectedCourseId}`;
 
   return (

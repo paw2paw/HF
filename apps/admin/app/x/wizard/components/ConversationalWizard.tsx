@@ -437,6 +437,11 @@ function previewToSessionEntries(preview: FirstCallPreviewData): SessionEntry[] 
 export function ConversationalWizard({ initialContext, userRole, wizardVersion = "v4" }: ConversationalWizardProps) {
   const { getData, setData, clearData, isActive, startFlow } = useStepFlow();
 
+  // Scope sessionStorage by institution so step-in doesn't leak across orgs
+  const storageKey = initialContext?.institutionId
+    ? `${wizardVersion}-${initialContext.institutionId}`
+    : wizardVersion;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [busyReason, setBusyReason] = useState<BusyReason>(null);
@@ -484,7 +489,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
 
   const handleStartOver = useCallback(() => {
     abortRef.current?.abort();
-    sessionStorage.removeItem(`gs-${wizardVersion}-history`);
+    sessionStorage.removeItem(`gs-${storageKey}-history`);
     clearData();
     setMessages([]);
     setInputValue("");
@@ -778,7 +783,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
       const userMsg: Message = { id: uid(), role: "user", content: msg };
       const newMessages = [...messages, userMsg];
       setMessages(newMessages);
-      saveHistory(newMessages, wizardVersion);
+      saveHistory(newMessages, storageKey);
       scrollToBottom();
 
       // Promote to "sending" but don't downgrade "course-ref-analysing"
@@ -803,7 +808,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         };
         const withErr = [...newMessages, errMsg];
         setMessages(withErr);
-        saveHistory(withErr, wizardVersion);
+        saveHistory(withErr, storageKey);
         scrollToBottom();
         setTimeout(() => inputRef.current?.focus(), 150);
         return;
@@ -851,7 +856,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
       }).reverse();
 
       setMessages(finalMessages);
-      saveHistory(finalMessages, wizardVersion);
+      saveHistory(finalMessages, storageKey);
       scrollToBottom();
       setTimeout(() => inputRef.current?.focus(), 150);
 
@@ -902,7 +907,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
           m.systemType === "upload-zone" ? { ...m, resolved: true } : m,
         );
         const withUpload = [...updated, uploadMsg];
-        saveHistory(withUpload, wizardVersion);
+        saveHistory(withUpload, storageKey);
         return withUpload;
       });
 
@@ -967,7 +972,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
           };
           setMessages((prev) => {
             const updated = [...prev, doneMsg];
-            saveHistory(updated, wizardVersion);
+            saveHistory(updated, storageKey);
             return updated;
           });
           scrollToBottom();
@@ -1011,12 +1016,12 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
             const assistantMsg: Message = { id: uid(), role: "assistant", content: fallbackResult.data.content };
             const updated = [...messagesRef.current, assistantMsg];
             setMessages(updated);
-            saveHistory(updated, wizardVersion);
+            saveHistory(updated, storageKey);
             scrollToBottom();
           } else {
             // Safety net — show timeline message so chat isn't stuck
             const safetyMsg: Message = { id: uid(), role: "system", content: "Course reference processed — let's continue setting up your course", systemType: "timeline" };
-            setMessages((prev) => { const u = [...prev, safetyMsg]; saveHistory(u, wizardVersion); return u; });
+            setMessages((prev) => { const u = [...prev, safetyMsg]; saveHistory(u, storageKey); return u; });
             scrollToBottom();
           }
           return;
@@ -1111,7 +1116,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
           const assistantMsg: Message = { id: uid(), role: "assistant", content: result.data.content };
           const updated = [...messagesRef.current, assistantMsg];
           setMessages(updated);
-          saveHistory(updated, wizardVersion);
+          saveHistory(updated, storageKey);
           scrollToBottom();
         } else {
           // API returned no content — show a timeline message so chat isn't stuck
@@ -1123,7 +1128,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
           };
           setMessages((prev) => {
             const updated = [...prev, fallbackMsg];
-            saveHistory(updated, wizardVersion);
+            saveHistory(updated, storageKey);
             return updated;
           });
           scrollToBottom();
@@ -1140,7 +1145,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         };
         setMessages((prev) => {
           const updated = [...prev, fallbackDone];
-          saveHistory(updated, wizardVersion);
+          saveHistory(updated, storageKey);
           return updated;
         });
         scrollToBottom();
@@ -1192,7 +1197,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        if (isBusy) return; // Don't send while busy — matches disabled send button
+        if (isForeground) return; // Don't send while foreground-busy — background work allows input
         // If user typed text, auto-resolve any active options card and send
         if (hasActiveOptions && inputValue.trim()) {
           setMessages((prev) =>
@@ -1230,7 +1235,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         }
       }
     },
-    [handleSend, hasActiveOptions, inputValue, isBusy],
+    [handleSend, hasActiveOptions, inputValue, isForeground],
   );
 
   // Global Esc to dismiss active options card
@@ -1281,7 +1286,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
     if (!isActive || initialised.current) return;
     initialised.current = true;
 
-    const saved = loadHistory(wizardVersion);
+    const saved = loadHistory(storageKey);
     if (saved.length > 0) {
       setMessages(saved);
       scrollToBottom();
@@ -1297,7 +1302,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         : "Hi! I'll help you set up your AI tutor. Tell me about the course you want to create — what subject, who it's for, and roughly how many sessions.",
     };
     setMessages([greeting]);
-    saveHistory([greeting], wizardVersion);
+    saveHistory([greeting], storageKey);
     scrollToBottom();
     setTimeout(() => inputRef.current?.focus(), 150);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1549,7 +1554,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
             }
 
             if (msg.role === "assistant") {
-              const isLast = !isBusy && suggestions.items.length === 0 && !welcomeSuggestion && msg.id === lastAssistantId;
+              const isLast = !isForeground && suggestions.items.length === 0 && !welcomeSuggestion && msg.id === lastAssistantId;
               const inlineOptions = isLast ? parseOptionsFromText(msg.content) : [];
               const displayContent = stripParameterTags(msg.content);
               return (
@@ -1613,7 +1618,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
           )}
 
           {/* Suggestion chips — inline after last message, not buried at page bottom */}
-          {suggestions.items.length > 0 && !welcomeSuggestion && !isBusy && (
+          {suggestions.items.length > 0 && !welcomeSuggestion && !isForeground && (
             <div className="cv4-row cv4-row--assistant">
               <div className="cv4-suggestions">
                 {suggestions.question && (
@@ -1680,7 +1685,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
           )}
 
           {/* Field picker panel — shown above input when AI calls show_options with fieldPicker: true */}
-          {fieldPickerPanel && !isBusy && (
+          {fieldPickerPanel && !isForeground && (
             <div className="cv4-field-picker-panel">
               <OptionsCard
                 panel={fieldPickerPanel}
@@ -1712,7 +1717,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
               className="cv4-textarea"
             />
 
-            {isBusy ? (
+            {isForeground ? (
               <div className="cv4-send-btn cv4-send-btn--loading">
                 <Loader2 size={16} className="hf-spinner" />
               </div>
