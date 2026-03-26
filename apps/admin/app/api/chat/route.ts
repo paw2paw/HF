@@ -11,16 +11,13 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
-import { WIZARD_TOOLS, executeWizardTool } from "@/lib/chat/wizard-tools";
-import { buildWizardSystemPrompt, buildGraphSystemPrompt } from "@/lib/chat/wizard-system-prompt";
-import { buildConversationalSystemPrompt } from "@/lib/chat/conversational-system-prompt";
+import { executeWizardTool } from "@/lib/chat/wizard-tools";
 import { buildV5SystemPrompt } from "@/lib/chat/v5-system-prompt";
 import { CONVERSATIONAL_TOOLS } from "@/lib/chat/conversational-wizard-tools";
 import { COURSE_REF_TOOLS } from "@/lib/chat/course-ref-tools";
 import { buildCourseRefSystemPrompt } from "@/lib/chat/course-ref-system-prompt";
 import { executeCourseRefTool } from "@/lib/chat/course-ref-tool-handlers";
 import type { CourseRefData } from "@/lib/content-trust/course-ref-to-assertions";
-import { computeCurrentPhase } from "@/lib/chat/wizard-schema";
 import { evaluateGraph, buildGraphFallback } from "@/lib/wizard/graph-evaluator";
 import { embedText } from "@/lib/embeddings";
 import { retrieveKnowledgeForPrompt } from "@/lib/knowledge/retriever";
@@ -107,34 +104,10 @@ export async function POST(request: NextRequest) {
     // WIZARD mode: handle early (has its own system prompt, no slash commands)
     if (mode === "WIZARD") {
       const userId = authResult.session.user.id;
-      const wizardVersion = setupData?._wizardVersion;
       const subjectsCatalog = await getSubjectsCatalog();
-      let wizardPrompt: string;
-      let wizardTools = WIZARD_TOOLS;
-
-      if (wizardVersion === "v5") {
-        // V5: Graph-driven — no linear phases, content-first possible
-        const graphEval = evaluateGraph(setupData || {});
-        wizardPrompt = buildV5SystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
-        wizardTools = CONVERSATIONAL_TOOLS;
-      } else if (wizardVersion === "v4") {
-        // V4: Conversational — no show_options/show_sliders/show_actions
-        const graphEval = evaluateGraph(setupData || {});
-        wizardPrompt = buildConversationalSystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
-        wizardTools = CONVERSATIONAL_TOOLS;
-      } else if (wizardVersion === "v3") {
-        // V3: Graph-based non-linear prompt
-        const graphEval = evaluateGraph(setupData || {});
-        wizardPrompt = buildGraphSystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
-      } else {
-        // V2: Linear phase-based prompt
-        const isCommunity = setupData?.defaultDomainKind === "COMMUNITY";
-        const { phase: currentPhase, phaseIndex, phaseFields } = computeCurrentPhase(
-          setupData || {},
-          !!isCommunity,
-        );
-        wizardPrompt = buildWizardSystemPrompt(setupData || {}, currentPhase, phaseIndex, phaseFields, subjectsCatalog);
-      }
+      const graphEval = evaluateGraph(setupData || {});
+      const wizardPrompt = buildV5SystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
+      const wizardTools = CONVERSATIONAL_TOOLS;
 
       // Deduplicate: client includes the current message in conversationHistory
       const lastHist = conversationHistory[conversationHistory.length - 1];
@@ -582,97 +555,6 @@ function detectComplexWizardTurn(
   return false;
 }
 
-/** Contextual fallback when the AI tool loop ends without producing text.
- *  Phase-aware: includes a continuation prompt about the next field when possible. */
-function buildWizardFallback(
-  toolCalls: Array<{ name: string; input: Record<string, unknown> }>,
-  mergedSetupData?: Record<string, unknown>,
-): string {
-  const names = new Set(toolCalls.map((tc) => tc.name));
-
-  if (names.has("show_actions")) return "Here's a summary of your setup. Ready to create your course?";
-  if (names.has("show_upload")) return "Now let's add some teaching content for your course.";
-  if (names.has("show_sliders")) return "Let's fine-tune the AI tutor's personality.";
-
-  if (names.has("show_options")) {
-    // Use the question header from the show_options tool so the user knows what's being asked
-    const optionCall = toolCalls.find((tc) => tc.name === "show_options");
-    const question = optionCall?.input?.question as string | undefined;
-    return question ? `Choose your **${question.toLowerCase()}** below.` : "Pick an option below.";
-  }
-
-  if (names.has("update_setup")) {
-    // Summarise what was actually saved using field values
-    const updateCalls = toolCalls.filter((tc) => tc.name === "update_setup");
-    const allFields: Record<string, unknown> = {};
-    for (const tc of updateCalls) {
-      const fields = tc.input.fields as Record<string, unknown> | undefined;
-      if (fields) Object.assign(allFields, fields);
-    }
-    const parts: string[] = [];
-    if (allFields.institutionName) parts.push(String(allFields.institutionName));
-    if (allFields.courseName) parts.push(`${allFields.courseName} course`);
-    if (allFields.interactionPattern) parts.push(`${allFields.interactionPattern} approach`);
-    if (allFields.teachingMode) parts.push(`${allFields.teachingMode} emphasis`);
-    if (allFields.sessionCount) parts.push(`${allFields.sessionCount} sessions`);
-    if (allFields.durationMins) parts.push(`${allFields.durationMins} min each`);
-    if (allFields.welcomeMessage) parts.push("welcome message");
-
-    const ack = parts.length > 0 ? `Got it — ${parts.join(", ")}.` : "Got it, saved that.";
-
-    // Phase-aware continuation: tell the user what comes next
-    if (mergedSetupData) {
-      const continuation = buildPhaseContinuation(mergedSetupData);
-      if (continuation) return `${ack} ${continuation}`;
-    }
-
-    return ack;
-  }
-
-  if (names.has("show_suggestions")) return "";
-  return "";
-}
-
-/** Generate a natural continuation prompt based on the next wizard phase/field. */
-function buildPhaseContinuation(data: Record<string, unknown>): string {
-  const isCommunity = data.defaultDomainKind === "COMMUNITY";
-  const { phase, phaseFields } = computeCurrentPhase(data, !!isCommunity);
-
-  const FIELD_PROMPTS: Record<string, string> = {
-    institutionName: "What's the name of your organisation or school?",
-    typeSlug: "What type of organisation is this?",
-    websiteUrl: "Do you have a website for your organisation?",
-    subjectDiscipline: "What subject will you be teaching?",
-    courseName: "What would you like to name your course?",
-    interactionPattern: "What teaching approach would you like?",
-    teachingMode: "What's the teaching emphasis for this course?",
-    welcomeMessage: "Now let's set up your **welcome message** — this is what students hear when they first call in.",
-    sessionCount: "How many sessions would you like in your course?",
-    durationMins: "How long should each session be?",
-    planEmphasis: "Would you like to focus on breadth or depth?",
-    behaviorTargets: "Let's fine-tune your AI tutor's **personality**.",
-    lessonPlanModel: "What lesson plan model works best for your course?",
-  };
-
-  // Content phase (no field keys)
-  if (phase.id === "content") {
-    return "Now let's add some **teaching content** for your course.";
-  }
-
-  // Launch phase
-  if (phase.id === "launch") {
-    return "Ready to review your setup and create your course?";
-  }
-
-  // Get the first uncollected field in the current phase
-  const nextField = phaseFields[0];
-  if (nextField && FIELD_PROMPTS[nextField]) {
-    return FIELD_PROMPTS[nextField];
-  }
-
-  return "";
-}
-
 /**
  * WIZARD mode with tool calling.
  * Uses non-streaming tool loop (same pattern as DATA mode) with wizard-specific tools.
@@ -689,7 +571,7 @@ async function handleWizardModeWithTools(
   conversationHistory: { role: string; content: string }[],
   userId: string,
   setupData?: Record<string, unknown>,
-  tools: import("@/lib/ai/client").AITool[] = WIZARD_TOOLS,
+  tools: import("@/lib/ai/client").AITool[] = CONVERSATIONAL_TOOLS,
 ): Promise<Response> {
   const loopMessages: AIMessage[] = [...messages];
   let toolCallCount = 0;
@@ -868,44 +750,21 @@ async function handleWizardModeWithTools(
   }
 
   // ── Continuation re-prompt ──────────────────────────────
-  // If the AI produced no text AND no interactive panel (show_options/show_sliders/etc),
-  // the conversation would dead-end. Rebuild the system prompt with the updated phase
-  // and do one more AI call so the wizard naturally continues.
+  // If the AI produced no text AND no interactive panel, the conversation would dead-end.
+  // Rebuild the system prompt with updated state and do one more AI call.
   const hasInteractivePanel = hasShowTool || allToolCalls.some((tc) =>
-    ["show_options", "show_sliders", "show_upload", "show_actions", "show_suggestions"].includes(tc.name)
+    ["show_options", "show_upload", "show_suggestions"].includes(tc.name)
   );
   if (!finalContent && !hasInteractivePanel) {
-    const wizardVersionCont = mergedSetupData._wizardVersion;
     const freshSubjectsCatalog = await getSubjectsCatalog();
-    let continuationPrompt: string;
-    let logPhase: string;
+    const graphEval = evaluateGraph(mergedSetupData);
+    const continuationPrompt = buildV5SystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
+    const logPhase = `v5:${graphEval.readinessPct}%`;
 
-    if (wizardVersionCont === "v5") {
-      const graphEval = evaluateGraph(mergedSetupData);
-      continuationPrompt = buildV5SystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
-      logPhase = `v5:${graphEval.readinessPct}%`;
-    } else if (wizardVersionCont === "v4") {
-      const graphEval = evaluateGraph(mergedSetupData);
-      continuationPrompt = buildConversationalSystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
-      logPhase = `conv:${graphEval.readinessPct}%`;
-    } else if (wizardVersionCont === "v3") {
-      const graphEval = evaluateGraph(mergedSetupData);
-      continuationPrompt = buildGraphSystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
-      logPhase = `graph:${graphEval.readinessPct}%`;
-    } else {
-      const isCommunity = mergedSetupData.defaultDomainKind === "COMMUNITY";
-      const { phase: updatedPhase, phaseIndex: updatedIdx, phaseFields: updatedFields } =
-        computeCurrentPhase(mergedSetupData, !!isCommunity);
-      continuationPrompt = buildWizardSystemPrompt(
-        mergedSetupData, updatedPhase, updatedIdx, updatedFields, freshSubjectsCatalog,
-      );
-      logPhase = `${updatedPhase.id}:${updatedFields.join(",")}`;
-    }
-
-    // Replace system message with updated phase context
+    // Replace system message with updated context
     loopMessages[0] = { role: "system", content: continuationPrompt };
-    // Phase-aware nudge: V4 needs Phase 1b playback if intake data was just extracted,
-    // not "ask about next field" (which would bypass Phase 1b and cause an infinite loop).
+    // Playback nudge: if intake data was extracted but Phase 2 hasn't started,
+    // trigger the playback instead of asking about the next field.
     const phase2Started = !!(
       mergedSetupData.interactionPattern ||
       mergedSetupData.planEmphasis ||
@@ -916,7 +775,7 @@ async function handleWizardModeWithTools(
       mergedSetupData.subjectDiscipline ||
       mergedSetupData.institutionName
     );
-    const needsPlayback = (wizardVersionCont === "v4" || wizardVersionCont === "v5") && hasIntakeData && !phase2Started;
+    const needsPlayback = hasIntakeData && !phase2Started;
     loopMessages.push({
       role: "user",
       content: needsPlayback
@@ -955,15 +814,9 @@ async function handleWizardModeWithTools(
   }
 
   if (!finalContent) {
-    // Last-resort fallback — version-aware.
-    // V4 and V3 both use buildGraphFallback (graph-aware, no V2 phase prompts).
-    // V2 uses buildWizardFallback (phase-based with V2 FIELD_PROMPTS).
-    if (mergedSetupData._wizardVersion === "v5" || mergedSetupData._wizardVersion === "v4" || mergedSetupData._wizardVersion === "v3") {
-      const graphEval = evaluateGraph(mergedSetupData);
-      finalContent = buildGraphFallback(graphEval, mergedSetupData, allToolCalls);
-    } else {
-      finalContent = buildWizardFallback(allToolCalls, mergedSetupData);
-    }
+    // Last-resort fallback: graph-aware fallback text
+    const graphEval = evaluateGraph(mergedSetupData);
+    finalContent = buildGraphFallback(graphEval, mergedSetupData, allToolCalls);
   }
 
   logChatRequest(mode, message, selectedEngine, conversationHistory, entityContext, toolCallCount);
