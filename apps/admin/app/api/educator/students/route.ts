@@ -24,7 +24,7 @@ function formatStudents(students: Awaited<ReturnType<typeof prisma.caller.findMa
     const primaryMembership = s.cohortMemberships?.[0];
     return {
       id: s.id,
-      name: s.name ?? "Unknown",
+      name: s.name ?? null,
       email: s.email,
       classroom: primaryMembership?.cohortGroup
         ? { id: primaryMembership.cohortGroup.id, name: primaryMembership.cohortGroup.name }

@@ -103,7 +103,7 @@ export async function GET() {
             callerName:
               (c.caller as Record<string, unknown> | null)?.name ||
               (c.caller as Record<string, unknown> | null)?.email ||
-              "Unknown",
+              null,
             callerId: (c.caller as Record<string, unknown> | null)?.id || null,
             createdAt: (c.createdAt as Date).toISOString(),
           })

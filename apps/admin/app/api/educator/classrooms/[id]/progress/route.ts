@@ -107,7 +107,7 @@ export async function GET(
     perStudent: members
       .map((m) => ({
         id: m.id,
-        name: m.name ?? "Unknown",
+        name: m.name ?? null,
         totalCalls: m._count.calls,
         recentCalls: m.calls.filter((c) => c.createdAt >= sevenDaysAgo).length,
       }))

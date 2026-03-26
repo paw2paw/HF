@@ -206,6 +206,12 @@
   color: var(--text-muted);
 }
 
+.gs-bp-content-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .gs-bp-extracting {
   display: inline-flex;
   align-items: center;

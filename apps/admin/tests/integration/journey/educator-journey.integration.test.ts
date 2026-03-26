@@ -416,3 +416,50 @@ describe("Step 6: Sim-setup enrolls caller in course", () => {
     expect(all.length).toBe(1);
   });
 });
+
+// ─── Step 7: Cross-source assertion access ──────────────────────
+
+describe("Step 7: AI can access assertions from ALL course sources", () => {
+  let composeResult: CompositionResult;
+
+  beforeAll(async () => {
+    const composeConfig = await loadComposeConfig({ forceFirstCall: true });
+    composeResult = await executeComposition(
+      fixtures.callerId,
+      composeConfig.sections,
+      { ...composeConfig.fullSpecConfig, forceFirstCall: true }
+    );
+  }, 15_000);
+
+  it("composition loads assertions from both sources", () => {
+    const assertions = composeResult.loadedData.curriculumAssertions || [];
+    expect(assertions.length).toBeGreaterThanOrEqual(7); // 5 from source1 + 2 from source2
+
+    // Verify assertions from source 1 (textbook)
+    const source1Assertions = assertions.filter(
+      (a) => a.sourceName === "Biology Textbook (Journey Test)"
+    );
+    expect(source1Assertions.length).toBe(5);
+
+    // Verify assertions from source 2 (worksheet)
+    const source2Assertions = assertions.filter(
+      (a) => a.sourceName === "Biology Worksheet (Journey Test)"
+    );
+    expect(source2Assertions.length).toBe(2);
+  });
+
+  it("assertions from both sources appear regardless of lesson plan session", () => {
+    // The lesson plan assigns BIO-LO1 to session 1 and BIO-LO2 to session 2.
+    // Both sources have assertions for both LOs.
+    // The prompt composition should include ALL assertions — not filtered by session.
+    const assertions = composeResult.loadedData.curriculumAssertions || [];
+
+    const lo1Assertions = assertions.filter((a) => a.learningOutcomeRef === "BIO-LO1");
+    const lo2Assertions = assertions.filter((a) => a.learningOutcomeRef === "BIO-LO2");
+
+    // LO1: 3 from source1 + 1 from source2 = 4
+    expect(lo1Assertions.length).toBe(4);
+    // LO2: 2 from source1 + 1 from source2 = 3
+    expect(lo2Assertions.length).toBe(3);
+  });
+});

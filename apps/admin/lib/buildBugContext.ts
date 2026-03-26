@@ -69,8 +69,8 @@ export function buildBugContext(opts: BuildContextOpts): BugContextPayload {
   return {
     url: fullUrl,
     timestamp: Date.now(),
-    viewport: typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "N/A",
-    browser: typeof navigator !== "undefined" ? navigator.userAgent : "N/A",
+    viewport: typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : null,
+    browser: typeof navigator !== "undefined" ? navigator.userAgent : null,
     userRole,
     institution,
     entityBreadcrumbs: breadcrumbs

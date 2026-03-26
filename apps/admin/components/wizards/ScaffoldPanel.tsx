@@ -11,6 +11,7 @@
  */
 
 import { Loader2, RotateCcw, ExternalLink, Pencil } from "lucide-react";
+import { estimateTeachingSessions } from "@/lib/lesson-plan/session-ui";
 import "./scaffold-panel.css";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
@@ -347,12 +348,11 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
             <div className="gs-bp-title">
               {courseName || (hasAnyData ? "Your Course" : "Course Blueprint")}
             </div>
-            {institutionName && !courseName && (
+            {institutionName ? (
               <div className="gs-bp-subtitle">{institutionName}</div>
-            )}
-            {!hasAnyData && (
+            ) : !hasAnyData ? (
               <div className="gs-bp-subtitle">Start chatting to build your course</div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -432,6 +432,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                     {contentParts.length > 0 && (
                       <span className="gs-bp-content-detail">{contentParts.join(" · ")}</span>
                     )}
+                    <span className="gs-bp-content-hint">Available across all sessions</span>
                   </>
                 )}
               </div>
@@ -477,6 +478,25 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                   </span>
                 )}
               </div>
+              {sessionCount && sourceCount && (() => {
+                const teachingSessions = estimateTeachingSessions(sessionCount);
+                if (teachingSessions <= 0) return null;
+                if (sourceCount > teachingSessions) {
+                  return (
+                    <span className="gs-bp-content-hint">
+                      {sourceCount} material{sourceCount !== 1 ? "s" : ""} for {teachingSessions} teaching session{teachingSessions !== 1 ? "s" : ""} — some sessions will cover multiple documents
+                    </span>
+                  );
+                }
+                if (sourceCount < teachingSessions) {
+                  return (
+                    <span className="gs-bp-content-hint">
+                      {sourceCount} material{sourceCount !== 1 ? "s" : ""} for {teachingSessions} teaching session{teachingSessions !== 1 ? "s" : ""} — consider uploading more
+                    </span>
+                  );
+                }
+                return null;
+              })()}
             </BlueprintSection>
           )}
 

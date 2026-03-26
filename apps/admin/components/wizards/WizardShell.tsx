@@ -79,8 +79,8 @@ export function WizardShell({ config, onComplete, initialData }: WizardShellProp
             }),
           );
         }
-      } catch {
-        // Silent — use config fallback
+      } catch (err) {
+        console.error("[WizardShell] Failed to load steps from API:", err);
       }
 
       if (!isActive || state?.flowId !== config.flowId) {

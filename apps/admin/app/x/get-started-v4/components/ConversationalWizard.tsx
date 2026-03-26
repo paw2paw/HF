@@ -45,6 +45,14 @@ export interface WizardInitialContext {
   domainKind: "INSTITUTION" | "COMMUNITY";
   typeSlug: string | null;
   userRole: string;
+  /** Amendment mode: pre-fill from existing course */
+  courseId?: string;
+  courseName?: string;
+  subjectDiscipline?: string;
+  interactionPattern?: string;
+  teachingMode?: string;
+  sessionCount?: number;
+  durationMins?: number;
 }
 
 interface ConversationalWizardProps {
@@ -364,6 +372,14 @@ function contextToInitialData(ctx: WizardInitialContext): Record<string, unknown
     existingDomainId: ctx.domainId,
     defaultDomainKind: ctx.domainKind,
     ...(ctx.typeSlug ? { typeSlug: ctx.typeSlug } : {}),
+    // Amendment mode: pre-fill course fields
+    ...(ctx.courseId ? { draftPlaybookId: ctx.courseId } : {}),
+    ...(ctx.courseName ? { courseName: ctx.courseName } : {}),
+    ...(ctx.subjectDiscipline ? { subjectDiscipline: ctx.subjectDiscipline } : {}),
+    ...(ctx.interactionPattern ? { interactionPattern: ctx.interactionPattern } : {}),
+    ...(ctx.teachingMode ? { teachingMode: ctx.teachingMode } : {}),
+    ...(ctx.sessionCount ? { sessionCount: ctx.sessionCount } : {}),
+    ...(ctx.durationMins ? { durationMins: ctx.durationMins } : {}),
   };
 }
 

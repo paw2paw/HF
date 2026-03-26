@@ -164,7 +164,7 @@ export async function GET(
     }
 
     // 1. CALLER HUB NODE
-    const callerLabel = caller.name || caller.email || caller.phone || caller.externalId || "Unknown";
+    const callerLabel = caller.name || caller.email || caller.phone || caller.externalId || caller.id;
     addNode({
       id: `caller:${caller.id}`,
       label: callerLabel,

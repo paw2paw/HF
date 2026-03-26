@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
+import { getLessonPlanModel } from "@/lib/lesson-plan/models";
+import type { LessonPlanModelConfig } from "@/lib/lesson-plan/types";
 
 // ------------------------------------------------------------------
 // Types
@@ -281,6 +283,527 @@ export async function generateLessonPlan(
     prerequisites,
     generatedAt: new Date().toISOString(),
   };
+}
+
+// ------------------------------------------------------------------
+// Multi-source lesson plan generation (playbook-scoped)
+// ------------------------------------------------------------------
+
+export interface PlaybookPlanOptions extends LessonPlanOptions {
+  /** Pedagogical model slug (e.g. 'direct_instruction', '5e'). Drives maxTpsPerSession + reviewFrequency. */
+  lessonPlanModel?: string;
+}
+
+export interface SessionCountRecommendation {
+  min: number;
+  recommended: number;
+  max: number;
+  breakdown: {
+    onboarding: number;
+    teaching: number;
+    review: number;
+    assess: number;
+    consolidation: number;
+  };
+  effectiveMaxTPs: number;
+  totalTPs: number;
+  totalModules: number;
+}
+
+export interface AdvisoryCheck {
+  id: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  affectedSessions?: number[];
+}
+
+export interface ExtendedLessonPlan extends LessonPlan {
+  recommendation?: SessionCountRecommendation;
+  advisories?: AdvisoryCheck[];
+}
+
+/**
+ * Generate a lesson plan for an entire playbook (course) across all its content sources.
+ *
+ * Unlike `generateLessonPlan(sourceId)` which plans a single source,
+ * this loads all sources for a playbook, applies topological prerequisite
+ * ordering from parentId chains, respects maxTpsPerSession from the
+ * pedagogical model, and produces advisory warnings.
+ */
+export async function generateLessonPlanForPlaybook(
+  playbookId: string,
+  options: PlaybookPlanOptions = {},
+): Promise<ExtendedLessonPlan> {
+  const sessionLength = options.sessionLength || DEFAULT_SESSION_LENGTH;
+  const modelDef = getLessonPlanModel(options.lessonPlanModel);
+  const maxTPs = modelDef.defaults.maxTpsPerSession;
+  const effectiveMaxTPs = Math.round(maxTPs * (sessionLength / 15));
+
+  // 1. Resolve all source IDs for this playbook
+  const playbookSubjects = await prisma.playbookSubject.findMany({
+    where: { playbookId },
+    select: {
+      subject: {
+        select: {
+          sources: {
+            select: { sourceId: true, sortOrder: true },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      },
+    },
+  });
+
+  let sourceIds: string[];
+  if (playbookSubjects.length > 0) {
+    sourceIds = [...new Set(
+      playbookSubjects.flatMap((ps) => ps.subject.sources.map((s) => s.sourceId)),
+    )];
+  } else {
+    // Fallback: domain-wide
+    const playbook = await prisma.playbook.findUnique({
+      where: { id: playbookId },
+      select: { domainId: true },
+    });
+    if (!playbook?.domainId) {
+      return emptyPlan(sessionLength);
+    }
+    const domainSources = await prisma.subjectDomain.findMany({
+      where: { domainId: playbook.domainId },
+      select: { subject: { select: { sources: { select: { sourceId: true } } } } },
+    });
+    sourceIds = [...new Set(domainSources.flatMap((sd) => sd.subject.sources.map((s) => s.sourceId)))];
+  }
+
+  if (sourceIds.length === 0) return emptyPlan(sessionLength);
+
+  // 2. Load all content across sources
+  const [assertions, questions, vocabulary] = await Promise.all([
+    prisma.contentAssertion.findMany({
+      where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
+      select: {
+        id: true,
+        assertion: true,
+        category: true,
+        chapter: true,
+        learningOutcomeRef: true,
+        depth: true,
+        topicSlug: true,
+        parentId: true,
+        sourceId: true,
+      },
+      orderBy: [{ depth: "asc" }, { orderIndex: "asc" }],
+    }),
+    prisma.contentQuestion.findMany({
+      where: { sourceId: { in: sourceIds } },
+      select: {
+        id: true,
+        questionText: true,
+        questionType: true,
+        chapter: true,
+        learningOutcomeRef: true,
+      },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.contentVocabulary.findMany({
+      where: { sourceId: { in: sourceIds } },
+      select: { id: true, term: true, topic: true, chapter: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
+
+  if (assertions.length === 0) return emptyPlan(sessionLength);
+
+  // 3. Topological sort by parentId chains
+  const sortedAssertions = topologicalSortAssertions(assertions);
+
+  // 4. Group by topic and build sessions (reusing existing logic)
+  const topicGroups = groupByTopic(sortedAssertions, questions, vocabulary);
+  const sessions: LessonSession[] = [];
+  let sessionNumber = 1;
+
+  for (const group of topicGroups) {
+    const estimatedMinutes =
+      group.assertions.length * MINUTES_PER_ASSERTION +
+      group.questions.length * MINUTES_PER_QUESTION +
+      group.vocabulary.length * MINUTES_PER_VOCAB;
+
+    // Dual constraint: time budget AND cognitive load cap
+    const maxAssertionsPerSession = effectiveMaxTPs;
+    const needsSplitByTime = estimatedMinutes > sessionLength;
+    const needsSplitByTPs = group.assertions.length > maxAssertionsPerSession;
+
+    if (!needsSplitByTime && !needsSplitByTPs) {
+      sessions.push({
+        sessionNumber,
+        title: group.topic,
+        objectives: group.assertions
+          .filter((a) => a.depth === 0 || a.depth === 1)
+          .slice(0, 3)
+          .map((a) => a.assertion),
+        assertionIds: group.assertions.map((a) => a.id),
+        questionIds: group.questions.map((q) => q.id),
+        vocabularyIds: group.vocabulary.map((v) => v.id),
+        estimatedMinutes,
+        sessionType: group.questions.length > group.assertions.length ? "practice" : "introduce",
+      });
+      sessionNumber++;
+    } else {
+      // Split by whichever constraint is tighter
+      const numByTime = Math.ceil(estimatedMinutes / sessionLength);
+      const numByTPs = Math.ceil(group.assertions.length / maxAssertionsPerSession);
+      const numSessions = Math.max(numByTime, numByTPs);
+      const assertionsPerSession = Math.ceil(group.assertions.length / numSessions);
+
+      for (let i = 0; i < numSessions; i++) {
+        const startIdx = i * assertionsPerSession;
+        const sessionAssertions = group.assertions.slice(startIdx, startIdx + assertionsPerSession);
+        const sessionQuestions = i === numSessions - 1 ? group.questions : [];
+        const sessionVocab = i === 0 ? group.vocabulary : [];
+
+        sessions.push({
+          sessionNumber,
+          title: numSessions > 1 ? `${group.topic} (Part ${i + 1})` : group.topic,
+          objectives: sessionAssertions
+            .filter((a) => a.depth === 0 || a.depth === 1)
+            .slice(0, 3)
+            .map((a) => a.assertion),
+          assertionIds: sessionAssertions.map((a) => a.id),
+          questionIds: sessionQuestions.map((q) => q.id),
+          vocabularyIds: sessionVocab.map((v) => v.id),
+          estimatedMinutes: Math.min(sessionLength, estimatedMinutes / numSessions),
+          sessionType: i === numSessions - 1 && sessionQuestions.length > 0 ? "practice" : "introduce",
+        });
+        sessionNumber++;
+      }
+    }
+  }
+
+  // 5. Consolidate to target session count
+  const includeAssessment = options.includeAssessment !== false;
+  const includeReview = options.includeReview !== false;
+  let assessSlots = 0;
+  if (options.targetSessionCount) {
+    if (includeAssessment && questions.length > 0) assessSlots++;
+    if (includeReview && sessions.length > 2) assessSlots++;
+  }
+
+  const teachTarget = options.targetSessionCount
+    ? Math.max(1, options.targetSessionCount - assessSlots)
+    : undefined;
+  const teachSessions = consolidateSessions(sessions, {
+    sessionLength,
+    targetSessionCount: teachTarget,
+  });
+  sessions.length = 0;
+  sessions.push(...teachSessions);
+  sessionNumber = sessions.length + 1;
+
+  // 6. Add structural sessions
+  const canAddAssess = !options.targetSessionCount || sessions.length < options.targetSessionCount;
+  if (includeAssessment && questions.length > 0 && canAddAssess) {
+    sessions.push({
+      sessionNumber,
+      title: "Assessment",
+      objectives: ["Review and assess understanding of all topics"],
+      assertionIds: [],
+      questionIds: questions.map((q) => q.id),
+      vocabularyIds: [],
+      estimatedMinutes: Math.min(sessionLength, questions.length * MINUTES_PER_QUESTION),
+      sessionType: "assess",
+    });
+    sessionNumber++;
+  }
+
+  const canAddReview = !options.targetSessionCount || sessions.length < options.targetSessionCount;
+  if (includeReview && sessions.length > 2 && canAddReview) {
+    sessions.push({
+      sessionNumber,
+      title: "Review & Consolidation",
+      objectives: ["Review key concepts", "Address gaps and misconceptions"],
+      assertionIds: assertions.filter((a) => a.depth === 0 || a.depth === 1).map((a) => a.id),
+      questionIds: [],
+      vocabularyIds: vocabulary.map((v) => v.id),
+      estimatedMinutes: sessionLength,
+      sessionType: "review",
+    });
+    sessionNumber++;
+  }
+
+  // 7. Build prerequisite links from actual parentId graph
+  const prerequisites = buildPrerequisiteLinks(assertions, sessions);
+
+  // 8. AI refinement
+  const refined = options.skipAIRefinement
+    ? sessions
+    : await refineWithAI(sessions, assertions.length, questions.length, vocabulary.length);
+
+  // 9. Resolve media
+  await resolveSessionMedia(refined);
+
+  // 10. Session count recommendation
+  const recommendation = computeSessionCountRecommendation(
+    assertions.length,
+    topicGroups.length,
+    modelDef.defaults,
+    sessionLength,
+  );
+
+  // 11. Advisory checks
+  const advisories = runAdvisoryChecks(refined, assertions, maxTPs);
+
+  return {
+    totalSessions: refined.length,
+    estimatedMinutesPerSession: sessionLength,
+    sessions: refined,
+    prerequisites,
+    generatedAt: new Date().toISOString(),
+    recommendation,
+    advisories: advisories.length > 0 ? advisories : undefined,
+  };
+}
+
+function emptyPlan(sessionLength: number): ExtendedLessonPlan {
+  return {
+    totalSessions: 0,
+    estimatedMinutesPerSession: sessionLength,
+    sessions: [],
+    prerequisites: [],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+// ------------------------------------------------------------------
+// Topological sort for prerequisite ordering
+// ------------------------------------------------------------------
+
+/**
+ * Sort assertions respecting parentId dependency chains (Kahn's algorithm).
+ * Parents appear before their children in the output.
+ * Falls back to depth+orderIndex ordering if no parentId links exist.
+ * Throws on cycle detection.
+ */
+function topologicalSortAssertions<
+  T extends { id: string; parentId?: string | null; depth: number | null },
+>(assertions: T[]): T[] {
+  const idSet = new Set(assertions.map((a) => a.id));
+  const childrenOf = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+
+  // Initialize
+  for (const a of assertions) {
+    inDegree.set(a.id, 0);
+    if (!childrenOf.has(a.id)) childrenOf.set(a.id, []);
+  }
+
+  // Build graph — only count edges where both parent and child are in our set
+  for (const a of assertions) {
+    if (a.parentId && idSet.has(a.parentId)) {
+      childrenOf.get(a.parentId)!.push(a.id);
+      inDegree.set(a.id, (inDegree.get(a.id) || 0) + 1);
+    }
+  }
+
+  // Check if any edges exist — if not, return original order (depth+orderIndex from query)
+  const hasEdges = [...inDegree.values()].some((d) => d > 0);
+  if (!hasEdges) return assertions;
+
+  // Kahn's algorithm
+  const queue: string[] = [];
+  for (const [id, deg] of inDegree) {
+    if (deg === 0) queue.push(id);
+  }
+
+  // Sort roots by depth (shallower first) for stable output
+  const byId = new Map(assertions.map((a) => [a.id, a]));
+  queue.sort((a, b) => ((byId.get(a)?.depth ?? 0) - (byId.get(b)?.depth ?? 0)));
+
+  const sorted: string[] = [];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    sorted.push(id);
+    for (const childId of childrenOf.get(id) || []) {
+      const newDeg = (inDegree.get(childId) || 1) - 1;
+      inDegree.set(childId, newDeg);
+      if (newDeg === 0) queue.push(childId);
+    }
+  }
+
+  if (sorted.length !== assertions.length) {
+    const missing = assertions.length - sorted.length;
+    throw new Error(
+      `Cycle detected in ContentAssertion parentId chains: ${missing} assertion(s) could not be ordered. ` +
+      `Check parentId references for circular dependencies.`,
+    );
+  }
+
+  // Rebuild array in sorted order
+  return sorted.map((id) => byId.get(id)!);
+}
+
+// Exported for testing
+export { topologicalSortAssertions };
+
+// ------------------------------------------------------------------
+// Prerequisite links from parentId graph
+// ------------------------------------------------------------------
+
+/**
+ * Build prerequisite links between sessions based on actual parentId
+ * dependencies. If TP-A (in session 2) is the parent of TP-B (in session 5),
+ * then session 5 requires session 2.
+ */
+function buildPrerequisiteLinks(
+  assertions: Array<{ id: string; parentId?: string | null }>,
+  sessions: LessonSession[],
+): PrerequisiteLink[] {
+  // Build assertion → session map
+  const assertionToSession = new Map<string, number>();
+  for (const session of sessions) {
+    for (const aId of session.assertionIds) {
+      assertionToSession.set(aId, session.sessionNumber);
+    }
+  }
+
+  const links = new Map<string, PrerequisiteLink>();
+
+  for (const a of assertions) {
+    if (!a.parentId) continue;
+    const childSession = assertionToSession.get(a.id);
+    const parentSession = assertionToSession.get(a.parentId);
+    if (childSession == null || parentSession == null) continue;
+    if (parentSession >= childSession) continue; // already in order or same session
+
+    const key = `${childSession}->${parentSession}`;
+    if (!links.has(key)) {
+      links.set(key, {
+        sessionNumber: childSession,
+        requiresSession: parentSession,
+        reason: "Teaching point dependency (parentId chain)",
+      });
+    }
+  }
+
+  // If no real dependencies, fall back to linear chain
+  if (links.size === 0) {
+    return sessions
+      .filter((s) => s.sessionNumber > 1)
+      .map((s) => ({
+        sessionNumber: s.sessionNumber,
+        requiresSession: s.sessionNumber - 1,
+        reason: "Sequential topic progression",
+      }));
+  }
+
+  return [...links.values()].sort((a, b) => a.sessionNumber - b.sessionNumber);
+}
+
+// ------------------------------------------------------------------
+// Session count recommendation
+// ------------------------------------------------------------------
+
+export function computeSessionCountRecommendation(
+  totalTPs: number,
+  totalModules: number,
+  modelConfig: Required<LessonPlanModelConfig>,
+  sessionLengthMins: number,
+): SessionCountRecommendation {
+  const { maxTpsPerSession, reviewFrequency, assessmentStyle } = modelConfig;
+  const effectiveMaxTPs = Math.round(maxTpsPerSession * (sessionLengthMins / 15));
+
+  const teaching = Math.max(1, Math.ceil(totalTPs / Math.max(1, effectiveMaxTPs)));
+  const onboarding = 1;
+  const review = reviewFrequency > 0 ? Math.max(0, Math.floor(totalModules / reviewFrequency)) : 0;
+  const assess = assessmentStyle !== "none" ? 1 : 0;
+  const consolidation = 1;
+
+  const recommended = onboarding + teaching + review + assess + consolidation;
+  const min = Math.max(2, onboarding + Math.max(1, totalModules) + consolidation);
+  const max = onboarding + teaching * 2 + review + assess + consolidation; // each teach could get a deepen
+
+  return {
+    min: Math.min(min, recommended),
+    recommended,
+    max,
+    breakdown: { onboarding, teaching, review, assess, consolidation },
+    effectiveMaxTPs,
+    totalTPs,
+    totalModules,
+  };
+}
+
+// ------------------------------------------------------------------
+// Advisory checks
+// ------------------------------------------------------------------
+
+export function runAdvisoryChecks(
+  sessions: LessonSession[],
+  assertions: Array<{ id: string; parentId?: string | null }>,
+  maxTpsPerSession: number,
+): AdvisoryCheck[] {
+  const checks: AdvisoryCheck[] = [];
+
+  // Build assertion → session map
+  const assertionToSession = new Map<string, number>();
+  for (const session of sessions) {
+    for (const aId of session.assertionIds) {
+      assertionToSession.set(aId, session.sessionNumber);
+    }
+  }
+
+  // 1. Overloaded sessions
+  const teachingSessions = sessions.filter((s) => !["assess", "review"].includes(s.sessionType));
+  for (const s of teachingSessions) {
+    if (s.assertionIds.length > maxTpsPerSession) {
+      checks.push({
+        id: "overloaded_session",
+        severity: "warning",
+        message: `Session ${s.sessionNumber} "${s.title}" has ${s.assertionIds.length} teaching points (max ${maxTpsPerSession}) — consider splitting`,
+        affectedSessions: [s.sessionNumber],
+      });
+    }
+  }
+
+  // 2. Thin sessions
+  for (const s of teachingSessions) {
+    if (s.assertionIds.length > 0 && s.assertionIds.length < 3) {
+      checks.push({
+        id: "thin_session",
+        severity: "info",
+        message: `Session ${s.sessionNumber} "${s.title}" has only ${s.assertionIds.length} teaching point(s) — consider merging with an adjacent session`,
+        affectedSessions: [s.sessionNumber],
+      });
+    }
+  }
+
+  // 3. Unassigned TPs
+  const assignedIds = new Set(sessions.flatMap((s) => s.assertionIds));
+  const unassignedCount = assertions.filter((a) => !assignedIds.has(a.id)).length;
+  if (unassignedCount > 0) {
+    checks.push({
+      id: "unassigned_tps",
+      severity: "warning",
+      message: `${unassignedCount} teaching point(s) are not assigned to any session`,
+    });
+  }
+
+  // 4. Prerequisite violations
+  for (const a of assertions) {
+    if (!a.parentId) continue;
+    const childSession = assertionToSession.get(a.id);
+    const parentSession = assertionToSession.get(a.parentId);
+    if (childSession == null || parentSession == null) continue;
+    if (childSession < parentSession) {
+      checks.push({
+        id: "prerequisite_violation",
+        severity: "error",
+        message: `Teaching point in session ${childSession} depends on a prerequisite in session ${parentSession} — prerequisite should come first`,
+        affectedSessions: [childSession, parentSession],
+      });
+    }
+  }
+
+  return checks;
 }
 
 // ------------------------------------------------------------------

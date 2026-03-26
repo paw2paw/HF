@@ -297,7 +297,7 @@ async function loadCallersContext(limit = 20): Promise<CallerContext[]> {
 
   return callers.map((c) => ({
     id: c.id,
-    name: c.name || "Unknown",
+    name: c.name ?? null,
     lastCallAt: c.calls[0]?.createdAt,
     totalCalls: c._count.calls,
   }));
@@ -412,7 +412,7 @@ async function loadGoalsContext(limit = 20): Promise<GoalContext[]> {
 
   return goals.map((g) => ({
     callerId: g.caller.id,
-    callerName: g.caller.name || "Unknown",
+    callerName: g.caller.name ?? null,
     goalType: g.type,
     title: g.name,
     status: g.status,

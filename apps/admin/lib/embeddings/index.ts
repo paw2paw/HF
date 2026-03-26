@@ -29,7 +29,10 @@ export async function openAiEmbed(
   }
 
   const json = (await res.json()) as any;
-  const data = Array.isArray(json?.data) ? json.data : [];
+  if (!Array.isArray(json?.data) || json.data.length === 0) {
+    throw new Error(`OpenAI embeddings returned no data (expected ${texts.length} embeddings)`);
+  }
+  const data = json.data;
 
   await logExternalAPIUsage({
     operation: "openai-embedding",

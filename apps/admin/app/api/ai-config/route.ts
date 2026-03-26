@@ -57,11 +57,23 @@ export const AVAILABLE_MODELS = {
   ],
 } as const;
 
+type ModelEntry = { id: string; label: string; tier: string; maxOutputTokens: number | null };
+type ModelMap = Record<string, ModelEntry[]>;
+
+/** Convert the `as const` AVAILABLE_MODELS into a mutable ModelMap. */
+function staticModelsToMap(): ModelMap {
+  const result: ModelMap = {};
+  for (const [provider, list] of Object.entries(AVAILABLE_MODELS)) {
+    result[provider] = list.map((m) => ({ ...m, maxOutputTokens: m.maxOutputTokens as number | null }));
+  }
+  return result;
+}
+
 /**
  * Fetch available models from database, grouped by provider.
  * Falls back to hardcoded AVAILABLE_MODELS if DB is empty.
  */
-async function getAvailableModels(): Promise<Record<string, Array<{ id: string; label: string; tier: string; maxOutputTokens: number | null }>>> {
+async function getAvailableModels(): Promise<ModelMap> {
   try {
     const models = await prisma.aIModel.findMany({
       where: { isActive: true },
@@ -69,12 +81,11 @@ async function getAvailableModels(): Promise<Record<string, Array<{ id: string; 
     });
 
     if (models.length === 0) {
-      // Return hardcoded fallback
-      return AVAILABLE_MODELS as any;
+      return staticModelsToMap();
     }
 
     // Group by provider
-    const byProvider: Record<string, Array<{ id: string; label: string; tier: string; maxOutputTokens: number | null }>> = {};
+    const byProvider: ModelMap = {};
     for (const model of models) {
       if (!byProvider[model.provider]) {
         byProvider[model.provider] = [];
@@ -90,7 +101,7 @@ async function getAvailableModels(): Promise<Record<string, Array<{ id: string; 
     return byProvider;
   } catch (error) {
     console.error("[ai-config] Error fetching models from DB, using fallback:", error);
-    return AVAILABLE_MODELS as any;
+    return staticModelsToMap();
   }
 }
 

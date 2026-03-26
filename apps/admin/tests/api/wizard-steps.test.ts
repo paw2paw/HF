@@ -81,17 +81,16 @@ describe("GET /api/wizard-steps", () => {
     expect(data.error).toContain("nonexistent");
   });
 
-  it("returns fallback when spec not found", async () => {
+  it("returns 404 when spec not found", async () => {
     mockPrisma.analysisSpec.findFirst.mockResolvedValueOnce(null);
 
     const req = new NextRequest("http://localhost/api/wizard-steps?slug=NONEXISTENT");
     const res = await GET(req);
     const data = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(data.ok).toBe(true);
-    expect(data.source).toBe("fallback");
-    expect(data.steps).toEqual([]);
+    expect(res.status).toBe(404);
+    expect(data.ok).toBe(false);
+    expect(data.error).toContain("not found");
   });
 
   it("returns error when neither wizard nor slug provided", async () => {
@@ -104,7 +103,7 @@ describe("GET /api/wizard-steps", () => {
     expect(data.error).toContain("wizard");
   });
 
-  it("returns fallback on database failure (loadWizardSteps catches internally)", async () => {
+  it("returns 404 on database failure (loadWizardSteps catches internally and returns null)", async () => {
     mockPrisma.analysisSpec.findFirst.mockRejectedValueOnce(
       new Error("Database error")
     );
@@ -113,10 +112,9 @@ describe("GET /api/wizard-steps", () => {
     const res = await GET(req);
     const data = await res.json();
 
-    // loadWizardSteps catches DB errors and returns null, so route falls through to fallback
-    expect(res.status).toBe(200);
-    expect(data.ok).toBe(true);
-    expect(data.source).toBe("fallback");
-    expect(data.steps).toEqual([]);
+    // loadWizardSteps catches DB errors and returns null → 404
+    expect(res.status).toBe(404);
+    expect(data.ok).toBe(false);
+    expect(data.error).toContain("not found");
   });
 });

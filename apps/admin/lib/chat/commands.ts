@@ -323,12 +323,12 @@ const COMMANDS: ChatCommand[] = [
       }
 
       const lines = [
-        `**${caller.name || "Unknown Caller"}**`,
+        `**${caller.name ?? caller.id}**`,
         "",
         `• ID: ${caller.id}`,
-        `• Email: ${caller.email || "N/A"}`,
-        `• Phone: ${caller.phone || "N/A"}`,
-        `• Domain: ${caller.domain?.name || "None"}`,
+        ...(caller.email ? [`• Email: ${caller.email}`] : []),
+        ...(caller.phone ? [`• Phone: ${caller.phone}`] : []),
+        ...(caller.domain?.name ? [`• Domain: ${caller.domain.name}`] : []),
         `• Total Calls: ${caller._count.calls}`,
         `• Active Memories: ${caller._count.memories}`,
       ];

@@ -882,18 +882,31 @@ export async function executeWizardTool(
 
           if (existingPb) {
             // Apply any config updates the user changed during the wizard
+            // Fall back to setupData (wizard data bag) for fields the AI may not repeat in create_course
             const existingConfig = (existingPb.config as Record<string, unknown>) || {};
             const configUpdate: Record<string, unknown> = { ...existingConfig };
             if (interactionPattern) configUpdate.interactionPattern = interactionPattern;
-            if (input.teachingMode) configUpdate.teachingMode = input.teachingMode;
+            const teachingMode = (input.teachingMode as string) || (setupData?.teachingMode as string);
+            if (teachingMode) configUpdate.teachingMode = teachingMode;
             if (subjectDiscipline) configUpdate.subjectDiscipline = subjectDiscipline;
-            if (input.welcomeMessage) configUpdate.welcomeMessage = input.welcomeMessage;
-            if (input.sessionCount) configUpdate.sessionCount = Number(input.sessionCount);
-            if (input.durationMins) configUpdate.durationMins = Number(input.durationMins);
-            if (input.planEmphasis) configUpdate.planEmphasis = input.planEmphasis;
-            if (input.audience) configUpdate.audience = input.audience;
-            if (input.lessonPlanModel) configUpdate.lessonPlanModel = input.lessonPlanModel;
-            if (input.physicalMaterials) configUpdate.physicalMaterials = input.physicalMaterials;
+            const welcomeMessage = (input.welcomeMessage as string) || (setupData?.welcomeMessage as string);
+            if (welcomeMessage) configUpdate.welcomeMessage = welcomeMessage;
+            const sessionCount = input.sessionCount ?? setupData?.sessionCount;
+            if (sessionCount) configUpdate.sessionCount = Number(sessionCount);
+            const durationMins = input.durationMins ?? setupData?.durationMins;
+            if (durationMins) configUpdate.durationMins = Number(durationMins);
+            const planEmphasis = (input.planEmphasis as string) || (setupData?.planEmphasis as string);
+            if (planEmphasis) configUpdate.planEmphasis = planEmphasis;
+            const audience = (input.audience as string) || (setupData?.audience as string);
+            if (audience) configUpdate.audience = audience;
+            const lessonPlanModel = (input.lessonPlanModel as string) || (setupData?.lessonPlanModel as string);
+            if (lessonPlanModel) configUpdate.lessonPlanModel = lessonPlanModel;
+            const physicalMaterials = (input.physicalMaterials as string) || (setupData?.physicalMaterials as string);
+            if (physicalMaterials) configUpdate.physicalMaterials = physicalMaterials;
+            const courseContext = (input.courseContext as string) || (setupData?.courseContext as string);
+            if (courseContext) configUpdate.courseContext = courseContext;
+            const constraints = (input.constraints as string[]) || (setupData?.constraints as string[]);
+            if (constraints) configUpdate.constraints = constraints;
 
             await prisma.playbook.update({
               where: { id: existingPlaybookId },
@@ -1015,6 +1028,7 @@ export async function executeWizardTool(
               prisma, packSubjectIds, existingPbSubject?.subjectId,
               input.sessionCount ? Number(input.sessionCount) : undefined,
               input.durationMins ? Number(input.durationMins) : undefined,
+              existingPlaybookId,
             );
 
             return {
@@ -1070,6 +1084,7 @@ export async function executeWizardTool(
         const playbookId = scaffoldResult.playbook.id;
 
         // 5. Store config in playbook
+        // Fall back to setupData (wizard data bag) for fields the AI may not repeat in create_course
         const pb = await prisma.playbook.findUnique({
           where: { id: playbookId },
           select: { config: true },
@@ -1077,17 +1092,27 @@ export async function executeWizardTool(
         const existingConfig = (pb?.config as Record<string, unknown>) || {};
         const configUpdate: Record<string, unknown> = { ...existingConfig };
         if (interactionPattern) configUpdate.interactionPattern = interactionPattern;
-        if (input.teachingMode) configUpdate.teachingMode = input.teachingMode;
+        const newTeachingMode = (input.teachingMode as string) || (setupData?.teachingMode as string);
+        if (newTeachingMode) configUpdate.teachingMode = newTeachingMode;
         if (subjectDiscipline) configUpdate.subjectDiscipline = subjectDiscipline;
-        if (input.welcomeMessage) configUpdate.welcomeMessage = input.welcomeMessage;
-        if (input.sessionCount) configUpdate.sessionCount = Number(input.sessionCount);
-        if (input.durationMins) configUpdate.durationMins = Number(input.durationMins);
-        if (input.planEmphasis) configUpdate.planEmphasis = input.planEmphasis;
-        if (input.audience) configUpdate.audience = input.audience;
-        if (input.lessonPlanModel) configUpdate.lessonPlanModel = input.lessonPlanModel;
-        if (input.physicalMaterials) configUpdate.physicalMaterials = input.physicalMaterials;
-        if (input.courseContext) configUpdate.courseContext = input.courseContext;
-        if (input.constraints) configUpdate.constraints = input.constraints;
+        const newWelcomeMessage = (input.welcomeMessage as string) || (setupData?.welcomeMessage as string);
+        if (newWelcomeMessage) configUpdate.welcomeMessage = newWelcomeMessage;
+        const newSessionCount = input.sessionCount ?? setupData?.sessionCount;
+        if (newSessionCount) configUpdate.sessionCount = Number(newSessionCount);
+        const newDurationMins = input.durationMins ?? setupData?.durationMins;
+        if (newDurationMins) configUpdate.durationMins = Number(newDurationMins);
+        const newPlanEmphasis = (input.planEmphasis as string) || (setupData?.planEmphasis as string);
+        if (newPlanEmphasis) configUpdate.planEmphasis = newPlanEmphasis;
+        const newAudience = (input.audience as string) || (setupData?.audience as string);
+        if (newAudience) configUpdate.audience = newAudience;
+        const newLessonPlanModel = (input.lessonPlanModel as string) || (setupData?.lessonPlanModel as string);
+        if (newLessonPlanModel) configUpdate.lessonPlanModel = newLessonPlanModel;
+        const newPhysicalMaterials = (input.physicalMaterials as string) || (setupData?.physicalMaterials as string);
+        if (newPhysicalMaterials) configUpdate.physicalMaterials = newPhysicalMaterials;
+        const newCourseContext = (input.courseContext as string) || (setupData?.courseContext as string);
+        if (newCourseContext) configUpdate.courseContext = newCourseContext;
+        const newConstraints = (input.constraints as string[]) || (setupData?.constraints as string[]);
+        if (newConstraints) configUpdate.constraints = newConstraints;
         // Map assessment targets into goal templates
         if (input.assessmentTargets) {
           const existingGoals = (configUpdate.goals as any[]) || [];
@@ -1389,6 +1414,7 @@ export async function executeWizardTool(
           prisma, subjectIdsToLink.length > 0 ? subjectIdsToLink : packSubjectIds, subject.id,
           input.sessionCount ? Number(input.sessionCount) : undefined,
           input.durationMins ? Number(input.durationMins) : undefined,
+          playbookId,
         );
 
         // Build first call preview data (phases + resolved media filenames)
@@ -2116,6 +2142,7 @@ async function generateLessonPlanPreview(
   primarySubjectId: string | undefined,
   sessionCount?: number,
   durationMins?: number,
+  playbookId?: string,
 ): Promise<Array<{ session: number; label: string; type: string }>> {
   const fallbackCount = sessionCount || 6;
   const fallback = Array.from({ length: fallbackCount }, (_, i) => ({
@@ -2255,23 +2282,34 @@ async function generateLessonPlanPreview(
       return fallback;
     }
 
-    // Generate lesson plan from all content sources (not just the first)
-    const { generateLessonPlan } = await import("@/lib/content-trust/lesson-planner");
+    // Generate lesson plan across all content sources using the extended planner.
+    // If playbookId is available, use the multi-source planner which handles
+    // topological prerequisite ordering and maxTpsPerSession caps.
+    // Otherwise fall back to single-source generation.
+    const { generateLessonPlan, generateLessonPlanForPlaybook } = await import("@/lib/content-trust/lesson-planner");
 
-    // Find the source with the most assertions for primary plan generation
-    const sourceCounts = await prisma.contentAssertion.groupBy({
-      by: ["sourceId"],
-      where: { sourceId: { in: sourceIds } },
-      _count: true,
-      orderBy: { _count: { sourceId: "desc" } },
-    });
-    const primarySourceId = sourceCounts[0]?.sourceId || sourceIds[0];
-
-    const plan = await generateLessonPlan(primarySourceId, {
-      targetSessionCount: sessionCount,
-      sessionLength: durationMins || 30,
-      skipAIRefinement: true,
-    });
+    let plan;
+    if (playbookId) {
+      plan = await generateLessonPlanForPlaybook(playbookId, {
+        targetSessionCount: sessionCount,
+        sessionLength: durationMins || 30,
+        skipAIRefinement: true,
+      });
+    } else {
+      // Fallback: single-source (pick the source with most assertions)
+      const sourceCounts = await prisma.contentAssertion.groupBy({
+        by: ["sourceId"],
+        where: { sourceId: { in: sourceIds } },
+        _count: true,
+        orderBy: { _count: { sourceId: "desc" } },
+      });
+      const primarySourceId = sourceCounts[0]?.sourceId || sourceIds[0];
+      plan = await generateLessonPlan(primarySourceId, {
+        targetSessionCount: sessionCount,
+        sessionLength: durationMins || 30,
+        skipAIRefinement: true,
+      });
+    }
 
     if (plan.sessions.length === 0) {
       await persistPlanToCurriculum(
@@ -2282,6 +2320,7 @@ async function generateLessonPlanPreview(
     }
 
     // Map LessonSession[] → LessonPlanEntry[] format
+    // All sources are already handled by generateLessonPlanForPlaybook — no round-robin needed.
     const entries = plan.sessions.map((s) => ({
       session: s.sessionNumber,
       type: s.sessionType,
@@ -2294,25 +2333,6 @@ async function generateLessonPlanPreview(
       questionIds: [...(s.questionIds || [])],
       ...(s.media?.length ? { media: s.media } : {}),
     }));
-
-    // Distribute assertions from secondary sources across sessions (round-robin).
-    // The primary source's assertions are already assigned; this adds content from
-    // any additional uploaded files so they don't all land in "unassigned".
-    const secondarySourceIds = sourceIds.filter((id: string) => id !== primarySourceId);
-    if (secondarySourceIds.length > 0) {
-      const secondaryAssertions = await prisma.contentAssertion.findMany({
-        where: { sourceId: { in: secondarySourceIds } },
-        select: { id: true },
-        orderBy: [{ depth: "asc" }, { orderIndex: "asc" }],
-      });
-      // Distribute round-robin across non-onboarding sessions
-      const teachingSessions = entries.filter((e) => !["onboarding", "introduction"].includes(e.type));
-      const target = teachingSessions.length > 0 ? teachingSessions : entries;
-      for (let i = 0; i < secondaryAssertions.length; i++) {
-        const session = target[i % target.length];
-        session.assertionIds.push(secondaryAssertions[i].id);
-      }
-    }
 
     // Persist the real plan to the curriculum
     await persistPlanToCurriculum(entries, "auto-wizard");

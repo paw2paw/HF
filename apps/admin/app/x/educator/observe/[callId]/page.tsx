@@ -91,8 +91,8 @@ export default function ObserveCallPage() {
             setCallEnded(true);
           }
         }
-      } catch {
-        // Silently ignore polling errors
+      } catch (err) {
+        console.error("[observe] Poll failed for call", callId, err);
       }
     }, 1500);
 

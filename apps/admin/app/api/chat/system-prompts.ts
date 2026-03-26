@@ -474,10 +474,10 @@ async function getCallerContext(callerId: string): Promise<string | null> {
     if (!caller) return null;
 
     const parts = [
-      `### Caller: ${caller.name || "Unknown"}`,
+      `### Caller: ${caller.name ?? caller.id}`,
       `- **ID:** ${caller.id}`,
-      `- **Email:** ${caller.email || "N/A"}`,
-      `- **Domain:** ${caller.domain?.name || "None"}`,
+      ...(caller.email ? [`- **Email:** ${caller.email}`] : []),
+      ...(caller.domain?.name ? [`- **Domain:** ${caller.domain.name}`] : []),
       `- **Total Calls:** ${caller._count.calls}`,
     ];
 
@@ -527,7 +527,7 @@ async function getCallerContext(callerId: string): Promise<string | null> {
       // Show the prompt that was used FOR this call
       if (recentCall.usedPrompt) {
         parts.push("\n**Prompt Used FOR This Call:**");
-        parts.push(`- Composed: ${recentCall.usedPrompt.composedAt?.toLocaleString() || "N/A"}`);
+        if (recentCall.usedPrompt.composedAt) parts.push(`- Composed: ${recentCall.usedPrompt.composedAt.toLocaleString()}`);
         if (recentCall.usedPrompt.llmPrompt) {
           const llm = recentCall.usedPrompt.llmPrompt as Record<string, unknown>;
           parts.push("```json");
@@ -554,8 +554,8 @@ async function getCallerContext(callerId: string): Promise<string | null> {
     if (composedPrompt) {
       parts.push("\n**Composed Prompt (for next call):**");
       parts.push(`- Status: ${composedPrompt.status || "active"}`);
-      parts.push(`- Composed: ${composedPrompt.composedAt?.toLocaleString() || "N/A"}`);
-      parts.push(`- Trigger: ${composedPrompt.triggerType || "N/A"}`);
+      if (composedPrompt.composedAt) parts.push(`- Composed: ${composedPrompt.composedAt.toLocaleString()}`);
+      if (composedPrompt.triggerType) parts.push(`- Trigger: ${composedPrompt.triggerType}`);
 
       // Include the LLM-friendly structured prompt if available
       if (composedPrompt.llmPrompt) {
@@ -617,15 +617,15 @@ async function getCallContext(callId: string): Promise<string | null> {
       `### Call`,
       `- **ID:** ${call.id}`,
       `- **Date:** ${call.createdAt.toLocaleString()}`,
-      `- **Caller:** ${call.caller?.name || "Unknown"}`,
-      `- **Source:** ${call.source || "N/A"}`,
-      `- **Call Sequence:** #${(call as any).callSequence || "?"}`,
+      ...(call.caller?.name ? [`- **Caller:** ${call.caller.name}`] : []),
+      ...(call.source ? [`- **Source:** ${call.source}`] : []),
+      ...((call as any).callSequence ? [`- **Call Sequence:** #${(call as any).callSequence}`] : []),
     ];
 
     // Show the prompt that was used FOR this call
     if (call.usedPrompt) {
       parts.push("\n**Prompt Used FOR This Call:**");
-      parts.push(`- Composed: ${call.usedPrompt.composedAt?.toLocaleString() || "N/A"}`);
+      if (call.usedPrompt.composedAt) parts.push(`- Composed: ${call.usedPrompt.composedAt.toLocaleString()}`);
       if (call.usedPrompt.llmPrompt) {
         const llm = call.usedPrompt.llmPrompt as Record<string, unknown>;
         parts.push("```json");
@@ -655,7 +655,7 @@ async function getCallContext(callId: string): Promise<string | null> {
     if (call.scores.length > 0) {
       parts.push("\n**Scores:**");
       for (const score of call.scores.slice(0, 5)) {
-        parts.push(`- ${score.parameter?.name || "Unknown"}: ${(score.score * 100).toFixed(0)}%`);
+        if (score.parameter?.name) parts.push(`- ${score.parameter.name}: ${(score.score * 100).toFixed(0)}%`);
       }
     }
 
@@ -685,7 +685,7 @@ async function getPlaybookContext(playbookId: string): Promise<string | null> {
       `### Playbook: ${playbook.name}`,
       `- **ID:** ${playbook.id}`,
       `- **Status:** ${playbook.status}`,
-      `- **Version:** ${playbook.version || "N/A"}`,
+      ...(playbook.version ? [`- **Version:** ${playbook.version}`] : []),
     ];
 
     // Domain specs (items)
@@ -734,8 +734,8 @@ async function getSpecContext(specId: string): Promise<string | null> {
       `- **Slug:** ${spec.slug}`,
       `- **Scope:** ${spec.scope}`,
       `- **Output Type:** ${spec.outputType}`,
-      `- **Spec Type:** ${spec.specType || "N/A"}`,
-      `- **Spec Role:** ${spec.specRole || "N/A"}`,
+      ...(spec.specType ? [`- **Spec Type:** ${spec.specType}`] : []),
+      ...(spec.specRole ? [`- **Spec Role:** ${spec.specRole}`] : []),
       `- **Locked:** ${spec.isLocked ? "Yes" : "No"}`,
       `- **Active:** ${spec.isActive ? "Yes" : "No"}`,
     ];
@@ -795,7 +795,7 @@ async function getDomainContext(domainId: string): Promise<string | null> {
     const parts = [
       `### Domain: ${domain.name}`,
       `- **ID:** ${domain.id}`,
-      `- **Description:** ${domain.description || "N/A"}`,
+      ...(domain.description ? [`- **Description:** ${domain.description}`] : []),
       `- **Total Callers:** ${domain._count.callers}`,
       `- **Total Playbooks:** ${domain._count.playbooks}`,
     ];

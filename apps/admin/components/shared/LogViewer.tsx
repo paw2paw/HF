@@ -198,7 +198,7 @@ export function LogViewer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled }),
       });
-    } catch { /* silent */ }
+    } catch (err) { console.error("[LogViewer] Failed to toggle logging:", err); }
   };
 
   const clearLogs = async () => {

@@ -220,22 +220,20 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
     return true;
   });
 
-  // Session-scope: when a composed prompt has lesson plan media assignments,
-  // filter to only show the current session's materials (+ already-shared items).
-  // Falls back to full catalog when no lesson plan or first call.
-  let unique = deduped;
-  let sessionScoped = false;
+  // Session annotation: when a lesson plan has media assignments, annotate each
+  // item as THIS SESSION or OTHER SESSION. All items remain in the catalog so the
+  // AI can reference any document, but prioritises the current session's materials.
+  const unique = deduped;
+  const sessionMediaIds = new Set<string>();
+  let hasSessionAssignments = false;
   if (!isFirstCallInDomain && llmPrompt) {
     const visualAids = (llmPrompt as any)?.visualAids;
     const available: Array<{ mediaId: string; currentSession?: boolean }> = visualAids?.available;
     if (available?.length) {
-      const sessionMediaIds = new Set(
-        available.filter((a) => a.currentSession === true).map((a) => a.mediaId),
-      );
-      if (sessionMediaIds.size > 0) {
-        unique = deduped.filter((i) => sessionMediaIds.has(i.media.id));
-        sessionScoped = true;
+      for (const a of available) {
+        if (a.currentSession) sessionMediaIds.add(a.mediaId);
       }
+      hasSessionAssignments = sessionMediaIds.size > 0;
     }
   }
 
@@ -268,16 +266,19 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
     const tags = m.tags.length > 0 ? ` [${m.tags.join(", ")}]` : "";
     const phaseRef = phaseMediaMap.get(m.id);
     const phaseHint = phaseRef ? ` | SHARE DURING: "${phaseRef.phase}" phase${phaseRef.instruction ? ` — ${phaseRef.instruction}` : ""}` : "";
+    const sessionHint = hasSessionAssignments
+      ? sessionMediaIds.has(m.id) ? " | THIS SESSION" : " | OTHER SESSION"
+      : "";
     const refCount = assertionCountMap.get(m.id);
     const refHint = refCount ? ` (Referenced by ${refCount} teaching point${refCount > 1 ? "s" : ""})` : "";
     const shared = alreadySharedIds.has(m.id) ? " ✓ ALREADY SHARED" : "";
-    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${refHint}${desc}${tags}${phaseHint}${shared}`;
+    return `- "${m.title || m.fileName}" (ID: ${m.id}) — ${typeLabel}${refHint}${desc}${tags}${phaseHint}${sessionHint}${shared}`;
   });
 
   let instructions = "When discussing content that has a visual component (passage, diagram, worksheet), share it proactively using share_content. After sharing, reference the content naturally (e.g. \"Take a look at the passage I just sent you\").\n\nIMPORTANT: Never re-share content already sent to the learner. Items marked \"ALREADY SHARED\" must NOT be shared again — just reference them naturally.";
 
-  if (sessionScoped) {
-    instructions += "\n\nThese materials are specifically assigned to THIS session's lesson plan. Share them at the appropriate point in the conversation — don't rush through all at once.";
+  if (hasSessionAssignments) {
+    instructions += "\n\nItems marked \"THIS SESSION\" are assigned to the current lesson plan session — prioritise sharing these first. Items marked \"OTHER SESSION\" are from other sessions — share only if contextually relevant (e.g. the learner asks about earlier material).";
   } else if (phaseMediaMap.size > 0) {
     instructions += "\n\nItems marked with \"SHARE DURING\" are assigned to specific onboarding phases. Share them at the indicated point in the session flow.";
   }

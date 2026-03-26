@@ -59,7 +59,8 @@ function readStorage(): StepFlowState | null {
     const parsed = JSON.parse(raw);
     if (!parsed.flowId || !parsed.steps || !parsed.active) return null;
     return parsed as StepFlowState;
-  } catch {
+  } catch (err) {
+    console.error("[stepflow] Failed to parse stored flow state:", err);
     return null;
   }
 }

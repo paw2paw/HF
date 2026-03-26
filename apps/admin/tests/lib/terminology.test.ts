@@ -118,7 +118,7 @@ describe('lib/terminology (two-tier resolution)', () => {
       const terms = await resolveTerminology('EDUCATOR', 'inst-1');
 
       expect(terms.domain).toBe('Organization');
-      expect(terms.playbook).toBe('Subject'); // fallback to TECHNICAL_TERMS
+      expect(terms.playbook).toBe('Course'); // fallback to TECHNICAL_TERMS
       expect(terms.caller).toBe('Caller'); // fallback
     });
 

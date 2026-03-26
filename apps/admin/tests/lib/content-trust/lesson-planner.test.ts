@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   assertionFindMany: vi.fn(),
   questionFindMany: vi.fn(),
   vocabularyFindMany: vi.fn(),
+  assertionMediaFindMany: vi.fn(),
   getConfiguredMeteredAICompletion: vi.fn(),
   logAssistantCall: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock("@/lib/prisma", () => {
     contentAssertion: { findMany: mocks.assertionFindMany },
     contentQuestion: { findMany: mocks.questionFindMany },
     contentVocabulary: { findMany: mocks.vocabularyFindMany },
+    assertionMedia: { findMany: mocks.assertionMediaFindMany },
   },
 };
   return { ..._p, db: (tx) => tx ?? _p.prisma };
@@ -77,6 +79,7 @@ describe("generateLessonPlan", () => {
     mocks.assertionFindMany.mockResolvedValue([]);
     mocks.questionFindMany.mockResolvedValue([]);
     mocks.vocabularyFindMany.mockResolvedValue([]);
+    mocks.assertionMediaFindMany.mockResolvedValue([]);
     // AI refinement returns unchanged titles
     mocks.getConfiguredMeteredAICompletion.mockResolvedValue({
       content: "[]",

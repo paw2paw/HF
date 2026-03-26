@@ -214,13 +214,13 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
     recentCalls: recentCalls.map((c) => ({
       id: c.id,
       createdAt: c.createdAt,
-      studentName: c.caller?.name ?? "Unknown",
+      studentName: c.caller?.name ?? null,
       studentId: c.caller?.id,
     })),
     needsAttention: needsAttention.map((s) => ({
       id: s.id,
-      name: s.name ?? "Unknown",
-      classroom: s.cohortGroup?.name ?? "Unknown",
+      name: s.name ?? null,
+      classroom: s.cohortGroup?.name ?? null,
     })),
     assessmentSummary: (() => {
       if (assessmentGoals.length === 0) return null;

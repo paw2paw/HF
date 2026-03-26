@@ -74,7 +74,7 @@ export async function GET(
         tags: true,
         depth: true,
         source: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, documentType: true },
         },
       },
     });
@@ -89,6 +89,7 @@ export async function GET(
       tags: string[];
       depth: number | null;
       sourceName: string | null;
+      fromCourseRef: boolean;
     }>> = {};
 
     const totals: Record<string, number> = {};
@@ -106,6 +107,7 @@ export async function GET(
         tags: (a.tags as string[]) || [],
         depth: a.depth,
         sourceName: a.source?.name ?? null,
+        fromCourseRef: a.source?.documentType === "COURSE_REFERENCE",
       });
       totals[cat] = (totals[cat] || 0) + 1;
       if (a.source?.id) sourceIds.add(a.source.id);

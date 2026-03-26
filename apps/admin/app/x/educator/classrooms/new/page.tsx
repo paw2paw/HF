@@ -120,8 +120,8 @@ export default function NewClassroomPage() {
       const res = await fetch("/api/wizard-steps?wizard=classroom");
       const data = await res.json();
       if (data.ok && data.steps?.length > 0) return data.steps;
-    } catch {
-      // Silent — fallback already set
+    } catch (err) {
+      console.error("[classrooms/new] Failed to load wizard steps:", err);
     }
     return FALLBACK_STEPS;
   };
@@ -139,8 +139,8 @@ export default function NewClassroomPage() {
       });
       const data = await res.json();
       if (data.ok) taskId = data.taskId;
-    } catch {
-      // Continue without DB persistence — sessionStorage still works
+    } catch (err) {
+      console.error("[classrooms/new] Failed to create task for wizard persistence:", err);
     }
 
     startFlow({

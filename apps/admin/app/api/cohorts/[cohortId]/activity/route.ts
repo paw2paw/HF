@@ -93,7 +93,7 @@ export async function GET(
       type: "call" as const,
       id: call.id,
       callerId: call.callerId,
-      callerName: call.caller?.name || "Unknown",
+      callerName: call.caller?.name ?? null,
       timestamp: call.createdAt,
       source: call.source,
       scoreCount: call._count.scores,

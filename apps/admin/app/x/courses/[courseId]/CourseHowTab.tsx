@@ -67,6 +67,7 @@ type InstructionItem = {
   tags: string[];
   depth: number | null;
   sourceName: string | null;
+  fromCourseRef?: boolean;
 };
 
 type InstructionsData = {
@@ -155,6 +156,9 @@ function InstructionCategory({
             <div key={item.id} className="cd-instruction-item">
               <span className="cd-instruction-bullet" />
               <span className="hf-text-sm">{item.assertion.replace(/^[\s•\-–—]+/, '')}</span>
+              {item.fromCourseRef && (
+                <span className="hf-badge hf-badge-xs hf-badge-accent" title="From Course Reference">ref</span>
+              )}
             </div>
           ))}
         </div>
@@ -409,6 +413,19 @@ export function CourseHowTab({
             )}
           </div>
         </>
+      )}
+
+      {/* ── Course Reference Builder CTA ───────────────── */}
+      {isOperator && (
+        <div className="hf-mb-md">
+          <Link
+            href={`/x/course-reference?courseId=${courseId}`}
+            className="hf-btn hf-btn-sm hf-btn-outline hf-flex hf-items-center hf-gap-xs"
+          >
+            <Pencil size={13} />
+            {instructions && instructions.grandTotal > 0 ? 'Edit Course Reference' : 'Build Course Reference'}
+          </Link>
+        </div>
       )}
 
       {/* ── 3. Extracted Teaching Instructions ───────────── */}

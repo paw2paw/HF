@@ -65,7 +65,7 @@ export async function GET(
     },
     members: members.map((m) => ({
       id: m.id,
-      name: m.name ?? "Unknown",
+      name: m.name ?? null,
       email: m.email,
       totalCalls: m._count.calls,
       lastCallAt: m.calls[0]?.createdAt ?? null,

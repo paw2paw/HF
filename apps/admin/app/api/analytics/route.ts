@@ -309,7 +309,7 @@ export async function GET(request: NextRequest) {
           Math.round((avgGoalsDiscovered._avg.discoveredGoals || 0) * 10) / 10,
         byDomain: onboardingByDomain.map((d) => ({
           domainId: d.domainId,
-          domainName: domainNames[d.domainId] || "Unknown",
+          domainName: domainNames[d.domainId] ?? null,
           total: d._count.id,
           completed: completedByDomainMap[d.domainId] || 0,
         })),

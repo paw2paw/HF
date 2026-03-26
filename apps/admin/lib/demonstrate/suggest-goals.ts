@@ -66,7 +66,7 @@ export async function suggestGoals(params: SuggestGoalsParams): Promise<string[]
   ];
 
   if (caller) {
-    contextParts.push(`Learner: ${caller.name || caller.email || "Unknown"}`);
+    contextParts.push(`Learner: ${caller.name || caller.email || caller.id}`);
   } else {
     contextParts.push("No specific learner selected (generic session)");
   }

@@ -2,8 +2,8 @@
   {
     "id": "demo-top",
     "items": [
-      { "id": "demo-gs", "href": "/x/get-started-v4", "label": "Get Started", "icon": "Sparkles", "highlighted": true, "wizard": true, "shortcutHint": "⌘G" },
-      { "id": "demo-gs-v5", "href": "/x/get-started-v5", "label": "Get Started V5", "icon": "Sparkles", "highlighted": true, "wizard": true },
+      { "id": "demo-course-ref", "href": "/x/course-reference", "label": "Course Ref", "icon": "ClipboardList", "highlighted": true, "wizard": true },
+      { "id": "demo-gs-v5", "href": "/x/get-started-v5", "label": "Build Course", "icon": "Sparkles", "highlighted": true, "wizard": true },
       { "id": "demo-dash", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "shortcutHint": "⌘D" },
       { "id": "demo-sim", "href": "/x/sim", "label": "Sim", "icon": "MessageCircle", "shortcutHint": "⌘S" },
       { "id": "demo-callers", "href": "/x/callers", "label": "Callers", "icon": "User", "shortcutHint": "⌘L" },
@@ -13,11 +13,11 @@
   {
     "id": "edu-setup",
     "title": "Setup",
-    "href": "/x/get-started-v4",
+    "href": "/x/course-reference",
     "defaultHiddenFor": ["OPERATOR", "ADMIN", "SUPERADMIN", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
     "items": [
-      { "id": "edu-gs", "href": "/x/get-started-v4", "label": "Get Started", "icon": "Sparkles", "highlighted": true, "wizard": true, "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-gs-v5", "href": "/x/get-started-v5", "label": "Get Started V5", "icon": "Sparkles", "highlighted": true, "wizard": true, "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-course-ref", "href": "/x/course-reference", "label": "Course Ref", "icon": "ClipboardList", "highlighted": true, "wizard": true, "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-gs-v5", "href": "/x/get-started-v5", "label": "Build Course", "icon": "Sparkles", "highlighted": true, "wizard": true, "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-home", "href": "/x/educator", "label": "Dashboard", "icon": "GraduationCap", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
@@ -30,7 +30,7 @@
       { "id": "edu-classrooms", "href": "/x/educator/classrooms", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-depts", "href": "/x/educator/departments", "label": "Departments", "icon": "Building", "terminologyLabel": "group_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-subjects", "href": "/x/subjects", "label": "Subjects", "icon": "Library", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-subjects", "href": "/x/subjects", "label": "Courses", "icon": "Library", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports2", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-try2", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-settings2", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }

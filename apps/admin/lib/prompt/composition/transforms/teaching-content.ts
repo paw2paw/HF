@@ -311,7 +311,7 @@ function renderSourceGrouped(assertions: CurriculumAssertionData[]): string {
 
   let sourceNum = 1;
   for (const [sourceId, sourceAssertions] of bySource) {
-    const name = sourceNames.get(sourceId) || "Unknown";
+    const name = sourceNames.get(sourceId) || sourceId;
     const docType = sourceDocTypes.get(sourceId) || null;
     const hint = (docType && DELIVERY_HINTS[docType]) || DEFAULT_DELIVERY_HINT;
 

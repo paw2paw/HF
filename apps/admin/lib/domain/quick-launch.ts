@@ -703,7 +703,7 @@ const stepExecutors: Record<string, StepExecutor> = {
     });
 
     ctx.results.callerId = caller.id;
-    ctx.results.callerName = caller.name || "Test Caller";
+    ctx.results.callerName = caller.name;
 
     // Auto-generate goals if none provided
     if (learningGoals.length === 0) {

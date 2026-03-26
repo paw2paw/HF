@@ -21,6 +21,9 @@ export interface JourneyFixtures {
   domainId: string;
   subjectId: string;
   sourceId: string;
+  /** Second source — used to verify cross-source assertion access */
+  source2Id: string;
+  source2AssertionIds: string[];
   playbook: { id: string; name: string };
   curriculum: { id: string; slug: string };
   moduleIds: string[];
@@ -178,10 +181,40 @@ export async function seedJourneyFixtures(prisma: PrismaClient): Promise<Journey
     update: {},
   });
 
+  // 3b. Second Content Source (for cross-source access test)
+  const source2 = await prisma.contentSource.upsert({
+    where: { slug: `${JOURNEY_PREFIX}-worksheet` },
+    create: {
+      slug: `${JOURNEY_PREFIX}-worksheet`,
+      name: "Biology Worksheet (Journey Test)",
+      description: "Second test document — verifies AI can access all course docs.",
+      trustLevel: "AI_ASSISTED",
+      documentType: "WORKSHEET",
+      documentTypeSource: "test:fixture",
+    },
+    update: {},
+  });
+
+  // Link source2 to same subject
+  await prisma.subjectSource.upsert({
+    where: {
+      subjectId_sourceId: { subjectId: subject.id, sourceId: source2.id },
+    },
+    create: {
+      subjectId: subject.id,
+      sourceId: source2.id,
+      tags: ["content", "student-material"],
+    },
+    update: {},
+  });
+
   // 4. Content Assertions (teaching points)
-  // Clean existing journey assertions for this source
+  // Clean existing journey assertions for both sources
   await prisma.contentAssertion.deleteMany({
     where: { sourceId: source.id },
+  });
+  await prisma.contentAssertion.deleteMany({
+    where: { sourceId: source2.id },
   });
 
   const assertionIds: string[] = [];
@@ -199,6 +232,44 @@ export async function seedJourneyFixtures(prisma: PrismaClient): Promise<Journey
       },
     });
     assertionIds.push(created.id);
+  }
+
+  // 4b. Assertions for second source (different document, same LO refs)
+  const source2AssertionIds: string[] = [];
+  const SOURCE2_ASSERTIONS = [
+    {
+      assertion: "Plants need light, water, and CO₂ for photosynthesis — label the diagram.",
+      category: "example" as const,
+      tags: ["biology", "photosynthesis", "worksheet"],
+      learningOutcomeRef: "BIO-LO1",
+      orderIndex: 0,
+      topicSlug: "photosynthesis",
+      teachMethod: "worked_example" as const,
+    },
+    {
+      assertion: "Explain why increasing temperature beyond 40°C decreases the rate of photosynthesis.",
+      category: "rule" as const,
+      tags: ["biology", "limiting-factors", "worksheet"],
+      learningOutcomeRef: "BIO-LO2",
+      orderIndex: 1,
+      topicSlug: "limiting-factors",
+      teachMethod: "scenario_analysis" as const,
+    },
+  ];
+  for (const a of SOURCE2_ASSERTIONS) {
+    const created = await prisma.contentAssertion.create({
+      data: {
+        sourceId: source2.id,
+        assertion: a.assertion,
+        category: a.category,
+        tags: a.tags,
+        learningOutcomeRef: a.learningOutcomeRef,
+        orderIndex: a.orderIndex,
+        topicSlug: a.topicSlug,
+        teachMethod: a.teachMethod,
+      },
+    });
+    source2AssertionIds.push(created.id);
   }
 
   // 5. Curriculum with lesson plan + modules + learning objectives
@@ -418,6 +489,8 @@ export async function seedJourneyFixtures(prisma: PrismaClient): Promise<Journey
     domainId: domain.id,
     subjectId: subject.id,
     sourceId: source.id,
+    source2Id: source2.id,
+    source2AssertionIds,
     playbook: { id: playbook.id, name: playbook.name },
     curriculum: { id: curriculum.id, slug: curriculum.slug },
     moduleIds: [mod1.id],
@@ -464,6 +537,13 @@ export async function cleanupJourneyFixtures(prisma: PrismaClient): Promise<void
   if (source) {
     // Assertions cascade from source delete
     await prisma.contentSource.delete({ where: { id: source.id } });
+  }
+
+  const source2 = await prisma.contentSource.findUnique({
+    where: { slug: `${JOURNEY_PREFIX}-worksheet` },
+  });
+  if (source2) {
+    await prisma.contentSource.delete({ where: { id: source2.id } });
   }
 
   const curriculum = await prisma.curriculum.findUnique({

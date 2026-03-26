@@ -125,9 +125,9 @@ export async function GET(
         select: { caller: { select: { id: true, name: true } } },
       });
 
-      const memberMap = new Map<string, string>();
+      const memberMap = new Map<string, string | null>();
       for (const cp of callerPlaybooks) {
-        memberMap.set(cp.caller.id, cp.caller.name ?? "Unknown");
+        memberMap.set(cp.caller.id, cp.caller.name ?? null);
       }
       const memberIds = [...memberMap.keys()];
 

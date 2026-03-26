@@ -106,12 +106,12 @@ export async function GET(
       }),
     ]);
 
-    const memberMap = new Map<string, string>();
+    const memberMap = new Map<string, string | null>();
     for (const m of memberships) {
-      memberMap.set(m.caller.id, m.caller.name ?? "Unknown");
+      memberMap.set(m.caller.id, m.caller.name ?? null);
     }
     for (const c of legacyMembers) {
-      memberMap.set(c.id, c.name ?? "Unknown");
+      memberMap.set(c.id, c.name ?? null);
     }
 
     const memberIds = [...memberMap.keys()];

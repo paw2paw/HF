@@ -98,7 +98,7 @@ async function buildResponse(id: string, student: any) {
     ok: true,
     student: {
       id: student.id,
-      name: (student as any).name ?? "Unknown",
+      name: (student as any).name ?? null,
       email: (student as any).email,
       classroom: student.cohortGroup
         ? { id: student.cohortGroup.id, name: student.cohortGroup.name }

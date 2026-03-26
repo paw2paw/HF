@@ -32,7 +32,7 @@ export type EntityType = "caller" | "playbook" | "domain" | "subject";
 
 export interface BulkDeletePreviewItem {
   id: string;
-  name: string;
+  name: string | null;
   /** Table name → count of records that will be affected */
   counts: Record<string, number>;
   canDelete: boolean;
@@ -114,7 +114,7 @@ export async function previewCallerDelete(callerIds: string[]): Promise<BulkDele
 
   for (const callerId of callerIds) {
     if (!foundIds.has(callerId)) {
-      items.push({ id: callerId, name: "Unknown", counts: {}, canDelete: false, blockReason: "Not found" });
+      items.push({ id: callerId, name: null, counts: {}, canDelete: false, blockReason: "Not found" });
       continue;
     }
     const c = callers.find((x) => x.id === callerId)!;
@@ -182,7 +182,7 @@ export async function previewPlaybookDelete(playbookIds: string[]): Promise<Bulk
 
   for (const playbookId of playbookIds) {
     if (!foundIds.has(playbookId)) {
-      items.push({ id: playbookId, name: "Unknown", counts: {}, canDelete: false, blockReason: "Not found" });
+      items.push({ id: playbookId, name: null, counts: {}, canDelete: false, blockReason: "Not found" });
       continue;
     }
     const p = playbooks.find((x) => x.id === playbookId)!;
@@ -258,7 +258,7 @@ export async function previewDomainDeactivate(domainIds: string[]): Promise<Bulk
 
   for (const domainId of domainIds) {
     if (!foundIds.has(domainId)) {
-      items.push({ id: domainId, name: "Unknown", counts: {}, canDelete: false, blockReason: "Not found" });
+      items.push({ id: domainId, name: null, counts: {}, canDelete: false, blockReason: "Not found" });
       continue;
     }
     const d = domains.find((x) => x.id === domainId)!;
@@ -327,7 +327,7 @@ export async function previewSubjectDelete(subjectIds: string[]): Promise<BulkDe
 
   for (const subjectId of subjectIds) {
     if (!foundIds.has(subjectId)) {
-      items.push({ id: subjectId, name: "Unknown", counts: {}, canDelete: false, blockReason: "Not found" });
+      items.push({ id: subjectId, name: null, counts: {}, canDelete: false, blockReason: "Not found" });
       continue;
     }
     const s = subjects.find((x) => x.id === subjectId)!;

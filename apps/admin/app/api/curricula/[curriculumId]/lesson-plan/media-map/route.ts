@@ -120,7 +120,7 @@ export async function GET(
             const full = allSubjectMedia.find((sm) => sm.mediaId === m.mediaId);
             sessionImages.push(full || {
               mediaId: m.mediaId,
-              fileName: m.fileName || "Unknown",
+              fileName: m.fileName ?? null,
               captionText: m.captionText ?? null,
               figureRef: m.figureRef ?? null,
               mimeType: m.mimeType || "image/unknown",

@@ -19,10 +19,11 @@ const WIZARD_SLUG_MAP: Record<string, () => string> = {
  * @visibility internal
  * @auth VIEWER+
  * @tags wizard
- * @description Load wizard step definitions from a spec. Accepts either `wizard` (name resolved via config) or `slug` (direct). Returns hardcoded fallback if spec not found.
+ * @description Load wizard step definitions from a spec. Accepts either `wizard` (name resolved via config) or `slug` (direct). Returns 404 if spec not found.
  * @query wizard string - Wizard name (e.g., "demonstrate", "course", "classroom"). Resolved to spec slug via config.
  * @query slug string - Direct spec slug (deprecated, prefer `wizard`). Ignored if `wizard` is provided.
- * @response 200 { ok: true, steps: WizardStep[], source: "database" | "fallback" }
+ * @response 200 { ok: true, steps: WizardStep[], source: "database" }
+ * @response 404 { ok: false, error: string }
  * @response 400 { ok: false, error: string }
  * @response 500 { ok: false, error: string }
  */
@@ -68,12 +69,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Spec not found — return fallback (empty, client should use hardcoded defaults)
-    return NextResponse.json({
-      ok: true,
-      steps: [],
-      source: "fallback",
-    });
+    // Spec not found — surface the error, don't mask it
+    return NextResponse.json(
+      { ok: false, error: `Wizard spec '${slug}' not found in database. Run db:seed or check spec slug.` },
+      { status: 404 }
+    );
   } catch (error: any) {
     console.error("[wizard-steps] Error fetching wizard steps:", error);
     return NextResponse.json(

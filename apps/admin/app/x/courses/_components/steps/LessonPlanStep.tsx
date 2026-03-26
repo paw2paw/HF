@@ -140,6 +140,17 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
   const [tpLoading, setTpLoading] = useState(false);
   const tpFetchedRef = useRef(false);
 
+  // Session count recommendation + advisories
+  const [recommendation, setRecommendation] = useState<{
+    min: number; recommended: number; max: number;
+    breakdown: { onboarding: number; teaching: number; review: number; assess: number; consolidation: number };
+    effectiveMaxTPs: number; totalTPs: number; totalModules: number;
+  } | null>(null);
+  const [advisories, setAdvisories] = useState<Array<{
+    id: string; severity: "error" | "warning" | "info"; message: string; affectedSessions?: number[];
+  }> | null>(null);
+  const recFetchedRef = useRef(false);
+
   // Content from previous step
   const contentMode = getData<string>("contentMode");
 
@@ -197,6 +208,28 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
     // No task, no plan — show intents (manual path)
     setPhase("intents");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch session count recommendation + advisories when courseId is available ──
+
+  useEffect(() => {
+    if (recFetchedRef.current) return;
+    const courseId = getData<string>("existingCourseId");
+    if (!courseId) return;
+    recFetchedRef.current = true;
+
+    // Fetch recommendation and advisories in parallel
+    Promise.all([
+      fetch(`/api/courses/${courseId}/session-count-recommendation`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/courses/${courseId}/distribution-advisory`).then((r) => r.json()).catch(() => null),
+    ]).then(([recResult, advResult]) => {
+      if (recResult?.ok && recResult.recommendation) {
+        setRecommendation(recResult.recommendation);
+      }
+      if (advResult?.ok && advResult.advisories) {
+        setAdvisories(advResult.advisories);
+      }
+    });
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Task polling — picks up eager generation or manual generate ──
 
@@ -861,7 +894,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
               {/* Expanded parameter editor */}
               {showParamEditor && (
                 <div className="hf-flex-col hf-gap-md hf-mt-md hf-pt-md" style={{ borderTop: "1px solid var(--border-default)" }}>
-                  <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+                  <SessionCountPicker value={sessionCount} onChange={setSessionCount} recommendation={recommendation} advisories={advisories} />
 
                   <div>
                     <div className="hf-mb-xs">
@@ -1050,7 +1083,7 @@ export function LessonPlanStep({ setData, getData, onNext, onPrev }: StepProps) 
             </div>
 
             {/* Session count */}
-            <SessionCountPicker value={sessionCount} onChange={setSessionCount} />
+            <SessionCountPicker value={sessionCount} onChange={setSessionCount} recommendation={recommendation} advisories={advisories} />
 
             {/* Duration */}
             <div>

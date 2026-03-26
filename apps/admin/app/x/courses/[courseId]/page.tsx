@@ -5,13 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
-  Sparkles, AlertTriangle,
+  Sparkles, AlertTriangle, ClipboardList,
   Settings as SettingsIcon, Users2,
   ListOrdered, Zap,
   PlayCircle,
 } from 'lucide-react';
 import { CourseWhatTab } from './CourseWhatTab';
 import { CourseHowTab } from './CourseHowTab';
+import { CourseRefTab } from './CourseRefTab';
 import { CourseWhoTab } from './CourseWhoTab';
 import { OnboardingEditor } from '@/components/shared/OnboardingEditor';
 import { SessionDetailPanel } from '@/components/shared/SessionDetailPanel';
@@ -252,6 +253,7 @@ export default function CourseDetailPage() {
     { id: 'what', label: 'What', icon: <BookMarked size={14} />, count: contentOnlyCount || null },
     { id: 'how', label: 'How', icon: <Sparkles size={14} />, count: instructionTotal || null },
     { id: 'who', label: 'Who', icon: <Users2 size={14} /> },
+    { id: 'reference', label: 'Reference', icon: <ClipboardList size={14} /> },
     { id: 'sessions', label: 'Sessions', icon: <ListOrdered size={14} />, count: sessions?.plan?.estimatedSessions || null },
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
   ], [contentOnlyCount, instructionTotal, isOperator, sessions]);
@@ -896,7 +898,12 @@ export default function CourseDetailPage() {
         />
       )}
 
-      {/* Content, Classrooms, Students tabs folded into WHAT/HOW/WHO */}
+      {/* ═══════════════════════════════════════════════ */}
+      {/* REFERENCE TAB                                  */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'reference' && (
+        <CourseRefTab courseId={courseId!} isOperator={isOperator} />
+      )}
 
       {/* ═══════════════════════════════════════════════ */}
       {/* SESSIONS TAB — Rail-first: click stop to expand */}

@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const communityList = communities.map((community) => ({
       ...community,
       memberCount: community._count.callers,
-      personaName: (community.onboardingIdentitySpec?.config as any)?.personaName || "Unknown",
+      personaName: (community.onboardingIdentitySpec?.config as any)?.personaName ?? null,
       _count: undefined,
       onboardingIdentitySpec: undefined,
     }));

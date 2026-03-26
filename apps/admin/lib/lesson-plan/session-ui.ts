@@ -32,3 +32,21 @@ export function getSessionTypeColor(type: string): string {
 export function getSessionTypeLabel(type: string): string {
   return SESSION_TYPES.find((t) => t.value === type)?.label || type;
 }
+
+/** Session types that directly teach content (excludes onboarding + consolidate) */
+export const TEACHING_SESSION_TYPES = ['introduce', 'deepen', 'review', 'assess'] as const;
+
+export function isTeachingSession(type: string): boolean {
+  return (TEACHING_SESSION_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * Estimate teaching session count from a total session target.
+ * Before a lesson plan exists, assumes 1 onboarding + 1 consolidate
+ * for courses with >2 sessions (per generation rules).
+ */
+export function estimateTeachingSessions(sessionCount: number): number {
+  if (sessionCount <= 2) return sessionCount; // all teaching, no structural sessions
+  if (sessionCount <= 4) return sessionCount - 1; // 1 onboarding, no consolidate
+  return sessionCount - 2; // 1 onboarding + 1 consolidate
+}

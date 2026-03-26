@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
         // Try to read basic info from the file
         let callCount = 0;
         let dateInfo = null;
-        let fileType = "Unknown";
+        let fileType: string | null = null;
         let status = "Unprocessed";
         let fileHash = "";
 

@@ -20,7 +20,7 @@ export function PanelLayoutPanel({ values, updateSetting }: PanelProps) {
   // Current overrides from DB (parsed from the stored JSON, or empty)
   const raw = values[SETTINGS_KEY];
   const overrides: Record<string, SettingsCategory> = raw
-    ? (typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return {}; } })() : {})
+    ? (typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch (err) { console.error("[PanelLayout] Failed to parse stored overrides:", err); return {}; } })() : {})
     : {};
 
   // Merged map: defaults + overrides

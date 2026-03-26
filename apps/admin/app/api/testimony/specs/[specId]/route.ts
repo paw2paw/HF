@@ -106,7 +106,7 @@ export async function GET(
       evidence: s.evidence[0],
       score: s.score,
       confidence: s.confidence,
-      callerName: s.call?.caller?.name ?? "Unknown",
+      callerName: s.call?.caller?.name ?? null,
       callId: s.callId,
       scoredAt: s.scoredAt,
     }));
@@ -120,7 +120,7 @@ export async function GET(
     if (!s.callerId) continue;
     if (!callerMap.has(s.callerId)) {
       callerMap.set(s.callerId, {
-        name: s.call?.caller?.name ?? "Unknown",
+        name: s.call?.caller?.name ?? null,
         scores: [],
         callCount: new Set(),
       });

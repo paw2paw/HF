@@ -93,7 +93,7 @@ export async function GET(
         category: a.category,
         teachMethod: a.teachMethod,
         learningOutcomeRef: a.learningOutcomeRef,
-        sourceName: a.source?.name || "Unknown",
+        sourceName: a.source?.name ?? null,
         session: assertionSessionMap.get(a.id) ?? null,
       })),
       total,

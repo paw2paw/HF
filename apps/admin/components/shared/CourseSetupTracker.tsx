@@ -67,8 +67,8 @@ export function CourseSetupTracker({
           allCriticalPass: data.allCriticalPass,
         });
       }
-    } catch {
-      // Silent — readiness stages just stay pending
+    } catch (err) {
+      console.error("[CourseSetupTracker] Readiness check failed:", err);
     }
   }, [courseId]);
 

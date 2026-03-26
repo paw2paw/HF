@@ -280,7 +280,7 @@ export async function POST(request: NextRequest) {
           `**Demo**: "${d.demoTitle}"\n**Current Step**: "${d.stepTitle}"\n` +
           `**They see**: ${d.currentView}\n**Action**: ${d.action}\n` +
           `**Related concepts**: ${(d.relatedConcepts || []).join(", ")}\n` +
-          `**Why this step matters**: ${d.reason || "N/A"}\n\n` +
+          `${d.reason ? `**Why this step matters**: ${d.reason}\n` : ""}\n` +
           `Answer their questions about what they're seeing in the demo. Be concise and focus on the current step's context.`;
       } else {
         const contextText = `\n\n## Current Context\nUser is viewing: ${context.type}\n\`\`\`json\n${JSON.stringify(context.data, null, 2)}\n\`\`\``;

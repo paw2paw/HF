@@ -141,7 +141,7 @@ export function compileBDDToFeatureSet(uploads: BDDUpload[]): CompiledFeatureSet
       if (story.timeWindow) {
         definitions[`${story.id}-time-window`] = {
           term: `Time Window: ${story.timeWindow.name}`,
-          definition: `Start: ${story.timeWindow.start || "N/A"}, End: ${story.timeWindow.end || "N/A"}`,
+          definition: [story.timeWindow.start ? `Start: ${story.timeWindow.start}` : null, story.timeWindow.end ? `End: ${story.timeWindow.end}` : null].filter(Boolean).join(", ") || "No time bounds",
           source: story.id,
           type: "term",
         };

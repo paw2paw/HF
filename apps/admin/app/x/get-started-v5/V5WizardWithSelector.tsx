@@ -17,6 +17,14 @@ interface InstitutionFromAPI {
   domainId: string | null;
 }
 
+export interface CourseOption {
+  id: string;
+  name: string;
+  status: string;
+  subjectName: string | null;
+  config: Record<string, unknown> | null;
+}
+
 interface V5WizardWithSelectorProps {
   defaultInstitution: {
     id: string;
@@ -26,13 +34,25 @@ interface V5WizardWithSelectorProps {
     typeSlug: string | null;
   } | null;
   userRole: string;
+  /** Pre-select a course (from ?courseId= param) */
+  defaultCourseId?: string | null;
+  /** Available courses for the domain */
+  courses?: CourseOption[];
 }
+
+const NEW_COURSE_VALUE = "__new__";
 
 /* ── Component ──────────────────────────────────────────── */
 
-export function V5WizardWithSelector({ defaultInstitution, userRole }: V5WizardWithSelectorProps) {
+export function V5WizardWithSelector({
+  defaultInstitution,
+  userRole,
+  defaultCourseId,
+  courses = [],
+}: V5WizardWithSelectorProps) {
   const [institutions, setInstitutions] = useState<InstitutionFromAPI[]>([]);
   const [selectedId, setSelectedId] = useState(defaultInstitution?.id ?? "");
+  const [selectedCourseId, setSelectedCourseId] = useState(defaultCourseId ?? NEW_COURSE_VALUE);
   const [loading, setLoading] = useState(false);
 
   const isSuperAdmin = userRole === "SUPERADMIN";
@@ -55,15 +75,28 @@ export function V5WizardWithSelector({ defaultInstitution, userRole }: V5WizardW
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show selector for SUPERADMIN always, or anyone with 2+ institutions
-  const showSelector = isSuperAdmin || institutions.length >= 2;
+  // Show institution selector for SUPERADMIN always, or anyone with 2+ institutions
+  const showInstitutionSelector = isSuperAdmin || institutions.length >= 2;
 
-  // Build FancySelect options
-  const options: FancySelectOption[] = institutions.map((inst) => ({
+  // Show course selector when courses exist
+  const showCourseSelector = courses.length > 0;
+
+  // Build institution FancySelect options
+  const instOptions: FancySelectOption[] = institutions.map((inst) => ({
     value: inst.id,
     label: inst.name,
     subtitle: inst.typeSlug?.replace(/-/g, " ") ?? "Organisation",
   }));
+
+  // Build course FancySelect options with "New Course..." at top
+  const courseOptions: FancySelectOption[] = [
+    { value: NEW_COURSE_VALUE, label: "New Course...", subtitle: "Start from scratch" },
+    ...courses.map((c) => ({
+      value: c.id,
+      label: c.name,
+      subtitle: [c.subjectName, c.status].filter(Boolean).join(" · "),
+    })),
+  ];
 
   // Build WizardInitialContext from selected institution
   const selected = institutions.find((i) => i.id === selectedId);
@@ -88,24 +121,59 @@ export function V5WizardWithSelector({ defaultInstitution, userRole }: V5WizardW
           }
         : undefined;
 
+  // Build course pre-fill data for amendment mode
+  const selectedCourse = selectedCourseId !== NEW_COURSE_VALUE
+    ? courses.find((c) => c.id === selectedCourseId)
+    : null;
+
+  // Key includes courseId so wizard resets when switching courses
+  const wizardKey = `v5-${selectedId}-${selectedCourseId}`;
+
   return (
     <>
-      {showSelector && (
+      {(showInstitutionSelector || showCourseSelector) && (
         <div className="v5-institution-bar">
-          <label className="hf-text-xs hf-text-muted">Organisation</label>
-          <FancySelect
-            value={selectedId}
-            onChange={setSelectedId}
-            options={options}
-            searchable
-            loading={loading}
-            placeholder="Select organisation..."
-          />
+          {showInstitutionSelector && (
+            <div>
+              <label className="hf-text-xs hf-text-muted">Organisation</label>
+              <FancySelect
+                value={selectedId}
+                onChange={setSelectedId}
+                options={instOptions}
+                searchable
+                loading={loading}
+                placeholder="Select organisation..."
+              />
+            </div>
+          )}
+          {showCourseSelector && (
+            <div>
+              <label className="hf-text-xs hf-text-muted">Course</label>
+              <FancySelect
+                value={selectedCourseId}
+                onChange={setSelectedCourseId}
+                options={courseOptions}
+                searchable
+                placeholder="Select course..."
+              />
+            </div>
+          )}
         </div>
       )}
       <ConversationalWizard
-        key={`v5-${selectedId}`}
-        initialContext={initialContext}
+        key={wizardKey}
+        initialContext={
+          selectedCourse && initialContext
+            ? {
+                ...initialContext,
+                courseId: selectedCourse.id,
+                courseName: selectedCourse.name,
+                subjectDiscipline: selectedCourse.subjectName ?? undefined,
+                interactionPattern: (selectedCourse.config as Record<string, unknown> | null)?.interactionPattern as string | undefined,
+                teachingMode: (selectedCourse.config as Record<string, unknown> | null)?.teachingMode as string | undefined,
+              }
+            : initialContext
+        }
         userRole={userRole}
         wizardVersion="v5"
       />

@@ -16,6 +16,10 @@ import { buildWizardSystemPrompt, buildGraphSystemPrompt } from "@/lib/chat/wiza
 import { buildConversationalSystemPrompt } from "@/lib/chat/conversational-system-prompt";
 import { buildV5SystemPrompt } from "@/lib/chat/v5-system-prompt";
 import { CONVERSATIONAL_TOOLS } from "@/lib/chat/conversational-wizard-tools";
+import { COURSE_REF_TOOLS } from "@/lib/chat/course-ref-tools";
+import { buildCourseRefSystemPrompt } from "@/lib/chat/course-ref-system-prompt";
+import { executeCourseRefTool } from "@/lib/chat/course-ref-tool-handlers";
+import type { CourseRefData } from "@/lib/content-trust/course-ref-to-assertions";
 import { computeCurrentPhase } from "@/lib/chat/wizard-schema";
 import { evaluateGraph, buildGraphFallback } from "@/lib/wizard/graph-evaluator";
 import { embedText } from "@/lib/embeddings";
@@ -32,7 +36,7 @@ import {
 
 export const runtime = "nodejs";
 
-type ChatMode = "DATA" | "CALL" | "BUG" | "WIZARD";
+type ChatMode = "DATA" | "CALL" | "BUG" | "WIZARD" | "COURSE_REF";
 
 interface EntityBreadcrumb {
   type: string;
@@ -149,6 +153,37 @@ export async function POST(request: NextRequest) {
       return await handleWizardModeWithTools(
         wizardMessages, "wizard.get-started", engine, selectedEngine, mode,
         message, entityContext, conversationHistory, userId, setupData, wizardTools,
+      );
+    }
+
+    // COURSE_REF mode: build a course reference through interview
+    if (mode === "COURSE_REF") {
+      const userId = authResult.session.user.id;
+      const refData = (setupData?.courseRef as CourseRefData) || {};
+      const courseRefPrompt = buildCourseRefSystemPrompt({
+        refData,
+        isEditing: !!(setupData?.courseId),
+        courseName: setupData?.courseName as string | undefined,
+        institutionName: setupData?.institutionName as string | undefined,
+        courseId: setupData?.courseId as string | undefined,
+      });
+
+      const lastHist = conversationHistory[conversationHistory.length - 1];
+      const msgInHistory = lastHist?.role === "user" && lastHist?.content === message.trim();
+
+      const courseRefMessages: AIMessage[] = [
+        { role: "system", content: courseRefPrompt },
+        ...conversationHistory.slice(-40).map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+        ...(msgInHistory ? [] : [{ role: "user" as const, content: message.trim() }]),
+      ];
+      const aiConfig = await getAIConfig("wizard.course-ref");
+      const selectedEngine = engine || aiConfig.provider;
+      return await handleWizardModeWithTools(
+        courseRefMessages, "wizard.course-ref", engine, selectedEngine, mode,
+        message, entityContext, conversationHistory, userId, setupData, COURSE_REF_TOOLS,
       );
     }
 
@@ -740,7 +775,9 @@ async function handleWizardModeWithTools(
     const toolResultBlocks: ContentBlock[] = [];
     for (const toolUse of response.toolUses) {
       console.log(`[wizard-tools] Executing: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
-      const result = await executeWizardTool(toolUse.name, toolUse.input, userId, mergedSetupData);
+      const result = mode === "COURSE_REF"
+        ? await executeCourseRefTool(toolUse.name, toolUse.input, userId, (mergedSetupData.courseRef as CourseRefData) || {})
+        : await executeWizardTool(toolUse.name, toolUse.input, userId, mergedSetupData);
       toolResultBlocks.push({
         type: "tool_result",
         tool_use_id: toolUse.id,

@@ -4,24 +4,27 @@ import { ConversationalWizard } from "../get-started-v4/components/Conversationa
 import { V5WizardWithSelector } from "./V5WizardWithSelector";
 
 /**
- * Get Started V5 — Graph-driven wizard.
+ * Get Started V5 — Graph-driven wizard (now "Build Course").
  *
- * Differences from V4:
- * - Institution selector for SUPERADMIN (switch between orgs for demos)
- * - Institution pre-filled from user record (changeable in wizard)
- * - System prompt lets the graph evaluator drive conversation order (no linear phases)
- * - Content upload available right after institution/domain exists
+ * Supports amendment mode: ?courseId=xxx pre-selects an existing course.
+ * Shows a course picker when courses exist for the user's domain.
  */
-export default async function GetStartedV5Page() {
+export default async function GetStartedV5Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ courseId?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) return <ConversationalWizard wizardVersion="v5" />;
 
   const { user } = session;
   const institutionId = user.institutionId;
+  const params = await searchParams;
+  const courseIdParam = params.courseId ?? null;
 
   // No assigned institution — SUPERADMIN still gets the selector (fetches all from API)
   if (!institutionId) {
-    return <V5WizardWithSelector defaultInstitution={null} userRole={user.role} />;
+    return <V5WizardWithSelector defaultInstitution={null} userRole={user.role} defaultCourseId={courseIdParam} courses={[]} />;
   }
 
   const institution = await prisma.institution.findUnique({
@@ -40,7 +43,7 @@ export default async function GetStartedV5Page() {
   });
 
   if (!institution || institution.domains.length === 0) {
-    return <V5WizardWithSelector defaultInstitution={null} userRole={user.role} />;
+    return <V5WizardWithSelector defaultInstitution={null} userRole={user.role} defaultCourseId={courseIdParam} courses={[]} />;
   }
 
   let domainId = institution.domains[0].id;
@@ -54,6 +57,32 @@ export default async function GetStartedV5Page() {
     }
   }
 
+  // Load courses for the domain (amendment mode)
+  const courses = await prisma.playbook.findMany({
+    where: { domainId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      config: true,
+      subjects: {
+        select: {
+          subject: { select: { name: true } },
+        },
+        take: 1,
+      },
+    },
+  });
+
+  const courseList = courses.map((c) => ({
+    id: c.id,
+    name: c.name,
+    status: c.status as string,
+    subjectName: c.subjects[0]?.subject.name ?? null,
+    config: c.config as Record<string, unknown> | null,
+  }));
+
   const defaultInstitution = {
     id: institution.id,
     name: institution.name,
@@ -62,5 +91,12 @@ export default async function GetStartedV5Page() {
     typeSlug: institution.type?.slug ?? null,
   };
 
-  return <V5WizardWithSelector defaultInstitution={defaultInstitution} userRole={user.role} />;
+  return (
+    <V5WizardWithSelector
+      defaultInstitution={defaultInstitution}
+      userRole={user.role}
+      defaultCourseId={courseIdParam}
+      courses={courseList}
+    />
+  );
 }

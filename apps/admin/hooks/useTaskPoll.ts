@@ -113,8 +113,8 @@ export function useTaskPoll({
           // Still in progress — report progress
           onProgressRef.current?.(task);
         }
-      } catch {
-        // Network error — keep polling silently
+      } catch (err) {
+        console.error("[useTaskPoll] Poll failed for task", taskId, err);
       }
     }, intervalMs);
 

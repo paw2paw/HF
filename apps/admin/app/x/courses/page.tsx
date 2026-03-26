@@ -95,7 +95,7 @@ export default function CoursesPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
-  const [groupBy, setGroupBy] = useState<'none' | 'department'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'department' | 'domain'>('none');
 
   const loadCourses = async () => {
     try {
@@ -141,9 +141,23 @@ export default function CoursesPage() {
     });
   }, [courses, search, selectedStatuses, selectedDomain, selectedGroup]);
 
-  // Group courses by department for group-by view
+  // Group courses by domain or department
   const groupedCourses = useMemo(() => {
-    if (groupBy !== 'department') return null;
+    if (groupBy === 'none') return null;
+
+    if (groupBy === 'domain') {
+      const byDomain = new Map<string, CourseListItem[]>();
+      for (const c of filteredCourses) {
+        const arr = byDomain.get(c.domain.id) || [];
+        arr.push(c);
+        byDomain.set(c.domain.id, arr);
+      }
+      return Array.from(byDomain.values())
+        .sort((a, b) => a[0].domain.name.localeCompare(b[0].domain.name))
+        .map((items) => ({ label: items[0].domain.name, courses: items }));
+    }
+
+    // groupBy === 'department'
     const groups: { label: string; courses: CourseListItem[] }[] = [];
     const byGroup = new Map<string, CourseListItem[]>();
     const ungrouped: CourseListItem[] = [];
@@ -158,7 +172,6 @@ export default function CoursesPage() {
       }
     }
 
-    // Sort by group name
     const sortedEntries = Array.from(byGroup.entries()).sort((a, b) => {
       const nameA = a[1][0]?.group?.name || '';
       const nameB = b[1][0]?.group?.name || '';
@@ -225,13 +238,13 @@ export default function CoursesPage() {
       {/* Header + Filters */}
       <div className="hf-flex hf-flex-between hf-mb-lg hf-items-start">
         <div>
-          <h1 className="hf-page-title hf-mb-xs">Courses</h1>
-          <p className="hf-page-subtitle">Manage your courses and track student progress</p>
+          <h1 className="hf-page-title hf-mb-xs">{plural('playbook')}</h1>
+          <p className="hf-page-subtitle">Manage your {plural('playbook').toLowerCase()} and track {plural('caller').toLowerCase()} progress</p>
         </div>
         {isOperator && (
           <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
             <Plus size={16} />
-            New Course
+            New {terms.playbook}
           </Link>
         )}
       </div>
@@ -241,7 +254,7 @@ export default function CoursesPage() {
           {/* Search */}
           <input
             type="text"
-            placeholder="Search courses..."
+            placeholder={`Search ${plural('playbook').toLowerCase()}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="hf-input hf-input-sm"
@@ -310,19 +323,20 @@ export default function CoursesPage() {
           )}
 
           {/* Group-by Toggle */}
-          {availableGroups.length > 0 && (
+          {(availableGroups.length > 0 || domains.length > 1) && (
             <>
               <div className="hf-divider-v" />
               <div className="hf-flex hf-gap-sm hf-items-center">
                 <span className="hf-text-xs hf-text-muted hf-text-bold">Group by</span>
                 <FancySelect
                   value={groupBy}
-                  onChange={(v) => setGroupBy(v as 'none' | 'department')}
+                  onChange={(v) => setGroupBy(v as 'none' | 'department' | 'domain')}
                   options={[
                     { value: 'none', label: 'None' },
-                    { value: 'department', label: terms.group || 'Department' },
+                    ...(domains.length > 1 ? [{ value: 'domain', label: terms.domain }] : []),
+                    ...(availableGroups.length > 0 ? [{ value: 'department', label: terms.group || 'Department' }] : []),
                   ]}
-                  style={{ width: 140 }}
+                  style={{ width: 160 }}
                 />
               </div>
             </>
@@ -348,7 +362,7 @@ export default function CoursesPage() {
         <div className="hf-summary-strip">
           <div className="hf-summary-card">
             <div className="hf-summary-card-value">{courseSummary.total}</div>
-            <div className="hf-summary-card-label">Total Courses</div>
+            <div className="hf-summary-card-label">Total {plural('playbook')}</div>
           </div>
           <div className="hf-summary-card">
             <div className="hf-summary-card-value" style={{ color: 'var(--status-success-text)' }}>{courseSummary.published}</div>
@@ -360,7 +374,7 @@ export default function CoursesPage() {
           </div>
           <div className="hf-summary-card">
             <div className="hf-summary-card-value">{courseSummary.totalStudents}</div>
-            <div className="hf-summary-card-label">Students</div>
+            <div className="hf-summary-card-label">{plural('caller')}</div>
           </div>
         </div>
       )}
@@ -390,13 +404,13 @@ export default function CoursesPage() {
           </div>
           <div className="hf-heading-lg hf-text-secondary hf-mb-md">
             {search || selectedStatuses.size > 0 || selectedDomain
-              ? 'No courses match filters'
-              : 'No courses yet'}
+              ? `No ${plural('playbook').toLowerCase()} match filters`
+              : `No ${plural('playbook').toLowerCase()} yet`}
           </div>
           {isOperator && !search && selectedStatuses.size === 0 && !selectedDomain && (
             <Link href="/x/courses/new" className="hf-btn hf-btn-primary">
               <Plus size={14} />
-              Create First Course
+              Create First {terms.playbook}
             </Link>
           )}
         </div>

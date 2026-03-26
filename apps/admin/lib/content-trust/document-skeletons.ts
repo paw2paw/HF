@@ -170,6 +170,9 @@ const COURSE_REFERENCE_SKELETON: DocumentSkeleton = {
     { key: "courseOverview.courseLength", label: "Course length", type: "string", example: "12 sessions" },
     { key: "courseOverview.prerequisite", label: "Prerequisites", type: "string" },
     { key: "courseOverview.coreProposition", label: "Core proposition", type: "string", example: "A voice-based AI tutor that develops reading comprehension through Socratic questioning." },
+    { key: "courseOverview.eqfLevel", label: "EQF Level (1-8)", type: "number" },
+    { key: "courseOverview.ectsCredits", label: "ECTS Credits", type: "number" },
+    { key: "courseOverview.qualificationLevel", label: "Qualification level", type: "string", example: "BSc Year 2" },
     {
       key: "learningOutcomes.skillOutcomes", label: "Skill outcomes", type: "object[]", children: [
         { key: "id", label: "Outcome ID", type: "string", required: true },
@@ -183,6 +186,15 @@ const COURSE_REFERENCE_SKELETON: DocumentSkeleton = {
       ],
     },
     { key: "learningOutcomes.progressIndicators", label: "Progress indicators", type: "string" },
+    {
+      key: "learningOutcomes.dublinDescriptors", label: "Dublin Descriptors (Bologna)", type: "object", children: [
+        { key: "knowledgeAndUnderstanding", label: "Knowledge & Understanding", type: "string[]" },
+        { key: "applyingKnowledge", label: "Applying Knowledge", type: "string[]" },
+        { key: "makingJudgements", label: "Making Judgements", type: "string[]" },
+        { key: "communicationSkills", label: "Communication Skills", type: "string[]" },
+        { key: "learningSkills", label: "Learning Skills", type: "string[]" },
+      ],
+    },
     {
       key: "skillsFramework", label: "Skills framework", type: "object[]", children: [
         { key: "id", label: "Skill ID", type: "string", example: "SKILL-01", required: true },
@@ -247,6 +259,16 @@ const COURSE_REFERENCE_SKELETON: DocumentSkeleton = {
     },
     { key: "assessmentBoundaries", label: "Assessment boundaries", type: "string[]" },
     { key: "metrics", label: "Quality metrics", type: "string[]" },
+    {
+      key: "moduleDescriptors", label: "Module descriptors (Bologna)", type: "object[]", children: [
+        { key: "id", label: "Module ID", type: "string", required: true },
+        { key: "title", label: "Title", type: "string", required: true },
+        { key: "ectsCredits", label: "ECTS Credits", type: "number" },
+        { key: "learningOutcomes", label: "Learning outcomes", type: "string[]" },
+        { key: "assessmentMethod", label: "Assessment method", type: "string" },
+        { key: "prerequisites", label: "Prerequisites", type: "string[]" },
+      ],
+    },
   ],
   blankTemplate: {
     courseOverview: {
@@ -262,6 +284,7 @@ const COURSE_REFERENCE_SKELETON: DocumentSkeleton = {
       skillOutcomes: [],
       readinessOutcomes: [],
       progressIndicators: "",
+      dublinDescriptors: undefined,
     },
     skillsFramework: [],
     skillDependencies: [],
@@ -278,6 +301,7 @@ const COURSE_REFERENCE_SKELETON: DocumentSkeleton = {
     },
     assessmentBoundaries: [],
     metrics: [],
+    moduleDescriptors: [],
   },
 };
 

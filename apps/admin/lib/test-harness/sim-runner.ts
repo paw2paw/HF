@@ -95,8 +95,10 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
   });
   if (!caller) throw new Error("Caller not found");
 
-  const callerName = caller.name || "Test Caller";
-  const domainName = caller.domain?.name || "General";
+  if (!caller.name) throw new Error(`Caller ${callerId} has no name — cannot run simulation`);
+  if (!caller.domain?.name) throw new Error(`Caller ${callerId} has no domain — cannot run simulation`);
+  const callerName = caller.name;
+  const domainName = caller.domain.name;
 
   onProgress({ phase: "init", message: "Composing prompt..." });
 
@@ -120,7 +122,10 @@ export async function runSimulation(options: SimRunnerOptions): Promise<SimRunne
       callerId,
       triggerType: "sim",
     });
-    systemPromptText = promptSummary || "You are a helpful AI assistant. Have a natural conversation.";
+    if (!promptSummary) {
+      throw new Error("Prompt composition returned empty result — cannot run simulation without a composed prompt");
+    }
+    systemPromptText = promptSummary;
     onProgress({ phase: "init", message: "Fresh prompt composed" });
   }
 
