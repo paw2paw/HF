@@ -120,11 +120,8 @@ export function CourseRefTab({ courseId, isOperator }: CourseRefTabProps) {
       </div>
 
       {/* Markdown content */}
-      <div className="hf-card-compact hf-p-lg">
-        <ReactMarkdown
-          className="prose prose-sm max-w-none [&>h1]:hf-text-lg [&>h1]:hf-mb-md [&>h2]:hf-text-md [&>h2]:hf-mb-sm [&>h2]:hf-mt-lg [&>h3]:hf-text-sm [&>h3]:hf-mb-xs [&>h3]:hf-mt-md [&>table]:hf-text-xs [&>p]:hf-mb-sm [&>ul]:hf-mb-sm [&>hr]:hf-my-md"
-          remarkPlugins={[remarkGfm]}
-        >
+      <div className="hf-card-compact hf-p-lg prose prose-sm max-w-none [&>h1]:hf-text-lg [&>h1]:hf-mb-md [&>h2]:hf-text-md [&>h2]:hf-mb-sm [&>h2]:hf-mt-lg [&>h3]:hf-text-sm [&>h3]:hf-mb-xs [&>h3]:hf-mt-md [&>table]:hf-text-xs [&>p]:hf-mb-sm [&>ul]:hf-mb-sm [&>hr]:hf-my-md">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
           {reference.markdown}
         </ReactMarkdown>
       </div>
