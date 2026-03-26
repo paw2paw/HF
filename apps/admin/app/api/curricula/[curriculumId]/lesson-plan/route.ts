@@ -279,6 +279,21 @@ async function runBackgroundLessonPlanGeneration(
     }
 
     if (modules.length === 0) {
+      // Third fallback: deliveryConfig.lessonPlan.entries (from wizard plan preview)
+      const dc = (curriculum.deliveryConfig as Record<string, any>) || {};
+      const planEntries = dc?.lessonPlan?.entries as any[] | undefined;
+      if (planEntries?.length) {
+        modules = planEntries.map((e: any, i: number) => ({
+          id: e.moduleId || `MOD-${i + 1}`,
+          title: e.label || e.moduleLabel || `Session ${i + 1}`,
+          description: `${e.type || "lesson"} session`,
+          sortOrder: i,
+          learningOutcomes: e.learningOutcomes || [],
+        }));
+      }
+    }
+
+    if (modules.length === 0) {
       await updateTaskProgress(taskId, {
         context: { error: "Curriculum has no modules. Generate the curriculum first." },
       });
@@ -549,7 +564,22 @@ export async function POST(
 
     // Check curriculum has modules
     const notableInfo = (curriculum.notableInfo as Record<string, any>) || {};
-    const modules: any[] = notableInfo.modules || [];
+    let modules: any[] = notableInfo.modules || [];
+
+    if (modules.length === 0) {
+      // Fallback: deliveryConfig.lessonPlan.entries (from wizard plan preview)
+      const dc = (curriculum.deliveryConfig as Record<string, any>) || {};
+      const planEntries = dc?.lessonPlan?.entries as any[] | undefined;
+      if (planEntries?.length) {
+        modules = planEntries.map((e: any, i: number) => ({
+          id: e.moduleId || `MOD-${i + 1}`,
+          title: e.label || e.moduleLabel || `Session ${i + 1}`,
+          description: `${e.type || "lesson"} session`,
+          sortOrder: i,
+          learningOutcomes: e.learningOutcomes || [],
+        }));
+      }
+    }
 
     if (modules.length === 0) {
       return NextResponse.json(
