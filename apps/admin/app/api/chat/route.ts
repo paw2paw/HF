@@ -11,7 +11,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
-import { executeWizardTool } from "@/lib/chat/wizard-tools";
+import { executeWizardTool } from "@/lib/chat/wizard-tool-executor";
 import { buildV5SystemPrompt } from "@/lib/chat/v5-system-prompt";
 import { CONVERSATIONAL_TOOLS } from "@/lib/chat/conversational-wizard-tools";
 import { COURSE_REF_TOOLS } from "@/lib/chat/course-ref-tools";

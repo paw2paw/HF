@@ -1,12 +1,7 @@
 /**
- * Conversational Wizard Tools (V4)
+ * Wizard Tool Definitions — tool schemas sent to the AI in WIZARD mode.
  *
- * Tool set for the conversation-first wizard.
- * show_options re-added for structured choices (renders inline in chat stream, not above input).
- * show_sliders / show_actions remain dropped.
- * Added: suggest_welcome_message.
- *
- * Execution reuses executeWizardTool() from wizard-tools.ts — same switch dispatcher.
+ * Execution handled by executeWizardTool() in wizard-tool-executor.ts.
  */
 
 import type { AITool } from "@/lib/ai/client";
