@@ -570,7 +570,15 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
               newSet.add(k);
             }
             setData("userSetFields", Array.from(newSet));
-            // Progress panel is now always-visible in the right column — no inline injection needed
+
+            // Auto-activate pedagogy nodes when HE detected or COURSE_REFERENCE uploaded
+            if (!getData("courseRefEnabled")) {
+              const ts = (fields.typeSlug as string) || (getData<string>("typeSlug"));
+              const aud = (fields.audience as string) || (getData<string>("audience"));
+              if (ts === "higher-ed" || aud === "higher-ed") {
+                setData("courseRefEnabled", true);
+              }
+            }
             break;
           }
 
