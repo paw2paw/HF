@@ -100,7 +100,13 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
     }
     const assertions = values.reduce((sum, s) => sum + s.assertionCount, 0);
     const embedded = values.reduce((sum, s) => sum + s.embeddedCount, 0);
-    const done = values.every((s) => s.assertionCount > 0);
+    // Done = every source either has assertions OR has errored/completed with no active job
+    const done = values.every((s) =>
+      s.assertionCount > 0
+      || s.jobStatus === "error"
+      || (s.jobStatus === "done" && s.assertionCount === 0)
+      || (s.jobStatus === null && s.assertionCount === 0) // no job ever ran (dedup edge case)
+    );
     return { totalAssertions: assertions, totalEmbedded: embedded, extractionDone: done };
   }, [statusMap, sourceIds]);
 

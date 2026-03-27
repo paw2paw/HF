@@ -687,7 +687,15 @@ async function createSource(
       }
     }
   } else {
-    deduplicated = true;
+    // Source with same content hash exists — check if it has extraction results.
+    // If not (e.g. previous extraction failed), allow re-extraction.
+    const assertionCount = await prisma.contentAssertion.count({
+      where: { sourceId: source.id },
+    });
+    deduplicated = assertionCount > 0;
+    if (!deduplicated) {
+      console.log(`[course-pack/ingest] Deduped source ${source.id} has 0 assertions — will re-extract`);
+    }
   }
 
   // Attach to subject — idempotent upsert (@@unique([subjectId, sourceId]) already defined)

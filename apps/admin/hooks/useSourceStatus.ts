@@ -21,12 +21,12 @@ export function useSourceStatus(
 ): Record<string, SourceStatusData> {
   const { pollInterval = SOURCE_STATUS_POLL_MS, enabled = true } = options ?? {};
   const [statusMap, setStatusMap] = useState<Record<string, SourceStatusData>>({});
-  const prevIdsRef = useRef<string>('');
+  const statusMapRef = useRef(statusMap);
+  statusMapRef.current = statusMap;
 
   useEffect(() => {
     if (!enabled || sourceIds.length === 0) return;
 
-    // Only re-fetch if IDs actually changed
     const idsKey = sourceIds.slice().sort().join(',');
     let cancelled = false;
 
@@ -49,7 +49,6 @@ export function useSourceStatus(
 
         if (!cancelled) {
           setStatusMap(results);
-          prevIdsRef.current = idsKey;
         }
       } catch {
         // Silently fail — dots just won't show
@@ -58,13 +57,14 @@ export function useSourceStatus(
 
     fetchStatus();
 
-    // Auto-poll if any source has an active job
+    // Poll while any source still has an active extraction job.
+    // Uses a ref to avoid stale closure over statusMap.
     const interval = setInterval(() => {
-      // Check if any source has active status worth polling for
-      const hasActive = Object.values(statusMap).some(
-        (s) => s.jobStatus === 'extracting' || s.jobStatus === 'importing' || s.jobStatus === 'pending'
-      );
-      if (hasActive || prevIdsRef.current !== idsKey) {
+      const current = statusMapRef.current;
+      const values = Object.values(current);
+      const allDone = values.length >= sourceIds.length
+        && values.every((s) => s.assertionCount > 0);
+      if (!allDone) {
         fetchStatus();
       }
     }, pollInterval);
