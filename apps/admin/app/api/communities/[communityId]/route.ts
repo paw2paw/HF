@@ -96,7 +96,7 @@ export async function GET(
         onboardingDefaultTargets: community.onboardingDefaultTargets,
         memberCount: community._count.callers,
         playbookCount: community._count.playbooks,
-        personaName: specConfig?.personaName || community.onboardingIdentitySpec?.name ?? null,
+        personaName: (specConfig?.personaName || community.onboardingIdentitySpec?.name) ?? null,
         identitySpec: community.onboardingIdentitySpec
           ? {
               id: community.onboardingIdentitySpec.id,
@@ -221,7 +221,7 @@ export async function PATCH(
         onboardingFlowPhases: community.onboardingFlowPhases,
         onboardingDefaultTargets: community.onboardingDefaultTargets,
         memberCount: community._count.callers,
-        personaName: specConfig?.personaName || community.onboardingIdentitySpec?.name ?? null,
+        personaName: (specConfig?.personaName || community.onboardingIdentitySpec?.name) ?? null,
         identitySpec: community.onboardingIdentitySpec
           ? {
               id: community.onboardingIdentitySpec.id,
