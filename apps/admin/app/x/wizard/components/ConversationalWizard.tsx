@@ -1571,26 +1571,31 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
                       onFocusInput={() => setTimeout(() => inputRef.current?.focus(), 50)}
                     />
                   </div>
-                  {/* Inline options — rendered as an OptionsCard below the bubble
-                      for visual consistency with tool-call options */}
+                  {/* Inline options — lightweight chips instead of heavy OptionsCard */}
                   {inlineOptions.length > 0 && (
-                    <OptionsCard
-                      panel={{
-                        question: "",
-                        dataKey: "_inline",
-                        mode: "radio",
-                        options: inlineOptions.map((opt) => ({
-                          value: opt.label,
-                          label: opt.label,
-                          description: opt.description || "",
-                        })),
-                      }}
-                      onSelect={(_value, displayText) => handleSend(displayText)}
-                      onSkip={() => handleSend("Skip")}
-                      onSomethingElse={() => {
-                        setTimeout(() => inputRef.current?.focus(), 50);
-                      }}
-                    />
+                    <div className="cv4-suggestions cv4-suggestions--inline">
+                      <div className="cv4-suggestions-chips">
+                        {inlineOptions.map((opt) => (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            className="cv4-suggestion-chip"
+                            onClick={() => handleSend(opt.label)}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className="cv4-suggestion-chip cv4-suggestion-chip--subtle"
+                          onClick={() => {
+                            setTimeout(() => inputRef.current?.focus(), 50);
+                          }}
+                        >
+                          Something else
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );

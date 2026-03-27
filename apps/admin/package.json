@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.6.306",
+  "version": "0.6.307",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -67,7 +67,8 @@
     "eval:wizard:content": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v5-content.yaml --no-cache",
     "eval:wizard:community": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v5-community.yaml --no-cache",
     "eval:wizard:amendment": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v5-amendment.yaml --no-cache",
-    "eval:wizard:all": "npm run eval:wizard && npm run eval:wizard:intake && npm run eval:wizard:proposal && npm run eval:wizard:content && npm run eval:wizard:community && npm run eval:wizard:amendment",
+    "eval:wizard:tone": "dotenv -e .env.local -- promptfoo eval -c evals/wizard/v5-conversational-tone.yaml --no-cache",
+    "eval:wizard:all": "npm run eval:wizard && npm run eval:wizard:intake && npm run eval:wizard:proposal && npm run eval:wizard:content && npm run eval:wizard:community && npm run eval:wizard:amendment && npm run eval:wizard:tone",
     "eval:all": "npm run eval:wizard:all",
     "eval:view": "promptfoo view"
   },

@@ -305,6 +305,8 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
       "Generate a welcome message for the first call based on the course context. " +
       "Present the suggestion in your text response — do not render a panel. " +
       "The user can accept, modify, or skip. " +
+      "ALWAYS call show_suggestions after presenting the welcome message " +
+      "(e.g. 'Use this', 'Tweak it', 'Skip welcome'). " +
       "Save accepted message via update_setup with key 'welcomeMessage'.",
     input_schema: {
       type: "object",

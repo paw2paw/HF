@@ -1,0 +1,241 @@
+description: "Wizard V5 — conversational tone over options-card UI"
+
+# Run with: npm run eval:wizard:v5:tone
+#
+# Snapshot: Mid-conversation — institution + subject + course collected.
+# Graph says teaching approach is HANDLE THIS NEXT.
+# Tests that the AI prefers prose proposals with show_suggestions over show_options cards.
+
+prompts:
+  - id: v5-conversational
+    label: "V5 — Conversational (graph: approach is next priority)"
+    raw: |
+      You are the HumanFirst Studio setup assistant. You help educators create and configure
+      AI tutoring courses through natural conversation.
+
+      ## How you communicate
+      - Write naturally — you're a knowledgeable colleague, not a form.
+      - When recommending, explain why it fits their specific context.
+      - **Bold sparingly for scannability** — only on the key concept when listing multiple items.
+        In flowing prose, write naturally without forcing bold on every sentence.
+      - NEVER expose internal field names, system keys, or enum values.
+      - NEVER output XML tags in your text responses.
+      - **NEVER hide proposals in reasoning.** Every proposal MUST appear in visible text.
+
+      ## Tools: show_options vs show_suggestions — CONVERSATION FIRST
+
+      Your default is prose. Recommend a value, explain why, confirm with show_suggestions.
+      **show_suggestions** — primary tool: confirmations, post-playback, skip signals.
+      **show_options** — use SPARINGLY: only when the user explicitly asks "what are my options?"
+      or for the Phase 2 fieldPicker. Do NOT use for routine field proposals (teaching approach,
+      sessions, personality, coverage). Max ONE per response.
+
+      **The pattern for most fields:**
+      1. Propose a specific value with rationale in prose
+      2. Call show_suggestions with confirmation options
+      3. On affirmation, save and advance
+      4. Only show_options if user asks "what else is there?"
+
+      ## Rules
+      1. Call update_setup EVERY time you learn new information.
+      2. ALWAYS include natural-language text with your responses.
+      4. **PROPOSE, DON'T ASK** for any field you can infer.
+      5. **AFFIRMATION = CONFIRMED. ADVANCE IMMEDIATELY.**
+
+      ## Valid values
+      ### Teaching approaches (interactionPattern)
+      - socratic, directive, advisory, coaching, companion, facilitation, reflective, open, conversational-guide
+
+      ### Teaching emphasis (teachingMode)
+      - recall, comprehension (default), practice, syllabus
+
+      ### Lesson plan model (lessonPlanModel)
+      - direct, 5e, spiral, mastery, project
+
+      ## Graph-driven priorities
+
+      Readiness: 30% | Can launch: NO
+
+      ### Already collected
+        ✓ Organisation name: "Greenwood Academy"
+        ✓ Organisation type: "school"
+        ✓ Subject area: "English Language"
+        ✓ Course name: "GCSE English Language"
+
+      ### What to ask next (priority order)
+        1. Teaching approach [options] → (HANDLE THIS NEXT — propose or confirm)
+           PROPOSE: infer best fit from subject/level.
+           [REQUIRED for launch]
+        2. Teaching emphasis [options]
+        3. Session count [options]
+        ... and 5 more optional fields available
+
+      ### Still required for launch
+        ✗ Teaching approach
+
+      ---
+      The educator says: {{userMessage}}
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      max_tokens: 1200
+      tools:
+        - name: update_setup
+          description: "Save collected setup fields"
+          input_schema:
+            type: object
+            properties:
+              fields:
+                type: object
+                additionalProperties: true
+            required: [fields]
+        - name: show_options
+          description: "Show structured option card inline in chat — use sparingly"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              dataKey: { type: string }
+              mode: { type: string, enum: [radio, checklist] }
+              required: { type: boolean }
+              fieldPicker: { type: boolean }
+              options:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value: { type: string }
+                    label: { type: string }
+                    description: { type: string }
+                    recommended: { type: boolean }
+                  required: [value, label, description]
+            required: [question, dataKey, mode, options]
+        - name: show_suggestions
+          description: "Show clickable quick-reply chips (confirmation/skip only)"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+              suggestions: { type: array, items: { type: string } }
+            required: [question, suggestions]
+        - name: show_upload
+          description: "Show the file upload panel"
+          input_schema:
+            type: object
+            properties:
+              question: { type: string }
+            required: [question]
+
+tests:
+
+  # ── Prose over options card ─────────────────────────────────────────────
+
+  - description: "TONE: Proposing teaching approach uses prose + show_suggestions, NOT show_options"
+    vars:
+      userMessage: "OK, what's next?"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const hasOptions = _tc.some(t => t.name === 'show_options' && !t.args?.fieldPicker);
+          if (hasOptions) return { pass: false, score: 0, reason: 'Used show_options for teaching approach — should propose in prose with show_suggestions' };
+          return true;
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const hasSuggestions = _tc.some(t => t.name === 'show_suggestions');
+          if (!hasSuggestions) return { pass: false, score: 0, reason: 'No show_suggestions — proposal needs confirmation chips' };
+          return true;
+      - type: llm-rubric
+        value: "Proposes a specific teaching approach with a rationale in natural prose. Reads like a recommendation from a colleague, not a form with numbered options."
+
+  - description: "TONE: Recommending session count uses prose, not show_options"
+    vars:
+      userMessage: "Socratic sounds great"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const hasOptions = _tc.some(t => t.name === 'show_options' && !t.args?.fieldPicker);
+          if (hasOptions) return { pass: false, score: 0, reason: 'Used show_options for session config — should propose in prose' };
+          return true;
+
+  # ── show_options only when user asks ────────────────────────────────────
+
+  - description: "TONE: 'What are my options?' DOES trigger show_options"
+    vars:
+      userMessage: "What are my options for teaching approach?"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const hasOptions = _tc.some(t => t.name === 'show_options');
+          if (!hasOptions) return { pass: false, score: 0, reason: 'User explicitly asked for options — show_options should be used here' };
+          return true;
+
+  - description: "TONE: 'Show me the choices' triggers show_options"
+    vars:
+      userMessage: "Show me the different teaching approaches"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _tc = output.tool_calls || _out.split('\n').flatMap(l => { try { const b = JSON.parse(l.trim()); return b.type === 'tool_use' ? [{name: b.name, args: b.input || {}}] : []; } catch(e) { return []; } });
+          const hasOptions = _tc.some(t => t.name === 'show_options');
+          if (!hasOptions) return { pass: false, score: 0, reason: 'User explicitly asked to see choices — show_options should be used here' };
+          return true;
+
+  # ── No numbered lists in prose ──────────────────────────────────────────
+
+  - description: "TONE: Prose proposal doesn't use numbered lists (feels like options)"
+    vars:
+      userMessage: "OK, what's next?"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          // Strip tool call JSON from the output to check only prose text
+          const _text = _out.replace(/\{[^{}]*"type"\s*:\s*"tool_use"[^}]*\}/g, '').trim();
+          // Check for numbered list pattern (3+ consecutive numbered items)
+          const numberedPattern = /(?:^|\n)\s*\d+[.)]\s+.+(?:\n\s*\d+[.)]\s+.+){2,}/;
+          if (numberedPattern.test(_text)) {
+            return { pass: false, score: 0, reason: 'Response contains a numbered list of 3+ items — feels like options, not conversation' };
+          }
+          return true;
+
+  # ── Natural conversational flow ─────────────────────────────────────────
+
+  - description: "TONE: Response reads as natural conversation, not structured form"
+    vars:
+      userMessage: "OK, what's next?"
+    assert:
+      - type: llm-rubric
+        value: |
+          The response should read like a knowledgeable colleague making a recommendation in conversation.
+          It should NOT read like a form, a menu, or a list of options to choose from.
+          Good: "I'd go with Socratic for this — GCSE comprehension is all about inference and analysis, which works best when students discover the answers through questions rather than being told. Sound right, or want to explore other approaches?"
+          Bad: "Here are the teaching approaches: 1. Socratic — ... 2. Directive — ... 3. Coaching — ... Which would you prefer?"
+          The response should lead with ONE specific recommendation and reasoning. It's OK to mention that alternatives exist
+          (e.g. "or explore other approaches?") as long as it doesn't LIST the alternatives as a menu.
+
+  - description: "TONE: Response doesn't over-bold (not every sentence starts with bold)"
+    vars:
+      userMessage: "OK, what's next?"
+    assert:
+      - type: javascript
+        value: |
+          const _out = typeof output === 'string' ? output : JSON.stringify(output);
+          const _text = _out.replace(/\{[^{}]*"type"\s*:\s*"tool_use"[^}]*\}/g, '').trim();
+          const lines = _text.split('\n').filter(l => l.trim().length > 10);
+          if (lines.length < 2) return true;
+          const boldLines = lines.filter(l => /^\s*\*\*/.test(l.trim()));
+          const ratio = boldLines.length / lines.length;
+          if (ratio > 0.7 && lines.length > 2) {
+            return { pass: false, score: 0, reason: `${Math.round(ratio*100)}% of lines start with bold — over-bolding makes text feel like a form` };
+          }
+          return true;

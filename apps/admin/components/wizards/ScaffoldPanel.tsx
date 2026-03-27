@@ -441,7 +441,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                       {(getData<unknown[]>("coursePhases") ?? []).length} phases
                     </span>
                   )}
-                  {!getData("skillsFramework") && !getData("edgeCases") && !getData("coursePhases") && (
+                  {!getData("skillsFramework") && !getData("teachingPrinciples") && !getData("edgeCases") && !getData("coursePhases") && (
                     <span className="gs-bp-meta-item" style={{ color: "var(--text-muted)" }}>
                       Not started
                     </span>

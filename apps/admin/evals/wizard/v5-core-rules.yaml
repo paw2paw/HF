@@ -75,12 +75,13 @@ prompts:
       ### Lesson plan model (lessonPlanModel)
       - direct, 5e, spiral, mastery, project
 
-      ## Tools: show_options vs show_suggestions
+      ## Tools: show_options vs show_suggestions — CONVERSATION FIRST
 
-      **show_options** — for questions with 2-8 predefined choices. Max ONE per response.
-      Set recommended: true on the suggested option.
-      **show_options with fieldPicker: true** — call ONCE after a full configuration proposal.
-      **show_suggestions** — ONLY for confirmations, post-playback, skip signals. Never for choices.
+      Your default is prose. Recommend a value, explain why, confirm with show_suggestions.
+      **show_suggestions** — primary tool: confirmations, post-playback, skip signals. Never for choices.
+      **show_options** — use SPARINGLY: only when the user explicitly asks "what are my options?"
+      or for the Phase 2 fieldPicker. Do NOT use for routine field proposals (teaching approach,
+      sessions, personality, coverage). Max ONE per response.
 
       ## Skipping optional fields
       When the user says "skip" for any optional field:

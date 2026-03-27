@@ -162,7 +162,7 @@
 }
 
 .cv4-bubble--user {
-  background: var(--accent-primary);
+  background: #3b82f6;
   color: #fff;
   border-radius: 16px 16px 4px 16px;
 }
@@ -482,16 +482,32 @@
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
-  border: 1.5px solid var(--accent-primary);
+  border: 1.5px solid #3b82f6;
   border-radius: 20px;
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--surface-primary));
-  color: var(--accent-primary);
+  background: color-mix(in srgb, #3b82f6 6%, var(--surface-primary));
+  color: #3b82f6;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .cv4-suggestion-chip:hover {
-  background: color-mix(in srgb, var(--accent-primary) 15%, var(--surface-primary));
+  background: color-mix(in srgb, #3b82f6 15%, var(--surface-primary));
+}
+
+.cv4-suggestion-chip--subtle {
+  border-color: var(--border-default);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.cv4-suggestion-chip--subtle:hover {
+  border-color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+}
+
+.cv4-suggestions--inline {
+  margin-top: 8px;
 }
 
 /* ── Inline option list (parsed from AI prose fallback) ── */
