@@ -150,10 +150,19 @@ export function deriveStages(input: SetupStatusInput): CourseSetupStatus {
     stage3Detail = totalAssertions > 0
       ? `Extracting... ${totalAssertions} points so far`
       : 'Extracting teaching points...';
-  } else if (stage2Done && totalAssertions === 0) {
-    // Uploaded but no extraction started/completed
+  } else if (anyError) {
+    // Errors detected but some sources still extracting — show error
+    stage3Status = 'error';
+    stage3Detail = 'Extraction failed — try re-extracting';
+  } else if (stage2Done && totalAssertions === 0 && sourceStatuses.length > 0) {
+    // Sources have status data but no assertions yet — genuinely processing
     stage3Status = 'active';
     stage3Detail = 'Processing your content...';
+  } else if (stage2Done && totalAssertions === 0) {
+    // Uploaded but no source status available (source IDs not in status map)
+    // Show pending, not active — avoids false "in progress" when nothing is running
+    stage3Status = 'active';
+    stage3Detail = 'Waiting for extraction to start...';
   } else if (totalAssertions > 0) {
     // Has assertions from subjects even without source status data
     stage3Status = 'done';
