@@ -248,6 +248,7 @@ export function StatusBar() {
   const hasInstitution = !brandingLoading && branding.name !== 'HumanFirst Foundation';
 
   // ── Derived display values ──
+  const userRole = session.user.role;
   const roleLabel = ROLE_LABELS[userRole] || userRole;
   const userDisplayName =
     session.user.name || session.user.email?.split('@')[0] || 'User';
