@@ -20,6 +20,9 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 /** @system-constant api-limits — Max content sources per batch status request (server) */
 const MAX_STATUS_BATCH = 50;
 
+/** @system-constant polling — Extraction tasks stuck in_progress longer than this are treated as failed */
+const STALE_TASK_MS = 5 * 60 * 1000;
+
 export interface SourceStatus {
   assertionCount: number;
   embeddedCount: number;
@@ -97,13 +100,28 @@ export async function GET(req: NextRequest) {
       const taskSourceId = ctx?.sourceId as string | undefined;
       if (taskSourceId && sourceIds.includes(taskSourceId) && !jobMap.has(taskSourceId)) {
         let jobStatus: string;
+        let jobError: string | undefined;
         const ctxError = ctx?.error as string | undefined;
-        if (task.status === "completed" && ctxError) jobStatus = "error";
-        else if (task.status === "completed") jobStatus = "done";
-        else jobStatus = task.currentStep >= 2 ? "importing" : "extracting";
+
+        if (task.status === "completed" && ctxError) {
+          jobStatus = "error";
+          jobError = ctxError;
+        } else if (task.status === "completed") {
+          jobStatus = "done";
+        } else {
+          // in_progress — check for stale tasks (crashed/recycled Cloud Run instance)
+          const elapsed = Date.now() - task.updatedAt.getTime();
+          if (elapsed > STALE_TASK_MS) {
+            jobStatus = "error";
+            jobError = `Extraction stalled (no update for ${Math.round(elapsed / 60_000)}m). Re-extract to retry.`;
+          } else {
+            jobStatus = task.currentStep >= 2 ? "importing" : "extracting";
+          }
+        }
+
         jobMap.set(taskSourceId, {
           status: jobStatus,
-          error: ctxError || undefined,
+          error: jobError,
         });
       }
     }
