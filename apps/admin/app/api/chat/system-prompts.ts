@@ -3,6 +3,8 @@ import { renderVoicePrompt } from "@/lib/prompt/composition/renderPromptSummary"
 import type { PlaybookConfig } from "@/lib/types/json-fields";
 import { resolveSourceFiles, getClaudeMdContext, type BugContext } from "@/lib/chat/bug-context";
 import { resolveTerminology, TECHNICAL_TERMS, type TermMap } from "@/lib/terminology";
+import { getPromptSpec } from "@/lib/prompts/spec-prompts";
+import { config } from "@/lib/config";
 
 type ChatMode = "DATA" | "CALL" | "BUG";
 
@@ -63,8 +65,10 @@ export async function buildSystemPrompt(
   const baseContext = await buildEntityContext(entityContext);
 
   switch (mode) {
-    case "DATA":
-      return { prompt: DATA_SYSTEM_PROMPT + termBlock + `\n\n${baseContext}` };
+    case "DATA": {
+      const dataPrompt = await getPromptSpec(config.specs.chatDataHelper, DATA_SYSTEM_PROMPT);
+      return { prompt: dataPrompt + termBlock + `\n\n${baseContext}` };
+    }
     case "CALL":
       return await buildCallSimPrompt(entityContext, terms, termBlock);
     case "BUG":
@@ -953,7 +957,8 @@ async function buildBugDiagnosisPrompt(
   bugContext?: BugContext,
   termBlock?: string
 ): Promise<string> {
-  const parts: string[] = [BUG_SYSTEM_PROMPT + (termBlock || "")];
+  const bugPrompt = await getPromptSpec(config.specs.chatBugDiagnosis, BUG_SYSTEM_PROMPT);
+  const parts: string[] = [bugPrompt + (termBlock || "")];
 
   // Architecture context from CLAUDE.md
   const claudeMd = await getClaudeMdContext();

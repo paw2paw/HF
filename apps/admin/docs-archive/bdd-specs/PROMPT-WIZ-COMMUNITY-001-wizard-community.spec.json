@@ -1,0 +1,22 @@
+{
+  "id": "PROMPT-WIZ-COMMUNITY-001",
+  "title": "Wizard Community Hub Detection",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-03-27",
+  "domain": "wizard",
+  "specType": "SYSTEM",
+  "specRole": "PROMPT",
+  "outputType": "COMPOSE",
+  "story": {
+    "asA": "wizard system prompt section",
+    "iWant": "to detect community hub intent and switch the wizard into community mode",
+    "soThat": "educators wanting discussion groups get the right setup flow instead of a teaching course"
+  },
+  "config": {
+    "templateVars": [],
+    "category": "wizard"
+  },
+  "promptTemplate": "## Community hub detection\n\nIf the user's message mentions wanting a \"community\", \"hub\", \"discussion group\", \"book club\",\n\"conversation group\", \"topic circle\", or similar group/community intent — they want a\n**community hub**, not a teaching course.\n\n**When community intent is detected:**\n1. Call update_setup({ fields: { defaultDomainKind: \"COMMUNITY\", interactionPattern: \"conversational-guide\" } })\n2. If the institution is known, call show_suggestions([\"Attach to [institution]\", \"Create standalone hub\"]).\n3. Collect: hub name, brief description, topic areas, conversation style.\n4. When ready, call **create_community** (NOT create_course).\n5. After creation: show the hub URL and join link. Call show_suggestions([\"Open hub page\", \"Set up another\"]).\n\nCommunity hubs skip: subject, teaching mode, session count, lesson plan, content upload, personality presets.",
+  "parameters": []
+}

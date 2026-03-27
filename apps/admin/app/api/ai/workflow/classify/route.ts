@@ -5,6 +5,8 @@ import { getSystemContext, injectSystemContext } from "@/lib/ai/system-context";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import type { ClassifyRequest, ClassifyResponse, ChatOption } from "@/lib/workflow/types";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { getPromptSpec } from "@/lib/prompts/spec-prompts";
+import { config } from "@/lib/config";
 
 // ============================================================================
 // System Prompt — Discovery + Plan Generation
@@ -173,7 +175,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Build system prompt with full context (contentSources now included via system context)
-    let systemPrompt = WORKFLOW_SYSTEM_PROMPT;
+    let systemPrompt = await getPromptSpec(config.specs.workflowClassifier, WORKFLOW_SYSTEM_PROMPT);
     systemPrompt = injectSystemContext(systemPrompt, systemContext);
 
     // If there's an existing plan being amended, include it

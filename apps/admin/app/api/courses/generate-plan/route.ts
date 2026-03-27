@@ -11,6 +11,9 @@ import {
 } from "@/lib/ai/task-guidance";
 import { syncModulesToDB } from "@/lib/curriculum/sync-modules";
 import { getLessonPlanModel } from "@/lib/lesson-plan/models";
+import { getPromptSpec } from "@/lib/prompts/spec-prompts";
+import { interpolateTemplate } from "@/lib/prompts/interpolate";
+import { config } from "@/lib/config";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -57,6 +60,54 @@ const INTERACTION_PATTERN_SESSION_HINTS: Record<string, string> = {
   reflective:   "Teaching style: REFLECTIVE. Sessions should build inward — start broad then move toward personal application. Include deepen sessions with reflective prompts.",
   open:         "Teaching style: OPEN. No fixed structure preference. Propose a plan that fits the content naturally.",
 };
+
+const LESSON_PLAN_GENERATE_FALLBACK = `You are a curriculum planning assistant. Given a set of teaching modules, propose a structured lesson plan — an ordered sequence of call sessions that covers all modules effectively.
+
+You are using the "{{modelLabel}}" pedagogical framework.
+{{modelDescription}}
+
+Session sequencing rules for this model:
+{{sessionPatternRules}}{{sessionCountOverride}}
+
+Phase structure:
+Each session MUST include a "phases" array — ordered activities within the session.
+Use the model's phase templates as a starting point, then customise labels and guidance for the specific content.
+{{tpDistributionHints}}
+
+General rules:
+- Valid session types: onboarding, introduce, deepen, review, assess, consolidate
+- First session should always be onboarding
+- Cognitive load limit: max {{maxTpsPerSession}} new teaching points per session — split larger modules across multiple sessions
+- {{targetHint}}
+- {{durationHint}}
+- {{emphasisHint}}
+- {{assessmentHint}}{{patternHintLine}}
+
+Respond with ONLY a JSON object (no markdown, no explanation outside JSON):
+{
+  "reasoning": "Brief explanation of your plan structure and how the {{modelLabel}} model shapes it",
+  "entries": [
+    {
+      "session": 1, "type": "onboarding", "moduleId": null, "moduleLabel": "", "label": "Welcome + Background Probe",
+      "phases": [
+        { "id": "welcome", "label": "Welcome & Introductions", "durationMins": 5, "guidance": "Warm greeting, set expectations" },
+        { "id": "probe", "label": "Background Probe", "durationMins": 15, "teachMethods": ["guided_discussion"], "guidance": "Explore prior knowledge and learning goals" },
+        { "id": "preview", "label": "Course Preview", "durationMins": 10, "guidance": "Overview of what they'll learn" }
+      ]
+    },
+    {
+      "session": 2, "type": "introduce", "moduleId": "MOD-1", "moduleLabel": "Module Name", "label": "Introduction to Module Name",
+      "estimatedDurationMins": 30,
+      "learningOutcomeRefs": ["LO1", "LO2"],
+      "phases": [
+        { "id": "hook", "label": "Hook — Real-world scenario", "durationMins": 3, "teachMethods": ["guided_discussion"], "guidance": "Connect topic to learner's experience" },
+        { "id": "direct_instruction", "label": "Key Concepts", "durationMins": 12, "teachMethods": ["definition_matching", "recall_quiz"], "learningOutcomeRefs": ["LO1"], "guidance": "Present definitions and core facts" },
+        { "id": "guided_practice", "label": "Practice Together", "durationMins": 10, "teachMethods": ["worked_example"], "learningOutcomeRefs": ["LO2"], "guidance": "Work through examples with scaffolding" },
+        { "id": "check", "label": "Quick Check", "durationMins": 5, "teachMethods": ["recall_quiz"], "guidance": "Verify understanding before closing" }
+      ]
+    }
+  ]
+}`;
 
 async function runGeneratePlan(
   taskId: string,
@@ -260,53 +311,20 @@ The educator has set a HARD LIMIT of ${sessionCount} sessions. This overrides th
 - Prioritise coverage over depth — every module must appear in at least one session, even if merged.`
       : "";
 
-    const systemPrompt = `You are a curriculum planning assistant. Given a set of teaching modules, propose a structured lesson plan — an ordered sequence of call sessions that covers all modules effectively.
-
-You are using the "${modelDef.label}" pedagogical framework.
-${modelDef.description}
-
-Session sequencing rules for this model:
-${modelDef.sessionPatternRules}${sessionCountOverride}
-
-Phase structure:
-Each session MUST include a "phases" array — ordered activities within the session.
-Use the model's phase templates as a starting point, then customise labels and guidance for the specific content.
-${modelDef.tpDistributionHints}
-
-General rules:
-- Valid session types: onboarding, introduce, deepen, review, assess, consolidate
-- First session should always be onboarding
-- Cognitive load limit: max ${modelDef.defaults.maxTpsPerSession} new teaching points per session — split larger modules across multiple sessions
-- ${targetHint}
-- ${durationHint}
-- ${emphasisHint}
-- ${assessmentHint}${patternHint ? `\n- ${patternHint}` : ""}
-
-Respond with ONLY a JSON object (no markdown, no explanation outside JSON):
-{
-  "reasoning": "Brief explanation of your plan structure and how the ${modelDef.label} model shapes it",
-  "entries": [
-    {
-      "session": 1, "type": "onboarding", "moduleId": null, "moduleLabel": "", "label": "Welcome + Background Probe",
-      "phases": [
-        { "id": "welcome", "label": "Welcome & Introductions", "durationMins": 5, "guidance": "Warm greeting, set expectations" },
-        { "id": "probe", "label": "Background Probe", "durationMins": 15, "teachMethods": ["guided_discussion"], "guidance": "Explore prior knowledge and learning goals" },
-        { "id": "preview", "label": "Course Preview", "durationMins": 10, "guidance": "Overview of what they'll learn" }
-      ]
-    },
-    {
-      "session": 2, "type": "introduce", "moduleId": "MOD-1", "moduleLabel": "Module Name", "label": "Introduction to Module Name",
-      "estimatedDurationMins": 30,
-      "learningOutcomeRefs": ["LO1", "LO2"],
-      "phases": [
-        { "id": "hook", "label": "Hook — Real-world scenario", "durationMins": 3, "teachMethods": ["guided_discussion"], "guidance": "Connect topic to learner's experience" },
-        { "id": "direct_instruction", "label": "Key Concepts", "durationMins": 12, "teachMethods": ["definition_matching", "recall_quiz"], "learningOutcomeRefs": ["LO1"], "guidance": "Present definitions and core facts" },
-        { "id": "guided_practice", "label": "Practice Together", "durationMins": 10, "teachMethods": ["worked_example"], "learningOutcomeRefs": ["LO2"], "guidance": "Work through examples with scaffolding" },
-        { "id": "check", "label": "Quick Check", "durationMins": 5, "teachMethods": ["recall_quiz"], "guidance": "Verify understanding before closing" }
-      ]
-    }
-  ]
-}`;
+    const template = await getPromptSpec(config.specs.lessonPlanGenerator, LESSON_PLAN_GENERATE_FALLBACK);
+    const systemPrompt = interpolateTemplate(template, {
+      modelLabel: modelDef.label,
+      modelDescription: modelDef.description,
+      sessionPatternRules: modelDef.sessionPatternRules,
+      sessionCountOverride,
+      tpDistributionHints: modelDef.tpDistributionHints,
+      maxTpsPerSession: String(modelDef.defaults.maxTpsPerSession),
+      targetHint,
+      durationHint,
+      emphasisHint,
+      assessmentHint,
+      patternHintLine: patternHint ? `\n- ${patternHint}` : "",
+    });
 
     const documentExcerpt = documentText
       ? `\n\nUploaded Document Excerpt (use to inform session content and depth):\n${documentText.substring(0, 4000)}`

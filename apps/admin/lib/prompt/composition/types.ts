@@ -518,7 +518,7 @@ export type TransformFn = (
   rawData: any,
   context: AssembledContext,
   sectionDef: CompositionSectionDef,
-) => any;
+) => any | Promise<any>;
 
 // === COMPOSITION RESULT ===
 

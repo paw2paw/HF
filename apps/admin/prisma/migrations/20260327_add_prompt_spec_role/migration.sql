@@ -1,0 +1,2 @@
+-- Add PROMPT to SpecRole enum
+ALTER TYPE "SpecRole" ADD VALUE IF NOT EXISTS 'PROMPT';

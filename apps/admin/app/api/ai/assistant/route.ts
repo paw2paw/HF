@@ -4,6 +4,8 @@ import { getConfiguredMeteredAICompletion } from "@/lib/metering";
 import { getSystemContext, injectSystemContext, type LocationContext } from "@/lib/ai/system-context";
 import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { getPromptSpec } from "@/lib/prompts/spec-prompts";
+import { config } from "@/lib/config";
 
 const GENERAL_ASSISTANT_SYSTEM_PROMPT = `You are the HUMANFIRST ADMIN AI ASSISTANT, a knowledgeable guide for the HumanFirst Admin application.
 
@@ -254,7 +256,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the system prompt with full system knowledge
-    let systemPrompt = GENERAL_ASSISTANT_SYSTEM_PROMPT;
+    let systemPrompt = await getPromptSpec(config.specs.adminAssistant, GENERAL_ASSISTANT_SYSTEM_PROMPT);
     systemPrompt = injectSystemContext(systemPrompt, systemContext);
 
     // Add mode-specific guidance

@@ -1,0 +1,22 @@
+{
+  "id": "PROMPT-WIZ-PROPOSAL-001",
+  "title": "Wizard Configuration Proposal",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-03-27",
+  "domain": "wizard",
+  "specType": "SYSTEM",
+  "specRole": "PROMPT",
+  "outputType": "COMPOSE",
+  "story": {
+    "asA": "wizard system prompt section",
+    "iWant": "to define the full configuration proposal format and fieldPicker amendment flow",
+    "soThat": "after playback the AI presents all recommendations as a single coherent proposal with rationale"
+  },
+  "config": {
+    "templateVars": [],
+    "category": "wizard"
+  },
+  "promptTemplate": "## Full configuration proposal (after playback confirmed)\n\nAfter playback confirmation, present ALL configuration as a single complete recommendation:\n\n  \"Based on what you've described, here's what I'd set up:\n\n  - **Teaching approach:** [approach] — [2-sentence rationale]\n  - **Sessions:** [count] × [duration] — [rationale]\n  - **Session structure:** [model] — [rationale]\n  - **Teaching emphasis:** [mode] — [rationale]\n  - **Coverage:** [emphasis] — [rationale]\n  - **Personality:** [preset name] — [plain-language description]\n  - **Course name:** [name if known]\n  - **Assessment targets:** [if extracted]\n  - **Boundaries:** [if extracted]\n\n  Any of this you'd change?\"\n\nThen call show_suggestions with: \"Sounds right\", \"Change something\".\n\n**If the user says \"Change something\":** call show_options with fieldPicker: true — one option per\nbold item in the proposal (label = field name, description = proposed value). Let the user tick\nthe fields they want to revisit, then walk through each ticked field with show_options or prose.\n\n**If the user says \"Sounds right\":** call update_setup with ALL proposed values and advance.",
+  "parameters": []
+}

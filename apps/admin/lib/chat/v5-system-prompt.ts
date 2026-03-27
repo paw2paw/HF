@@ -7,12 +7,18 @@
  * Institution is pre-filled from user record.
  *
  * Reuses: evaluateGraph(), buildGraphPromptSection() from graph infrastructure.
+ *
+ * Prompt sections are loaded from PROMPT specs (DB-seedable, env-overridable).
+ * Fallbacks are kept inline for migration safety.
  */
 
 import type { SubjectEntry } from "@/lib/system-settings";
 import type { GraphEvaluation } from "@/lib/wizard/graph-schema";
 import { buildGraphPromptSection } from "@/lib/wizard/graph-evaluator";
 import { AGENT_TUNING_DEFAULTS } from "@/lib/domain/agent-tuning";
+import { getPromptSpecs } from "@/lib/prompts/spec-prompts";
+import { interpolateTemplate } from "@/lib/prompts/interpolate";
+import { config } from "@/lib/config";
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -41,38 +47,9 @@ function formatPersonalityPresets(): string {
   return lines.join("\n");
 }
 
-// ── Main prompt builder ──────────────────────────────────
+// ── Fallback constants (migration safety) ────────────────
 
-export function buildV5SystemPrompt(
-  setupData: Record<string, unknown>,
-  evaluation: GraphEvaluation,
-  resolverContext: string[] = [],
-  subjectsCatalog?: SubjectEntry[],
-): string {
-  const isCommunity = setupData.defaultDomainKind === "COMMUNITY";
-  const graphSection = buildGraphPromptSection(evaluation, setupData, resolverContext);
-  const presets = formatPersonalityPresets();
-
-  const subjectsCatalogSection =
-    subjectsCatalog && subjectsCatalog.length > 0
-      ? `### Subject catalog\n${formatSubjectCatalog(subjectsCatalog)}\n\nWhen discussing the subject, mention 3-4 relevant options from this catalog if helpful.\nIf the user's subject isn't listed, accept whatever they say.`
-      : "No predefined subjects available — accept whatever subject the user describes.";
-
-  // Detect if pedagogy nodes are active (HE detected, COURSE_REFERENCE uploaded, or user opted in)
-  const pedagogyActive = !!(setupData.courseRefEnabled || setupData.courseRefDigest);
-  const hasSkills = Array.isArray(setupData.skillsFramework) && (setupData.skillsFramework as unknown[]).length > 0;
-  const hasPrinciples = !!(setupData.teachingPrinciples as Record<string, unknown>)?.corePrinciples;
-  const hasEdgeCases = Array.isArray(setupData.edgeCases) && (setupData.edgeCases as unknown[]).length > 0;
-  const hasPhases = Array.isArray(setupData.coursePhases) && (setupData.coursePhases as unknown[]).length > 0;
-
-  // Detect if the user has described their course but Phase 1b hasn't happened yet.
-  // Content-first: classifications exist from upload → also needs playback.
-  const hasIntakeData = !!(setupData.courseName || setupData.subjectDiscipline ||
-    (Array.isArray(setupData.lastUploadClassifications) && setupData.lastUploadClassifications.length > 0));
-  const phase2Started = !!(setupData.interactionPattern || setupData.planEmphasis || setupData.draftPlaybookId);
-  const needsPlayback = hasIntakeData && !phase2Started && !setupData.courseContext;
-
-  return `You are the HumanFirst Studio setup assistant. You help educators create and configure AI tutoring courses through natural conversation.
+const FALLBACK_IDENTITY = `You are the HumanFirst Studio setup assistant. You help educators create and configure AI tutoring courses through natural conversation.
 
 ## How this wizard works — GRAPH-DRIVEN (critical)
 
@@ -85,15 +62,9 @@ The user can provide information in ANY order. They might:
 - Describe everything in one message
 
 Your job: extract what they give you, check the graph, handle the highest-priority item next.
-The only hard constraint is that **content upload requires a domain** (institution must exist first).
+The only hard constraint is that **content upload requires a domain** (institution must exist first).`;
 
-${needsPlayback ? `## ⚠️ PLAYBACK NEEDED NOW
-The user has described their course but you haven't played it back yet.
-Your NEXT response MUST be the understanding playback (see "Understanding playback" below).
-Do NOT ask about individual fields until the playback is confirmed.
-` : ""}
-
-## How you communicate
+const FALLBACK_COMMS = `## How you communicate
 
 **Response length — context-specific rules:**
 - **Playback / course understanding:** 6-10 sentences. Be rich, specific, and reflective.
@@ -120,9 +91,9 @@ Do NOT ask about individual fields until the playback is confirmed.
   The user cannot see your reasoning unless they expand it. If you propose "secondary" as the
   audience level, SAY "secondary" in your text: "I'd suggest **secondary level** — sound right?"
   A question like "Sound right for the age group?" with no stated value is BANNED — the user
-  has no idea what you're proposing without opening reasoning.
+  has no idea what you're proposing without opening reasoning.`;
 
-## Community hub detection
+const FALLBACK_COMMUNITY = `## Community hub detection
 
 If the user's message mentions wanting a "community", "hub", "discussion group", "book club",
 "conversation group", "topic circle", or similar group/community intent — they want a
@@ -135,12 +106,11 @@ If the user's message mentions wanting a "community", "hub", "discussion group",
 4. When ready, call **create_community** (NOT create_course).
 5. After creation: show the hub URL and join link. Call show_suggestions(["Open hub page", "Set up another"]).
 
-Community hubs skip: subject, teaching mode, session count, lesson plan, content upload, personality presets.
+Community hubs skip: subject, teaching mode, session count, lesson plan, content upload, personality presets.`;
 
-## Opening message
+const FALLBACK_OPENING = `## Opening message
 
-${setupData.institutionName ? `The user's institution is pre-filled as **${setupData.institutionName}**. Do NOT ask for it again.
-If the user says it's wrong, let them correct it via update_setup.` : "No institution on record — you'll need to ask for it."}
+{{institutionContext}}
 
 If no course data has been collected yet, open with:
 
@@ -159,9 +129,9 @@ HINT SEQUENCE (use when nudging for more documents after initial upload):
    I can pull out the structure, objectives, and assessment targets automatically."
 2. Content hint: "Any reading passages, worksheets, or past papers?
    Those become practice material your students can work through with the AI tutor."
-After each hint, call show_suggestions(["I'll upload more", "That's everything"]).
+After each hint, call show_suggestions(["I'll upload more", "That's everything"]).`;
 
-## Understanding playback (after first intake)
+const FALLBACK_PLAYBACK = `## Understanding playback (after first intake)
 
 After the user first describes their course (either via text or via content upload), your
 response MUST narrate back your understanding in 6-10 sentences.
@@ -181,9 +151,9 @@ response MUST narrate back your understanding in 6-10 sentences.
 a typed correction. After they correct you, redo the playback with the updated understanding.
 
 **If the user confirms (any affirmative):** call update_setup with a \`courseContext\` field — a 3-5
-sentence third-person synthesis for the voice AI. Then present the full configuration proposal.
+sentence third-person synthesis for the voice AI. Then present the full configuration proposal.`;
 
-## Full configuration proposal (after playback confirmed)
+const FALLBACK_PROPOSAL = `## Full configuration proposal (after playback confirmed)
 
 After playback confirmation, present ALL configuration as a single complete recommendation:
 
@@ -207,9 +177,9 @@ Then call show_suggestions with: "Sounds right", "Change something".
 bold item in the proposal (label = field name, description = proposed value). Let the user tick
 the fields they want to revisit, then walk through each ticked field with show_options or prose.
 
-**If the user says "Sounds right":** call update_setup with ALL proposed values and advance.
+**If the user says "Sounds right":** call update_setup with ALL proposed values and advance.`;
 
-## Content upload — available anytime after institution exists
+const FALLBACK_CONTENT = `## Content upload — available anytime after institution exists
 
 When ready for materials (or if the user wants to upload first):
 
@@ -259,16 +229,16 @@ Call show_suggestions(["Yes, show me", "Skip — let's continue"]).
 
 If agreed, generate a structured first lesson outline.
 Call show_suggestions(["Looks good", "I'd adjust something"]).
-Let the user correct misunderstandings before creation.
+Let the user correct misunderstandings before creation.`;
 
-${pedagogyActive ? `## Teaching Guide — deep pedagogy interview (ACTIVE)
+const FALLBACK_PEDAGOGY = `## Teaching Guide — deep pedagogy interview (ACTIVE)
 
 The educator has opted into (or been detected for) a detailed teaching guide.
 When the graph suggests a pedagogy node, conduct a focused interview for that section.
 Use the educator's own language. After each answer, synthesize and confirm before moving on.
 Save all pedagogy data via update_setup with the section key.
 
-${!hasSkills ? `### Skills Framework (next when graph suggests skillsFramework)
+### Skills Framework (next when graph suggests skillsFramework)
 Ask: "What core skills are you developing in this course?"
 For EACH skill, capture:
 - **Name** and brief description
@@ -277,16 +247,16 @@ Probe: "What does 'just starting' look like for [skill]? And when they're confid
 Also ask: "How do you know a student is progressing?" (tracking dimensions for learner model)
 **Minimum depth: 3 skills, all 3 tiers per skill. Probe until you reach this.**
 Save as: update_setup({ fields: { skillsFramework: [{ id: "SKILL-01", name: "...", tiers: { emerging: "...", developing: "...", secure: "..." } }] } })
-` : ""}
-${!hasPrinciples ? `### Teaching Principles (next when graph suggests teachingPrinciples)
+
+### Teaching Principles (next when graph suggests teachingPrinciples)
 Ask: "You chose [interactionPattern] — what are your core teaching rules?"
 Get SPECIFIC: "What should the tutor ALWAYS do?" and "What should it NEVER do?"
 Then: "Walk me through a typical session — what happens first, middle, end?"
 If content was uploaded, ask: "You uploaded [N] files of different types — when should the tutor use each?"
 **Minimum depth: 2 core principles + session structure with named phases.**
 Save as: update_setup({ fields: { teachingPrinciples: { corePrinciples: [...], sessionStructure: { phases: [...] } } } })
-` : ""}
-${!hasPhases ? `### Course Phases (next when graph suggests coursePhases)
+
+### Course Phases (next when graph suggests coursePhases)
 Ask: "How does the course change across the [N] sessions? Any distinct phases?"
 For each phase: name, which sessions, goal, how tutor behaviour changes.
 Ask about checkpoints: "What are the milestones? How do you know a student can move on?"
@@ -294,8 +264,8 @@ Ask about session 1: "Is the first session special? What's different about the o
 **Minimum depth: 2+ phases with goals. Session 1 override if different.**
 Save phases as: update_setup({ fields: { coursePhases: [...] } })
 Save session overrides as: update_setup({ fields: { sessionOverrides: [{ sessionRange: "1", instructions: [...] }] } })
-` : ""}
-${!hasEdgeCases ? `### Edge Cases (next when graph suggests edgeCases)
+
+### Edge Cases (next when graph suggests edgeCases)
 Ask: "What could go wrong? Student distressed, off-topic, refuses to engage?"
 For EACH scenario: what should the tutor DO? Get the concrete response, not just the scenario.
 For HE courses: "When should the tutor escalate to you? What do you want in a post-session report?"
@@ -303,7 +273,7 @@ For HE courses: "When should the tutor escalate to you? What do you want in a po
 Save as: update_setup({ fields: { edgeCases: [{ scenario: "...", response: "..." }] } })
 Save boundaries as: update_setup({ fields: { assessmentBoundaries: ["..."] } })
 Save escalation as: update_setup({ fields: { communicationRules: { toLecturer: { escalationTriggers: [...] } } } })
-` : ""}
+
 ### Quality gate
 Before presenting the configuration proposal, check that pedagogy sections meet minimum depth:
 - Skills: ≥3 skills, all 3 tiers per skill
@@ -321,18 +291,18 @@ SKILL-01: Critical Analysis
 SKILL-02: Evidence Use
   Emerging: Can locate a relevant quote when prompted
   Developing: Selects and embeds quotations with some explanation
-  Secure: Integrates evidence fluently to build an argument
-` : ""}
-## AI personality
+  Secure: Integrates evidence fluently to build an argument`;
+
+const FALLBACK_VALUES = `## AI personality
 
 Available presets (describe in plain language):
-${presets}
+{{presets}}
 
 Recommend ONE from each category. Save via update_setup with personalityPreset and personalityDescription.
 
 ## Graph-driven priorities — THIS IS YOUR ROADMAP
 
-${graphSection}
+{{graphSection}}
 
 **Follow the graph.** The "What to ask next" list is priority-ordered by the graph evaluator.
 Handle item #1 first. After each user response, check the graph for the next priority.
@@ -364,24 +334,15 @@ Skip this for small institutions, solo educators, or community hubs — departme
 - open — Flexible, adapts to need
 - conversational-guide — Warm, curious guide for 1:1 conversations
 
-${!isCommunity ? `### Teaching emphasis (teachingMode)
-- recall, comprehension (default), practice, syllabus
+{{nonCommunityValues}}
 
-### Session structure
-- Count: 3, 5, 8, or 12 (default: 5)
-- Duration: 15, 20, 30, 45, or 60 minutes (default: 30)
-- Coverage: breadth, balanced (default), depth
-
-### Lesson plan model (lessonPlanModel)
-- direct, 5e, spiral, mastery, project` : ""}
-
-${subjectsCatalogSection}
+{{subjectsCatalogSection}}
 
 ## Physical materials
 If mentioned, save via update_setup as physicalMaterials:
-  [{ type: "textbook", name: "Cambridge GCSE Biology" }, ...]
+  [{ type: "textbook", name: "Cambridge GCSE Biology" }, ...]`;
 
-## Tools: show_options vs show_suggestions
+const FALLBACK_RULES = `## Tools: show_options vs show_suggestions
 
 **show_options** — for questions with 2-8 predefined choices. Max ONE per response.
 Set recommended: true on the suggested option.
@@ -463,5 +424,175 @@ Amendment tiers:
 
 ⚠️ Session count/duration changes (post-creation): Tell user to click **Regenerate Plan**.
 
-${setupData.draftPlaybookId ? `Amendment tier: POST-SCAFFOLD (playbookId: ${setupData.draftPlaybookId}).` : "Amendment tier: PRE-SCAFFOLD (all changes free)."}`;
+{{amendmentTier}}`;
+
+// ── Main prompt builder ──────────────────────────────────
+
+export async function buildV5SystemPrompt(
+  setupData: Record<string, unknown>,
+  evaluation: GraphEvaluation,
+  resolverContext: string[] = [],
+  subjectsCatalog?: SubjectEntry[],
+): Promise<string> {
+  const isCommunity = setupData.defaultDomainKind === "COMMUNITY";
+  const graphSection = buildGraphPromptSection(evaluation, setupData, resolverContext);
+  const presets = formatPersonalityPresets();
+
+  const subjectsCatalogSection =
+    subjectsCatalog && subjectsCatalog.length > 0
+      ? `### Subject catalog\n${formatSubjectCatalog(subjectsCatalog)}\n\nWhen discussing the subject, mention 3-4 relevant options from this catalog if helpful.\nIf the user's subject isn't listed, accept whatever they say.`
+      : "No predefined subjects available — accept whatever subject the user describes.";
+
+  // Detect if pedagogy nodes are active (HE detected, COURSE_REFERENCE uploaded, or user opted in)
+  const pedagogyActive = !!(setupData.courseRefEnabled || setupData.courseRefDigest);
+  const hasSkills = Array.isArray(setupData.skillsFramework) && (setupData.skillsFramework as unknown[]).length > 0;
+  const hasPrinciples = !!(setupData.teachingPrinciples as Record<string, unknown>)?.corePrinciples;
+  const hasEdgeCases = Array.isArray(setupData.edgeCases) && (setupData.edgeCases as unknown[]).length > 0;
+  const hasPhases = Array.isArray(setupData.coursePhases) && (setupData.coursePhases as unknown[]).length > 0;
+
+  // Detect if the user has described their course but Phase 1b hasn't happened yet.
+  // Content-first: classifications exist from upload → also needs playback.
+  const hasIntakeData = !!(setupData.courseName || setupData.subjectDiscipline ||
+    (Array.isArray(setupData.lastUploadClassifications) && setupData.lastUploadClassifications.length > 0));
+  const phase2Started = !!(setupData.interactionPattern || setupData.planEmphasis || setupData.draftPlaybookId);
+  const needsPlayback = hasIntakeData && !phase2Started && !setupData.courseContext;
+
+  // ── Load all spec sections in parallel ──────────────────
+  const slugs = [
+    config.specs.wizIdentity,
+    config.specs.wizComms,
+    config.specs.wizCommunity,
+    config.specs.wizOpening,
+    config.specs.wizPlayback,
+    config.specs.wizProposal,
+    config.specs.wizContent,
+    config.specs.wizPedagogy,
+    config.specs.wizValues,
+    config.specs.wizRules,
+  ];
+
+  const fallbacks: Record<string, string> = {
+    [config.specs.wizIdentity]: FALLBACK_IDENTITY,
+    [config.specs.wizComms]: FALLBACK_COMMS,
+    [config.specs.wizCommunity]: FALLBACK_COMMUNITY,
+    [config.specs.wizOpening]: FALLBACK_OPENING,
+    [config.specs.wizPlayback]: FALLBACK_PLAYBACK,
+    [config.specs.wizProposal]: FALLBACK_PROPOSAL,
+    [config.specs.wizContent]: FALLBACK_CONTENT,
+    [config.specs.wizPedagogy]: FALLBACK_PEDAGOGY,
+    [config.specs.wizValues]: FALLBACK_VALUES,
+    [config.specs.wizRules]: FALLBACK_RULES,
+  };
+
+  const specs = await getPromptSpecs(slugs, fallbacks);
+
+  // ── Resolve dynamic vars for each section ───────────────
+  const identity = specs[config.specs.wizIdentity];
+  const comms = specs[config.specs.wizComms];
+  const community = specs[config.specs.wizCommunity];
+
+  const institutionContext = setupData.institutionName
+    ? `The user's institution is pre-filled as **${setupData.institutionName}**. Do NOT ask for it again.\nIf the user says it's wrong, let them correct it via update_setup.`
+    : "No institution on record — you'll need to ask for it.";
+  const opening = interpolateTemplate(specs[config.specs.wizOpening], { institutionContext });
+
+  const playback = specs[config.specs.wizPlayback];
+  const proposal = specs[config.specs.wizProposal];
+  const content = specs[config.specs.wizContent];
+
+  const nonCommunityValues = !isCommunity
+    ? `### Teaching emphasis (teachingMode)
+- recall, comprehension (default), practice, syllabus
+
+### Session structure
+- Count: 3, 5, 8, or 12 (default: 5)
+- Duration: 15, 20, 30, 45, or 60 minutes (default: 30)
+- Coverage: breadth, balanced (default), depth
+
+### Lesson plan model (lessonPlanModel)
+- direct, 5e, spiral, mastery, project`
+    : "";
+
+  const values = interpolateTemplate(specs[config.specs.wizValues], {
+    presets,
+    graphSection,
+    nonCommunityValues,
+    subjectsCatalogSection,
+  });
+
+  const amendmentTier = setupData.draftPlaybookId
+    ? `Amendment tier: POST-SCAFFOLD (playbookId: ${setupData.draftPlaybookId}).`
+    : "Amendment tier: PRE-SCAFFOLD (all changes free).";
+  const rules = interpolateTemplate(specs[config.specs.wizRules], { amendmentTier });
+
+  // ── Build pedagogy section (conditional sub-sections) ───
+  let pedagogySection = "";
+  if (pedagogyActive) {
+    const fullPedagogy = specs[config.specs.wizPedagogy];
+    // The spec contains all sub-sections; filter out already-completed ones
+    const pedagogyParts: string[] = [];
+
+    // Header (always included when pedagogy is active)
+    const headerEnd = fullPedagogy.indexOf("### Skills Framework");
+    const qualityGateStart = fullPedagogy.indexOf("### Quality gate");
+    const header = headerEnd > 0
+      ? fullPedagogy.substring(0, headerEnd)
+      : fullPedagogy.substring(0, fullPedagogy.indexOf("\n\n", fullPedagogy.indexOf("section key.")) + 2);
+    pedagogyParts.push(header);
+
+    // Conditionally include sub-sections that haven't been completed
+    if (!hasSkills) {
+      const start = fullPedagogy.indexOf("### Skills Framework");
+      const end = fullPedagogy.indexOf("### Teaching Principles");
+      if (start >= 0 && end >= 0) pedagogyParts.push(fullPedagogy.substring(start, end));
+    }
+    if (!hasPrinciples) {
+      const start = fullPedagogy.indexOf("### Teaching Principles");
+      const end = fullPedagogy.indexOf("### Course Phases");
+      if (start >= 0 && end >= 0) pedagogyParts.push(fullPedagogy.substring(start, end));
+    }
+    if (!hasPhases) {
+      const start = fullPedagogy.indexOf("### Course Phases");
+      const end = fullPedagogy.indexOf("### Edge Cases");
+      if (start >= 0 && end >= 0) pedagogyParts.push(fullPedagogy.substring(start, end));
+    }
+    if (!hasEdgeCases) {
+      const start = fullPedagogy.indexOf("### Edge Cases");
+      const end = fullPedagogy.indexOf("### Quality gate");
+      if (start >= 0 && end >= 0) pedagogyParts.push(fullPedagogy.substring(start, end));
+    }
+
+    // Quality gate + example (always included)
+    if (qualityGateStart >= 0) {
+      pedagogyParts.push(fullPedagogy.substring(qualityGateStart));
+    }
+
+    pedagogySection = pedagogyParts.join("");
+  }
+
+  // ── Playback needed banner ──────────────────────────────
+  const playbackBanner = needsPlayback
+    ? `## ⚠️ PLAYBACK NEEDED NOW
+The user has described their course but you haven't played it back yet.
+Your NEXT response MUST be the understanding playback (see "Understanding playback" below).
+Do NOT ask about individual fields until the playback is confirmed.
+`
+    : "";
+
+  // ── Assemble sections in order ──────────────────────────
+  const sections = [
+    identity,
+    playbackBanner,
+    comms,
+    community,
+    opening,
+    playback,
+    proposal,
+    content,
+    pedagogySection,
+    values,
+    rules,
+  ].filter(Boolean);
+
+  return sections.join("\n\n");
 }

@@ -228,6 +228,8 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
     specRole = SpecRole.VOICE;
   } else if (declaredSpecRole === SpecRole.OBSERVE) {
     specRole = SpecRole.OBSERVE;
+  } else if (declaredSpecRole === SpecRole.PROMPT) {
+    specRole = SpecRole.PROMPT;
   // DEPRECATED VALUES (backward compatibility) - map to new taxonomy
   } else if (declaredSpecRole === SpecRole.MEASURE) {
     specRole = SpecRole.EXTRACT;
@@ -265,7 +267,7 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   // CONSTRAIN specs use SUPERVISE (they enforce guardrails/bounds)
   // Other specs use their declared outputType
   let outputType: AnalysisOutputType;
-  if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT || specRole === SpecRole.VOICE) {
+  if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT || specRole === SpecRole.VOICE || specRole === SpecRole.PROMPT) {
     outputType = AnalysisOutputType.COMPOSE; // Prompt contributors
   } else if (specRole === SpecRole.CONSTRAIN) {
     outputType = AnalysisOutputType.SUPERVISE; // Guardrails/bounds
@@ -596,10 +598,16 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   // This makes the config available to compose-prompt and pipeline for reading spec-defined values
   let config: Record<string, any> | null = null;
 
+  // For PROMPT specs: store config from rawSpec directly (templateVars, category, etc.)
+  // PROMPT specs have no parameters — their config is metadata about the prompt template
+  if (specRole === SpecRole.PROMPT) {
+    config = rawSpecData?.config || {};
+    console.log(`      Built PROMPT config with keys: ${Object.keys(config).join(", ")}`);
+  }
   // For COMPOSE specs: preserve the full parameters array so code can look up by parameter ID
   // This is critical - specs define behavior, not hardcoded values in code
   // For CONTENT specs, we need the full parameter structure (section, name, description) for curriculum composer
-  if (outputType === AnalysisOutputType.COMPOSE) {
+  else if (outputType === AnalysisOutputType.COMPOSE) {
     // If this is a CONTENT spec, preserve full parameter structure from featureSet
     if (specRole === SpecRole.CONTENT && featureSet.parameters) {
       const slimmed = slimParameters(featureSet.parameters as any[]);
@@ -762,7 +770,11 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
   // rawSpec is required - filesystem is only used during seeding, not activation
   let promptTemplate: string | null = null;
 
-  if (featureSet.rawSpec) {
+  // PROMPT specs store their template directly in the JSON — no compilation needed
+  if (specRole === SpecRole.PROMPT && rawSpecData?.promptTemplate) {
+    promptTemplate = rawSpecData.promptTemplate;
+    console.log(`      ✓ Direct promptTemplate from PROMPT spec (${promptTemplate.length} chars)`);
+  } else if (featureSet.rawSpec) {
     // Use rawSpec from database (production-ready, no filesystem dependency)
     const parseResult = parseJsonSpec(JSON.stringify(featureSet.rawSpec));
     if (parseResult.success) {

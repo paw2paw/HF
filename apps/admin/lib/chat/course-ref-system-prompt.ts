@@ -9,9 +9,14 @@
  * - Current completeness state (which sections are filled)
  * - Whether editing an existing reference or starting fresh
  * - Pre-filled data from an existing course (if courseId provided)
+ *
+ * Prompt sections are loaded from DB-backed specs (specRole: PROMPT) with hardcoded fallbacks.
  */
 
 import type { CourseRefData } from "@/lib/content-trust/course-ref-to-assertions";
+import { config } from "@/lib/config";
+import { getPromptSpecs } from "@/lib/prompts/spec-prompts";
+import { interpolateTemplate } from "@/lib/prompts/interpolate";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,22 +237,11 @@ Use these terms naturally — academic educators know them. Do NOT explain what 
 If the educator uses informal terms ("it's a second-year module"), infer EQF 5-6 and confirm.`;
 }
 
-// ── Main Prompt Builder ──────────────────────────────────────────────────────
+// ── Fallback constants (used during migration while specs are being seeded) ──
 
-export function buildCourseRefSystemPrompt(ctx: CourseRefPromptContext): string {
-  const sections = evaluateSections(ctx.refData);
-  const completeness = buildCompletenessSection(sections);
-  const phaseGuide = buildPhaseGuide(sections);
+const FALLBACK_CREF_IDENTITY = `You are a curriculum design expert helping an educator build a Course Reference — a document that tells the AI tutor HOW to teach their course.
 
-  const editingNote = ctx.isEditing
-    ? `You are EDITING an existing course reference for "${ctx.courseName || "this course"}". The current document state is shown below. Ask what the educator wants to change.`
-    : ctx.courseName
-      ? `The educator is building a reference for "${ctx.courseName}" at "${ctx.institutionName || "their institution"}".`
-      : "The educator is starting fresh. Begin by learning about their course.";
-
-  return `You are a curriculum design expert helping an educator build a Course Reference — a document that tells the AI tutor HOW to teach their course.
-
-${editingNote}
+{{editingNote}}
 
 ## What you are building
 
@@ -274,22 +268,17 @@ A structured document with 9 sections:
 - Use the educator's language — do not impose academic jargon
 - When the educator describes something vaguely, ask for a concrete example
 - For skills: always probe for all three tiers (emerging, developing, secure)
-- For edge cases: always probe for the tutor's RESPONSE, not just the scenario
+- For edge cases: always probe for the tutor's RESPONSE, not just the scenario`;
 
-## Tools — when to call them
+const FALLBACK_CREF_TOOLS = `## Tools — when to call them
 
 - **update_ref**: After EVERY meaningful exchange. Do not batch. Save immediately.
 - **show_ref_preview**: After every update_ref, to refresh the preview panel.
 - **check_completeness**: Before suggesting finalization.
 - **finalize_ref**: Only when all 3 mandatory sections are complete AND the educator confirms.
-- **show_suggestions**: For confirmation chips only ("Looks right", "Let me correct that", "Next section").
+- **show_suggestions**: For confirmation chips only ("Looks right", "Let me correct that", "Next section").`;
 
-${completeness}
-
-${phaseGuide}
-${buildAcademicBlock(ctx.refData)}
-
-## Rules
+const FALLBACK_CREF_RULES = `## Rules
 
 1. Call update_ref after EVERY meaningful exchange — do not batch
 2. Always call show_ref_preview after update_ref so the preview updates
@@ -301,6 +290,54 @@ ${buildAcademicBlock(ctx.refData)}
 8. Keep responses concise — 2-4 sentences per turn, plus tool calls
 9. If the educator wants to go back and edit a section, let them — call update_ref with the corrected data
 10. At finalize: collect institution name and course name if not already known`;
+
+// ── Main Prompt Builder ──────────────────────────────────────────────────────
+
+/**
+ * Build the Course Reference interview system prompt.
+ * Loads prompt sections from DB specs in parallel, falls back to hardcoded constants.
+ */
+export async function buildCourseRefSystemPrompt(ctx: CourseRefPromptContext): Promise<string> {
+  const sections = evaluateSections(ctx.refData);
+  const completeness = buildCompletenessSection(sections);
+  const phaseGuide = buildPhaseGuide(sections);
+  const academicBlock = buildAcademicBlock(ctx.refData);
+
+  const editingNote = ctx.isEditing
+    ? `You are EDITING an existing course reference for "${ctx.courseName || "this course"}". The current document state is shown below. Ask what the educator wants to change.`
+    : ctx.courseName
+      ? `The educator is building a reference for "${ctx.courseName}" at "${ctx.institutionName || "their institution"}".`
+      : "The educator is starting fresh. Begin by learning about their course.";
+
+  // Load all 3 spec sections in parallel
+  const specs = await getPromptSpecs(
+    [
+      config.specs.crefIdentity,
+      config.specs.crefTools,
+      config.specs.crefRules,
+    ],
+    {
+      [config.specs.crefIdentity]: FALLBACK_CREF_IDENTITY,
+      [config.specs.crefTools]: FALLBACK_CREF_TOOLS,
+      [config.specs.crefRules]: FALLBACK_CREF_RULES,
+    },
+  );
+
+  // Interpolate template vars
+  const identitySection = interpolateTemplate(
+    specs[config.specs.crefIdentity],
+    { editingNote },
+  );
+
+  // Assemble the full prompt
+  return [
+    identitySection,
+    specs[config.specs.crefTools],
+    completeness,
+    phaseGuide,
+    academicBlock,
+    specs[config.specs.crefRules],
+  ].filter(Boolean).join("\n\n");
 }
 
 /** Export for use by completeness checker tool */

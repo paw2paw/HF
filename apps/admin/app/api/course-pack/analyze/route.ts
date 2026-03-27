@@ -4,6 +4,9 @@ import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai
 import { extractTextFromBuffer } from "@/lib/content-trust/extract-assertions";
 import { classifyDocument, fetchFewShotExamples, buildMultiPointSample, filenameTypeHint } from "@/lib/content-trust/classify-document";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
+import { getPromptSpec } from "@/lib/prompts/spec-prompts";
+import { interpolateTemplate } from "@/lib/prompts/interpolate";
+import { config } from "@/lib/config";
 
 /**
  * @api POST /api/course-pack/analyze
@@ -57,6 +60,67 @@ const VALID_DOC_TYPES = [
 ];
 
 // ── Helpers ────────────────────────────────────────────
+
+const COURSE_PACK_ANALYZE_FALLBACK = `You are a curriculum analyst. You analyze uploaded course files and group them by subject/topic.
+
+Your task:
+1. Examine ALL file summaries together
+2. Group files that belong to the same subject/topic (e.g., files about the same book, chapter, or topic area)
+3. Identify any "pedagogy" files — documents about teaching approach, session structure, or skills frameworks (not student content)
+4. Classify each file's document type and role
+
+Document types: {{validDocTypes}}
+
+Type disambiguation:
+- COURSE_REFERENCE — a document that primarily contains tutor instructions (skills framework, session flow, scaffolding rules, teaching principles, edge-case handling, communication rules) but may ALSO contain student-facing content (facts, definitions, examples). If a document contains BOTH tutor instructions AND student content, classify as COURSE_REFERENCE — the extraction pipeline handles mixed content by routing each assertion to the appropriate category.
+- READING_PASSAGE — standalone prose the learner reads (stories, articles, chapters). Contains NO questions.
+- QUESTION_BANK — structured tutor questions with skill refs, model responses, or tiered guidance. NOT a test — it's a teaching tool.
+- COMPREHENSION — combined text + questions in the SAME document (e.g., "Read this passage then answer...")
+- ASSESSMENT — formal tests, exams, past papers, mark schemes
+- Use TEXTBOOK only for general reference/informational content that doesn't fit the above
+
+File roles:
+- "passage" — reading material, standalone text (READING_PASSAGE, TEXTBOOK, or part of COMPREHENSION)
+- "questions" — question banks, exercises, assessments (QUESTION_BANK, ASSESSMENT, WORKSHEET)
+- "reference" — reference guides, glossaries, appendices
+- "pedagogy" — teaching instructions, session plans, skills frameworks
+
+Respond with valid JSON matching this schema:
+{
+  "groups": [
+    {
+      "groupName": "Short descriptive name",
+      "suggestedSubjectName": "Subject name for the group",
+      "files": [
+        {
+          "fileIndex": 0,
+          "fileName": "original.docx",
+          "documentType": "COMPREHENSION",
+          "role": "passage",
+          "confidence": 0.9,
+          "reasoning": "Brief explanation"
+        }
+      ]
+    }
+  ],
+  "pedagogyFiles": [
+    {
+      "fileIndex": 6,
+      "fileName": "course-ref.md",
+      "documentType": "COURSE_REFERENCE",
+      "role": "pedagogy",
+      "confidence": 0.85,
+      "reasoning": "Brief explanation"
+    }
+  ]
+}
+
+Rules:
+- Every file must appear exactly once (either in a group or in pedagogyFiles)
+- Group files by shared subject matter, not by file type
+- A passage and its question bank should be in the SAME group
+- If a file doesn't clearly belong to any group, put it in its own group
+- Use the course name "{{courseName}}" for context about what these files are for`;
 
 function roleFromType(docType: string): PackFile["role"] {
   const map: Record<string, PackFile["role"]> = {
@@ -206,66 +270,11 @@ export async function POST(req: NextRequest) {
       ].join("\n"))
       .join("\n\n");
 
-    const systemPrompt = `You are a curriculum analyst. You analyze uploaded course files and group them by subject/topic.
-
-Your task:
-1. Examine ALL file summaries together
-2. Group files that belong to the same subject/topic (e.g., files about the same book, chapter, or topic area)
-3. Identify any "pedagogy" files — documents about teaching approach, session structure, or skills frameworks (not student content)
-4. Classify each file's document type and role
-
-Document types: ${VALID_DOC_TYPES.join(", ")}
-
-Type disambiguation:
-- COURSE_REFERENCE — a document that primarily contains tutor instructions (skills framework, session flow, scaffolding rules, teaching principles, edge-case handling, communication rules) but may ALSO contain student-facing content (facts, definitions, examples). If a document contains BOTH tutor instructions AND student content, classify as COURSE_REFERENCE — the extraction pipeline handles mixed content by routing each assertion to the appropriate category.
-- READING_PASSAGE — standalone prose the learner reads (stories, articles, chapters). Contains NO questions.
-- QUESTION_BANK — structured tutor questions with skill refs, model responses, or tiered guidance. NOT a test — it's a teaching tool.
-- COMPREHENSION — combined text + questions in the SAME document (e.g., "Read this passage then answer...")
-- ASSESSMENT — formal tests, exams, past papers, mark schemes
-- Use TEXTBOOK only for general reference/informational content that doesn't fit the above
-
-File roles:
-- "passage" — reading material, standalone text (READING_PASSAGE, TEXTBOOK, or part of COMPREHENSION)
-- "questions" — question banks, exercises, assessments (QUESTION_BANK, ASSESSMENT, WORKSHEET)
-- "reference" — reference guides, glossaries, appendices
-- "pedagogy" — teaching instructions, session plans, skills frameworks
-
-Respond with valid JSON matching this schema:
-{
-  "groups": [
-    {
-      "groupName": "Short descriptive name",
-      "suggestedSubjectName": "Subject name for the group",
-      "files": [
-        {
-          "fileIndex": 0,
-          "fileName": "original.docx",
-          "documentType": "COMPREHENSION",
-          "role": "passage",
-          "confidence": 0.9,
-          "reasoning": "Brief explanation"
-        }
-      ]
-    }
-  ],
-  "pedagogyFiles": [
-    {
-      "fileIndex": 6,
-      "fileName": "course-ref.md",
-      "documentType": "COURSE_REFERENCE",
-      "role": "pedagogy",
-      "confidence": 0.85,
-      "reasoning": "Brief explanation"
-    }
-  ]
-}
-
-Rules:
-- Every file must appear exactly once (either in a group or in pedagogyFiles)
-- Group files by shared subject matter, not by file type
-- A passage and its question bank should be in the SAME group
-- If a file doesn't clearly belong to any group, put it in its own group
-- Use the course name "${courseName}" for context about what these files are for`;
+    const template = await getPromptSpec(config.specs.coursePackAnalyzer, COURSE_PACK_ANALYZE_FALLBACK);
+    const systemPrompt = interpolateTemplate(template, {
+      validDocTypes: VALID_DOC_TYPES.join(", "),
+      courseName,
+    });
 
     const userPrompt = `Course: "${courseName}"
 ${files.length} files uploaded:

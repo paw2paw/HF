@@ -414,6 +414,118 @@ export const config = {
     get teachFlow(): string {
       return optional("TEACH_FLOW_SPEC_SLUG", "TEACH-FLOW-001");
     },
+
+    // ── Prompt Specs (system prompts for AI calls) ──
+
+    /** Chat Data Helper system prompt */
+    get chatDataHelper(): string {
+      return optional("CHAT_DATA_HELPER_SPEC_SLUG", "PROMPT-CHAT-DATA-001");
+    },
+    /** Chat Bug Diagnosis system prompt */
+    get chatBugDiagnosis(): string {
+      return optional("CHAT_BUG_DIAGNOSIS_SPEC_SLUG", "PROMPT-CHAT-BUG-001");
+    },
+    /** Admin Assistant system prompt */
+    get adminAssistant(): string {
+      return optional("ADMIN_ASSISTANT_SPEC_SLUG", "PROMPT-ADMIN-001");
+    },
+    /** Workflow Classifier system prompt */
+    get workflowClassifier(): string {
+      return optional("WORKFLOW_CLASSIFIER_SPEC_SLUG", "PROMPT-WORKFLOW-001");
+    },
+    /** Course Pack Analyzer system prompt */
+    get coursePackAnalyzer(): string {
+      return optional("COURSE_PACK_ANALYZER_SPEC_SLUG", "PROMPT-PACK-001");
+    },
+    /** Lesson Plan Generator system prompt */
+    get lessonPlanGenerator(): string {
+      return optional("LESSON_PLAN_GENERATOR_SPEC_SLUG", "PROMPT-PLAN-001");
+    },
+    /** Composition Preamble instructions */
+    get compositionPreamble(): string {
+      return optional("COMPOSITION_PREAMBLE_SPEC_SLUG", "PROMPT-PREAMBLE-001");
+    },
+
+    // ── Wizard Prompt Specs (shared + V5 + V4 + CourseRef) ──
+
+    /** Wizard identity (shared V5/V4) */
+    get wizIdentity(): string {
+      return optional("WIZ_IDENTITY_SPEC_SLUG", "PROMPT-WIZ-IDENTITY-001");
+    },
+    /** Wizard communication rules (shared V5/V4) */
+    get wizComms(): string {
+      return optional("WIZ_COMMS_SPEC_SLUG", "PROMPT-WIZ-COMMS-001");
+    },
+    /** Wizard community hub detection (shared V5/V4) */
+    get wizCommunity(): string {
+      return optional("WIZ_COMMUNITY_SPEC_SLUG", "PROMPT-WIZ-COMMUNITY-001");
+    },
+    /** Wizard opening message (V5) */
+    get wizOpening(): string {
+      return optional("WIZ_OPENING_SPEC_SLUG", "PROMPT-WIZ-OPENING-001");
+    },
+    /** Wizard playback rules (V5) */
+    get wizPlayback(): string {
+      return optional("WIZ_PLAYBACK_SPEC_SLUG", "PROMPT-WIZ-PLAYBACK-001");
+    },
+    /** Wizard proposal pattern (V5) */
+    get wizProposal(): string {
+      return optional("WIZ_PROPOSAL_SPEC_SLUG", "PROMPT-WIZ-PROPOSAL-001");
+    },
+    /** Wizard content upload & classification (shared V5/V4) */
+    get wizContent(): string {
+      return optional("WIZ_CONTENT_SPEC_SLUG", "PROMPT-WIZ-CONTENT-001");
+    },
+    /** Wizard pedagogy deep interview (V5) */
+    get wizPedagogy(): string {
+      return optional("WIZ_PEDAGOGY_SPEC_SLUG", "PROMPT-WIZ-PEDAGOGY-001");
+    },
+    /** Wizard valid values (shared V5/V4) */
+    get wizValues(): string {
+      return optional("WIZ_VALUES_SPEC_SLUG", "PROMPT-WIZ-VALUES-001");
+    },
+    /** Wizard rules (V5) */
+    get wizRules(): string {
+      return optional("WIZ_RULES_SPEC_SLUG", "PROMPT-WIZ-RULES-001");
+    },
+
+    /** V4 wizard identity + Phase 1b absolute rule */
+    get wiz4Identity(): string {
+      return optional("WIZ4_IDENTITY_SPEC_SLUG", "PROMPT-WIZ4-IDENTITY-001");
+    },
+    /** V4 wizard intake + examples */
+    get wiz4Intake(): string {
+      return optional("WIZ4_INTAKE_SPEC_SLUG", "PROMPT-WIZ4-INTAKE-001");
+    },
+    /** V4 wizard playback rules + examples */
+    get wiz4Playback(): string {
+      return optional("WIZ4_PLAYBACK_SPEC_SLUG", "PROMPT-WIZ4-PLAYBACK-001");
+    },
+    /** V4 wizard proposal format + defaults */
+    get wiz4Proposal(): string {
+      return optional("WIZ4_PROPOSAL_SPEC_SLUG", "PROMPT-WIZ4-PROPOSAL-001");
+    },
+    /** V4 wizard rules */
+    get wiz4Rules(): string {
+      return optional("WIZ4_RULES_SPEC_SLUG", "PROMPT-WIZ4-RULES-001");
+    },
+    /** V4 wizard content upload extensions (teaching guide nudge, narration, Phase 4a/4b) */
+    get wiz4ContentExtra(): string {
+      return optional("WIZ4_CONTENT_EXTRA_SPEC_SLUG", "PROMPT-WIZ4-CONTENT-EXTRA-001");
+    },
+
+    /** Course Reference identity + interview approach */
+    get crefIdentity(): string {
+      return optional("CREF_IDENTITY_SPEC_SLUG", "PROMPT-CREF-IDENTITY-001");
+    },
+    /** Course Reference tools guidance */
+    get crefTools(): string {
+      return optional("CREF_TOOLS_SPEC_SLUG", "PROMPT-CREF-TOOLS-001");
+    },
+    /** Course Reference rules */
+    get crefRules(): string {
+      return optional("CREF_RULES_SPEC_SLUG", "PROMPT-CREF-RULES-001");
+    },
   },
 
   // ---------------------------------------------------------------------------

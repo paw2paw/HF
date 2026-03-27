@@ -6,16 +6,22 @@
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext } from "../types";
 import type { SpecConfig } from "@/lib/types/json-fields";
+import { getPromptSpec } from "@/lib/prompts/spec-prompts";
+import { config } from "@/lib/config";
 
-registerTransform("computePreamble", (
+const PREAMBLE_FALLBACK = "You are receiving a structured context package for your next conversation. This data has been assembled specifically for this caller based on their history, personality, and learning progress. Use it to deliver a personalized, effective session.";
+
+registerTransform("computePreamble", async (
   _rawData: any,
   context: AssembledContext,
 ) => {
   const voiceSpec = context.resolvedSpecs.voiceSpec;
   const voiceConfig = voiceSpec?.config as SpecConfig;
 
+  const systemInstruction = await getPromptSpec(config.specs.compositionPreamble, PREAMBLE_FALLBACK);
+
   return {
-    systemInstruction: "You are receiving a structured context package for your next conversation. This data has been assembled specifically for this caller based on their history, personality, and learning progress. Use it to deliver a personalized, effective session.",
+    systemInstruction,
 
     readingOrder: [
       "1. SCAN _quickStart first - this is your instant context",

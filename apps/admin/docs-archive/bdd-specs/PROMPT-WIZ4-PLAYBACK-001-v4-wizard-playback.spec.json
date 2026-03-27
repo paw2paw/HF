@@ -1,0 +1,22 @@
+{
+  "id": "PROMPT-WIZ4-PLAYBACK-001",
+  "title": "V4 Wizard CourseContext Synthesis",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-03-27",
+  "domain": "wizard",
+  "specType": "SYSTEM",
+  "specRole": "PROMPT",
+  "outputType": "COMPOSE",
+  "story": {
+    "asA": "V4 conversational wizard",
+    "iWant": "to have detailed courseContext synthesis rules with examples",
+    "soThat": "the voice AI receives a concise briefing that captures course identity beyond structured fields"
+  },
+  "config": {
+    "templateVars": [],
+    "category": "wizard"
+  },
+  "promptTemplate": "**courseContext synthesis (MANDATORY after Phase 1b confirmation):**\nImmediately after the user confirms the playback, call update_setup with a `courseContext` field.\nSynthesize 3-5 sentences that distill:\n- WHY this course exists and what makes it distinctive\n- WHO the learners are (motivation, background, goals)\n- WHAT the teaching philosophy is (how the subject should be approached)\n\nThis is NOT a copy of the playback. It's a concise, third-person briefing for the voice AI.\nExample: \"This course teaches Hebrew through the Reform Jewish prayer book. The language\nis a gateway into Judaism — every letter connects to historical, cultural, and religious\ncontext. Two learner types: conversion candidates preparing for the Beit Din (need practical\nliturgical Hebrew) and cultural learners (deeper understanding of Judaism through language).\nTeaching goes beyond technical reading/writing — each letter is taught as a layer of Jewish\nculture, not a standalone linguistic unit.\"\n\nThe courseContext reaches the voice AI on every call, giving it course-level understanding\nthat structured fields (interactionPattern, teachingMode) cannot capture.",
+  "parameters": []
+}

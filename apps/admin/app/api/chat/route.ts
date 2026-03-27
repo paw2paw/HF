@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       const userId = authResult.session.user.id;
       const subjectsCatalog = await getSubjectsCatalog();
       const graphEval = evaluateGraph(setupData || {});
-      const wizardPrompt = buildV5SystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
+      const wizardPrompt = await buildV5SystemPrompt(setupData || {}, graphEval, [], subjectsCatalog);
       const wizardTools = CONVERSATIONAL_TOOLS;
 
       // Deduplicate: client includes the current message in conversationHistory
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     if (mode === "COURSE_REF") {
       const userId = authResult.session.user.id;
       const refData = (setupData?.courseRef as CourseRefData) || {};
-      const courseRefPrompt = buildCourseRefSystemPrompt({
+      const courseRefPrompt = await buildCourseRefSystemPrompt({
         refData,
         isEditing: !!(setupData?.courseId),
         courseName: setupData?.courseName as string | undefined,
@@ -758,7 +758,7 @@ async function handleWizardModeWithTools(
   if (!finalContent && !hasInteractivePanel) {
     const freshSubjectsCatalog = await getSubjectsCatalog();
     const graphEval = evaluateGraph(mergedSetupData);
-    const continuationPrompt = buildV5SystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
+    const continuationPrompt = await buildV5SystemPrompt(mergedSetupData, graphEval, [], freshSubjectsCatalog);
     const logPhase = `v5:${graphEval.readinessPct}%`;
 
     // Replace system message with updated context

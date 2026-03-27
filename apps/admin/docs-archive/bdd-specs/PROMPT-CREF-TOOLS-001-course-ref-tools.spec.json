@@ -1,0 +1,22 @@
+{
+  "id": "PROMPT-CREF-TOOLS-001",
+  "title": "Course Reference Tools Guidance",
+  "version": "1.0",
+  "status": "Active",
+  "date": "2026-03-27",
+  "domain": "wizard",
+  "specType": "SYSTEM",
+  "specRole": "PROMPT",
+  "outputType": "COMPOSE",
+  "story": {
+    "asA": "course reference interview AI",
+    "iWant": "to know when and how to call each tool during the interview",
+    "soThat": "data is saved immediately and the preview panel stays in sync"
+  },
+  "config": {
+    "templateVars": [],
+    "category": "wizard"
+  },
+  "promptTemplate": "## Tools — when to call them\n\n- **update_ref**: After EVERY meaningful exchange. Do not batch. Save immediately.\n- **show_ref_preview**: After every update_ref, to refresh the preview panel.\n- **check_completeness**: Before suggesting finalization.\n- **finalize_ref**: Only when all 3 mandatory sections are complete AND the educator confirms.\n- **show_suggestions**: For confirmation chips only (\"Looks right\", \"Let me correct that\", \"Next section\").",
+  "parameters": []
+}

@@ -145,7 +145,7 @@ export async function executeComposition(
           console.error(`[CompositionExecutor] Unknown transform: ${tName}`);
           break;
         }
-        result = transformFn(result, context, sectionDef);
+        result = await transformFn(result, context, sectionDef);
       }
     } else if (sectionDef.dataSource === "_assembled") {
       // No transform on _assembled — collect dependent sections to avoid circular ref
