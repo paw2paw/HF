@@ -26,10 +26,10 @@
     "href": "/x/educator/classrooms",
     "defaultHiddenFor": ["OPERATOR", "ADMIN", "SUPERADMIN", "SUPER_TESTER", "TESTER", "DEMO", "STUDENT"],
     "items": [
+      { "id": "edu-depts", "href": "/x/educator/departments", "label": "Departments", "icon": "Building", "terminologyLabel": "group_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "edu-courses", "href": "/x/courses", "label": "Courses", "icon": "BookOpen", "terminologyLabel": "playbook_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-classrooms", "href": "/x/educator/classrooms", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-students", "href": "/x/educator/students", "label": "Students", "icon": "User", "terminologyLabel": "caller_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-depts", "href": "/x/educator/departments", "label": "Departments", "icon": "Building", "terminologyLabel": "group_plural", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
-      { "id": "edu-subjects", "href": "/x/subjects", "label": "Courses", "icon": "Library", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-reports2", "href": "/x/educator/reports", "label": "Reports", "icon": "TrendingUp", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-try2", "href": "/x/educator/try", "label": "Try It", "icon": "PlayCircle", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "edu-settings2", "href": "/x/educator/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["EDUCATOR", "ADMIN", "SUPERADMIN"] }

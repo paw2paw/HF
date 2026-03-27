@@ -13,6 +13,7 @@ import { GoalType } from "@prisma/client";
  * @query status string - Filter by goal status (optional, "all" for no filter)
  * @query type string - Filter by goal type (optional, "all" for no filter)
  * @query callerId string - Filter by caller ID (optional)
+ * @query playbookId string - Filter by playbook/course ID (optional)
  * @response 200 { ok: true, goals: [...], counts: { total, byStatus: {...}, byType: {...} } }
  * @response 500 { ok: false, error: "Failed to fetch goals" }
  */
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const type = searchParams.get("type");
     const callerId = searchParams.get("callerId");
+    const playbookId = searchParams.get("playbookId");
 
     // Build where clause
     const where: any = {};
@@ -39,6 +41,10 @@ export async function GET(request: NextRequest) {
 
     if (callerId) {
       where.callerId = callerId;
+    }
+
+    if (playbookId) {
+      where.playbookId = playbookId;
     }
 
     // Fetch goals with related data
@@ -80,15 +86,17 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Get counts by status
+    // Get counts by status (scoped to same where clause)
     const statusCounts = await prisma.goal.groupBy({
       by: ["status"],
+      where,
       _count: true,
     });
 
-    // Get counts by type
+    // Get counts by type (scoped to same where clause)
     const typeCounts = await prisma.goal.groupBy({
       by: ["type"],
+      where,
       _count: true,
     });
 

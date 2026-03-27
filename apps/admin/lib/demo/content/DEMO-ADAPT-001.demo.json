@@ -230,12 +230,12 @@
       },
       "reason": "Spec-level evidence is what makes testimony credible. Each goal traces back to a specific spec, creating an auditable chain from learning objective to measured outcome.",
       "goal": "Show what per-spec evidence looks like for testimony",
-      "sidebarHighlight": { "href": "/x/goals", "type": "pulse" },
+      "sidebarHighlight": { "href": "/x/courses", "type": "pulse" },
       "aiContext": {
-        "currentView": "Goals page showing spec-linked evidence",
+        "currentView": "Course Goals tab showing spec-linked evidence",
         "action": "Viewing per-spec evidence \u2014 goals linked to specific specs with measurement data",
         "relatedConcepts": ["spec-level evidence", "testimony", "goal-spec linkage", "auditable outcomes", "measurement data"],
-        "assistantLocation": { "page": "/x/goals", "action": "view" }
+        "assistantLocation": { "page": "/x/courses", "action": "view" }
       }
     },
     {

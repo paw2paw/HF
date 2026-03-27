@@ -31,7 +31,8 @@ export type BreadcrumbEntityType =
   | "cohort"
   | "caller"
   | "call"
-  | "institution";
+  | "institution"
+  | "playbookGroup";
 
 /** Maps entity type to its API endpoint for name resolution */
 export const ENTITY_API_MAP: Record<BreadcrumbEntityType, string> = {
@@ -44,6 +45,7 @@ export const ENTITY_API_MAP: Record<BreadcrumbEntityType, string> = {
   caller: "/api/callers",
   call: "/api/calls",
   institution: "/api/institutions",
+  playbookGroup: "/api/playbook-groups",
 };
 
 /** Maps entity type to the JSON path for extracting the name */
@@ -57,6 +59,7 @@ export const ENTITY_NAME_PATH: Record<BreadcrumbEntityType, string[]> = {
   caller: ["caller", "name"],
   call: ["call", "callerName"],
   institution: ["institution", "name"],
+  playbookGroup: ["group", "name"],
 };
 
 // ── Route Definitions ────────────────────────────────────
@@ -71,7 +74,7 @@ export const ROUTE_LABELS: Record<string, string | { termKey: TermKey; plural?: 
   "/x/courses": { termKey: "playbook", plural: true },
   "/x/courses/new": "New Course",
   "/x/courses/create": "Create Course",
-  "/x/subjects": "Subjects",
+  "/x/subjects": { termKey: "knowledge_area", plural: true },
   "/x/content-review": "Review",
   "/x/dictionary": "Dictionary",
   "/x/import": "Import",
@@ -179,7 +182,7 @@ export const DYNAMIC_ROUTES: DynamicRoutePattern[] = [
     children: [
       {
         parentPath: "subjects",
-        parentLabel: "Subjects",
+        parentLabel: { termKey: "knowledge_area", plural: true },
         entityType: "subject",
         children: [
           {
@@ -218,13 +221,18 @@ export const DYNAMIC_ROUTES: DynamicRoutePattern[] = [
   },
   {
     parentPath: "/x/subjects",
-    parentLabel: "Subjects",
+    parentLabel: { termKey: "knowledge_area", plural: true },
     entityType: "subject",
   },
   {
     parentPath: "/x/domains",
     parentLabel: { termKey: "domain", plural: true },
     entityType: "domain",
+  },
+  {
+    parentPath: "/x/educator/departments",
+    parentLabel: { termKey: "group", plural: true },
+    entityType: "playbookGroup",
   },
 ];
 

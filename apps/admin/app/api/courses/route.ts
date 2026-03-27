@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       include: {
         domain: { select: { id: true, name: true } },
         group: { select: { id: true, name: true, groupType: true } },
+        subjects: { select: { subject: { select: { id: true, name: true } } } },
         _count: { select: { enrollments: true, items: true } },
       },
       orderBy: { name: 'asc' },
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       description: pb.description,
       domain: pb.domain,
       group: pb.group || null,
+      subjects: (pb.subjects || []).map((ps: any) => ps.subject),
       studentCount: pb._count.enrollments,
       specCount: pb._count.items,
       status: pb.status.toLowerCase(),

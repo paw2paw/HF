@@ -28,16 +28,30 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         select: {
           playbooks: true,
           cohortGroups: true,
+          subjects: true,
         },
       },
       playbooks: {
-        select: { id: true, name: true, status: true },
+        select: {
+          id: true, name: true, status: true,
+          subjects: { select: { subjectId: true } },
+        },
         orderBy: { sortOrder: "asc" },
       },
       cohortGroups: {
         where: { isActive: true },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
+      },
+      subjects: {
+        select: {
+          subjectId: true,
+          sortOrder: true,
+          subject: {
+            select: { id: true, slug: true, name: true },
+          },
+        },
+        orderBy: { sortOrder: "asc" },
       },
     },
   });
@@ -47,6 +61,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       { ok: false, error: "Group not found" },
       { status: 404 }
     );
+  }
+
+  // Build subject → courses map for the teacher hierarchy view
+  const subjectMap = new Map<string, { id: string; slug: string; name: string; courses: typeof group.playbooks }>();
+  for (const gs of group.subjects) {
+    subjectMap.set(gs.subjectId, {
+      ...gs.subject,
+      courses: [],
+    });
+  }
+  for (const pb of group.playbooks) {
+    for (const ps of pb.subjects) {
+      const entry = subjectMap.get(ps.subjectId);
+      if (entry) {
+        entry.courses.push(pb);
+      }
+    }
   }
 
   return NextResponse.json({
@@ -63,6 +94,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       isActive: group.isActive,
       playbookCount: group._count.playbooks,
       cohortCount: group._count.cohortGroups,
+      subjectCount: group._count.subjects,
+      subjects: group.subjects.map(gs => gs.subject),
+      // Hierarchy view: subjects with their courses nested
+      subjectCourses: Array.from(subjectMap.values()),
       playbooks: group.playbooks,
       cohortGroups: group.cohortGroups,
       createdAt: group.createdAt,

@@ -32,6 +32,8 @@ interface InstitutionTypeSeed {
     teach_action: string;
     learning_noun: string;
     group: string;
+    knowledge_area: string;
+    teaching_unit: string;
   };
   setupSpecSlug: string | null;
   defaultDomainKind: "INSTITUTION" | "COMMUNITY";
@@ -58,6 +60,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Teach",
       learning_noun: "Learning",
       group: "Department",
+      knowledge_area: "Subject Area",
+      teaching_unit: "Topic",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -82,6 +86,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Train",
       learning_noun: "Development",
       group: "Division",
+      knowledge_area: "Knowledge Domain",
+      teaching_unit: "Unit",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -106,6 +112,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Facilitate",
       learning_noun: "Journey",
       group: "Circle",
+      knowledge_area: "Topic",
+      teaching_unit: "Topic",
     },
     setupSpecSlug: "COMMUNITY-SETUP-001",
     defaultDomainKind: "COMMUNITY",
@@ -130,6 +138,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Coach",
       learning_noun: "Growth",
       group: "Track",
+      knowledge_area: "Focus Area",
+      teaching_unit: "Focus",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -154,6 +164,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Train",
       learning_noun: "Competency",
       group: "Unit",
+      knowledge_area: "Competency Area",
+      teaching_unit: "Unit",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -178,6 +190,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Train",
       learning_noun: "Training",
       group: "Track",
+      knowledge_area: "Topic Area",
+      teaching_unit: "Unit",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",
@@ -202,6 +216,8 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Teach",
       learning_noun: "Learning",
       group: "Department",
+      knowledge_area: "Discipline",
+      teaching_unit: "Topic",
     },
     setupSpecSlug: "COURSE-SETUP-001",
     defaultDomainKind: "INSTITUTION",

@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
 import { logSystem } from "@/lib/logger";
+import slugify from "slugify";
 import { scaffoldDomain } from "@/lib/domain/scaffold";
 import { loadPersonaFlowPhases, loadPersonaArchetype, loadPersonaWelcomeTemplate } from "@/lib/domain/quick-launch";
 import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
@@ -228,41 +229,62 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
     if (!subject && ctx.input.packSubjectIds?.length) {
       subject = await prisma.subject.findUnique({ where: { id: ctx.input.packSubjectIds[0] } });
     }
-    if (!subject) {
-      const subjectSlug = domainSlug;
-      subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
+    // If subjectDiscipline provided (knowledge area name like "Biology"), use it for Subject
+    if (!subject && ctx.input.subjectDiscipline) {
+      const disciplineSlug = `${domainSlug}-${slugify(ctx.input.subjectDiscipline, { lower: true, strict: true })}`;
+      subject = await prisma.subject.findFirst({ where: { slug: disciplineSlug } });
       if (!subject) {
         subject = await prisma.subject.create({
           data: {
-            slug: subjectSlug,
+            slug: disciplineSlug,
+            name: ctx.input.subjectDiscipline,
+            isActive: true,
+          },
+        });
+      }
+    }
+    // If content was uploaded but no discipline set, create per-course Subject (prevents assertion leak)
+    if (!subject && ctx.input.sourceId) {
+      const courseSubjectSlug = `${domainSlug}-${slugify(ctx.input.courseName, { lower: true, strict: true })}`;
+      subject = await prisma.subject.findFirst({ where: { slug: courseSubjectSlug } });
+      if (!subject) {
+        subject = await prisma.subject.create({
+          data: {
+            slug: courseSubjectSlug,
             name: ctx.input.courseName,
             isActive: true,
           },
         });
       }
     }
-    ctx.results.subjectId = subject.id;
-
-    // 2b. Link uploaded ContentSource to Subject (if sourceId provided and not already linked)
-    if (ctx.input.sourceId) {
-      const existingSourceLink = await prisma.subjectSource.findFirst({
-        where: { subjectId: subject.id, sourceId: ctx.input.sourceId },
-      });
-      if (!existingSourceLink) {
-        await prisma.subjectSource.create({
-          data: { subjectId: subject.id, sourceId: ctx.input.sourceId, tags: ["content"] },
-        });
-      }
+    // No content and no discipline → skip Subject (community programmes, content-free courses)
+    // Content scoping fallback returns empty — no assertion leak risk
+    if (subject) {
+      ctx.results.subjectId = subject.id;
     }
 
-    // 3. Link Subject to Domain
-    const existing = await prisma.subjectDomain.findFirst({
-      where: { subjectId: subject.id, domainId: domain.id },
-    });
-    if (!existing) {
-      await prisma.subjectDomain.create({
-        data: { subjectId: subject.id, domainId: domain.id },
+    if (subject) {
+      // 2b. Link uploaded ContentSource to Subject (if sourceId provided and not already linked)
+      if (ctx.input.sourceId) {
+        const existingSourceLink = await prisma.subjectSource.findFirst({
+          where: { subjectId: subject.id, sourceId: ctx.input.sourceId },
+        });
+        if (!existingSourceLink) {
+          await prisma.subjectSource.create({
+            data: { subjectId: subject.id, sourceId: ctx.input.sourceId, tags: ["content"] },
+          });
+        }
+      }
+
+      // 3. Link Subject to Domain
+      const existingDomainLink = await prisma.subjectDomain.findFirst({
+        where: { subjectId: subject.id, domainId: domain.id },
       });
+      if (!existingDomainLink) {
+        await prisma.subjectDomain.create({
+          data: { subjectId: subject.id, domainId: domain.id },
+        });
+      }
     }
 
     // 4. Scaffold domain (identity spec + playbook)
@@ -342,6 +364,23 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
             subjectId: ctx.results.subjectId,
           },
         });
+
+        // Link Subject to Department (teacher hierarchy: dept → subject → course)
+        if (ctx.input.groupId) {
+          await prisma.playbookGroupSubject.upsert({
+            where: {
+              groupId_subjectId: {
+                groupId: ctx.input.groupId,
+                subjectId: ctx.results.subjectId,
+              },
+            },
+            update: {},
+            create: {
+              groupId: ctx.input.groupId,
+              subjectId: ctx.results.subjectId,
+            },
+          });
+        }
       }
     }
 
@@ -370,6 +409,23 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
         if (!domainLink) {
           await prisma.subjectDomain.create({
             data: { subjectId: packSubId, domainId: domain.id },
+          });
+        }
+
+        // Link to Department (if course assigned to a department)
+        if (ctx.input.groupId) {
+          await prisma.playbookGroupSubject.upsert({
+            where: {
+              groupId_subjectId: {
+                groupId: ctx.input.groupId,
+                subjectId: packSubId,
+              },
+            },
+            update: {},
+            create: {
+              groupId: ctx.input.groupId,
+              subjectId: packSubId,
+            },
           });
         }
       }

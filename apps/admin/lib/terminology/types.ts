@@ -1,7 +1,7 @@
 /**
  * Terminology Types & Helpers — Client-safe (no Prisma dependency)
  *
- * The unified 14-key TermMap is the canonical terminology type.
+ * The unified 16-key TermMap is the canonical terminology type.
  * Resolution is now DB-driven via InstitutionType.terminology (see lib/terminology.ts).
  *
  * This file provides:
@@ -12,7 +12,7 @@
 
 // ── Canonical Types (unified system) ────────────────────────
 
-/** The 14 canonical term keys used across the app */
+/** The 16 canonical term keys used across the app */
 export type TermKey =
   | "domain"
   | "playbook"
@@ -27,12 +27,14 @@ export type TermKey =
   | "mentor"
   | "teach_action"
   | "learning_noun"
-  | "group";
+  | "group"
+  | "knowledge_area"
+  | "teaching_unit";
 
-/** A complete terminology map — all 14 keys present, all strings */
+/** A complete terminology map — all 16 keys present, all strings */
 export type TermMap = Record<TermKey, string>;
 
-/** All 14 term keys in canonical order */
+/** All 16 term keys in canonical order */
 export const TERM_KEYS: TermKey[] = [
   "domain",
   "playbook",
@@ -48,6 +50,8 @@ export const TERM_KEYS: TermKey[] = [
   "teach_action",
   "learning_noun",
   "group",
+  "knowledge_area",
+  "teaching_unit",
 ];
 
 /** Human-readable labels for term keys (used in admin UI) */
@@ -66,6 +70,8 @@ export const TERM_KEY_LABELS: Record<TermKey, string> = {
   teach_action: "Teaching Verb",
   learning_noun: "Learning Concept",
   group: "Department / Division",
+  knowledge_area: "Knowledge Area / Discipline",
+  teaching_unit: "Teaching Unit / Topic",
 };
 
 /**
@@ -87,6 +93,8 @@ export const TECHNICAL_TERMS: TermMap = {
   teach_action: "Teach",
   learning_noun: "Learning",
   group: "Group",
+  knowledge_area: "Knowledge Area",
+  teaching_unit: "Teaching Unit",
 };
 
 // ── String helpers ──────────────────────────────────────────

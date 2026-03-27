@@ -343,6 +343,13 @@ Subject = broad academic discipline: "English Language", "Biology", "Mathematics
 Course = specific offering WITHIN a subject: "GCSE Biology", "11+ Creative Comprehension"
 NEVER combine subject and course into one question.
 
+## Department (optional)
+When the institution is a school, university, or large organisation, ask conversationally:
+"Which department is this course for?" (e.g. "Science Department", "English Faculty").
+Save as: update_setup({ fields: { groupName: "Science Department" } }).
+If the user provides a groupId (e.g. from an existing department), save that too.
+Skip this for small institutions, solo educators, or community hubs — department is optional.
+
 ## Valid values
 
 ### Teaching approaches (interactionPattern)

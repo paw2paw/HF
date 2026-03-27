@@ -103,7 +103,7 @@ const ENTITIES: EntityDef[] = [
   { name: "CallerMemory", label: "Caller Memories", category: "runtime", layer: 3, parent: "Caller" },
   { name: "CallerPersonality", label: "Personalities", category: "runtime", layer: 3, parent: "Caller" },
   { name: "PersonalityObservation", label: "Personality Obs.", category: "runtime", layer: 3, parent: "CallerPersonality" },
-  { name: "Goal", label: "Goals", category: "runtime", layer: 3, parent: "Caller", viewPath: "/x/goals" },
+  { name: "Goal", label: "Goals", category: "runtime", layer: 3, parent: "Caller", viewPath: "/x/courses" },
   { name: "ComposedPrompt", label: "Composed Prompts", category: "runtime", layer: 3, parent: "Caller" },
   { name: "OnboardingSession", label: "Onboarding Sessions", category: "runtime", layer: 3, parent: "Caller" },
   { name: "BehaviorMeasurement", label: "Measurements", category: "runtime", layer: 3, parent: "Call" },

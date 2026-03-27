@@ -850,11 +850,13 @@ export async function executeWizardTool(
         const flowPhases = await loadPersonaFlowPhases(interactionPattern);
 
         // 4. Scaffold domain (identity spec + playbook + system specs + publish + onboarding)
+        const groupId = (input.groupId as string) || (setupData?.groupId as string) || undefined;
         const scaffoldResult = await scaffoldDomain(domainId, {
           extendsAgent: archetypeSlug || undefined,
           flowPhases: flowPhases || undefined,
           forceNewPlaybook: true,
           playbookName: courseName,
+          groupId,
         });
 
         if (!scaffoldResult.playbook) {

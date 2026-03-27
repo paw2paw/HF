@@ -6784,6 +6784,7 @@ Fetch all goals across all callers with filtering options. Includes related call
 | status | query | string | No | Filter by goal status (optional, "all" for no filter) |
 | type | query | string | No | Filter by goal type (optional, "all" for no filter) |
 | callerId | query | string | No | Filter by caller ID (optional) |
+| playbookId | query | string | No | Filter by playbook/course ID (optional) |
 
 **Response** `200`
 ```json

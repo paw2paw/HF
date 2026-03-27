@@ -83,13 +83,30 @@ async function handleShareContent(
   // Validate media exists
   const media = await prisma.mediaAsset.findUnique({
     where: { id: media_id },
-    select: { id: true, fileName: true, title: true, mimeType: true },
+    select: {
+      id: true, fileName: true, title: true, mimeType: true,
+      source: { select: { documentType: true } },
+    },
   });
 
   if (!media) {
     return {
       tool_use_id: toolUse.id,
       content: `Media asset "${media_id}" not found. Share a different resource or continue without it.`,
+      is_error: true,
+    };
+  }
+
+  // Block sharing teacher-only materials with learner callers
+  const caller = await prisma.caller.findUnique({
+    where: { id: ctx.callerId },
+    select: { role: true },
+  });
+  const docType = media.source?.documentType;
+  if (caller?.role === "LEARNER" && docType && !isStudentVisibleDefault(docType)) {
+    return {
+      tool_use_id: toolUse.id,
+      content: `Cannot share "${media.title || media.fileName}" — this is teacher-only material (${docType}). Continue the conversation without sharing this document.`,
       is_error: true,
     };
   }
@@ -123,6 +140,7 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: {
+      role: true,
       domainId: true,
       domain: {
         select: {
@@ -166,7 +184,16 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
     take: 30,
   });
 
-  if (items.length === 0) return null;
+  // Filter out teacher-only materials for LEARNER callers
+  const isLearner = caller.role === "LEARNER";
+  const filteredItems = isLearner
+    ? items.filter((i) => {
+        const docType = i.media.source?.documentType;
+        return !docType || isStudentVisibleDefault(docType);
+      })
+    : items;
+
+  if (filteredItems.length === 0) return null;
 
   // Check if this is a first call in the domain (no onboarding session or incomplete)
   let isFirstCallInDomain = false;
@@ -201,7 +228,7 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
     );
     const phaseName = contentPhase?.phase || "first-topic";
 
-    for (const item of items) {
+    for (const item of filteredItems) {
       const docType = item.media.source?.documentType;
       if (docType && isStudentVisibleDefault(docType)) {
         phaseMediaMap.set(item.media.id, {
@@ -214,7 +241,7 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
 
   // Deduplicate
   const seen = new Set<string>();
-  const deduped = items.filter((i) => {
+  const deduped = filteredItems.filter((i) => {
     if (seen.has(i.media.id)) return false;
     seen.add(i.media.id);
     return true;

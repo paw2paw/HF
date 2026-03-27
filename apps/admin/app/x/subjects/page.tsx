@@ -167,7 +167,7 @@ export default function SubjectsPage() {
       <div className="hf-card-compact hf-mb-md" style={{ borderRadius: 8, position: 'relative', zIndex: 2 }}>
         <div className="hf-flex hf-flex-between" style={{ marginBottom: 10 }}>
           <h1 className="hf-section-title">
-            Subjects
+            {plural('knowledge_area')}
             {courseId && (
               <Link href={`/x/courses/${courseId}`} className="hf-text-xs hf-text-muted" style={{ marginLeft: 8, fontWeight: 400 }}>
                 (course-filtered — view course)
@@ -189,7 +189,7 @@ export default function SubjectsPage() {
             {isOperator && (
               <button onClick={() => setShowCreateModal(true)} className="hf-btn-sm hf-btn-primary">
                 <Plus size={14} style={{ marginRight: 4 }} />
-                New Subject
+                New {terms.knowledge_area}
               </button>
             )}
           </div>

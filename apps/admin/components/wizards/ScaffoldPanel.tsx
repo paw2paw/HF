@@ -12,6 +12,7 @@
 
 import { Loader2, RotateCcw, ExternalLink, Pencil } from "lucide-react";
 import { estimateTeachingSessions } from "@/lib/lesson-plan/session-ui";
+import { useTerminology } from "@/contexts/TerminologyContext";
 import "./scaffold-panel.css";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
@@ -143,6 +144,7 @@ function DefaultTag() {
 
 const ITEM_TO_PHASE: Record<string, string> = {
   institution: "institution",
+  department: "institution",
   subject: "subject",
   course: "course",
   content: "content",
@@ -187,33 +189,24 @@ interface ScaffoldPanelProps {
   getData: <T = unknown>(key: string) => T | undefined;
   currentStepIndex?: number;
   currentPhaseId?: string;
-  terms?: {
-    institution: string;
-    subject: string;
-    course: string;
-    content: string;
-    welcome: string;
-    lessons: string;
-    personality: string;
-  };
   onReset?: () => void;
   onItemClick?: (itemKey: string) => void;
 }
 
-const DEFAULT_TERMS = {
-  institution: "Organisation",
-  subject: "Subject",
-  course: "Course",
-  content: "Content",
-  welcome: "Welcome Message",
-  lessons: "Lesson Plan",
-  personality: "AI Tutor",
-};
-
 /* ── Main component ─────────────────────────────────── */
 
-export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, terms, onReset, onItemClick }: ScaffoldPanelProps) {
-  const t = terms ?? DEFAULT_TERMS;
+export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, onReset, onItemClick }: ScaffoldPanelProps) {
+  const { terms: terminology } = useTerminology();
+  const t = {
+    institution: terminology.domain,
+    department: terminology.group,
+    subject: terminology.knowledge_area,
+    course: terminology.playbook,
+    content: "Content",
+    welcome: "Welcome Message",
+    lessons: terminology.session,
+    personality: "AI Tutor",
+  };
   const launched = !!getData<boolean>("launched");
   const isCommunity = getData<string>("defaultDomainKind") === "COMMUNITY";
 
@@ -235,6 +228,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   // Data reads
   const institutionName = getData<string>("institutionName") || getData<string>("existingInstitutionName");
   const typeSlug = getData<string>("typeSlug");
+  const groupName = getData<string>("groupName");
   const courseName = getData<string>("courseName");
   const subjectDiscipline = getData<string>("subjectDiscipline");
   const interactionPattern = getData<string>("interactionPattern");
@@ -273,6 +267,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   // Readiness — three-phase grouped dots (matches CourseSetupTracker)
   const sectionHasValue: Record<string, boolean> = {
     institution: !!institutionName,
+    department: !!groupName,
     subject: !!subjectDiscipline,
     course: !!courseName,
     content: hasContent,
@@ -283,6 +278,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
 
   const SECTION_LABELS: Record<string, string> = {
     institution: t.institution,
+    department: t.department,
     subject: t.subject,
     course: t.course,
     content: t.content,
@@ -299,6 +295,12 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   });
 
   // Phase grouping: Foundation (sequential) → Configure (parallel) → Launch
+  // Department dot only appears when a department name has been collected
+  const foundationDots: string[] = ["institution"];
+  if (groupName && !isCommunity) foundationDots.push("department");
+  if (!isCommunity) foundationDots.push("subject");
+  foundationDots.push("course");
+
   const phases: ReadinessPhase[] = isCommunity
     ? [
         { label: "Foundation", dots: ["institution", "course"].map(makeDot), sequential: true },
@@ -306,7 +308,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
         { label: "Launch", dots: ["personality"].map(makeDot) },
       ]
     : [
-        { label: "Foundation", dots: ["institution", "subject", "course"].map(makeDot), sequential: true },
+        { label: "Foundation", dots: foundationDots.map(makeDot), sequential: true },
         { label: "Configure", dots: ["content", "lessons"].map(makeDot), sequential: false },
         { label: "Launch", dots: ["welcome", "personality"].map(makeDot) },
       ];
@@ -380,7 +382,34 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
             </div>
           </BlueprintSection>
 
-          {/* Course identity — name, subject, approach */}
+          {/* Department (optional tier — only when set) */}
+          <BlueprintSection
+            visible={!!groupName && !isCommunity}
+            active={isPhaseActive("department")}
+            clickable={clickable}
+            onClick={() => click("department")}
+            sectionKey="department"
+          >
+            <div className="gs-bp-dept">
+              <span className="gs-bp-dept-name">{groupName}</span>
+            </div>
+          </BlueprintSection>
+
+          {/* Knowledge Area (promoted from meta pill) */}
+          <BlueprintSection
+            visible={!!subjectDiscipline && !isCommunity}
+            active={isPhaseActive("subject")}
+            clickable={clickable}
+            onClick={() => click("subject")}
+            sectionKey="subject"
+          >
+            <div className="gs-bp-knowledge-area">
+              <span className="gs-bp-knowledge-area-label">{t.subject}</span>
+              <span className="gs-bp-knowledge-area-name">{subjectDiscipline}</span>
+            </div>
+          </BlueprintSection>
+
+          {/* Course identity — name, approach */}
           <BlueprintSection
             visible={!!courseName}
             active={isPhaseActive("course")}
@@ -390,7 +419,6 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
           >
             {courseName && <div className="gs-bp-course-name">{courseName}</div>}
             <div className="gs-bp-meta">
-              {subjectDiscipline && <span className="gs-bp-meta-item">{subjectDiscipline}</span>}
               {interactionPattern && (
                 <span className="gs-bp-meta-item">
                   {PATTERN_LABELS[interactionPattern] || capitalize(interactionPattern)}

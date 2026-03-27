@@ -13,12 +13,15 @@ import { AdvancedBanner } from '@/components/shared/AdvancedBanner';
 type Domain = { id: string; name: string };
 type Group = { id: string; name: string; groupType: string };
 
+type SubjectRef = { id: string; name: string };
+
 type CourseListItem = {
   id: string;
   name: string;
   description: string | null;
   domain: Domain;
   group: Group | null;
+  subjects: SubjectRef[];
   studentCount: number;
   specCount: number;
   status: string;
@@ -73,7 +76,7 @@ export default function CoursesPage() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const isOperator = ['OPERATOR', 'EDUCATOR', 'ADMIN', 'SUPERADMIN'].includes((session?.user?.role as string) || '');
-  const { terms, plural } = useTerminology();
+  const { terms, plural, lower } = useTerminology();
 
   // Redirect ?id=xxx to /x/courses/xxx and ?action=setup to /x/courses/new
   const legacyId = searchParams.get('id');
@@ -95,7 +98,7 @@ export default function CoursesPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
-  const [groupBy, setGroupBy] = useState<'none' | 'department' | 'domain'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'department' | 'domain' | 'subject'>('none');
 
   const loadCourses = async () => {
     try {
@@ -157,6 +160,28 @@ export default function CoursesPage() {
         .map((items) => ({ label: items[0].domain.name, courses: items }));
     }
 
+    if (groupBy === 'subject') {
+      const bySubject = new Map<string, CourseListItem[]>();
+      const noSubject: CourseListItem[] = [];
+      for (const c of filteredCourses) {
+        if (c.subjects?.length > 0) {
+          // A course can have multiple subjects — put it in each bucket
+          for (const s of c.subjects) {
+            const arr = bySubject.get(s.id) || [];
+            arr.push(c);
+            bySubject.set(s.id, arr);
+          }
+        } else {
+          noSubject.push(c);
+        }
+      }
+      const groups = Array.from(bySubject.values())
+        .sort((a, b) => (a[0].subjects[0]?.name || '').localeCompare(b[0].subjects[0]?.name || ''))
+        .map((items) => ({ label: items[0].subjects[0]?.name || 'Unknown', courses: items }));
+      if (noSubject.length > 0) groups.push({ label: 'No ' + lower('knowledge_area'), courses: noSubject });
+      return groups;
+    }
+
     // groupBy === 'department'
     const groups: { label: string; courses: CourseListItem[] }[] = [];
     const byGroup = new Map<string, CourseListItem[]>();
@@ -186,7 +211,7 @@ export default function CoursesPage() {
     }
 
     return groups;
-  }, [filteredCourses, groupBy]);
+  }, [filteredCourses, groupBy, lower]);
 
   const courseSummary = useMemo(() => ({
     total: courses.length,
@@ -323,20 +348,21 @@ export default function CoursesPage() {
           )}
 
           {/* Group-by Toggle */}
-          {(availableGroups.length > 0 || domains.length > 1) && (
+          {(availableGroups.length > 0 || domains.length > 1 || courses.some((c) => c.subjects?.length > 0)) && (
             <>
               <div className="hf-divider-v" />
               <div className="hf-flex hf-gap-sm hf-items-center">
                 <span className="hf-text-xs hf-text-muted hf-text-bold">Group by</span>
                 <FancySelect
                   value={groupBy}
-                  onChange={(v) => setGroupBy(v as 'none' | 'department' | 'domain')}
+                  onChange={(v) => setGroupBy(v as 'none' | 'department' | 'domain' | 'subject')}
                   options={[
                     { value: 'none', label: 'None' },
                     ...(domains.length > 1 ? [{ value: 'domain', label: terms.domain }] : []),
                     ...(availableGroups.length > 0 ? [{ value: 'department', label: terms.group || 'Department' }] : []),
+                    ...(courses.some((c) => c.subjects?.length > 0) ? [{ value: 'subject', label: terms.knowledge_area || 'Knowledge Area' }] : []),
                   ]}
-                  style={{ width: 160 }}
+                  style={{ width: 180 }}
                 />
               </div>
             </>

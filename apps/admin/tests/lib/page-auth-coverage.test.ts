@@ -47,8 +47,7 @@ const PUBLIC_PAGES = new Set([
   "/x/cohorts",
   // Student section (no requiredRole — scoped by student-access)
   "/x/student",
-  // Goals (no requiredRole)
-  "/x/goals",
+  // Goals — removed standalone page, now a tab on course detail
 ]);
 
 // =====================================================

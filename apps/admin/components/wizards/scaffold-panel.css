@@ -159,6 +159,42 @@
   font-weight: 500;
 }
 
+/* ── Department ─────────────────────────────────── */
+
+.gs-bp-dept {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gs-bp-dept-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ── Knowledge Area (promoted subject) ─────────── */
+
+.gs-bp-knowledge-area {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.gs-bp-knowledge-area-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 500;
+}
+
+.gs-bp-knowledge-area-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* ── Course identity ────────────────────────────── */
 
 .gs-bp-course-name {

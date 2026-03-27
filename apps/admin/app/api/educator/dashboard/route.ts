@@ -122,6 +122,7 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
               id: true,
               name: true,
               status: true,
+              group: { select: { id: true, name: true } },
               subjects: {
                 include: { subject: { select: { name: true } } },
               },
@@ -163,6 +164,8 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
     name: string;
     status: string;
     subjects: string[];
+    groupName: string | null;
+    groupId: string | null;
     cohortCount: number;
     studentCount: number;
   }>();
@@ -177,6 +180,8 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
         name: pb.name,
         status: pb.status,
         subjects: pb.subjects.map((s) => s.subject.name),
+        groupName: pb.group?.name ?? null,
+        groupId: pb.group?.id ?? null,
         cohortCount: 1,
         studentCount: pb._count.enrollments,
       });
@@ -195,8 +200,28 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
     }
   }
 
+  // Count departments and institution branding from first classroom's domain
+  const domainId = classrooms[0]?.domain?.id;
+  let departmentCount = 0;
+  let institution: { name: string; logoUrl: string | null; welcomeMessage: string | null; primaryColor: string | null } | null = null;
+  if (domainId) {
+    departmentCount = await prisma.playbookGroup.count({
+      where: { domainId, isActive: true },
+    });
+    const domain = await prisma.domain.findUnique({
+      where: { id: domainId },
+      select: {
+        institution: {
+          select: { name: true, logoUrl: true, welcomeMessage: true, primaryColor: true },
+        },
+      },
+    });
+    institution = domain?.institution ?? null;
+  }
+
   return NextResponse.json({
     ok: true,
+    institution,
     classrooms: classrooms.map((c) => ({
       id: c.id,
       name: c.name,
@@ -206,6 +231,8 @@ async function buildDashboard(cohortWhere: ReturnType<typeof buildCohortFilter>)
       createdAt: c.createdAt,
     })),
     stats: {
+      departmentCount,
+      courseCount: courseMap.size,
       classroomCount: classrooms.length,
       totalStudents,
       activeThisWeek: activeStudents,

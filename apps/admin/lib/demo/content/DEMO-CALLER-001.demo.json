@@ -192,12 +192,12 @@
         ]
       },
       "reason": "Goals give structure to the learning journey. They help both the caller and the tutor stay focused on specific outcomes.",
-      "sidebarHighlight": { "href": "/x/goals", "type": "pulse" },
+      "sidebarHighlight": { "href": "/x/callers", "type": "pulse" },
       "aiContext": {
-        "currentView": "Caller goals and learning objectives page",
+        "currentView": "Caller goals and learning objectives (on caller detail learning tab)",
         "action": "Viewing the caller's learning goals",
         "relatedConcepts": ["learning goals", "objectives", "goal tracking", "curriculum alignment"],
-        "assistantLocation": { "page": "/x/goals", "action": "view" }
+        "assistantLocation": { "page": "/x/callers", "action": "view" }
       }
     },
     {

@@ -7,12 +7,15 @@ import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
   Sparkles, AlertTriangle, Info,
   Settings as SettingsIcon, Users2,
-  ListOrdered, Zap,
+  ListOrdered, Zap, Target,
   PlayCircle,
 } from 'lucide-react';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import { CourseOverviewTab } from './CourseOverviewTab';
+import { CourseOnboardingTab } from './CourseOnboardingTab';
 import { CourseContentTab } from './CourseContentTab';
 import { CourseWhoTab } from './CourseWhoTab';
+import { CourseGoalsTab } from './CourseGoalsTab';
 import { SessionDetailPanel } from '@/components/shared/SessionDetailPanel';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
@@ -129,6 +132,7 @@ export default function CourseDetailPage() {
   const { data: session } = useSession();
   const isOperator = ['OPERATOR', 'EDUCATOR', 'ADMIN', 'SUPERADMIN'].includes((session?.user?.role as string) || '');
   const { pushEntity } = useEntityContext();
+  const { plural } = useTerminology();
 
   // ── State ──────────────────────────────────────────
   const [detail, setDetail] = useState<PlaybookDetail | null>(null);
@@ -248,9 +252,11 @@ export default function CourseDetailPage() {
 
   const tabs: TabDefinition[] = useMemo(() => [
     { id: 'overview', label: 'Overview', icon: <Sparkles size={14} /> },
+    { id: 'onboarding', label: 'Onboarding', icon: <PlayCircle size={14} /> },
     { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: contentOnlyCount || null },
     { id: 'sessions', label: 'Sessions', icon: <ListOrdered size={14} />, count: sessions?.plan?.estimatedSessions || null },
     { id: 'students', label: 'Students', icon: <Users2 size={14} /> },
+    { id: 'goals', label: 'Goals', icon: <Target size={14} /> },
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
   ], [contentOnlyCount, isOperator, sessions]);
 
@@ -799,7 +805,7 @@ export default function CourseDetailPage() {
       <div className="hf-flex hf-gap-lg hf-mb-lg">
         <Link href={`/x/subjects?courseId=${courseId}`} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
           <div className="hf-stat-value-sm">{subjects.length}</div>
-          <div className="hf-text-xs hf-text-muted">Subjects</div>
+          <div className="hf-text-xs hf-text-muted">{plural('knowledge_area')}</div>
         </Link>
         <button type="button" onClick={() => handleTabChange('content')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
           <div className="hf-stat-value-sm">{contentOnlyCount}</div>
@@ -861,6 +867,17 @@ export default function CourseDetailPage() {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
+      {/* ONBOARDING TAB                                 */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'onboarding' && (
+        <CourseOnboardingTab
+          courseId={courseId!}
+          detail={detail}
+          isOperator={isOperator}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
       {/* CONTENT TAB                                    */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'content' && (
@@ -871,17 +888,11 @@ export default function CourseDetailPage() {
           contentMethods={contentMethods}
           contentTotal={contentTotal}
           isOperator={isOperator}
-          sessionPlan={sessions?.plan ? {
-            estimatedSessions: sessions.plan.estimatedSessions,
-            totalDurationMins: totalSessionDuration,
-            generatedAt: sessions.plan.generatedAt,
-          } : null}
           onContentRefresh={(methods, total, instrCount) => {
             setContentMethods(methods);
             setContentTotal(total);
             if (instrCount !== undefined) setInstructionTotal(instrCount);
           }}
-          onDetailUpdate={setDetail}
         />
       )}
 
@@ -897,6 +908,13 @@ export default function CourseDetailPage() {
           specGroups={specGroups}
           onDetailUpdate={setDetail}
         />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* GOALS TAB                                      */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'goals' && (
+        <CourseGoalsTab courseId={courseId!} />
       )}
 
       {/* ═══════════════════════════════════════════════ */}

@@ -15,7 +15,7 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
       "IMPORTANT: subjectDiscipline = broad discipline (English Language, Biology, Maths). " +
       "courseName = specific course within that subject (GCSE Biology, 11+ Comprehension). " +
       "NEVER put a broad discipline into courseName or a specific course into subjectDiscipline. " +
-      "Valid field keys: institutionName, typeSlug, websiteUrl, courseName, subjectDiscipline, " +
+      "Valid field keys: institutionName, typeSlug, websiteUrl, groupName, groupId, courseName, subjectDiscipline, " +
       "interactionPattern, teachingMode, audience, learningOutcomes, " +
       "welcomeMessage, sessionCount, durationMins, " +
       "planEmphasis, assessments, behaviorTargets, lessonPlanModel, " +
@@ -184,6 +184,7 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
       type: "object",
       properties: {
         domainId: { type: "string", description: "Domain ID." },
+        groupId: { type: "string", description: "Department/group ID (if user specified a department)." },
         courseName: { type: "string" },
         subjectDiscipline: { type: "string" },
         interactionPattern: { type: "string" },

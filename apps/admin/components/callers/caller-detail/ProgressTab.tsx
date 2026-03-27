@@ -10,6 +10,7 @@ import { TwoColumnTargetsDisplay } from "./CallsTab";
 import { ModuleDetailPanel } from "./cards/ModuleDetailPanel";
 import type { CallScore, CurriculumProgress, LearnerProfile, Goal, Call, MemorySummary } from "./types";
 import { CATEGORY_COLORS } from "./constants";
+import { GOAL_TYPE_CONFIG } from "@/lib/goals/goal-constants";
 
 // =====================================================
 // ScoresSection
@@ -548,15 +549,6 @@ export function LearningSection({
       </div>
     );
   }
-
-  const GOAL_TYPE_CONFIG: Record<string, { label: string; icon: string; color: string; glow: string }> = {
-    LEARN: { label: "Learn", icon: "📚", color: "var(--status-success-text)", glow: "var(--status-success-text)" },
-    ACHIEVE: { label: "Achieve", icon: "🏆", color: "var(--status-warning-text)", glow: "var(--status-warning-text)" },
-    CHANGE: { label: "Change", icon: "🔄", color: "var(--accent-secondary, #8b5cf6)", glow: "var(--accent-secondary, #8b5cf6)" },
-    CONNECT: { label: "Connect", icon: "🤝", color: "var(--badge-cyan-text, #06b6d4)", glow: "var(--badge-cyan-text, #0891b2)" },
-    SUPPORT: { label: "Support", icon: "💚", color: "var(--status-success-text)", glow: "var(--status-success-text)" },
-    CREATE: { label: "Create", icon: "🎨", color: "var(--badge-pink-text, #ec4899)", glow: "var(--badge-pink-accent, #db2777)" },
-  };
 
   const MODULE_STATUS_COLORS: Record<string, { primary: string; glow: string }> = {
     completed: { primary: "var(--status-success-text)", glow: "var(--status-success-text)" },

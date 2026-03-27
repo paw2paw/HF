@@ -5,13 +5,12 @@ import Link from 'next/link';
 import {
   BookMarked, FileText, Plus, Pencil,
   Sparkles, BarChart3, Sliders, Shield, AlertTriangle,
-  ChevronRight, Upload, Target, Ban, Users2, MessageCircle,
-  ListOrdered, Clock, X as XIcon, Check,
+  ChevronRight, Upload, Target, Users2, MessageCircle,
+  ListOrdered, Clock, Check,
 } from 'lucide-react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { TrustBadge } from '@/app/x/content-sources/_components/shared/badges';
 import { OnboardingPreview, type OnboardingPhase as OBPhase } from '@/components/shared/OnboardingPreview';
-import { OnboardingEditor } from '@/components/shared/OnboardingEditor';
 import { CourseSetupTracker } from '@/components/shared/CourseSetupTracker';
 import { CourseHowTab } from './CourseHowTab';
 import {
@@ -79,16 +78,7 @@ export type CourseOverviewTabProps = {
   onDetailUpdate?: (updater: (prev: any) => any) => void;
 };
 
-// ── Goal type labels (shared with /x/goals page) ───────
-
-const GOAL_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  LEARN: { label: 'Learn', color: 'var(--accent-primary)' },
-  ACHIEVE: { label: 'Achieve', color: 'var(--status-warning-text)' },
-  CHANGE: { label: 'Change', color: 'var(--badge-purple-text)' },
-  CONNECT: { label: 'Connect', color: 'var(--badge-pink-text)' },
-  SUPPORT: { label: 'Support', color: 'var(--status-success-text)' },
-  CREATE: { label: 'Create', color: 'var(--badge-cyan-text)' },
-};
+import { GOAL_TYPE_CONFIG } from '@/lib/goals/goal-constants';
 
 // ── Section Header ─────────────────────────────────────
 
@@ -153,7 +143,6 @@ export function CourseOverviewTab({
 }: CourseOverviewTabProps) {
   const config = (detail.config || {}) as PlaybookConfig;
   const goals = config.goals || [];
-  const constraints = config.constraints || [];
   const audienceId = config.audience || '';
   const audienceOption = audienceId ? getAudienceOption(audienceId) : null;
   const onboardingPhases = config.onboardingFlowPhases?.phases || [];
@@ -167,10 +156,7 @@ export function CourseOverviewTab({
   const [backfilling, setBackfilling] = useState(false);
 
   // ── Inline edit states ────────────────────────────────
-  const [editingGoals, setEditingGoals] = useState(false);
-  const [editingConstraints, setEditingConstraints] = useState(false);
   const [editingAudience, setEditingAudience] = useState(false);
-  const [newConstraint, setNewConstraint] = useState('');
   const [saving, setSaving] = useState(false);
 
   // ── Config save helper ────────────────────────────────
@@ -271,87 +257,6 @@ export function CourseOverviewTab({
         )}
       </div>
 
-      {/* ── Boundaries (Constraints) ──────────────────── */}
-      <SectionHeader title="Boundaries" icon={Ban} />
-      <div className="hf-card-compact hf-mb-lg">
-        {constraints.length === 0 && !editingConstraints ? (
-          <div className="hf-flex hf-flex-between hf-items-center">
-            <span className="hf-text-sm hf-text-muted">No boundaries set. These are things the AI should never do.</span>
-            {isOperator && (
-              <button className="hf-btn hf-btn-xs hf-btn-outline" onClick={() => setEditingConstraints(true)}>
-                <Plus size={12} /> Add
-              </button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="hf-flex hf-flex-wrap hf-gap-sm">
-              {constraints.map((c, i) => (
-                <span key={i} className="cov-constraint-chip">
-                  <Ban size={11} className="hf-flex-shrink-0" />
-                  <span>{c}</span>
-                  {isOperator && editingConstraints && (
-                    <button
-                      className="cov-chip-remove"
-                      onClick={async () => {
-                        const updated = constraints.filter((_, j) => j !== i);
-                        await saveConfig({ constraints: updated });
-                        setEditingConstraints(updated.length > 0);
-                      }}
-                      disabled={saving}
-                    >
-                      <XIcon size={10} />
-                    </button>
-                  )}
-                </span>
-              ))}
-            </div>
-            {isOperator && (
-              <div className="hf-mt-sm">
-                {editingConstraints ? (
-                  <div className="hf-flex hf-gap-xs hf-items-center">
-                    <input
-                      className="hf-input hf-input-sm hf-flex-1"
-                      placeholder="Never drill vocabulary in isolation..."
-                      value={newConstraint}
-                      onChange={(e) => setNewConstraint(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newConstraint.trim()) {
-                          const updated = [...constraints, newConstraint.trim()];
-                          saveConfig({ constraints: updated });
-                          setNewConstraint('');
-                        }
-                      }}
-                    />
-                    <button
-                      className="hf-btn hf-btn-xs hf-btn-primary"
-                      disabled={!newConstraint.trim() || saving}
-                      onClick={async () => {
-                        if (!newConstraint.trim()) return;
-                        await saveConfig({ constraints: [...constraints, newConstraint.trim()] });
-                        setNewConstraint('');
-                      }}
-                    >
-                      Add
-                    </button>
-                    <button
-                      className="hf-btn hf-btn-xs hf-btn-secondary"
-                      onClick={() => { setEditingConstraints(false); setNewConstraint(''); }}
-                    >
-                      Done
-                    </button>
-                  </div>
-                ) : (
-                  <button className="hf-btn hf-btn-xs hf-btn-outline" onClick={() => setEditingConstraints(true)}>
-                    <Pencil size={11} /> Edit
-                  </button>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
       {/* ── Audience ──────────────────────────────────── */}
       <SectionHeader title="Audience" icon={Users2} />
       <div className="hf-card-compact hf-mb-lg">
@@ -404,8 +309,8 @@ export function CourseOverviewTab({
         )}
       </div>
 
-      {/* ── First Call Structure ──────────────────────── */}
-      <SectionHeader title="First Call Structure" icon={MessageCircle} />
+      {/* ── First Call Preview ──────────────────────────── */}
+      <SectionHeader title="First Call Preview" icon={MessageCircle} />
       <div className="hf-card-compact hf-mb-lg">
         {onboardingLoading ? (
           <div className="hf-text-sm hf-text-muted hf-glow-active">Loading first call structure...</div>
@@ -415,6 +320,7 @@ export function CourseOverviewTab({
             personaName={onboarding.personaName}
             greeting={onboarding.domainWelcome}
             maxHeight={280}
+            hint="Edit in Onboarding tab"
           />
         ) : (
           <div className="hf-text-sm hf-text-muted">
@@ -422,19 +328,6 @@ export function CourseOverviewTab({
           </div>
         )}
       </div>
-
-      {/* ── Onboarding Editor (operators only) ──────── */}
-      {isOperator && (
-        <div className="hf-mb-lg">
-          <OnboardingEditor
-            courseId={courseId}
-            domainId={detail.domain.id}
-            domainName={detail.domain.name}
-            isOperator={isOperator}
-            compact
-          />
-        </div>
-      )}
 
       {/* ── Teaching Methods ──────────────────────────── */}
       {contentMethods.length > 0 && (

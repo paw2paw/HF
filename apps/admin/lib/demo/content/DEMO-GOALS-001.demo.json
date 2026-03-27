@@ -3,7 +3,7 @@
   "title": "Monitor Learning Goals Across Callers",
   "subtitle": "Track learning objectives, filter by status and type, and link goals back to individual callers",
   "version": "1.0.0",
-  "status": "active",
+  "status": "deprecated",
   "date": "2026-02-13",
   "audience": ["team_member", "evaluator"],
   "estimatedMinutes": 4,

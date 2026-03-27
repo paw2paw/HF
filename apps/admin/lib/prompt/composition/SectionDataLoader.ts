@@ -174,7 +174,67 @@ async function resolveContentScope(callerId: string): Promise<ContentScope> {
     };
   }
 
-  // No single playbook — fall back to domain-wide
+  // No single playbook — try union of all enrolled playbooks' subjects first
+  // This prevents assertion bleeding: a student in Biology + Chemistry sees only
+  // those two subjects' assertions, not everything in the domain.
+  const enrollments = await prisma.callerPlaybook.findMany({
+    where: { callerId, status: "ACTIVE" },
+    select: { playbookId: true },
+  });
+
+  if (enrollments.length > 0) {
+    const sourceSelect = {
+      select: {
+        sourceId: true,
+        sortOrder: true,
+        tags: true,
+        source: { select: { documentType: true } },
+      },
+      orderBy: { sortOrder: "asc" as const },
+    } as const;
+
+    const allPlaybookSubjects = await prisma.playbookSubject.findMany({
+      where: { playbookId: { in: enrollments.map((e) => e.playbookId) } },
+      select: {
+        subject: {
+          select: {
+            id: true,
+            teachingDepth: true,
+            sources: sourceSelect,
+          },
+        },
+      },
+    });
+
+    // Dedupe subjects by ID (same subject may appear in multiple enrollments)
+    const seen = new Set<string>();
+    const subjects = allPlaybookSubjects
+      .filter((ps) => {
+        if (seen.has(ps.subject.id)) return false;
+        seen.add(ps.subject.id);
+        return true;
+      })
+      .map((ps) => ({
+        ...ps.subject,
+        sources: ps.subject.sources.map((s) => ({
+          sourceId: s.sourceId,
+          documentType: s.source?.documentType ?? null,
+          sortOrder: s.sortOrder,
+          tags: s.tags,
+        })),
+      }));
+
+    if (subjects.length > 0) {
+      return {
+        domainId: caller.domainId,
+        subjectIds: subjects.map((s) => s.id),
+        subjects,
+        scoped: true,
+      };
+    }
+  }
+
+  // Last resort: domain-wide (no enrollments, or enrollments have no subjects)
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId: caller.domainId },
     select: {

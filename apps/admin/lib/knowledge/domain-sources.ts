@@ -14,6 +14,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
 
 /**
  * Get all ContentSource IDs linked to a domain via its subjects.
@@ -158,35 +159,41 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
 }
 
 /**
- * Get teaching source IDs for a domain, EXCLUDING COURSE_REFERENCE documents.
- * Used by VAPI knowledge retrieval to prevent tutor instructions from
+ * Get teaching source IDs for a domain, EXCLUDING teacher-only documents.
+ * Uses isStudentVisibleDefault() to filter — only READING_PASSAGE, WORKSHEET,
+ * COMPREHENSION, and EXAMPLE documents are included.
+ * Used by VAPI knowledge retrieval to prevent teacher materials from
  * being served as student content during calls.
  */
 export async function getTeachingSourceIdsForDomain(domainId: string): Promise<string[]> {
   const allSourceIds = await getSourceIdsForDomain(domainId);
   if (allSourceIds.length === 0) return [];
 
-  const courseRefSources = await prisma.contentSource.findMany({
-    where: { id: { in: allSourceIds }, documentType: "COURSE_REFERENCE" as any },
-    select: { id: true },
+  const sources = await prisma.contentSource.findMany({
+    where: { id: { in: allSourceIds } },
+    select: { id: true, documentType: true },
   });
-  const courseRefIds = new Set(courseRefSources.map((s) => s.id));
-  return allSourceIds.filter((id) => !courseRefIds.has(id));
+  return sources
+    .filter((s) => !s.documentType || isStudentVisibleDefault(s.documentType))
+    .map((s) => s.id);
 }
 
 /**
- * Get teaching source IDs for a playbook, EXCLUDING COURSE_REFERENCE documents.
- * Used by VAPI knowledge retrieval to prevent tutor instructions from
+ * Get teaching source IDs for a playbook, EXCLUDING teacher-only documents.
+ * Uses isStudentVisibleDefault() to filter — only READING_PASSAGE, WORKSHEET,
+ * COMPREHENSION, and EXAMPLE documents are included.
+ * Used by VAPI knowledge retrieval to prevent teacher materials from
  * being served as student content during calls.
  */
 export async function getTeachingSourceIdsForPlaybook(playbookId: string): Promise<string[]> {
   const allSourceIds = await getSourceIdsForPlaybook(playbookId);
   if (allSourceIds.length === 0) return [];
 
-  const courseRefSources = await prisma.contentSource.findMany({
-    where: { id: { in: allSourceIds }, documentType: "COURSE_REFERENCE" as any },
-    select: { id: true },
+  const sources = await prisma.contentSource.findMany({
+    where: { id: { in: allSourceIds } },
+    select: { id: true, documentType: true },
   });
-  const courseRefIds = new Set(courseRefSources.map((s) => s.id));
-  return allSourceIds.filter((id) => !courseRefIds.has(id));
+  return sources
+    .filter((s) => !s.documentType || isStudentVisibleDefault(s.documentType))
+    .map((s) => s.id);
 }

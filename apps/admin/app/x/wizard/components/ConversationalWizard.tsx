@@ -113,6 +113,7 @@ const FOREGROUND_REASONS: BusyReason[] = ["sending", "upload-draining"];
 /** Map scaffold item keys to human-readable review phrases */
 const REVIEW_LABELS: Record<string, string> = {
   institution: "organisation",
+  department: "department",
   subject: "subject",
   course: "course details",
   content: "teaching materials",

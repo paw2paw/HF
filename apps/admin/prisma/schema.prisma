@@ -965,10 +965,28 @@ model PlaybookGroup {
 
   playbooks    Playbook[]
   cohortGroups CohortGroup[]
+  subjects     PlaybookGroupSubject[]
 
   @@unique([domainId, slug])
   @@index([domainId, groupType])
   @@index([domainId, isActive])
+}
+
+// Many-to-many: which subjects belong to a department/group
+// Auto-wired during course setup when a course has both groupId and subjectId.
+// Enables the teacher hierarchy: Department → Subject → Course → Module
+model PlaybookGroupSubject {
+  id        String        @id @default(uuid())
+  groupId   String
+  group     PlaybookGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+
+  @@unique([groupId, subjectId])
+  @@index([groupId])
+  @@index([subjectId])
 }
 
 // CallerCohortMembership — join table for multi-cohort membership.
@@ -3768,6 +3786,7 @@ model Subject {
   curricula Curriculum[]
   media     SubjectMedia[]
   playbooks PlaybookSubject[]
+  groups    PlaybookGroupSubject[]
 
   @@index([slug])
   @@index([isActive])

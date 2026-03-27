@@ -6,8 +6,6 @@ import {
   Sparkles, Ban, ChevronDown, ChevronRight,
   Plus, Pencil, X as XIcon, Upload, RefreshCw,
 } from 'lucide-react';
-import { getTeachingProfile, resolveTeachingProfile } from '@/lib/content-trust/teaching-profiles';
-import { TEACHING_MODE_LABELS, INTERACTION_PATTERN_LABELS, type TeachingMode, type InteractionPattern } from '@/lib/content-trust/resolve-config';
 import type { PlaybookConfig } from '@/lib/types/json-fields';
 
 // ── Types ──────────────────────────────────────────────
@@ -193,9 +191,6 @@ export function CourseHowTab({
   const [saving, setSaving] = useState(false);
 
   // ── Teaching focus state ─────────────────────────────
-  const [teachingFocusDraft, setTeachingFocusDraft] = useState((config as any).teachingFocus || '');
-  const [teachingFocusSaving, setTeachingFocusSaving] = useState(false);
-  const [teachingFocusSaved, setTeachingFocusSaved] = useState(false);
 
   // ── Config save helper ───────────────────────────────
   const saveConfig = useCallback(async (patch: Record<string, unknown>) => {
@@ -335,82 +330,6 @@ export function CourseHowTab({
           />
           <div className="hf-card-compact hf-mb-lg">
             <SessionFlowPipeline items={sessionFlowItems} />
-          </div>
-        </>
-      )}
-
-      {/* ── 2. Teaching Approach ─────────────────────────── */}
-      {subjects.some((s) => s.teachingProfile) && (
-        <>
-          <SectionHeader title="Teaching Approach" icon={Sparkles} />
-          <div className="hf-card-compact hf-mb-lg">
-            {subjects.filter((s) => s.teachingProfile).map((sub) => {
-              const profile = getTeachingProfile(sub.teachingProfile);
-              if (!profile) return null;
-              const modeLabel = TEACHING_MODE_LABELS[profile.teachingMode as TeachingMode]?.label ?? profile.teachingMode;
-              const patternLabel = INTERACTION_PATTERN_LABELS[profile.interactionPattern as InteractionPattern]?.label ?? profile.interactionPattern;
-              return (
-                <div key={sub.id} className="hf-mb-sm">
-                  <div className="hf-flex hf-gap-sm hf-items-center hf-text-sm">
-                    <Link href={`/x/courses/${courseId}/subjects/${sub.id}`} className="hf-link"><strong>{sub.name}</strong></Link>
-                    <span className="hf-badge hf-badge-sm hf-badge-accent">{profile.key}</span>
-                  </div>
-                  <p className="hf-text-xs hf-text-muted hf-mt-xs hf-mb-0">
-                    {profile.description}
-                  </p>
-                  <div className="hf-flex hf-gap-md hf-text-xs hf-text-muted hf-mt-xs">
-                    <span>Teaching mode: {modeLabel}</span>
-                    <span>Interaction: {patternLabel}</span>
-                  </div>
-                  <div className="hf-text-xs hf-text-muted hf-mt-xs">
-                    Best for: {profile.bestFor}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Editable teaching focus (course-level override) */}
-            {isOperator && (
-              <div className="cov-teaching-focus-box hf-mt-md">
-                <label className="hf-label hf-text-xs">Teaching Focus (course-level)</label>
-                <textarea
-                  value={teachingFocusDraft}
-                  onChange={(e) => { setTeachingFocusDraft(e.target.value); setTeachingFocusSaved(false); }}
-                  placeholder={(() => {
-                    const sub = subjects.find((s) => s.teachingProfile);
-                    if (!sub) return 'Describe what students should take away...';
-                    const resolved = resolveTeachingProfile(sub);
-                    return resolved?.teachingFocus || 'Describe what students should take away...';
-                  })()}
-                  className="hf-input hf-text-sm cov-teaching-focus-textarea"
-                  rows={3}
-                />
-                <div className="hf-flex hf-gap-sm hf-items-center hf-mt-xs">
-                  <button
-                    onClick={async () => {
-                      setTeachingFocusSaving(true);
-                      try {
-                        await saveConfig({ teachingFocus: teachingFocusDraft.trim() || null });
-                        setTeachingFocusSaved(true);
-                      } finally {
-                        setTeachingFocusSaving(false);
-                      }
-                    }}
-                    disabled={teachingFocusSaving}
-                    className="hf-btn hf-btn-primary hf-btn-xs"
-                    type="button"
-                  >
-                    {teachingFocusSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  {teachingFocusSaved && <span className="hf-text-xs hf-text-success">Saved</span>}
-                  {!teachingFocusDraft && subjects.some((s) => s.teachingProfile) && (
-                    <span className="hf-text-xs hf-text-muted">
-                      Inherited from subject profile
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </>
       )}

@@ -9,6 +9,12 @@ import type { TeachingProfile } from "@/lib/content-trust/teaching-profiles";
 import "./educator.css";
 
 interface DashboardData {
+  institution: {
+    name: string;
+    logoUrl: string | null;
+    welcomeMessage: string | null;
+    primaryColor: string | null;
+  } | null;
   classrooms: {
     id: string;
     name: string;
@@ -17,6 +23,8 @@ interface DashboardData {
     createdAt: string;
   }[];
   stats: {
+    departmentCount: number;
+    courseCount: number;
     classroomCount: number;
     totalStudents: number;
     activeThisWeek: number;
@@ -26,6 +34,8 @@ interface DashboardData {
     name: string;
     status: string;
     subjects: string[];
+    groupName: string | null;
+    groupId: string | null;
     cohortCount: number;
     studentCount: number;
   }[];
@@ -261,58 +271,85 @@ export default function EducatorDashboard() {
 
   return (
     <div data-tour="welcome" className="edu-page">
-      {/* Welcome Header */}
-      <div className="edu-header">
-        {viewingSchoolName && (
-          <button
-            onClick={() => { setNeedsSchoolPicker(true); setData(null); }}
-            className="edu-change-btn"
-          >
-            &larr; Change {terms.domain}
-          </button>
-        )}
-        <h1 className="hf-page-title flex items-center gap-2 edu-header-title">
-          {viewingSchoolName ?? `My ${terms.domain}`}
-          <span className="hf-gf-badge">GF</span>
-        </h1>
-        <p className="hf-page-subtitle">
-          {hasClassrooms
-            ? `${stats.totalStudents} ${stats.totalStudents !== 1 ? lowerPlural("caller") : lower("caller")} across ${stats.classroomCount} ${stats.classroomCount !== 1 ? lowerPlural("cohort") : lower("cohort")}`
-            : `Get started by creating your first ${lower("cohort")}`}
-        </p>
-      </div>
-
-      {/* Stats Row */}
-      <div className="edu-stats-grid">
-        {[
-          { label: plural("caller"), value: stats.totalStudents, color: "var(--button-primary-bg)" },
-          { label: "Active This Week", value: stats.activeThisWeek, color: "var(--status-success-text)" },
-          { label: plural("cohort"), value: stats.classroomCount, color: "var(--accent-primary)" },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="hf-card-compact flex flex-col items-center justify-center edu-stat-card"
-          >
-            <div className="hf-stat-value" style={{ color: stat.color }}>
-              {stat.value}
-            </div>
-            <div className="hf-stat-label">
-              {stat.label}
+      {/* Hero Section */}
+      <div className="hf-card edu-hero" style={{
+        padding: "24px",
+        marginBottom: 24,
+        ...(data?.institution?.primaryColor ? { borderTop: `3px solid ${data.institution.primaryColor}` } : {}),
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {data?.institution?.logoUrl && (
+              <img src={data.institution.logoUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />
+            )}
+            <div>
+              {viewingSchoolName && (
+                <button
+                  onClick={() => { setNeedsSchoolPicker(true); setData(null); }}
+                  className="hf-text-xs hf-text-muted hf-link"
+                  style={{ marginBottom: 2, display: "block", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                >
+                  &larr; Change {terms.domain}
+                </button>
+              )}
+              <h1 className="hf-page-title" style={{ margin: 0, fontSize: "1.5rem" }}>
+                {data?.institution?.name ?? viewingSchoolName ?? `My ${terms.domain}`}
+              </h1>
+              {data?.institution?.welcomeMessage && (
+                <p className="hf-text-sm hf-text-muted" style={{ margin: "4px 0 0" }}>{data.institution.welcomeMessage}</p>
+              )}
             </div>
           </div>
-        ))}
+          <Link href={`/x/educator/settings${instQuery}`} className="hf-text-muted" style={{ padding: 4 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </Link>
+        </div>
+
+        {/* Clickable counter row — follows entity hierarchy, hidden when 0 */}
+        <div className="edu-stats-grid">
+          {[
+            { label: plural("group"), value: stats.departmentCount, href: `/x/educator/departments${instQuery}`, color: "var(--accent-secondary, var(--accent-primary))" },
+            { label: plural("playbook"), value: stats.courseCount, href: `/x/courses${instQuery}`, color: "var(--button-primary-bg)" },
+            { label: plural("cohort"), value: stats.classroomCount, href: `/x/educator/classrooms${instQuery}`, color: "var(--accent-primary)" },
+            { label: plural("caller"), value: stats.totalStudents, href: `/x/educator/students${instQuery}`, color: "var(--status-info-text, var(--button-primary-bg))" },
+            { label: "Active This Week", value: stats.activeThisWeek, href: "", color: "var(--status-success-text)" },
+          ]
+            .filter((s) => s.value > 0 || s.label === "Active This Week")
+            .map((stat) => (
+              stat.href ? (
+                <Link
+                  key={stat.label}
+                  href={stat.href}
+                  className="hf-card-compact flex flex-col items-center justify-center edu-stat-card"
+                  style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}
+                >
+                  <div className="hf-stat-value" style={{ color: stat.color }}>{stat.value}</div>
+                  <div className="hf-stat-label">{stat.label}</div>
+                </Link>
+              ) : (
+                <div key={stat.label} className="hf-card-compact flex flex-col items-center justify-center edu-stat-card">
+                  <div className="hf-stat-value" style={{ color: stat.color }}>{stat.value}</div>
+                  <div className="hf-stat-label">{stat.label}</div>
+                </div>
+              )
+            ))}
+        </div>
       </div>
 
       {/* My Courses */}
       {(data?.courses?.length ?? 0) > 0 && (
         <div className="edu-courses-section">
-          <h2 className="hf-section-title">My {plural("playbook")}</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <h2 className="hf-section-title" style={{ margin: 0 }}>My {plural("playbook")}</h2>
+            <Link href={`/x/courses${instQuery}`} className="hf-text-xs hf-link">View All &rarr;</Link>
+          </div>
           <div className="edu-courses-grid">
             {data!.courses.map((course) => (
               <Link
                 key={course.id}
-                href={`/x/educator/classrooms${instQuery}`}
+                href={`/x/courses/${course.id}`}
                 className="hf-card-compact edu-course-card"
+                style={{ textDecoration: "none", color: "inherit" }}
               >
                 <div className="edu-course-name">{course.name}</div>
                 {course.subjects.length > 0 && (
@@ -321,8 +358,13 @@ export default function EducatorDashboard() {
                     {course.subjects.join(", ")}
                   </div>
                 )}
-                <div className="hf-text-xs hf-text-muted">
-                  {course.cohortCount} {course.cohortCount === 1 ? lower("cohort") : lowerPlural("cohort")} · {course.studentCount} {course.studentCount === 1 ? lower("caller") : lowerPlural("caller")}
+                <div className="hf-flex hf-gap-sm" style={{ flexWrap: "wrap", marginTop: 4 }}>
+                  {course.groupName && (
+                    <span className="hf-badge hf-badge-neutral" style={{ fontSize: "0.65rem" }}>{course.groupName}</span>
+                  )}
+                  <span className="hf-text-xs hf-text-muted">
+                    {course.studentCount} {course.studentCount === 1 ? lower("caller") : lowerPlural("caller")}
+                  </span>
                 </div>
               </Link>
             ))}
@@ -356,7 +398,7 @@ export default function EducatorDashboard() {
             {departments.map((dept) => (
               <Link
                 key={dept.id}
-                href={`/x/educator/departments`}
+                href={`/x/educator/departments/${dept.id}`}
                 className="hf-card-compact edu-dept-card"
               >
                 <div className="edu-dept-name">{dept.name}</div>
