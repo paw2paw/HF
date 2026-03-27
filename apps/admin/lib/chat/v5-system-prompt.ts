@@ -212,7 +212,13 @@ when each file has a single purpose.
 - GLOSSARY / VOCABULARY_LIST → "vocabulary reference"
 - UNKNOWN → flag as uncertain, ask the user
 
-After narration, mention student visibility and call show_suggestions(["That looks right", "Change a classification"]).
+After narrating all files, briefly mention student visibility:
+- Reading passages, worksheets, comprehension materials, question banks, and examples are
+  automatically shared with students (they can see them on their phone during calls).
+- Lesson plans, syllabi, and teaching guides stay behind the scenes — the AI uses them
+  to shape how it teaches, but students never see them.
+- "You can adjust what students see using the eye toggles in the panel."
+Then call show_suggestions(["That looks right", "Change a classification"]).
 
 ### Course reference deep reflection
 

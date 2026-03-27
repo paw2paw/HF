@@ -180,8 +180,11 @@ export async function executeWizardTool(
       }
 
       // ── Course resolution (requires known domainId) ─────
+      // Skip resolution if the user already chose from a show_options panel
+      // (setupData.courseName is set from a prior turn — re-resolving causes double-question loops)
       const domainId = (setupData?.existingDomainId || setupData?.draftDomainId) as string | undefined;
-      if (fields.courseName && typeof fields.courseName === "string" && domainId) {
+      const courseAlreadyChosen = !!(setupData?.courseName) && (setupData.courseName === fields.courseName);
+      if (fields.courseName && typeof fields.courseName === "string" && domainId && !courseAlreadyChosen) {
         const resolved = await resolveCourseByName(fields.courseName, domainId);
         if (resolved) {
           if (resolved.autoCommit) {
@@ -214,10 +217,22 @@ export async function executeWizardTool(
               `Show as show_options for courseName (radio mode) with "Create new course" at the end.`,
           };
         }
+        // No DB match — this is a brand-new course name. Tell the AI to advance.
+        // Without this, the AI may respond with a dead-end (no chips/suggestions).
+        return {
+          ...base,
+          content:
+            `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
+            `NEW COURSE: "${fields.courseName}" — no existing match. This is a new course. ` +
+            `Confirm to the user and advance to the next priority per the graph. ` +
+            `You MUST call show_suggestions or show_options — do NOT end with just a statement.`,
+        };
       }
 
       // ── Subject resolution (requires known domainId) ────
-      if (fields.subjectDiscipline && typeof fields.subjectDiscipline === "string" && domainId) {
+      // Skip if subject is already committed from a prior turn (avoids re-listing courses)
+      const subjectAlreadyCommitted = !!(setupData?.subjectDiscipline) && (setupData.subjectDiscipline === fields.subjectDiscipline);
+      if (fields.subjectDiscipline && typeof fields.subjectDiscipline === "string" && domainId && !subjectAlreadyCommitted) {
         const resolved = await resolveSubjectByName(fields.subjectDiscipline, domainId);
         if (resolved) {
           if (resolved.autoCommit) {
@@ -288,7 +303,7 @@ export async function executeWizardTool(
         }
       }
 
-      return { ...base, content: `Saved ${keys.length} field(s): ${keys.join(", ")}. Continue the conversation.` };
+      return { ...base, content: `Saved ${keys.length} field(s): ${keys.join(", ")}. Advance to the next graph priority. You MUST call show_suggestions or show_options — do NOT end with just a statement.` };
     }
 
     case "show_options": {
