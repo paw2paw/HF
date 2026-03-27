@@ -185,6 +185,7 @@ export abstract class DocumentExtractor {
     }
 
     const chunks = this.chunkText(text, extractionConfig.extraction.chunkSize);
+    console.log(`[Extractor] ${this.documentType}: ${text.length} chars → ${chunks.length} chunks (chunkSize=${extractionConfig.extraction.chunkSize})`);
     if (chunks.length > 20) {
       warnings.push(`Large document split into ${chunks.length} chunks — extraction may be slow`);
     }

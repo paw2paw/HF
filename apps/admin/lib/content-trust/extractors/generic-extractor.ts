@@ -35,14 +35,33 @@ export class GenericExtractor extends DocumentExtractor {
     const { extraction } = config;
     const validCategoryIds = new Set(extraction.categories.map((c) => c.id));
 
+    const isCourseRef = this.documentType === "COURSE_REFERENCE";
+    const qualRef = context.qualificationRef ? `${context.qualificationRef} ` : "";
+
+    const openingLine = isCourseRef
+      ? `Extract all tutor instructions, teaching rules, and pedagogical techniques from this ${qualRef}teacher guide.`
+      : `Extract all teaching points from this ${qualRef}training material.`;
+
+    const courseRefHint = isCourseRef
+      ? [
+          `\nThis is a TEACHER GUIDE / COURSE REFERENCE document. Your primary job is to extract TUTOR INSTRUCTIONS — rules, techniques, session flow, scaffolding, assessment approaches, communication guidelines, and differentiation strategies.`,
+          `\nInstruction categories (PRIORITISE these): ${extraction.categories.filter(c => !["fact", "definition", "example", "threshold", "rule", "process"].includes(c.id)).map(c => c.id).join(", ") || extraction.categories.map(c => c.id).join(", ")}`,
+          `Content categories (use ONLY for student-facing facts/definitions mixed in): fact, definition, threshold, rule, process, example`,
+          `\nBe thorough — extract EVERY distinct instruction, technique, and guideline. A single paragraph may contain multiple separate instructions. Do not summarise or merge — one assertion per distinct rule/technique.`,
+        ].join("\n")
+      : "";
+
     const userPrompt = [
-      `Extract all teaching points from this ${context.qualificationRef ? `${context.qualificationRef} ` : ""}training material.`,
+      openingLine,
       `\nValid categories: ${extraction.categories.map((c) => c.id).join(", ")}`,
+      courseRefHint,
       context.focusChapters?.length
         ? `Focus on: ${context.focusChapters.join(", ")}`
         : "",
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
+
+    console.log(`[GenericExtractor] Chunk ${context.chunkIndex}/${context.totalChunks} (${chunk.length} chars) for ${context.sourceSlug} [${this.documentType}]`);
 
     const aiResult = await callAI(
       extraction.systemPrompt,
@@ -57,11 +76,16 @@ export class GenericExtractor extends DocumentExtractor {
       },
     );
 
+    console.log(`[GenericExtractor] AI response for chunk ${context.chunkIndex}: ${aiResult.content.length} chars, stopReason=${aiResult.stopReason}`);
+
     const raw = parseJsonResponse(aiResult.content);
 
     if (!Array.isArray(raw)) {
+      console.warn(`[GenericExtractor] Chunk ${context.chunkIndex} returned non-array:`, typeof raw, JSON.stringify(raw).substring(0, 200));
       return { assertions: [], questions: [], vocabulary: [], warnings: [] };
     }
+
+    console.log(`[GenericExtractor] Chunk ${context.chunkIndex}: parsed ${raw.length} assertions`);
 
     const assertions: ExtractedAssertion[] = raw.map((item: any) => ({
       assertion: String(item.assertion || ""),
