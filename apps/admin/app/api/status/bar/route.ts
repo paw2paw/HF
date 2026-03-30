@@ -1,18 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { ROLE_LEVEL } from "@/lib/roles";
 
 export const runtime = "nodejs";
-
-const ROLE_LEVEL: Record<string, number> = {
-  SUPERADMIN: 5,
-  ADMIN: 4,
-  OPERATOR: 3,
-  SUPER_TESTER: 2,
-  TESTER: 1,
-  VIEWER: 1,
-  DEMO: 0,
-};
 
 /**
  * @api GET /api/status/bar
@@ -31,7 +22,7 @@ export async function GET() {
   const { session } = authResult;
 
   const roleLevel =
-    ROLE_LEVEL[(session.user as Record<string, unknown>).role as string] ?? 0;
+    ROLE_LEVEL[(session.user as Record<string, unknown>).role as keyof typeof ROLE_LEVEL] ?? 0;
   const isAdmin = roleLevel >= 4;
   const isOperator = roleLevel >= 3;
 

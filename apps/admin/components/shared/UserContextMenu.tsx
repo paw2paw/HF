@@ -26,6 +26,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMasquerade } from "@/contexts/MasqueradeContext";
 import { useDomainScope } from "@/contexts/DomainScopeContext";
+import { ROLE_LEVEL } from "@/lib/roles";
 import { UserAvatar, ROLE_COLORS } from "./UserAvatar";
 
 interface UserContextMenuProps {
@@ -49,15 +50,6 @@ const ROLE_LABELS: Record<string, string> = {
   VIEWER: "Viewer",
 };
 
-const ROLE_LEVEL: Record<string, number> = {
-  SUPERADMIN: 5,
-  ADMIN: 4,
-  OPERATOR: 3,
-  SUPER_TESTER: 2,
-  TESTER: 1,
-  VIEWER: 1,
-  DEMO: 0,
-};
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
 const WIZARD_THINKING_KEY = "wizard.thinking-enabled";
@@ -88,7 +80,7 @@ export function UserContextMenu({
 
   // ── Quick Toggles ──
   // Use effectiveRole so masquerade respects the target user's permissions
-  const roleLevel = ROLE_LEVEL[effectiveRole] ?? 0;
+  const roleLevel = ROLE_LEVEL[effectiveRole as keyof typeof ROLE_LEVEL] ?? 0;
   const isOperator = roleLevel >= 3;
   const isAdmin = roleLevel >= 4;
 

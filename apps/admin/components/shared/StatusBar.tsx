@@ -7,9 +7,10 @@
  *   Left:  [Institution] [ENV badge] [Health RAG] [Calls] [Jobs]
  *   Right: [Spend] [Logs] [Bug] [User] [Version]
  *
- * Masquerade mode (entire bar turns purple):
- *   Left:  [Mask icon + user info + EXIT]
- *   Right: [Bug trigger] [Version]
+ * Masquerade mode (bar turns purple, all items remain):
+ *   Left:  [Institution] [ENV] [Mask chip ▾] [Health] [Calls] [Jobs]
+ *   Right: [Spend] [Logs] [Bug] [User] [Version]
+ *   Mask chip opens MasqueradePopup with details + Exit button.
  *
  * All items are clickable — navigation, popups, or toggles.
  * Hidden on auth/sim/embed pages.
@@ -19,7 +20,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Building2, VenetianMask, X, Bug, Cog, Phone, User, FileText } from 'lucide-react';
+import { Building2, VenetianMask, Bug, Cog, Phone, User, FileText } from 'lucide-react';
+import { ROLE_LEVEL } from '@/lib/roles';
 import { useBranding } from '@/contexts/BrandingContext';
 import { useMasquerade } from '@/contexts/MasqueradeContext';
 import { useErrorCapture } from '@/contexts/ErrorCaptureContext';
@@ -31,6 +33,7 @@ import { CallsPopup } from './CallsPopup';
 import type { ActivityData } from './CallsPopup';
 import { VersionPopup } from './VersionPopup';
 import { LogViewer } from './LogViewer';
+import { MasqueradePopup } from './MasqueradePopup';
 
 /** Height of the status bar in pixels — use for layout calculations */
 export const STATUS_BAR_HEIGHT = 32;
@@ -46,15 +49,6 @@ const ROLE_LABELS: Record<string, string> = {
   DEMO: 'Demo',
 };
 
-const ROLE_LEVEL: Record<string, number> = {
-  SUPERADMIN: 5,
-  ADMIN: 4,
-  OPERATOR: 3,
-  SUPER_TESTER: 2,
-  TESTER: 1,
-  VIEWER: 1,
-  DEMO: 0,
-};
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 
@@ -80,12 +74,13 @@ export function StatusBar() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { branding, loading: brandingLoading } = useBranding();
-  const { isMasquerading, masquerade, stopMasquerade, effectiveRole } = useMasquerade();
+  const { isMasquerading, masquerade, stopMasquerade } = useMasquerade();
   const { errorCount } = useErrorCapture();
 
   const router = useRouter();
 
   // ── Refs for popup anchoring ──
+  const masqueradeChipRef = useRef<HTMLSpanElement>(null);
   const healthChipRef = useRef<HTMLSpanElement>(null);
   const callsChipRef = useRef<HTMLSpanElement>(null);
   const jobsChipRef = useRef<HTMLSpanElement>(null);
@@ -93,6 +88,7 @@ export function StatusBar() {
   const versionChipRef = useRef<HTMLSpanElement>(null);
 
   // ── Popup open states ──
+  const [masqueradePopupOpen, setMasqueradePopupOpen] = useState(false);
   const [healthPopupOpen, setHealthPopupOpen] = useState(false);
   const [callsPopupOpen, setCallsPopupOpen] = useState(false);
   const [jobsPopupOpen, setJobsPopupOpen] = useState(false);
@@ -112,12 +108,16 @@ export function StatusBar() {
   const [activityData, setActivityData] = useState<ActivityData | null>(null);
   const [spendData, setSpendData] = useState<SpendData | null>(null);
 
-  const roleLevel = ROLE_LEVEL[effectiveRole] ?? 0;
+  // Gate operational items on real role (not effective/masqueraded role)
+  // so admins keep full visibility while stepped in
+  const realRole = (session?.user?.role ?? 'VIEWER') as keyof typeof ROLE_LEVEL;
+  const roleLevel = ROLE_LEVEL[realRole] ?? 0;
   const isAdmin = roleLevel >= 4;
   const isOperator = roleLevel >= 3;
 
   // ── Close all popups (only one open at a time) ──
   const closeAllPopups = useCallback(() => {
+    setMasqueradePopupOpen(false);
     setHealthPopupOpen(false);
     setCallsPopupOpen(false);
     setJobsPopupOpen(false);
@@ -269,142 +269,129 @@ export function StatusBar() {
     >
       {/* ── Left cluster ── */}
       <div className="hf-status-cluster">
-        {isMasq ? (
-          <>
-            <span className="hf-status-item">
-              <VenetianMask size={13} />
-              <span className="hf-status-bold">STEPPED IN:</span>
-              <span>{masquerade.name || masquerade.email || 'Unknown'}</span>
-              <span className="hf-status-separator">&middot;</span>
-              <span>{ROLE_LABELS[masquerade.role] || masquerade.role}</span>
-              {masquerade.institutionName && (
-                <>
-                  <span className="hf-status-separator">&middot;</span>
-                  <span>{masquerade.institutionName}</span>
-                </>
-              )}
+        {/* Institution chip → /x/domains */}
+        {hasInstitution && (
+          <span
+            className="hf-status-item hf-status-clickable"
+            onClick={() => router.push('/x/domains')}
+            title="View domains"
+          >
+            <Building2 size={13} />
+            <span className="hf-status-bold hf-status-institution-name">
+              {branding.name}
             </span>
-            <button
-              className="hf-status-exit-btn"
-              onClick={(e) => {
-                e.preventDefault();
-                stopMasquerade();
-              }}
-            >
-              <X size={11} /> EXIT
-            </button>
-          </>
-        ) : (
-          <>
-            {/* Institution chip → /x/domains */}
-            {hasInstitution && (
-              <span
-                className="hf-status-item hf-status-clickable"
-                onClick={() => router.push('/x/domains')}
-                title="View domains"
-              >
-                <Building2 size={13} />
-                <span className="hf-status-bold hf-status-institution-name">
-                  {branding.name}
-                </span>
-                {branding.typeName && (
-                  <>
-                    <span className="hf-status-separator">&middot;</span>
-                    <span>{branding.typeName}</span>
-                  </>
-                )}
-              </span>
+            {branding.typeName && (
+              <>
+                <span className="hf-status-separator">&middot;</span>
+                <span>{branding.typeName}</span>
+              </>
             )}
+          </span>
+        )}
 
-            {/* Environment badge → /x/settings */}
-            {showEnvBanner && envLabel && envSidebarColor && (
-              <span
-                className="hf-status-env-badge hf-status-clickable"
-                style={{
-                  background: envSidebarColor,
-                  ...(envTextColor ? { color: envTextColor } : {}),
-                }}
-                onClick={() => router.push('/x/settings')}
-                title="View settings"
-              >
-                {isLocalhost() && envLabel === 'DEV' ? 'VM' : envLabel}
-              </span>
-            )}
+        {/* Environment badge → /x/settings */}
+        {showEnvBanner && envLabel && envSidebarColor && (
+          <span
+            className="hf-status-env-badge hf-status-clickable"
+            style={{
+              background: envSidebarColor,
+              ...(envTextColor ? { color: envTextColor } : {}),
+            }}
+            onClick={() => router.push('/x/settings')}
+            title="View settings"
+          >
+            {isLocalhost() && envLabel === 'DEV' ? 'VM' : envLabel}
+          </span>
+        )}
 
-            {/* Health RAG → HealthPopup */}
-            {isAdmin && healthRag && (
-              <span
-                ref={healthChipRef}
-                className="hf-status-item hf-status-clickable"
-                title={`System: ${healthRag} — click for details`}
-                onClick={() => {
-                  closeAllPopups();
-                  setHealthPopupOpen((v) => !v);
-                }}
-              >
-                <span
-                  className="hf-status-health-dot"
-                  style={{
-                    background:
-                      healthRag === 'green'
-                        ? 'var(--status-success-text)'
-                        : healthRag === 'amber'
-                          ? 'var(--status-warning-text)'
-                          : 'var(--status-error-text)',
-                  }}
-                />
-                <span>
-                  {healthRag === 'green'
-                    ? 'Healthy'
+        {/* Masquerade chip → MasqueradePopup */}
+        {isMasq && (
+          <span
+            ref={masqueradeChipRef}
+            className="hf-status-item hf-status-clickable"
+            onClick={() => {
+              closeAllPopups();
+              setMasqueradePopupOpen((v) => !v);
+            }}
+            title={`Stepped in as ${masquerade.name || masquerade.email || 'Unknown'}`}
+          >
+            <VenetianMask size={13} />
+            <span>{masquerade.name || masquerade.email || 'Unknown'}</span>
+          </span>
+        )}
+
+        {/* Health RAG → HealthPopup */}
+        {isAdmin && healthRag && (
+          <span
+            ref={healthChipRef}
+            className="hf-status-item hf-status-clickable"
+            title={`System: ${healthRag} — click for details`}
+            onClick={() => {
+              closeAllPopups();
+              setHealthPopupOpen((v) => !v);
+            }}
+          >
+            <span
+              className="hf-status-health-dot"
+              style={{
+                background:
+                  healthRag === 'green'
+                    ? 'var(--status-success-text)'
                     : healthRag === 'amber'
-                      ? 'Degraded'
-                      : 'Unhealthy'}
-                </span>
-              </span>
-            )}
+                      ? 'var(--status-warning-text)'
+                      : 'var(--status-error-text)',
+              }}
+            />
+            <span>
+              {healthRag === 'green'
+                ? 'Healthy'
+                : healthRag === 'amber'
+                  ? 'Degraded'
+                  : 'Unhealthy'}
+            </span>
+          </span>
+        )}
 
-            {/* Calls chip → CallsPopup (OPERATOR+) */}
-            {isOperator && (
-              <span
-                ref={callsChipRef}
-                className="hf-status-item hf-status-clickable"
-                onClick={() => {
-                  closeAllPopups();
-                  setCallsPopupOpen((v) => !v);
-                }}
-                title="Call activity"
-              >
-                <Phone size={12} />
-                <span>{callsLabel}</span>
-              </span>
-            )}
+        {/* Calls chip → CallsPopup (OPERATOR+) */}
+        {isOperator && (
+          <span
+            ref={callsChipRef}
+            className="hf-status-item hf-status-clickable"
+            onClick={() => {
+              closeAllPopups();
+              setCallsPopupOpen((v) => !v);
+            }}
+            title="Call activity"
+          >
+            <Phone size={12} />
+            <span>{callsLabel}</span>
+          </span>
+        )}
 
-            {/* Jobs indicator (OPERATOR+) → JobsPopup */}
-            {isOperator && (
-              <span
-                ref={jobsChipRef}
-                className={jobsCount > 0 ? 'hf-status-jobs-chip' : 'hf-status-jobs-chip-idle'}
-                onClick={() => {
-                  closeAllPopups();
-                  setJobsPopupOpen((v) => !v);
-                }}
-                title={
-                  jobsCount > 0
-                    ? `${jobsCount} active job${jobsCount !== 1 ? 's' : ''}`
-                    : 'Jobs'
-                }
-              >
-                <Cog size={12} className={jobsCount > 0 ? 'hf-status-jobs-spin' : ''} />
-                {jobsCount > 0 ? (
-                  <span className="hf-status-jobs-badge">
-                    {jobsCount > 9 ? '9+' : jobsCount}
-                  </span>
-                ) : (
-                  <span>Jobs</span>
-                )}
+        {/* Jobs indicator (OPERATOR+) → JobsPopup */}
+        {isOperator && (
+          <span
+            ref={jobsChipRef}
+            className={jobsCount > 0 ? 'hf-status-jobs-chip' : 'hf-status-jobs-chip-idle'}
+            onClick={() => {
+              closeAllPopups();
+              setJobsPopupOpen((v) => !v);
+            }}
+            title={
+              jobsCount > 0
+                ? `${jobsCount} active job${jobsCount !== 1 ? 's' : ''}`
+                : 'Jobs'
+            }
+          >
+            <Cog size={12} className={jobsCount > 0 ? 'hf-status-jobs-spin' : ''} />
+            {jobsCount > 0 ? (
+              <span className="hf-status-jobs-badge">
+                {jobsCount > 9 ? '9+' : jobsCount}
               </span>
+            ) : (
+              <span>Jobs</span>
             )}
-          </>
+          </span>
         )}
       </div>
 
@@ -495,6 +482,16 @@ export function StatusBar() {
       </div>
 
       {/* ── Popups (rendered outside clusters, position: fixed, z-index: 100) ── */}
+      {isMasq && (
+        <MasqueradePopup
+          open={masqueradePopupOpen}
+          onClose={() => setMasqueradePopupOpen(false)}
+          anchorRef={masqueradeChipRef}
+          masquerade={masquerade}
+          onExit={stopMasquerade}
+        />
+      )}
+
       {isAdmin && (
         <HealthPopup
           open={healthPopupOpen}

@@ -31,6 +31,9 @@ type OpResult = {
     memoriesCreated?: number;
     agentMeasurements?: number;
     playbookUsed?: string | null;
+    stageErrors?: string[];
+    composeFailed?: boolean;
+    composeError?: string;
   };
 };
 
@@ -50,7 +53,7 @@ const OPS: OpDefinition[] = [
 ];
 
 type PipelineMode = "prep" | "prompt";
-type PipelineStatus = "ready" | "running" | "success" | "error";
+type PipelineStatus = "ready" | "running" | "success" | "warning" | "error";
 
 function OpPill({
   op,
@@ -284,6 +287,20 @@ function PipelineLogsPanel({
           ✕
         </button>
       </div>
+
+      {/* COMPOSE failure banner */}
+      {result.data?.composeFailed && (
+        <div className="hf-banner hf-banner-error" style={{ margin: "8px 16px", borderRadius: 6 }}>
+          Prompt generation failed: {result.data.composeError || "COMPOSE stage error"}. Analysis may have succeeded — check logs below.
+        </div>
+      )}
+
+      {/* Non-critical stage errors */}
+      {result.data?.stageErrors && result.data.stageErrors.length > 0 && !result.data.composeFailed && (
+        <div className="hf-banner hf-banner-warning" style={{ margin: "8px 16px", borderRadius: 6 }}>
+          {result.data.stageErrors.length} stage(s) had errors: {result.data.stageErrors.join("; ")}
+        </div>
+      )}
 
       {/* Summary - show key counts for quick visibility */}
       {result.data && (
@@ -589,9 +606,10 @@ export function CallsSection({
         },
       }));
 
+      const hasStageWarnings = result.ok && (result.data?.stageErrors?.length ?? 0) > 0;
       setPipelineStatus((prev) => ({
         ...prev,
-        [callId]: { ...prev[callId], [mode]: result.ok ? "success" : "error" },
+        [callId]: { ...prev[callId], [mode]: result.ok ? (hasStageWarnings ? "warning" : "success") : "error" },
       }));
 
       // Also update legacy op statuses for UI
@@ -778,6 +796,15 @@ export function CallsSection({
                       style={{ background: "var(--badge-purple-bg)", color: "var(--badge-purple-text)" }}
                     >
                       PROMPTED
+                    </span>
+                  )}
+                  {call.hasScores && !call.hasPrompt && callPipelineStatus.prompt === "error" && (
+                    <span
+                      title="Prompt generation failed — click View Logs to see error"
+                      className="hf-micro-badge"
+                      style={{ background: "var(--status-error-bg)", color: "var(--status-error-text)" }}
+                    >
+                      PROMPT FAILED
                     </span>
                   )}
                   {!call.hasScores && !call.hasPrompt && processingCallIds?.has(call.id) && (
