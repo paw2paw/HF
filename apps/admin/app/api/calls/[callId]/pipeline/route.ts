@@ -2,7 +2,7 @@
  * @api POST /api/calls/:callId/pipeline
  * @visibility public
  * @scope pipeline:execute
- * @auth session
+ * @auth session | x-internal-secret
  * @tags calls, pipeline
  * @description SPEC-DRIVEN pipeline endpoint that runs analysis in configurable stages. Pipeline stages are loaded from the PIPELINE-001 spec (or GUARD-001 fallback), not hardcoded. Each stage has a name, order, outputTypes, and optional requiresMode. Default stages: EXTRACT (10), SCORE_AGENT (20), AGGREGATE (30), REWARD (40), ADAPT (50), SUPERVISE (60), COMPOSE (100, prompt mode only).
  * @pathParam callId string - The call ID to run the pipeline on
@@ -2152,8 +2152,13 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
           Object.assign(ctx.results, outcome.value);
         } else {
           const stageName = parallelBatch[j].name;
-          log.error(`Stage ${stageName} failed (non-blocking)`, { error: outcome.reason?.message || String(outcome.reason) });
-          stageErrors.push(`${stageName}: ${outcome.reason?.message || "unknown error"}`);
+          const errMsg = outcome.reason?.message || String(outcome.reason);
+          log.error(`Stage ${stageName} failed (non-blocking)`, { error: errMsg });
+          stageErrors.push(`${stageName}: ${errMsg}`);
+          if (stageName === "COMPOSE" && ctx.mode === "prompt") {
+            ctx.results.composeFailed = true;
+            ctx.results.composeError = errMsg;
+          }
         }
       }
 
@@ -2173,6 +2178,10 @@ async function runSpecDrivenPipeline(ctx: PipelineContext): Promise<{
       } catch (error: any) {
         log.error(`Stage ${stage.name} failed (non-blocking)`, { error: error.message });
         stageErrors.push(`${stage.name}: ${error.message}`);
+        if (stage.name === "COMPOSE" && ctx.mode === "prompt") {
+          ctx.results.composeFailed = true;
+          ctx.results.composeError = error.message;
+        }
       }
       i++;
     }
@@ -2216,9 +2225,18 @@ export async function POST(
   const log = createLogger();
 
   try {
-    const authResult = await requireAuth("OPERATOR");
-    if (isAuthError(authResult)) return authResult.error;
-    const pipelineUserName = authResult.session.user.name || undefined;
+    // Allow internal service-to-service calls (VAPI webhook → pipeline)
+    const internalSecret = request.headers.get("x-internal-secret");
+    const isInternalCall = internalSecret && internalSecret === appConfig.security.internalApiSecret;
+
+    let pipelineUserName: string | undefined;
+    if (!isInternalCall) {
+      const authResult = await requireAuth("OPERATOR");
+      if (isAuthError(authResult)) return authResult.error;
+      pipelineUserName = authResult.session.user.name || undefined;
+    } else {
+      pipelineUserName = "vapi-webhook";
+    }
 
     const { callId } = await params;
     const body = await request.json().catch(() => ({}));
@@ -2299,6 +2317,18 @@ export async function POST(
     }
 
     // Mode is "prompt" - COMPOSE stage was already run by spec-driven pipeline
+    if (summary.composeFailed) {
+      log.warn("Prompt mode complete but COMPOSE stage failed — no prompt generated");
+      return NextResponse.json({
+        ok: false,
+        mode: "prompt",
+        error: `Prompt generation failed: ${summary.composeError || "COMPOSE stage error"}`,
+        data: summary,
+        logs: log.getLogs(),
+        duration: log.getDuration(),
+      }, { status: 500 });
+    }
+
     log.info("Prompt mode complete");
 
     return NextResponse.json({

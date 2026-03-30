@@ -169,13 +169,25 @@ async function triggerPipeline(callId: string, callerId: string) {
       "Content-Type": "application/json",
       "x-internal-secret": config.security.internalApiSecret,
     },
-    body: JSON.stringify({ callerId }),
+    body: JSON.stringify({ callerId, mode: "prompt" }),
   });
 
-  if (!response.ok) {
-    console.error(`[vapi/webhook] Pipeline trigger returned ${response.status}`);
+  let body: Record<string, any> | null = null;
+  try { body = await response.json(); } catch { /* non-JSON response */ }
+
+  if (!response.ok || body?.ok === false) {
+    console.error(
+      `[vapi/webhook] Pipeline failed for call ${callId}:`,
+      body?.error || `HTTP ${response.status}`,
+      body?.data?.stageErrors || [],
+    );
   } else {
-    console.log(`[vapi/webhook] Pipeline triggered for call ${callId}`);
+    console.log(
+      `[vapi/webhook] Pipeline complete for call ${callId}:`,
+      `scores=${body?.data?.scoresCreated ?? 0}`,
+      `memories=${body?.data?.memoriesCreated ?? 0}`,
+      `prompt=${body?.prompt ? "yes" : "no"}`,
+    );
   }
 }
 
