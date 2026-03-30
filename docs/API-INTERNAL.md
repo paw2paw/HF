@@ -11234,7 +11234,7 @@ audio/mpeg binary stream
 
 ### `GET` /api/sim/conversations
 
-Returns callers with their last call message preview for the chat list UI. Session-authenticated OPERATORs see only their own callers; ADMINs and sim-token users see all.
+Returns callers with their last call message preview for the chat list UI. OPERATORs and STUDENTs see only their own callers; ADMINs and sim-token users see all.
 
 **Auth**: Session
 

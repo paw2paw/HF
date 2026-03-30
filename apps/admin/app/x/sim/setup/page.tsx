@@ -56,6 +56,12 @@ export default function SimSetupPage() {
           return;
         }
 
+        if (data.existingCallerId) {
+          // User already has a caller (e.g. from join flow) — skip setup
+          router.replace(`/x/sim/${data.existingCallerId}`);
+          return;
+        }
+
         if (data.assignedDomainId) {
           // Domain-locked tester: auto-create caller
           createCaller(data.assignedDomainId);
@@ -69,7 +75,7 @@ export default function SimSetupPage() {
         setError("Failed to load setup info.");
         setLoading(false);
       });
-  }, [createCaller]);
+  }, [createCaller, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

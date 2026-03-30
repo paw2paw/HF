@@ -16,6 +16,20 @@ export async function GET() {
   if (isAuthError(authResult)) return authResult.error;
   const { session } = authResult;
 
+  // Check if user already has a caller (e.g. created via join flow)
+  const existingCaller = await prisma.caller.findFirst({
+    where: { userId: session.user.id },
+    select: { id: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existingCaller) {
+    return NextResponse.json({
+      ok: true,
+      existingCallerId: existingCaller.id,
+    });
+  }
+
   // Check if user was invited with a specific domain
   const invite = await prisma.invite.findFirst({
     where: { email: session.user.email, usedAt: { not: null } },

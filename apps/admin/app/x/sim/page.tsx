@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { MessageCircle } from 'lucide-react';
 import { useResponsive } from '@/hooks/useResponsive';
 import { ConversationList } from '@/components/sim/ConversationList';
@@ -10,13 +11,16 @@ export default function SimChatListPage() {
   const { isDesktop } = useResponsive();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [checked, setChecked] = useState(false);
 
   const domainId = searchParams.get('domainId');
+  const isStudent = session?.user?.role === 'STUDENT';
 
-  // Desktop: auto-redirect to the most recent caller so a call starts immediately
+  // Auto-redirect: always for STUDENT, desktop-only for others
   useEffect(() => {
-    if (!isDesktop) return;
+    if (!isStudent && !isDesktop) return;
+    if (!session) return; // Wait for session to load
     const url = domainId
       ? `/api/sim/conversations?domainId=${encodeURIComponent(domainId)}`
       : '/api/sim/conversations';
@@ -36,10 +40,10 @@ export default function SimChatListPage() {
         }
       })
       .catch(() => setChecked(true));
-  }, [isDesktop, router, domainId]);
+  }, [isDesktop, isStudent, session, router, domainId]);
 
-  // Desktop: loading while checking for callers to auto-select
-  if (isDesktop && !checked) {
+  // Loading while checking for callers to auto-select (always for STUDENT, desktop for others)
+  if ((isDesktop || isStudent) && !checked) {
     return (
       <div className="wa-desktop-empty">
         <div className="hf-spinner" style={{ width: 28, height: 28 }} />

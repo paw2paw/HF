@@ -137,6 +137,7 @@
     "defaultHiddenFor": ["TESTER", "SUPER_TESTER", "DEMO", "EDUCATOR"],
     "items": [
       { "id": "stu-stuff", "href": "/x/student/stuff", "label": "Dashboard", "icon": "Backpack", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "stu-practice", "href": "/x/sim", "label": "Practice", "icon": "MessageCircle", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "stu-materials", "href": "/x/student/materials", "label": "Materials", "icon": "BookOpen", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "stu-files", "href": "/x/student/files", "label": "Files", "icon": "Paperclip", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "stu-progress", "href": "/x/student/progress", "label": "Progress", "icon": "TrendingUp", "visibleFor": ["STUDENT", "OPERATOR", "ADMIN", "SUPERADMIN"] },

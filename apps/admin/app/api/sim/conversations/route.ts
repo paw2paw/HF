@@ -7,7 +7,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @visibility internal
  * @auth session
  * @tags sim
- * @description Returns callers with their last call message preview for the chat list UI. Session-authenticated OPERATORs see only their own callers; ADMINs and sim-token users see all.
+ * @description Returns callers with their last call message preview for the chat list UI. OPERATORs and STUDENTs see only their own callers; ADMINs and sim-token users see all.
  * @response 200 { ok: true, conversations: Array<{ callerId, name, domain, lastMessage, lastMessageAt, createdAt }>, needsSetup?: boolean }
  * @response 500 { ok: false, error: "Failed to load conversations" }
  */
@@ -16,14 +16,15 @@ export async function GET(request: Request) {
     const authResult = await requireAuth("VIEWER");
     if (isAuthError(authResult)) return authResult.error;
     const { session } = authResult;
-    const isOperator = session?.user?.role === "OPERATOR";
+    const role = session?.user?.role;
+    const isScopedToSelf = role === "OPERATOR" || role === "STUDENT";
 
     const { searchParams } = new URL(request.url);
     const domainId = searchParams.get("domainId");
 
-    // Build where clause: OPERATORs see only their own callers, optional domain filter
+    // Build where clause: OPERATORs and STUDENTs see only their own callers, optional domain filter
     const where: Record<string, unknown> = {
-      ...(isOperator ? { userId: session.user.id } : {}),
+      ...(isScopedToSelf ? { userId: session.user.id } : {}),
       ...(domainId ? { domainId } : {}),
     };
 
@@ -49,8 +50,8 @@ export async function GET(request: Request) {
       orderBy: { name: "asc" },
     });
 
-    // If an OPERATOR has no callers, they need setup
-    if (isOperator && callers.length === 0) {
+    // If a self-scoped user has no callers, they need setup
+    if (isScopedToSelf && callers.length === 0) {
       return NextResponse.json({
         ok: true,
         conversations: [],

@@ -64,14 +64,32 @@ const MAX_TOOL_ITERATIONS = 5;
  */
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth("OPERATOR");
-    if (isAuthError(authResult)) return authResult.error;
-    const userRole = authResult.session.user.role;
-
+    // Parse body first so we can branch auth by mode
     const rawBody = await request.json();
     const v = validateBody(chatRequestSchema, rawBody);
     if (!v.ok) return v.error;
     const { message, mode, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = v.data;
+
+    // CALL mode allows STUDENT (level 1); all other modes require OPERATOR (level 3)
+    const minRole = mode === "CALL" ? "VIEWER" as const : "OPERATOR" as const;
+    const authResult = await requireAuth(minRole);
+    if (isAuthError(authResult)) return authResult.error;
+    const userRole = authResult.session.user.role;
+
+    // Ownership check: STUDENT users can only chat as their own caller
+    if (mode === "CALL" && (userRole === "STUDENT" || userRole === "TESTER")) {
+      const callerEntity = entityContext.find((e) => e.type === "caller");
+      if (callerEntity) {
+        const { prisma } = await import("@/lib/prisma");
+        const caller = await prisma.caller.findUnique({
+          where: { id: callerEntity.id },
+          select: { userId: true },
+        });
+        if (!caller || caller.userId !== authResult.session.user.id) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    }
 
     // WIZARD mode: handle early (has its own system prompt, no slash commands)
     if (mode === "WIZARD") {
