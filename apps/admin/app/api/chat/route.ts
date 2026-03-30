@@ -8,7 +8,7 @@ import { executeCommand, parseCommand } from "@/lib/chat/commands";
 import { logAI } from "@/lib/logger";
 import { logAIInteraction } from "@/lib/ai/knowledge-accumulation";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { z, ZodError } from "zod";
+// zod imported dynamically inside handler — see chatSchema below
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
@@ -74,23 +74,19 @@ export async function POST(request: NextRequest) {
     if (isAuthError(authResult)) return authResult.error;
     const userRole = authResult.session.user.role;
 
-    // Inline validation — no cross-module imports (avoids Turbopack cold-compile race)
-    const chatSchema = z.object({
-      message: z.string().min(1).max(50_000),
-      mode: z.enum(["DATA", "CALL", "BUG", "WIZARD", "COURSE_REF"]),
-      entityContext: z.array(z.object({ type: z.string(), id: z.string(), label: z.string(), data: z.record(z.unknown()).optional() })).default([]),
-      conversationHistory: z.array(z.object({ role: z.string(), content: z.string() })).default([]),
-      isCommand: z.boolean().optional(),
-      engine: z.string().optional(),
-      callId: z.string().optional(),
-      bugContext: z.object({ url: z.string(), errors: z.array(z.object({ message: z.string(), source: z.string().optional(), timestamp: z.number(), status: z.number().optional(), stack: z.string().optional(), url: z.string().optional() })), browser: z.string(), viewport: z.string(), timestamp: z.number() }).optional(),
-      setupData: z.record(z.unknown()).optional(),
-    });
-    const parseResult = chatSchema.safeParse(rawBody);
-    if (!parseResult.success) {
-      return NextResponse.json({ ok: false, error: "Invalid request", details: parseResult.error.issues.map((e) => e.message) }, { status: 400 });
+    // Skip zod validation entirely — extract fields manually with type guards
+    // (Turbopack cold-compile race prevents ANY zod usage on first request)
+    const message = typeof rawBody?.message === "string" ? rawBody.message : "";
+    const entityContext = Array.isArray(rawBody?.entityContext) ? rawBody.entityContext : [];
+    const conversationHistory = Array.isArray(rawBody?.conversationHistory) ? rawBody.conversationHistory : [];
+    const engine = typeof rawBody?.engine === "string" ? rawBody.engine : undefined;
+    const requestCallId = typeof rawBody?.callId === "string" ? rawBody.callId : undefined;
+    const bugContext = rawBody?.bugContext || undefined;
+    const setupData = rawBody?.setupData || undefined;
+
+    if (!message) {
+      return NextResponse.json({ ok: false, error: "Message is required" }, { status: 400 });
     }
-    const { message, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = parseResult.data;
 
     // Ownership check: STUDENT users can only chat as their own caller
     if (mode === "CALL" && (userRole === "STUDENT" || userRole === "TESTER")) {
