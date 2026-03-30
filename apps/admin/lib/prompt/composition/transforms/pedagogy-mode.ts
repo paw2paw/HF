@@ -50,6 +50,7 @@ const PEDAGOGY_MODE_CONFIG: Record<TeachingMode, Omit<PedagogyModeOutput, "mode"
       "Build from literal understanding (what does it say?) to inference (what does it imply?) to evaluation (do you agree?).",
       "Vocabulary is important — when a key term appears, check the learner knows it before continuing.",
       "Encourage the learner to make connections to their own experience.",
+      "If the learner asks you to summarise a passage, ask them to summarise it first — then refine their version together.",
     ].join(" "),
     knowledgeGuidance: [
       "Knowledge results tagged [close_reading] — present the passage, then ask comprehension questions.",
@@ -82,6 +83,7 @@ const PEDAGOGY_MODE_CONFIG: Record<TeachingMode, Omit<PedagogyModeOutput, "mode"
       "When the learner doesn't understand, re-explain using a different example or analogy — don't just repeat.",
       "Keep track of where you are in the syllabus and reference progress: 'We've covered X, now let's look at Y.'",
       "Balance breadth (covering all topics) with depth (ensuring actual understanding).",
+      "If the learner asks you to just explain or summarise a topic, ask a quick recall question first — then teach what they missed.",
     ].join(" "),
     knowledgeGuidance: [
       "Use knowledge results in syllabus order when possible — work through the material systematically.",
