@@ -51,7 +51,7 @@ export async function POST(
 
     // Resolve default cohort for this course
     const cohort = await prisma.cohortGroup.findFirst({
-      where: { cohortPlaybooks: { some: { playbookId: courseId } } },
+      where: { playbooks: { some: { playbookId: courseId } } },
       orderBy: { createdAt: "asc" },
       select: { id: true, domainId: true },
     });

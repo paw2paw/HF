@@ -1,0 +1,239 @@
+/* ── Course Learners Tab ── cl-* prefix ── */
+
+.cl-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Summary cards */
+.cl-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.cl-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px;
+  text-align: center;
+}
+
+.cl-stat-icon {
+  color: var(--text-muted);
+}
+
+.cl-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cl-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Sections */
+.cl-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cl-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Join link */
+.cl-join-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cl-join-url {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Email invite */
+.cl-email-input {
+  resize: vertical;
+  min-height: 48px;
+  font-size: 13px;
+}
+
+.cl-invite-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cl-msg-success {
+  font-size: 13px;
+  color: var(--status-success-text);
+}
+
+.cl-msg-error {
+  font-size: 13px;
+  color: var(--status-error-text);
+}
+
+/* Roster */
+.cl-roster-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cl-search {
+  flex: 1;
+  max-width: 240px;
+  font-size: 13px;
+}
+
+.cl-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Table */
+.cl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cl-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-default);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cl-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle, var(--border-default));
+  vertical-align: middle;
+}
+
+.cl-row--link:hover {
+  background: var(--surface-secondary);
+}
+
+.cl-row--invited td {
+  color: var(--text-muted);
+}
+
+.cl-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.cl-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.cl-email {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cl-pending {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cl-drill {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.cl-drill:hover {
+  color: var(--accent-primary);
+}
+
+/* Status badges */
+.cl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cl-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.cl-badge--active {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.cl-badge--active::before {
+  background: var(--status-success-text);
+}
+
+.cl-badge--joined {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.cl-badge--joined::before {
+  background: var(--accent-primary);
+}
+
+.cl-badge--invited {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+}
+
+.cl-badge--invited::before {
+  background: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cl-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cl-table th:nth-child(n+4),
+  .cl-table td:nth-child(n+4) {
+    display: none;
+  }
+}

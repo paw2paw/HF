@@ -16,6 +16,7 @@ import { CourseOnboardingTab } from './CourseOnboardingTab';
 import { CourseContentTab } from './CourseContentTab';
 import { CourseWhoTab } from './CourseWhoTab';
 import { CourseGoalsTab } from './CourseGoalsTab';
+import { CourseLearnersTab } from './CourseLearnersTab';
 import { SessionDetailPanel } from '@/components/shared/SessionDetailPanel';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
@@ -37,6 +38,7 @@ import { reorderItems } from '@/lib/sortable/reorder';
 import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS } from '@/lib/content-trust/resolve-config';
 import type { SessionEntry, SessionMediaRef as SessionMediaRefType, SessionMediaMap, StudentProgress } from '@/lib/lesson-plan/types';
 import './course-detail.css';
+import './course-learners.css';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -247,6 +249,7 @@ export default function CourseDetailPage() {
     { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: contentOnlyCount || null },
     { id: 'sessions', label: 'Sessions', icon: <ListOrdered size={14} />, count: sessions?.plan?.estimatedSessions || null },
     { id: 'audience', label: 'Audience', icon: <Users2 size={14} /> },
+    { id: 'learners', label: 'Learners', icon: <Users2 size={14} /> },
     { id: 'goals', label: 'Goals', icon: <Target size={14} /> },
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
   ], [contentOnlyCount, isOperator, sessions]);
@@ -882,7 +885,7 @@ export default function CourseDetailPage() {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
-      {/* STUDENTS TAB                                   */}
+      {/* AUDIENCE TAB                                   */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'audience' && (
         <CourseWhoTab
@@ -893,6 +896,13 @@ export default function CourseDetailPage() {
           specGroups={specGroups}
           onDetailUpdate={setDetail}
         />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* LEARNERS TAB                                   */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'learners' && (
+        <CourseLearnersTab courseId={courseId!} />
       )}
 
       {/* ═══════════════════════════════════════════════ */}

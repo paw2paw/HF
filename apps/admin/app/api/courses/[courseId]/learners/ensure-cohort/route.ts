@@ -40,8 +40,8 @@ export async function POST(
 
     // 2. Find existing default cohort linked to this course
     const existing = await prisma.cohortGroup.findFirst({
-      where: { cohortPlaybooks: { some: { playbookId: courseId } } },
-      include: { cohortPlaybooks: true },
+      where: { playbooks: { some: { playbookId: courseId } } },
+      include: { playbooks: true },
       orderBy: { createdAt: "asc" },
     });
 
@@ -53,7 +53,27 @@ export async function POST(
       });
     }
 
-    // 3. Create cohort + link in a transaction
+    // 3. Find-or-create a teacher caller for the admin (required as cohort owner)
+    const session = auth.session;
+    let ownerCaller = await prisma.caller.findFirst({
+      where: { userId: session.user.id, domainId: playbook.domainId, role: { in: ["TEACHER", "TUTOR"] } },
+      select: { id: true },
+    });
+    if (!ownerCaller) {
+      ownerCaller = await prisma.caller.create({
+        data: {
+          name: session.user.name || "Admin",
+          email: session.user.email || undefined,
+          role: "TEACHER",
+          userId: session.user.id,
+          domainId: playbook.domainId,
+          externalId: `teacher-${session.user.id}-${playbook.domainId}`,
+        },
+        select: { id: true },
+      });
+    }
+
+    // 4. Create cohort + link in a transaction
     const joinToken = crypto.randomUUID().slice(0, 12);
 
     const newCohort = await prisma.$transaction(async (tx) => {
@@ -61,6 +81,7 @@ export async function POST(
         data: {
           name: `${playbook.name} — Learners`,
           domainId: playbook.domainId,
+          ownerId: ownerCaller.id,
           joinToken,
           isActive: true,
         },
