@@ -8,8 +8,7 @@ import { executeCommand, parseCommand } from "@/lib/chat/commands";
 import { logAI } from "@/lib/logger";
 import { logAIInteraction } from "@/lib/ai/knowledge-accumulation";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { validateBody } from "@/lib/validation";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (isAuthError(authResult)) return authResult.error;
     const userRole = authResult.session.user.role;
 
-    // Inline schema — avoids Turbopack barrel re-export cold-start race
+    // Inline validation — no cross-module imports (avoids Turbopack cold-compile race)
     const chatSchema = z.object({
       message: z.string().min(1).max(50_000),
       mode: z.enum(["DATA", "CALL", "BUG", "WIZARD", "COURSE_REF"]),
@@ -87,12 +86,15 @@ export async function POST(request: NextRequest) {
       bugContext: z.object({ url: z.string(), errors: z.array(z.object({ message: z.string(), source: z.string().optional(), timestamp: z.number(), status: z.number().optional(), stack: z.string().optional(), url: z.string().optional() })), browser: z.string(), viewport: z.string(), timestamp: z.number() }).optional(),
       setupData: z.record(z.unknown()).optional(),
     });
-    // Debug: log if schema or validateBody are undefined
-    if (!chatSchema) console.error("CHAT DEBUG: chatSchema is undefined, z is:", typeof z);
-    if (!validateBody) console.error("CHAT DEBUG: validateBody is undefined");
-    const v = validateBody(chatSchema, rawBody);
-    if (!v.ok) return v.error;
-    const { message, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = v.data;
+    let parsed;
+    try { parsed = chatSchema.parse(rawBody); }
+    catch (err) {
+      if (err instanceof ZodError) {
+        return NextResponse.json({ ok: false, error: "Invalid request", details: err.issues.map((e) => e.message) }, { status: 400 });
+      }
+      throw err;
+    }
+    const { message, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = parsed;
 
     // Ownership check: STUDENT users can only chat as their own caller
     if (mode === "CALL" && (userRole === "STUDENT" || userRole === "TESTER")) {
