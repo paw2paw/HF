@@ -86,15 +86,11 @@ export async function POST(request: NextRequest) {
       bugContext: z.object({ url: z.string(), errors: z.array(z.object({ message: z.string(), source: z.string().optional(), timestamp: z.number(), status: z.number().optional(), stack: z.string().optional(), url: z.string().optional() })), browser: z.string(), viewport: z.string(), timestamp: z.number() }).optional(),
       setupData: z.record(z.unknown()).optional(),
     });
-    let parsed;
-    try { parsed = chatSchema.parse(rawBody); }
-    catch (err) {
-      if (err instanceof ZodError) {
-        return NextResponse.json({ ok: false, error: "Invalid request", details: err.issues.map((e) => e.message) }, { status: 400 });
-      }
-      throw err;
+    const parseResult = chatSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return NextResponse.json({ ok: false, error: "Invalid request", details: parseResult.error.issues.map((e) => e.message) }, { status: 400 });
     }
-    const { message, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = parsed;
+    const { message, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = parseResult.data;
 
     // Ownership check: STUDENT users can only chat as their own caller
     if (mode === "CALL" && (userRole === "STUDENT" || userRole === "TESTER")) {
