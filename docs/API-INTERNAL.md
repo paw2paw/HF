@@ -4993,6 +4993,60 @@ Runs advisory checks against the course's current lesson plan.
 
 ---
 
+### `POST` /api/courses/:courseId/learners/ensure-cohort
+
+Idempotently find-or-create a default cohort for a course.
+
+**Auth**: OPERATOR
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook (course) ID |
+
+**Response** `200`
+```json
+{ ok: true, cohortId: string, joinToken: string }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Course not found" }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
+### `POST` /api/courses/:courseId/learners/invite
+
+Invite learners to a course by email. Resolves the course's default
+
+**Auth**: OPERATOR · **Scope**: `courses:update`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook (course) ID |
+
+**Response** `200`
+```json
+{ ok: true, created: number, skipped: number, total: number }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ### `GET` /api/courses/:courseId/onboarding
 
 Get resolved onboarding flow for a course (course override > domain > system fallback). Returns phase source ("course" | "domain" | "fallback" | "none") and available domain media for the editor picker.
@@ -8866,6 +8920,12 @@ List all classrooms (cohort groups) assigned to a course (playbook).
 ```json
 { ok: false, error: "Course not found" }
 ```
+
+---
+
+### `GET` /api/courses/[courseId]/learners
+
+**Auth**: OPERATOR+
 
 ---
 
@@ -13319,8 +13379,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 396 |
-| Files with annotations | 395 |
+| Route files found | 399 |
+| Files with annotations | 398 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

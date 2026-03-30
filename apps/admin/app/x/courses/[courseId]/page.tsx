@@ -246,7 +246,7 @@ export default function CourseDetailPage() {
     { id: 'onboarding', label: 'Onboarding', icon: <PlayCircle size={14} /> },
     { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: contentOnlyCount || null },
     { id: 'sessions', label: 'Sessions', icon: <ListOrdered size={14} />, count: sessions?.plan?.estimatedSessions || null },
-    { id: 'students', label: 'Students', icon: <Users2 size={14} /> },
+    { id: 'audience', label: 'Audience', icon: <Users2 size={14} /> },
     { id: 'goals', label: 'Goals', icon: <Target size={14} /> },
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
   ], [contentOnlyCount, isOperator, sessions]);
@@ -822,7 +822,7 @@ export default function CourseDetailPage() {
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <DraggableTabs
-        storageKey="course-detail-tabs-v2"
+        storageKey="course-detail-tabs-v3"
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -884,7 +884,7 @@ export default function CourseDetailPage() {
       {/* ═══════════════════════════════════════════════ */}
       {/* STUDENTS TAB                                   */}
       {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'students' && (
+      {activeTab === 'audience' && (
         <CourseWhoTab
           courseId={courseId!}
           detail={detail}

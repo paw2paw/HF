@@ -2418,6 +2418,33 @@ Find all COURSE_REFERENCE sources for a course and trigger
 
 ## Courses
 
+### `POST` /api/v1/courses/:courseId/learners/invite
+
+Invite learners to a course by email. Resolves the course's default
+
+**Auth**: OPERATOR · **Scope**: `courses:update`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook (course) ID |
+
+**Response** `200`
+```json
+{ ok: true, created: number, skipped: number, total: number }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: string }
+```
+
+**Response** `500`
+```json
+{ ok: false, error: string }
+```
+
+---
+
 ### `GET` /api/v1/courses/:courseId/setup-status
 
 Returns aggregated setup status for stages 4-6 of the Course Setup Tracker.
