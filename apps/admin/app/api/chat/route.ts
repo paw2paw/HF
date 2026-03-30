@@ -8,7 +8,7 @@ import { executeCommand, parseCommand } from "@/lib/chat/commands";
 import { logAI } from "@/lib/logger";
 import { logAIInteraction } from "@/lib/ai/knowledge-accumulation";
 import { requireAuth, isAuthError } from "@/lib/permissions";
-import { validateBody } from "@/lib/validation";
+import { validateBody, chatRequestSchema } from "@/lib/validation";
 import { ADMIN_TOOLS } from "@/lib/chat/admin-tools";
 import { executeAdminTool } from "@/lib/chat/admin-tool-handlers";
 import { CHAT_TOOLS, executeToolCall, buildContentCatalog } from "./tools";
@@ -64,19 +64,20 @@ const MAX_TOOL_ITERATIONS = 5;
  */
 export async function POST(request: NextRequest) {
   try {
-    // Parse body first so we can branch auth by mode
+    // Read raw body and extract mode for auth branching (before full zod parse)
     const rawBody = await request.json();
-    // Dynamic import avoids Turbopack top-level resolution race with zod schemas
-    const { chatRequestSchema } = await import("@/lib/validation/schemas");
-    const v = validateBody(chatRequestSchema, rawBody);
-    if (!v.ok) return v.error;
-    const { message, mode, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = v.data;
+    const mode = typeof rawBody?.mode === "string" ? rawBody.mode : "DATA";
 
     // CALL mode allows STUDENT (level 1); all other modes require OPERATOR (level 3)
     const minRole = mode === "CALL" ? "VIEWER" as const : "OPERATOR" as const;
     const authResult = await requireAuth(minRole);
     if (isAuthError(authResult)) return authResult.error;
     const userRole = authResult.session.user.role;
+
+    // Now validate the full body with zod (after auth — gives modules time to resolve)
+    const v = validateBody(chatRequestSchema, rawBody);
+    if (!v.ok) return v.error;
+    const { message, entityContext, conversationHistory, engine, callId: requestCallId, bugContext, setupData } = v.data;
 
     // Ownership check: STUDENT users can only chat as their own caller
     if (mode === "CALL" && (userRole === "STUDENT" || userRole === "TESTER")) {
