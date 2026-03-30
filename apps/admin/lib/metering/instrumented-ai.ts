@@ -322,11 +322,9 @@ export async function getConfiguredMeteredAICompletion(
 
       // Always log to Logs panel (fire-and-forget)
       const promptSummary = options.messages
-        .filter((m) => m.role === "user")
-        .map((m) => getTextContent(m))
-        .join(" ")
-        .slice(0, 200);
-      logAI(options.callPoint, promptSummary, result.content.slice(0, 500), {
+        .map((m) => `[${m.role}] ${getTextContent(m)}`)
+        .join("\n---\n");
+      logAI(options.callPoint, promptSummary, result.content, {
         usage: result.usage,
         durationMs,
         model: result.model,

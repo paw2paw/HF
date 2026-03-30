@@ -1,10 +1,38 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp } from "lucide-react";
 import type { ComposedPrompt } from "./types";
 import { CATEGORY_COLORS } from "./constants";
 import "./prompts-section.css";
+
+// ---------------------------------------------------------------------------
+// Eval Types
+// ---------------------------------------------------------------------------
+
+interface EvalDimension {
+  name: string;
+  score: number;
+  verdict: "strong" | "adequate" | "weak";
+  findings: string[];
+  improvements: string[];
+}
+
+interface EvalImprovement {
+  priority: number;
+  title: string;
+  description: string;
+  adminPath: string;
+  adminLabel: string;
+  sectionKeys: string[];
+}
+
+interface EvalResult {
+  overall: { score: number; verdict: string; summary: string };
+  dimensions: EvalDimension[];
+  topImprovements: EvalImprovement[];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,10 +101,12 @@ export function UnifiedPromptSection({
   prompts,
   loading,
   onRefresh,
+  callerId,
 }: {
   prompts: ComposedPrompt[];
   loading: boolean;
   onRefresh: () => void;
+  callerId: string;
 }) {
   const indexed = useMemo(() => indexPrompts(prompts), [prompts]);
   const total = indexed.length;
@@ -90,6 +120,11 @@ export function UnifiedPromptSection({
   const [llmViewMode, setLlmViewMode] = useState<"pretty" | "raw">("pretty");
   const [copiedButton, setCopiedButton] = useState<string | null>(null);
 
+  // ── Eval state ──
+  const [evalResult, setEvalResult] = useState<EvalResult | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [evalError, setEvalError] = useState<string | null>(null);
+
   const selected = indexed[idx] ?? null;
   const prevPrompt = idx > 0 ? indexed[idx - 1] : null;
 
@@ -98,6 +133,33 @@ export function UnifiedPromptSection({
     setCopiedButton(buttonId);
     setTimeout(() => setCopiedButton(null), 1500);
   };
+
+  // Clear eval when navigating to a different prompt
+  useEffect(() => {
+    setEvalResult(null);
+    setEvalError(null);
+  }, [idx]);
+
+  const runEval = useCallback(async () => {
+    const selected = indexed[idx];
+    if (!selected) return;
+    setEvalLoading(true);
+    setEvalError(null);
+    try {
+      const res = await fetch(`/api/callers/${callerId}/eval-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ composedPromptId: selected.id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Evaluation failed");
+      setEvalResult(data.eval);
+    } catch (err: any) {
+      setEvalError(err.message);
+    } finally {
+      setEvalLoading(false);
+    }
+  }, [callerId, indexed, idx]);
 
   if (loading) {
     return <div className="hf-empty hf-text-muted">Loading prompts...</div>;
@@ -241,6 +303,20 @@ export function UnifiedPromptSection({
               </button>
             )}
           </div>
+          <button
+            onClick={runEval}
+            disabled={evalLoading}
+            className={`hf-btn hf-btn-xs${evalResult ? " ps-eval-btn--has-result" : ""}`}
+            title="Evaluate prompt quality"
+          >
+            {evalLoading ? (
+              <><span className="hf-spinner hf-spinner-xs" /> Evaluating...</>
+            ) : evalResult ? (
+              "Re-eval"
+            ) : (
+              "Eval"
+            )}
+          </button>
           <button onClick={onRefresh} className="hf-btn-icon" title="Refresh prompts">
             ↻
           </button>
@@ -359,6 +435,123 @@ export function UnifiedPromptSection({
           )}
         </div>
       )}
+
+      {/* ── Eval Error ── */}
+      {evalError && (
+        <div className="hf-banner hf-banner-error">
+          Eval failed: {evalError}
+          <button className="hf-btn hf-btn-xs hf-ml-sm" onClick={() => setEvalError(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {/* ── Eval Results Panel ── */}
+      {evalResult && <EvalResultsPanel result={evalResult} onDismiss={() => setEvalResult(null)} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Eval Results Panel
+// ---------------------------------------------------------------------------
+
+function verdictClass(verdict: string): string {
+  if (verdict === "strong") return "ps-eval-verdict--strong";
+  if (verdict === "adequate") return "ps-eval-verdict--adequate";
+  return "ps-eval-verdict--weak";
+}
+
+function EvalResultsPanel({ result, onDismiss }: { result: EvalResult; onDismiss: () => void }) {
+  const [expandedDim, setExpandedDim] = useState<string | null>(null);
+
+  return (
+    <div className="ps-eval-panel">
+      {/* Overall score */}
+      <div className="ps-eval-overall">
+        <div className="ps-eval-score-row">
+          <span className="ps-eval-score-number">{result.overall.score}</span>
+          <span className="ps-eval-score-of">/100</span>
+          <span className={`ps-eval-verdict-badge ${verdictClass(result.overall.verdict)}`}>
+            {result.overall.verdict}
+          </span>
+        </div>
+        <div className="ps-eval-score-bar">
+          <div
+            className={`ps-eval-score-fill ${verdictClass(result.overall.verdict)}`}
+            style={{ width: `${Math.min(result.overall.score, 100)}%` }}
+          />
+        </div>
+        <p className="hf-text-sm hf-text-muted ps-eval-summary">{result.overall.summary}</p>
+      </div>
+
+      {/* Two-column grid */}
+      <div className="ps-eval-grid">
+        {/* Column 1 — Scorecard */}
+        <div className="ps-eval-col">
+          <h4 className="hf-heading-sm hf-mb-md">Scorecard</h4>
+          <div className="hf-flex-col hf-gap-xs">
+            {result.dimensions.map((dim) => {
+              const isExpanded = expandedDim === dim.name;
+              const hasFindings = dim.findings.length > 0 || dim.improvements.length > 0;
+              return (
+                <div key={dim.name} className="ps-eval-dimension">
+                  <button
+                    className="ps-eval-dimension-row"
+                    onClick={() => hasFindings && setExpandedDim(isExpanded ? null : dim.name)}
+                    disabled={!hasFindings}
+                  >
+                    <span className="ps-eval-dim-name">{dim.name}</span>
+                    <span className="ps-eval-dim-score">{dim.score}</span>
+                    <span className={`ps-eval-verdict-badge ps-eval-verdict-badge--sm ${verdictClass(dim.verdict)}`}>
+                      {dim.verdict}
+                    </span>
+                    {hasFindings && (
+                      isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                    )}
+                  </button>
+                  {isExpanded && (
+                    <div className="ps-eval-dimension-detail">
+                      {dim.findings.length > 0 && (
+                        <ul className="ps-eval-findings">
+                          {dim.findings.map((f, i) => <li key={i}>{f}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Column 2 — How to Improve */}
+        <div className="ps-eval-col">
+          <h4 className="hf-heading-sm hf-mb-md">How to Improve</h4>
+          {result.topImprovements.length === 0 ? (
+            <div className="hf-banner hf-banner-success">This prompt looks great!</div>
+          ) : (
+            <div className="hf-flex-col hf-gap-md">
+              {result.topImprovements.map((imp) => (
+                <div key={imp.priority} className="ps-eval-improvement">
+                  <span className="ps-eval-improvement-num">{imp.priority}</span>
+                  <div className="ps-eval-improvement-body">
+                    <div className="hf-text-sm hf-text-bold">{imp.title}</div>
+                    <div className="hf-text-sm hf-text-muted">{imp.description}</div>
+                    {imp.adminPath && (
+                      <Link href={imp.adminPath} className="ps-eval-improvement-link">
+                        Go to {imp.adminLabel || imp.adminPath}
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="ps-eval-footer">
+        <button className="hf-btn hf-btn-xs hf-btn-secondary" onClick={onDismiss}>Dismiss</button>
+      </div>
     </div>
   );
 }

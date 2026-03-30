@@ -115,23 +115,44 @@ export function LogViewer({
   const [loggingEnabled, setLoggingEnabled] = useState(true);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const { copiedKey: copied, copy: copyToClipboard } = useCopyToClipboard();
+  const cursorRef = useRef<string | null>(null);
 
   const isPopup = mode === 'popup';
   const isFullscreen = mode === 'fullscreen';
 
-  // ── Data fetching ──
+  // ── Data fetching (cursor-based) ──
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (full?: boolean) => {
     try {
-      const filterParam =
-        isFullscreen && typeFilter.length < ALL_TYPES.length
-          ? `?type=${typeFilter.join(',')}`
-          : '';
-      const res = await fetch(`/api/logs/ai-calls${filterParam}`);
+      const params = new URLSearchParams();
+      if (isFullscreen && typeFilter.length < ALL_TYPES.length) {
+        params.set('type', typeFilter.join(','));
+      }
+      // Use cursor for incremental polls (not on first load or full refresh)
+      if (!full && cursorRef.current) {
+        params.set('since', cursorRef.current);
+      }
+      const qs = params.toString();
+      const res = await fetch(`/api/logs/ai-calls${qs ? `?${qs}` : ''}`);
+
+      // 304 = no new entries since cursor
+      if (res.status === 304) return;
       if (!res.ok) return;
+
       const data = await res.json();
       const raw: LogEntry[] = data.logs || [];
-      setLogs(isPopup ? raw.slice(0, 8) : raw);
+
+      if (cursorRef.current && !full && raw.length > 0) {
+        // Merge new entries at the front, cap at 100
+        setLogs(prev => {
+          const merged = [...raw, ...prev];
+          return (isPopup ? merged.slice(0, 8) : merged.slice(0, 100));
+        });
+      } else {
+        setLogs(isPopup ? raw.slice(0, 8) : raw);
+      }
+
+      if (data.latest) cursorRef.current = data.latest;
       if (typeof data.loggingEnabled === 'boolean') setLoggingEnabled(data.loggingEnabled);
     } catch {
       // Silent fail
@@ -144,15 +165,12 @@ export function LogViewer({
   useEffect(() => {
     if (isPopup && !open) return;
     setLoading(true);
-    fetchLogs();
-    const interval = setInterval(fetchLogs, isPopup ? 5000 : 3000);
+    cursorRef.current = null; // Reset cursor on mount/reopen
+    fetchLogs(true); // Full fetch on first load
+    if (!autoRefresh && isFullscreen) return;
+    const interval = setInterval(() => fetchLogs(), isPopup ? 5000 : 4000);
     return () => clearInterval(interval);
-  }, [isPopup, open, fetchLogs, autoRefresh]);
-
-  // Stop polling when auto-refresh is off (fullscreen only)
-  useEffect(() => {
-    if (isFullscreen && !autoRefresh) return;
-  }, [isFullscreen, autoRefresh]);
+  }, [isPopup, open, fetchLogs, autoRefresh, isFullscreen]);
 
   // ── Outside-click + Escape (popup only) ──
 
@@ -203,7 +221,8 @@ export function LogViewer({
 
   const clearLogs = async () => {
     await fetch('/api/logs/ai-calls', { method: 'DELETE' });
-    fetchLogs();
+    cursorRef.current = null;
+    fetchLogs(true);
   };
 
   const toggleTypeFilter = (type: LogType) => {
@@ -460,7 +479,7 @@ export function LogViewer({
             />
             Auto-refresh
           </label>
-          <button onClick={fetchLogs} className="hf-btn hf-btn-primary hf-btn-sm">
+          <button onClick={() => { cursorRef.current = null; fetchLogs(true); }} className="hf-btn hf-btn-primary hf-btn-sm">
             <RefreshCw size={13} /> Refresh
           </button>
           <button

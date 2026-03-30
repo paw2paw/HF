@@ -7655,17 +7655,23 @@ Clears all log entries from the AppLog table.
 
 ### `GET` /api/logs/ai-calls
 
-Returns parsed log entries from the AppLog table, newest first (max 100). Includes current logging status and enabled log types. Supports filtering by log type.
+Returns parsed log entries from the AppLog table, newest first (max 100). Supports cursor-based polling via `since` param — returns only new entries + a `latest` cursor. When `since` is provided and no new entries exist, returns 304 Not Modified.
 
 **Auth**: Session · **Scope**: `logs:read`
 
 | Parameter | In | Type | Required | Description |
 |-----------|-----|------|----------|-------------|
 | type | query | string | No | Filter by log type(s), comma-separated: "ai", "api", "system", "user" (optional) |
+| since | query | string | No | ISO timestamp cursor — only return entries newer than this (optional) |
 
 **Response** `200`
 ```json
-{ logs: [...], loggingEnabled: boolean, enabledTypes: [...] }
+{ logs: [...], loggingEnabled: boolean, enabledTypes: [...], latest: string }
+```
+
+**Response** `304`
+```json
+No new entries since cursor
 ```
 
 ---
@@ -8774,6 +8780,19 @@ Get deep logging status
 Toggle deep logging on/off
 
 **Auth**: ADMIN · **Scope**: `admin:write`
+
+---
+
+### `POST` /api/callers/:callerId/eval-prompt
+
+Evaluate a composed prompt against the quality rubric.
+
+**Auth**: OPERATOR
+
+**Response** `200`
+```json
+{ ok: true, eval: { overall, dimensions, topImprovements } }
+```
 
 ---
 
@@ -13300,8 +13319,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 395 |
-| Files with annotations | 394 |
+| Route files found | 396 |
+| Files with annotations | 395 |
 | Files missing annotations | 1 |
 | Coverage | 99.7% |
 

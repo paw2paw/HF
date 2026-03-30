@@ -16,9 +16,11 @@ import type { LogEntry } from "@/lib/log-types";
  * @scope logs:read
  * @auth session
  * @tags logs
- * @description Returns parsed log entries from the AppLog table, newest first (max 100). Includes current logging status and enabled log types. Supports filtering by log type.
+ * @description Returns parsed log entries from the AppLog table, newest first (max 100). Supports cursor-based polling via `since` param — returns only new entries + a `latest` cursor. When `since` is provided and no new entries exist, returns 304 Not Modified.
  * @query type string - Filter by log type(s), comma-separated: "ai", "api", "system", "user" (optional)
- * @response 200 { logs: [...], loggingEnabled: boolean, enabledTypes: [...] }
+ * @query since string - ISO timestamp cursor — only return entries newer than this (optional)
+ * @response 200 { logs: [...], loggingEnabled: boolean, enabledTypes: [...], latest: string }
+ * @response 304 No new entries since cursor
  */
 export async function GET(request: NextRequest) {
   try {
@@ -30,12 +32,27 @@ export async function GET(request: NextRequest) {
 
     const typeFilter = request.nextUrl.searchParams.get("type");
     const filterTypes = typeFilter ? typeFilter.split(",") : null;
+    const since = request.nextUrl.searchParams.get("since");
+
+    const where: Record<string, unknown> = {};
+    if (filterTypes) where.type = { in: filterTypes };
+    if (since) where.createdAt = { gt: new Date(since) };
+
+    // When polling with cursor, first do a cheap count check
+    if (since) {
+      const count = await prisma.appLog.count({ where });
+      if (count === 0) {
+        return new NextResponse(null, { status: 304 });
+      }
+    }
 
     const rows = await prisma.appLog.findMany({
-      where: filterTypes ? { type: { in: filterTypes } } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: { createdAt: "desc" },
       take: 100,
     });
+
+    const latest = rows.length > 0 ? rows[0].createdAt.toISOString() : since || undefined;
 
     // Map DB rows to the LogEntry shape the LogViewer expects
     const logs: LogEntry[] = rows.map((row) => ({
@@ -56,7 +73,7 @@ export async function GET(request: NextRequest) {
       metadata: (row.metadata as Record<string, unknown>) ?? undefined,
     }));
 
-    return NextResponse.json({ logs, loggingEnabled, enabledTypes });
+    return NextResponse.json({ logs, loggingEnabled, enabledTypes, latest });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({

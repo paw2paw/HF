@@ -466,6 +466,14 @@ export const CALL_POINTS: CallPointDef[] = [
     defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 2000 },
   },
 
+  {
+    id: "prompt-eval.analyse",
+    label: "Prompt Eval",
+    description: "Evaluates a composed call prompt against quality rubric and suggests actionable improvements",
+    category: "admin-ai",
+    defaults: { provider: "claude", model: config.ai.claude.model, temperature: 0.3, maxTokens: 3000, timeoutMs: 30_000 },
+  },
+
   // ── Advanced ──
   {
     id: "analysis.measure",

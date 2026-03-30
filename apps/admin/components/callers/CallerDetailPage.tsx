@@ -845,6 +845,7 @@ export default function CallerDetailPage() {
                 prompts={composedPrompts}
                 loading={promptsLoading}
                 onRefresh={fetchPrompts}
+                callerId={callerId}
               />
             </div>
           )}

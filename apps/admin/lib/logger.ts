@@ -23,7 +23,7 @@ import { getSystemSetting, clearSystemSettingsCache } from "@/lib/system-setting
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-// Preview caps — enforced on DB writes. Full content goes to console only.
+// Preview caps — enforced on DB writes unless deep logging is enabled.
 const PROMPT_PREVIEW_CAP = 1000;
 const RESPONSE_PREVIEW_CAP = 500;
 
@@ -197,7 +197,10 @@ export function logAI(
     console.log(JSON.stringify(entry));
   }
 
-  // DB write — always capped previews (PII safety)
+  // DB write — full content when deep, capped otherwise
+  const promptPreview = isDeep ? prompt : prompt.slice(0, PROMPT_PREVIEW_CAP);
+  const responsePreview = isDeep ? response : response.slice(0, RESPONSE_PREVIEW_CAP);
+
   try {
     prisma.appLog
       .create({
@@ -205,9 +208,9 @@ export function logAI(
           type: "ai",
           stage,
           promptLength: prompt.length,
-          promptPreview: prompt.slice(0, PROMPT_PREVIEW_CAP),
+          promptPreview,
           responseLength: response.length,
-          responsePreview: response.slice(0, RESPONSE_PREVIEW_CAP),
+          responsePreview,
           inputTokens: options?.usage?.inputTokens ?? null,
           outputTokens: options?.usage?.outputTokens ?? null,
           durationMs: options?.durationMs ?? null,

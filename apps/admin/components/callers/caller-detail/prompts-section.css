@@ -404,3 +404,240 @@
   font-weight: 700;
   user-select: none;
 }
+
+/* =============================================================
+   Eval Results Panel
+   ============================================================= */
+
+.ps-eval-panel {
+  border-top: 2px solid var(--border-default);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Overall score ── */
+.ps-eval-overall {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ps-eval-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ps-eval-score-number {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.ps-eval-score-of {
+  font-size: 14px;
+  color: var(--text-placeholder);
+}
+
+.ps-eval-score-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-secondary);
+  overflow: hidden;
+}
+
+.ps-eval-score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.ps-eval-summary {
+  margin: 0;
+}
+
+/* ── Verdict badges ── */
+.ps-eval-verdict-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  margin-left: 8px;
+}
+
+.ps-eval-verdict-badge--sm {
+  padding: 1px 8px;
+  font-size: 11px;
+  margin-left: 0;
+}
+
+.ps-eval-verdict--strong {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.ps-eval-verdict--adequate {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+
+.ps-eval-verdict--weak {
+  background: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+
+/* Score fill colors (same as verdict) */
+.ps-eval-score-fill.ps-eval-verdict--strong {
+  background: var(--status-success-text);
+}
+
+.ps-eval-score-fill.ps-eval-verdict--adequate {
+  background: var(--status-warning-text);
+}
+
+.ps-eval-score-fill.ps-eval-verdict--weak {
+  background: var(--status-error-text);
+}
+
+/* ── Two-column grid ── */
+.ps-eval-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .ps-eval-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ps-eval-col {
+  min-width: 0;
+}
+
+/* ── Dimension rows ── */
+.ps-eval-dimension {
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+}
+
+.ps-eval-dimension-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  border: none;
+  background: var(--surface-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.ps-eval-dimension-row:hover:not(:disabled) {
+  background: var(--surface-secondary);
+}
+
+.ps-eval-dimension-row:disabled {
+  cursor: default;
+}
+
+.ps-eval-dim-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ps-eval-dim-score {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  min-width: 24px;
+  text-align: right;
+}
+
+.ps-eval-dimension-detail {
+  padding: 8px 12px 12px;
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+}
+
+.ps-eval-findings {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Improvements ── */
+.ps-eval-improvement {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ps-eval-improvement-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ps-eval-improvement-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ps-eval-improvement-link {
+  font-size: 12px;
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.ps-eval-improvement-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Footer ── */
+.ps-eval-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Eval button active state ── */
+.ps-eval-btn--has-result {
+  position: relative;
+}
+
+.ps-eval-btn--has-result::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-success-text);
+}

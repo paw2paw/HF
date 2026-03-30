@@ -145,7 +145,7 @@ export function StatusBar() {
     return () => clearInterval(interval);
   }, [isAdmin, session?.user]);
 
-  // ── Deep logging poll (ADMIN+, every 30s) ──
+  // ── Deep logging poll (ADMIN+, every 120s — toggle is optimistic, poll is cross-tab sync only) ──
   useEffect(() => {
     if (!isAdmin || !session?.user) return;
 
@@ -162,11 +162,11 @@ export function StatusBar() {
     };
 
     fetchDeepLogging();
-    const interval = setInterval(fetchDeepLogging, 30000);
+    const interval = setInterval(fetchDeepLogging, 120000);
     return () => clearInterval(interval);
   }, [isAdmin, session?.user]);
 
-  // ── Jobs count poll (OPERATOR+, every 20s) ──
+  // ── Jobs count poll (OPERATOR+, every 30s) ──
   useEffect(() => {
     if (!isOperator || !session?.user) return;
 
@@ -182,7 +182,7 @@ export function StatusBar() {
     };
 
     fetchJobsCount();
-    const interval = setInterval(fetchJobsCount, 20000);
+    const interval = setInterval(fetchJobsCount, 30000);
     return () => clearInterval(interval);
   }, [isOperator, session?.user]);
 
