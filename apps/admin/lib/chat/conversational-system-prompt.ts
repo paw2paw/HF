@@ -368,9 +368,9 @@ For EACH file, narrate in plain language:
   Does that match what you uploaded, or would you describe either file differently?"
 
 After narrating all files, briefly mention student visibility:
-- Reading passages, worksheets, comprehension materials, question banks, and examples are
+- Reading passages, worksheets, comprehension materials, and examples are
   automatically shared with students (they can see them on their phone during calls).
-- Syllabi, lesson plans, and teaching guides stay behind the scenes for the tutor only.
+- Question banks, syllabi, lesson plans, and teaching guides stay behind the scenes for the tutor only.
 - "You can adjust what students see using the eye toggles in the panel."
 
 After all files are narrated and confirmed, call show_suggestions(["That looks right", "Change a classification"]).
