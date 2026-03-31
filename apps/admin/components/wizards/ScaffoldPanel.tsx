@@ -511,17 +511,22 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                       <span className="gs-bp-content-detail">{contentParts.join(" · ")}</span>
                     )}
                     {categoryCounts && contentTotals && contentTotals.assertions > 0 && (
-                      <span className="gs-bp-category-dots">
+                      <span className="gs-bp-category-pills">
                         {CATEGORY_ORDER
                           .filter(cat => (categoryCounts[cat] ?? 0) > 0)
-                          .map(cat => (
-                            <span
-                              key={cat}
-                              className="gs-bp-category-dot"
-                              title={`${CONTENT_CATEGORIES[cat].label}: ${categoryCounts[cat]}`}
-                              style={{ background: CONTENT_CATEGORIES[cat].color }}
-                            />
-                          ))}
+                          .map(cat => {
+                            const meta = CONTENT_CATEGORIES[cat];
+                            return (
+                              <span
+                                key={cat}
+                                className="gs-bp-category-pill"
+                                title={meta.label}
+                                style={{ color: meta.color, background: meta.bg }}
+                              >
+                                {categoryCounts[cat]}
+                              </span>
+                            );
+                          })}
                       </span>
                     )}
                     <span className="gs-bp-content-hint">Available across all sessions</span>

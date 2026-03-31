@@ -857,11 +857,33 @@ export async function executeWizardTool(
           });
         }
 
-        // 3. Resolve archetype + flow phases from interaction pattern
+        // 3. Dedup guard: if a playbook with the same name already exists in this domain,
+        //    treat it as the existing course (prevents duplicates from AI retries)
+        const existingDupe = await prisma.playbook.findFirst({
+          where: {
+            domainId,
+            name: { equals: courseName, mode: "insensitive" },
+          },
+          select: { id: true },
+        });
+        if (existingDupe) {
+          console.log(`[wizard-tools] create_course: playbook "${courseName}" already exists in domain ${domainId} — reusing ${existingDupe.id}`);
+          // Re-enter the existing-course path by setting existingPlaybookId
+          // and recursing through the same tool (setupData is immutable here,
+          // so we call ourselves with the draftPlaybookId patched in).
+          return executeWizardTool(
+            "create_course",
+            input,
+            userId,
+            { ...setupData, draftPlaybookId: existingDupe.id },
+          );
+        }
+
+        // 4. Resolve archetype + flow phases from interaction pattern
         const archetypeSlug = await loadPersonaArchetype(interactionPattern);
         const flowPhases = await loadPersonaFlowPhases(interactionPattern);
 
-        // 4. Scaffold domain (identity spec + playbook + system specs + publish + onboarding)
+        // 5. Scaffold domain (identity spec + playbook + system specs + publish + onboarding)
         const groupId = (input.groupId as string) || (setupData?.groupId as string) || undefined;
         const scaffoldResult = await scaffoldDomain(domainId, {
           extendsAgent: archetypeSlug || undefined,
@@ -1179,38 +1201,79 @@ export async function executeWizardTool(
           });
         }
 
-        // 9b. Create test caller with proper enrollment
-        const callerName = randomFakeName();
-
-        const caller = await prisma.caller.create({
-          data: { name: callerName, domainId },
-        });
-
-        await enrollCaller(caller.id, playbookId, "wizard-v2");
-
-        // 9c. Instantiate Goal records for the test caller from config.goals (skip duplicates)
+        // 9b. Create TWO test callers: demo (skips onboarding) + full (normal journey)
         const callerGoals = (configUpdate.goals as Array<{ type: string; name: string; description?: string; isAssessmentTarget?: boolean; assessmentConfig?: any; priority?: number }>) || [];
-        for (const g of callerGoals) {
-          const existingGoal = await prisma.goal.findFirst({
-            where: { callerId: caller.id, playbookId, name: g.name, status: "ACTIVE" },
+
+        async function createTestCaller(callerName: string, skipOnboarding: boolean) {
+          const c = await prisma.caller.create({
+            data: { name: callerName, domainId },
           });
-          if (!existingGoal) {
-            await prisma.goal.create({
-              data: {
-                callerId: caller.id,
-                playbookId,
-                type: g.type || "LEARN",
-                name: g.name,
-                description: g.description || null,
-                isAssessmentTarget: g.isAssessmentTarget || false,
-                assessmentConfig: g.assessmentConfig || undefined,
-                status: "ACTIVE",
-                priority: g.priority || 5,
-                startedAt: new Date(),
-              },
+          await enrollCaller(c.id, playbookId, "wizard-v2");
+
+          // Instantiate Goal records from config.goals (skip duplicates)
+          for (const g of callerGoals) {
+            const exists = await prisma.goal.findFirst({
+              where: { callerId: c.id, playbookId, name: g.name, status: "ACTIVE" },
             });
+            if (!exists) {
+              await prisma.goal.create({
+                data: {
+                  callerId: c.id,
+                  playbookId,
+                  type: g.type || "LEARN",
+                  name: g.name,
+                  description: g.description || null,
+                  isAssessmentTarget: g.isAssessmentTarget || false,
+                  assessmentConfig: g.assessmentConfig || undefined,
+                  status: "ACTIVE",
+                  priority: g.priority || 5,
+                  startedAt: new Date(),
+                },
+              });
+            }
           }
+
+          // Skip onboarding: mark complete, mark surveys submitted, init lesson plan
+          if (skipOnboarding) {
+            const { initializeLessonPlanSession } = await import("@/lib/enrollment/init-lesson-plan");
+            const { SURVEY_SCOPES, PRE_SURVEY_KEYS, POST_SURVEY_KEYS } = await import("@/lib/learner/survey-keys");
+
+            await prisma.onboardingSession.upsert({
+              where: { callerId_domainId: { callerId: c.id, domainId } },
+              create: { callerId: c.id, domainId, isComplete: true, wasSkipped: true, completedAt: new Date() },
+              update: { isComplete: true, wasSkipped: true, completedAt: new Date() },
+            });
+
+            const now = new Date().toISOString();
+            for (const scope of [SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST]) {
+              const key = scope === SURVEY_SCOPES.PRE ? PRE_SURVEY_KEYS.SUBMITTED_AT : POST_SURVEY_KEYS.SUBMITTED_AT;
+              await prisma.callerAttribute.upsert({
+                where: { callerId_key_scope: { callerId: c.id, key, scope } },
+                create: { callerId: c.id, key, scope, valueType: "STRING", stringValue: now },
+                update: { stringValue: now },
+              });
+            }
+
+            await initializeLessonPlanSession(c.id, domainId);
+
+            const { autoComposeForCaller } = await import("@/lib/enrollment/auto-compose");
+            autoComposeForCaller(c.id).catch(err =>
+              console.error(`[wizard] Auto-compose failed for demo caller ${c.id}:`, err.message));
+          }
+
+          return c;
         }
+
+        const demoName = randomFakeName();
+        const callerName = randomFakeName();
+        // Demo caller (skip-onboarding) is best-effort — don't block course creation if it fails
+        let demoCaller: { id: string } | null = null;
+        try {
+          demoCaller = await createTestCaller(demoName, true);
+        } catch (err) {
+          console.error("[wizard] Demo caller creation failed (non-fatal):", (err as Error).message);
+        }
+        const caller = await createTestCaller(callerName, false);
 
         // 9d. Create or reuse "Test Learners" cohort so the course has a join link
         const cohortName = `${courseName} — Test Learners`;
@@ -1238,17 +1301,16 @@ export async function executeWizardTool(
             assignedBy: "wizard-v5",
           },
         });
-        // Add the test caller to the cohort (skip if already a member)
-        const existingMembership = await prisma.callerCohortMembership.findFirst({
-          where: { callerId: caller.id, cohortGroupId: cohort.id },
-        });
-        if (!existingMembership) {
-          await prisma.callerCohortMembership.create({
-            data: {
-              callerId: caller.id,
-              cohortGroupId: cohort.id,
-            },
+        // Add test callers to the cohort (skip if already a member)
+        for (const cId of [demoCaller?.id, caller.id].filter(Boolean) as string[]) {
+          const existingMembership = await prisma.callerCohortMembership.findFirst({
+            where: { callerId: cId, cohortGroupId: cohort.id },
           });
+          if (!existingMembership) {
+            await prisma.callerCohortMembership.create({
+              data: { callerId: cId, cohortGroupId: cohort.id },
+            });
+          }
         }
 
         // 10. Backfill teachMethod on assertions extracted before teachingMode was set
@@ -1391,6 +1453,7 @@ export async function executeWizardTool(
             playbookId,
             callerId: caller.id,
             callerName,
+            ...(demoCaller ? { demoCallerId: demoCaller.id, demoCallerName: demoName } : {}),
             cohortId: cohort.id,
             joinToken,
             lessonPlanPreview,

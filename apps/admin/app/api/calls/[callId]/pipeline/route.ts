@@ -33,6 +33,7 @@ import { deliverArtifacts } from "@/lib/artifacts/deliver-artifacts";
 import { extractActions } from "@/lib/actions/extract-actions";
 import { config as appConfig } from "@/lib/config";
 import { updateCurriculumProgress, getCurriculumProgress, completeModule } from "@/lib/curriculum/track-progress";
+import { initializeLessonPlanSession } from "@/lib/enrollment/init-lesson-plan";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
 
@@ -1611,41 +1612,11 @@ async function trackOnboardingAfterCall(
   log.info("Onboarding completed", { callerId, domainId: caller.domainId });
 
   // Initialize lesson plan session tracking for Subject-based curricula
-  const subjectDomains = await prisma.subjectDomain.findMany({
-    where: { domainId: caller.domainId },
-    include: {
-      subject: {
-        include: {
-          curricula: {
-            orderBy: { updatedAt: "desc" },
-            take: 1,
-            select: { slug: true, deliveryConfig: true },
-          },
-        },
-      },
-    },
-  });
-
-  for (const sd of subjectDomains) {
-    const curriculum = sd.subject.curricula[0];
-    if (!curriculum) continue;
-
-    const dc = curriculum.deliveryConfig as Record<string, any> | null;
-    const lessonPlan = dc?.lessonPlan;
-    if (!lessonPlan?.entries?.length || lessonPlan.entries.length < 2) continue;
-
-    // Find first non-onboarding session number
-    const firstLessonEntry = lessonPlan.entries.find((e: any) => e.type !== "onboarding");
-    const firstLessonSession = firstLessonEntry?.session ?? 2;
-
-    await updateCurriculumProgress(callerId, curriculum.slug, {
-      currentSession: firstLessonSession,
-      lastAccessedAt: new Date(),
+  const lpResult = await initializeLessonPlanSession(callerId, caller.domainId);
+  if (lpResult.initialized) {
+    log.info(`Initialized lesson plan session tracking for ${lpResult.specSlug}`, {
+      currentSession: lpResult.session,
     });
-    log.info(`Initialized lesson plan session tracking for ${curriculum.slug}`, {
-      currentSession: firstLessonSession,
-    });
-    break; // Only process first curriculum
   }
 
   return true;

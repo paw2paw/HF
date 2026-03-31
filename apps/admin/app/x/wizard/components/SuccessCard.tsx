@@ -41,17 +41,15 @@ export function SuccessCard({
           : "View your course or head to your dashboard."}
       </div>
       <div className="cv4-success-actions">
-        {/* Primary — view course */}
-        {draftPlaybookId && (
-          <a
-            href={`/x/courses/${draftPlaybookId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hf-btn hf-btn-primary cv4-success-primary"
-          >
-            <BookMarked size={16} /> View Your Course
-          </a>
-        )}
+        {/* Primary — view course (always show; fall back to course list) */}
+        <a
+          href={draftPlaybookId ? `/x/courses/${draftPlaybookId}` : "/x/courses"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hf-btn hf-btn-primary cv4-success-primary"
+        >
+          <BookMarked size={16} /> View Your Course
+        </a>
 
         {/* Secondary row — sharing + sim call */}
         <div className="cv4-success-row">
@@ -89,7 +87,7 @@ export function SuccessCard({
           )}
         </div>
 
-        {/* Tertiary — create another */}
+        {/* Tertiary — create another + dashboard */}
         <div className="cv4-success-row">
           <button
             type="button"

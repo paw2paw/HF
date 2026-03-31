@@ -5,6 +5,8 @@ import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/
 import { enrollCaller, enrollCallerInCohortPlaybooks, resolveAndEnrollSingle } from "@/lib/enrollment";
 import { instantiatePlaybookGoals } from "@/lib/enrollment/instantiate-goals";
 import { autoComposeForCaller } from "@/lib/enrollment/auto-compose";
+import { initializeLessonPlanSession } from "@/lib/enrollment/init-lesson-plan";
+import { SURVEY_SCOPES, PRE_SURVEY_KEYS, POST_SURVEY_KEYS } from "@/lib/learner/survey-keys";
 import { parsePagination } from "@/lib/api-utils";
 
 /**
@@ -177,6 +179,7 @@ export async function GET(req: Request) {
  * @body domainId string - Domain ID to assign (optional, defaults to system default domain)
  * @body playbookId string - Enroll in this specific playbook only (optional, skips domain-wide enrollment)
  * @body role string - Caller role (optional, default LEARNER)
+ * @body skipOnboarding boolean - Skip onboarding flow + surveys, dive straight into content (optional, default false)
  * @response 200 { ok: true, caller: { id, name, email, phone, role, domain } }
  * @response 400 { ok: false, error: "Name is required" }
  * @response 500 { ok: false, error: "Failed to create caller" }
@@ -187,7 +190,7 @@ export async function POST(req: Request) {
     if (isEntityAuthError(authResult)) return authResult.error;
 
     const body = await req.json();
-    let { name, email, phone, domainId, role, cohortGroupId, autoName, playbookId } = body;
+    let { name, email, phone, domainId, role, cohortGroupId, autoName, playbookId, skipOnboarding } = body;
 
     // Auto-generate sequential name: "Test L0000001", "Test L0000002", etc.
     if (autoName && !name) {
@@ -260,6 +263,47 @@ export async function POST(req: Request) {
       await enrollCallerInCohortPlaybooks(caller.id, cohortGroupId, caller.domainId, "auto");
     } else if (caller.domainId) {
       await resolveAndEnrollSingle(caller.id, caller.domainId, "auto");
+    }
+
+    // Skip onboarding: mark onboarding complete, mark surveys submitted, init lesson plan
+    // Must happen BEFORE auto-compose so the composed prompt sees post-onboarding state
+    if (skipOnboarding && caller.domainId) {
+      await prisma.onboardingSession.upsert({
+        where: { callerId_domainId: { callerId: caller.id, domainId: caller.domainId } },
+        create: {
+          callerId: caller.id,
+          domainId: caller.domainId,
+          isComplete: true,
+          wasSkipped: true,
+          completedAt: new Date(),
+        },
+        update: {
+          isComplete: true,
+          wasSkipped: true,
+          completedAt: new Date(),
+        },
+      });
+
+      // Mark pre-survey and post-survey as submitted so student pages skip them
+      const now = new Date().toISOString();
+      for (const scope of [SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST]) {
+        const key = scope === SURVEY_SCOPES.PRE ? PRE_SURVEY_KEYS.SUBMITTED_AT : POST_SURVEY_KEYS.SUBMITTED_AT;
+        await prisma.callerAttribute.upsert({
+          where: { callerId_key_scope: { callerId: caller.id, key, scope } },
+          create: {
+            callerId: caller.id,
+            key,
+            scope,
+            valueType: "STRING",
+            stringValue: now,
+          },
+          update: { stringValue: now },
+        });
+      }
+
+      // Initialize lesson plan session to first content session
+      await initializeLessonPlanSession(caller.id, caller.domainId);
+      console.log(`[callers] Skipped onboarding for ${caller.id}`);
     }
 
     // Instantiate goals from playbook config (if any)

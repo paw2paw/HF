@@ -1114,3 +1114,148 @@
   background: var(--wa-surface);
   position: relative;
 }
+
+/* ── Course switcher dropdown ── */
+
+.wa-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-divider);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--wa-text-primary) 15%, transparent);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.wa-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--wa-divider);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--wa-text-primary);
+  text-align: left;
+}
+
+.wa-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.wa-dropdown-item:hover {
+  background: var(--wa-surface-hover);
+}
+
+.wa-dropdown-item:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.wa-header-icon-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--wa-header-text);
+  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+}
+
+.wa-header-icon-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--wa-header-text) 12%, transparent);
+}
+
+/* Course status badges */
+
+.wa-course-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wa-course-status-active {
+  color: var(--wa-green-dark);
+  background: color-mix(in srgb, var(--wa-green-primary) 15%, transparent);
+}
+
+.wa-course-status-completed {
+  color: var(--wa-text-muted);
+  background: color-mix(in srgb, var(--wa-text-muted) 12%, transparent);
+}
+
+.wa-course-status-paused {
+  color: var(--wa-text-muted);
+  background: color-mix(in srgb, var(--wa-text-muted) 12%, transparent);
+}
+
+/* ── Completion card in SIM ── */
+
+.wa-completion-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 32px;
+  text-align: center;
+  height: 100%;
+}
+
+.wa-completion-card h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--wa-text-primary);
+  margin: 0;
+}
+
+.wa-completion-card p {
+  font-size: 14px;
+  color: var(--wa-text-muted);
+  margin: 0;
+  max-width: 320px;
+}
+
+.wa-completion-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wa-completion-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+}
+
+.wa-completion-btn-primary {
+  background: var(--wa-green-primary);
+  color: white;
+}
+
+.wa-completion-btn-primary:hover {
+  background: var(--wa-green-dark);
+}
+
+.wa-completion-btn-secondary {
+  background: var(--wa-surface-hover);
+  color: var(--wa-text-primary);
+}
+
+.wa-completion-btn-secondary:hover {
+  background: var(--wa-surface-active);
+}

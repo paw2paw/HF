@@ -3,9 +3,22 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Search, RefreshCw, ChevronDown, ArrowLeft, LogOut } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, ArrowLeft, LogOut, BookOpen, RotateCcw, Play, Check } from 'lucide-react';
 import { ConversationItem } from './ConversationItem';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { ROLE_LEVEL } from '@/lib/roles';
+import type { UserRole } from '@prisma/client';
+
+interface CourseEnrollment {
+  id: string;
+  playbookId: string;
+  courseName: string;
+  institutionName: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'PAUSED' | 'DROPPED';
+  isDefault: boolean;
+  sessionCount: number;
+  activeGoals: number;
+}
 
 interface Conversation {
   callerId: string;
@@ -37,9 +50,16 @@ export function ConversationList() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showDomainDropdown, setShowDomainDropdown] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [courses, setCourses] = useState<CourseEnrollment[]>([]);
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const domainRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
+  const courseRef = useRef<HTMLDivElement>(null);
+
+  const roleLevel = ROLE_LEVEL[(session?.user?.role as UserRole) ?? 'DEMO'] ?? -1;
+  const isStudentView = roleLevel >= 1 && roleLevel <= 2;
+  const activeCourse = courses.find(c => c.isDefault) || courses.find(c => c.status === 'ACTIVE') || courses[0];
 
   const fetchConversations = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -63,11 +83,19 @@ export function ConversationList() {
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+    if (isStudentView) {
+      fetch('/api/student/courses')
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) setCourses(data.enrollments);
+        })
+        .catch(() => {});
+    }
+  }, [isStudentView]);
 
   // Close dropdowns on click outside
   useEffect(() => {
-    if (!showSortDropdown && !showDomainDropdown && !showAccountMenu) return;
+    if (!showSortDropdown && !showDomainDropdown && !showAccountMenu && !showCourseDropdown) return;
     const handler = (e: MouseEvent) => {
       if (showSortDropdown && sortRef.current && !sortRef.current.contains(e.target as Node)) {
         setShowSortDropdown(false);
@@ -78,10 +106,13 @@ export function ConversationList() {
       if (showAccountMenu && accountRef.current && !accountRef.current.contains(e.target as Node)) {
         setShowAccountMenu(false);
       }
+      if (showCourseDropdown && courseRef.current && !courseRef.current.contains(e.target as Node)) {
+        setShowCourseDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showSortDropdown, showDomainDropdown, showAccountMenu]);
+  }, [showSortDropdown, showDomainDropdown, showAccountMenu, showCourseDropdown]);
 
   const uniqueDomains = useMemo(() => {
     const map = new Map<string, string>();
@@ -133,108 +164,236 @@ export function ConversationList() {
     });
   }, [conversations, search, domainFilter, sortMode]);
 
+  async function handleActivateCourse(enrollmentId: string) {
+    setShowCourseDropdown(false);
+    const res = await fetch(`/api/student/courses/${enrollmentId}/activate`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      setCourses(prev => prev.map(c => ({ ...c, isDefault: c.id === enrollmentId, status: c.id === enrollmentId && c.status === 'PAUSED' ? 'ACTIVE' as const : c.status })));
+      fetchConversations(true);
+    }
+  }
+
+  async function handleRetakeCourse(enrollmentId: string) {
+    setShowCourseDropdown(false);
+    const res = await fetch(`/api/student/courses/${enrollmentId}/retake`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      setCourses(prev => prev.map(c => ({
+        ...c,
+        isDefault: c.id === enrollmentId,
+        status: c.id === enrollmentId ? 'ACTIVE' as const : c.status,
+      })));
+      fetchConversations(true);
+    }
+  }
+
   return (
     <>
-      {/* Header */}
-      <div className="wa-header" style={{ justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="wa-back-btn" onClick={() => router.push('/x')}>
-            <ArrowLeft size={20} />
-          </button>
-          <div className="wa-header-title" style={{ fontSize: 20 }}>HumanFirst</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button
-            onClick={() => fetchConversations(true)}
-            disabled={refreshing}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 8,
-              cursor: 'pointer',
-              color: 'var(--wa-header-text)',
-              opacity: 0.75,
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <RefreshCw
-              size={20}
-              style={{
-                animation: refreshing ? 'spin 1s linear infinite' : 'none',
-              }}
-            />
-          </button>
-
-          {/* Account avatar */}
-          <div style={{ position: 'relative' }} ref={accountRef}>
+      {/* Header — course-aware for students, standard for admins */}
+      {isStudentView && activeCourse ? (
+        <div className="wa-header" style={{ justifyContent: 'space-between' }} ref={courseRef}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+            <BookOpen size={18} style={{ color: 'var(--wa-header-text)', opacity: 0.85, flexShrink: 0 }} />
             <button
-              onClick={() => setShowAccountMenu(v => !v)}
+              onClick={() => courses.length > 1 ? setShowCourseDropdown(v => !v) : undefined}
               style={{
                 background: 'none',
                 border: 'none',
-                padding: 4,
+                padding: 0,
+                cursor: courses.length > 1 ? 'pointer' : 'default',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                minWidth: 0,
+                flex: 1,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="wa-header-title" style={{ fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {activeCourse.courseName}
+                </span>
+                {courses.length > 1 && <ChevronDown size={14} style={{ color: 'var(--wa-header-text)', opacity: 0.7, flexShrink: 0 }} />}
+              </div>
+              {activeCourse.institutionName && (
+                <span style={{ fontSize: 11, color: 'var(--wa-header-text)', opacity: 0.65 }}>
+                  {activeCourse.institutionName}
+                </span>
+              )}
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={() => fetchConversations(true)}
+              disabled={refreshing}
+              className="wa-header-icon-btn"
+            >
+              <RefreshCw size={18} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+            </button>
+            <div style={{ position: 'relative' }} ref={accountRef}>
+              <button onClick={() => setShowAccountMenu(v => !v)} className="wa-header-icon-btn">
+                <UserAvatar
+                  name={session?.user?.name || session?.user?.email || '?'}
+                  initials={session?.user?.avatarInitials}
+                  role={session?.user?.role}
+                  size={28}
+                />
+              </button>
+              {showAccountMenu && (
+                <div className="wa-dropdown-menu" style={{ right: 0, width: 220 }}>
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--wa-divider)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--wa-text-primary)' }}>
+                      {(session?.user as any)?.displayName || session?.user?.name || session?.user?.email}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--wa-text-muted)', marginTop: 2 }}>
+                      {session?.user?.email}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="wa-dropdown-item"
+                    style={{ color: 'var(--status-error-text)' }}
+                  >
+                    <LogOut size={14} />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Course dropdown */}
+          {showCourseDropdown && courses.length > 1 && (
+            <div className="wa-dropdown-menu" style={{ left: 0, right: 0, top: '100%' }}>
+              {courses.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button
+                    className="wa-dropdown-item"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      if (c.status === 'COMPLETED') handleRetakeCourse(c.id);
+                      else if (c.status === 'PAUSED' || (c.status === 'ACTIVE' && !c.isDefault)) handleActivateCourse(c.id);
+                    }}
+                    disabled={c.isDefault && c.status === 'ACTIVE'}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                      {c.isDefault && c.status === 'ACTIVE' && <Check size={14} style={{ color: 'var(--wa-green-primary)', flexShrink: 0 }} />}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.courseName}</span>
+                    </span>
+                    <span className={`wa-course-status wa-course-status-${c.status.toLowerCase()}`}>
+                      {c.status === 'COMPLETED' ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><RotateCcw size={11} /> Retake</span>
+                      ) : c.status === 'PAUSED' ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Play size={11} /> Resume</span>
+                      ) : c.isDefault ? 'Active' : 'Switch'}
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="wa-header" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="wa-back-btn" onClick={() => router.push('/x')}>
+              <ArrowLeft size={20} />
+            </button>
+            <div className="wa-header-title" style={{ fontSize: 20 }}>HumanFirst</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={() => fetchConversations(true)}
+              disabled={refreshing}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 8,
                 cursor: 'pointer',
+                color: 'var(--wa-header-text)',
+                opacity: 0.75,
                 display: 'flex',
                 alignItems: 'center',
               }}
             >
-              <UserAvatar
-                name={session?.user?.name || session?.user?.email || '?'}
-                initials={session?.user?.avatarInitials}
-                role={session?.user?.role}
-                size={28}
+              <RefreshCw
+                size={20}
+                style={{
+                  animation: refreshing ? 'spin 1s linear infinite' : 'none',
+                }}
               />
             </button>
-            {showAccountMenu && (
-              <div
+
+            {/* Account avatar */}
+            <div style={{ position: 'relative' }} ref={accountRef}>
+              <button
+                onClick={() => setShowAccountMenu(v => !v)}
                 style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  marginTop: 4,
-                  background: 'var(--wa-surface)',
-                  border: '1px solid var(--wa-divider)',
-                  borderRadius: 12,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                  width: 220,
-                  zIndex: 50,
-                  overflow: 'hidden',
+                  background: 'none',
+                  border: 'none',
+                  padding: 4,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
-                <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--wa-divider)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--wa-text-primary)' }}>
-                    {(session?.user as any)?.displayName || session?.user?.name || session?.user?.email}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--wa-text-muted)', marginTop: 2 }}>
-                    {session?.user?.email}
-                  </div>
-                </div>
-                <button
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                <UserAvatar
+                  name={session?.user?.name || session?.user?.email || '?'}
+                  initials={session?.user?.avatarInitials}
+                  role={session?.user?.role}
+                  size={28}
+                />
+              </button>
+              {showAccountMenu && (
+                <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    width: '100%',
-                    padding: '10px 14px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    color: 'var(--status-error-text)',
+                    position: 'absolute',
+                    right: 0,
+                    top: '100%',
+                    marginTop: 4,
+                    background: 'var(--wa-surface)',
+                    border: '1px solid var(--wa-divider)',
+                    borderRadius: 12,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                    width: 220,
+                    zIndex: 50,
+                    overflow: 'hidden',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--wa-hover)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
                 >
-                  <LogOut size={14} />
-                  Sign Out
-                </button>
-              </div>
-            )}
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--wa-divider)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--wa-text-primary)' }}>
+                      {(session?.user as any)?.displayName || session?.user?.name || session?.user?.email}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--wa-text-muted)', marginTop: 2 }}>
+                      {session?.user?.email}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      width: '100%',
+                      padding: '10px 14px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      color: 'var(--status-error-text)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--wa-hover)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                  >
+                    <LogOut size={14} />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Search row — domain dropdown + search input + sort dropdown */}
       <div className="wa-search">

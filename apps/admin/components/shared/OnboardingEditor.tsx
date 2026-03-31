@@ -13,6 +13,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Compass, Paperclip, RotateCcw, ChevronDown, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { isSurveyPhase } from '@/lib/lesson-plan/phase-utils';
 import { SortableList } from '@/components/shared/SortableList';
 import { reorderItems } from '@/lib/sortable/reorder';
 import { OnboardingChatPreview, type ChatPhase } from '@/components/shared/OnboardingChatPreview';
@@ -304,9 +305,7 @@ export function OnboardingEditor({
   }, []);
 
   // ── Helper: is this a survey phase? ────────────────
-
-  const isSurveyPhase = (phase: PhaseWithId): boolean =>
-    phase.phase === 'survey' || (Array.isArray(phase.surveySteps) && phase.surveySteps.length > 0);
+  // Extracted to shared util for reuse in Journey Editor (#88)
 
   // ── Phase editor card factory (works for onboarding + offboarding) ──
 

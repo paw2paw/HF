@@ -886,7 +886,7 @@ export default function CourseDetailPage() {
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <DraggableTabs
-        storageKey="course-detail-tabs-v4"
+        storageKey="course-detail-tabs-v5"
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
