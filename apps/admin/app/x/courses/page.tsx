@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { BookOpen, Users, Plus, Trash2, X, FileText, BookMarked } from 'lucide-react';
+import { BookOpen, Users, Plus, Trash2, X, BookMarked } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
 import { StatusBadge, DomainPill } from '@/src/components/shared/EntityPill';
 import { FancySelect } from '@/components/shared/FancySelect';
@@ -199,10 +199,6 @@ function CourseCard({ course, plural, deleteMode, selected, onToggle, onArchive 
         {stats.totalTPs > 0 && (
           <span><BookMarked size={12} className="hf-icon-inline" /><strong>{stats.totalTPs}</strong> TPs</span>
         )}
-        {stats.sourceCount > 0 && (
-          <span><FileText size={12} className="hf-icon-inline" /><strong>{stats.sourceCount}</strong> sources</span>
-        )}
-        <span className="hf-text-placeholder">v{course.version}</span>
       </div>
       {deleteMode && !canDelete && (
         <div className="hf-flex hf-flex-end hf-mt-sm">
@@ -384,13 +380,6 @@ export default function CoursesPage() {
 
     return groups;
   }, [filteredCourses, groupBy, lower]);
-
-  const courseSummary = useMemo(() => ({
-    total: courses.length,
-    published: courses.filter((c) => c.status === 'published' || c.status === 'PUBLISHED').length,
-    draft: courses.filter((c) => c.status === 'draft' || c.status === 'DRAFT').length,
-    totalStudents: courses.reduce((s, c) => s + (c.studentCount || 0), 0),
-  }), [courses]);
 
   const toggleStatus = (status: string) => {
     setSelectedStatuses((prev) => {

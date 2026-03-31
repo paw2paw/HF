@@ -199,7 +199,7 @@ providers:
               websiteUrl: { type: string }
             required: [name]
         - name: create_course
-          description: "Create the course and a test caller"
+          description: "Create the course and a test caller. domainId is optional — auto-resolved from institution name."
           input_schema:
             type: object
             properties:
@@ -208,16 +208,16 @@ providers:
               subjectDiscipline: { type: string }
               interactionPattern: { type: string }
               personalityPreset: { type: string }
-            required: [domainId, courseName, interactionPattern]
+            required: [courseName, interactionPattern]
         - name: create_community
           description: "Create a community hub (NOT a course)"
           input_schema:
             type: object
             properties:
-              domainId: { type: string }
               hubName: { type: string }
               description: { type: string }
-            required: [domainId, hubName]
+              communityMode: { type: string }
+            required: [hubName, communityMode]
         - name: update_course_config
           description: "Update course config post-scaffold"
           input_schema:

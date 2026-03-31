@@ -84,23 +84,23 @@ providers:
               suggestions: { type: array, items: { type: string } }
             required: [question, suggestions]
         - name: create_course
-          description: "Create the course and a test caller"
+          description: "Create the course and a test caller. domainId is optional — auto-resolved."
           input_schema:
             type: object
             properties:
               domainId: { type: string }
               courseName: { type: string }
               interactionPattern: { type: string }
-            required: [domainId, courseName, interactionPattern]
+            required: [courseName, interactionPattern]
         - name: create_community
           description: "Create a community hub (NOT a course)"
           input_schema:
             type: object
             properties:
-              domainId: { type: string }
               hubName: { type: string }
               description: { type: string }
-            required: [domainId, hubName]
+              communityMode: { type: string }
+            required: [hubName, communityMode]
 
 tests:
 

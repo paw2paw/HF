@@ -417,7 +417,6 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
             onClick={() => click("course")}
             sectionKey="course"
           >
-            {courseName && <div className="gs-bp-course-name">{courseName}</div>}
             <div className="gs-bp-meta">
               {interactionPattern && (
                 <span className="gs-bp-meta-item">

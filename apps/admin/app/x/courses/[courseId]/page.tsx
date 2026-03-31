@@ -11,6 +11,9 @@ import {
   PlayCircle,
 } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
+import { getAudienceOption } from '@/lib/prompt/composition/transforms/audience';
+import { getTeachingProfile } from '@/lib/content-trust/teaching-profiles';
+import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS, type InteractionPattern } from '@/lib/content-trust/resolve-config';
 import { CourseOverviewTab } from './CourseOverviewTab';
 import { CourseOnboardingTab } from './CourseOnboardingTab';
 import { CourseContentTab } from './CourseContentTab';
@@ -36,7 +39,7 @@ import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
 import { SessionPlanViewer } from '@/components/shared/SessionPlanViewer';
 import { JourneyRail } from '@/components/shared/JourneyRail';
 import { reorderItems } from '@/lib/sortable/reorder';
-import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS } from '@/lib/content-trust/resolve-config';
+// INTERACTION_PATTERN_LABELS + TEACHING_MODE_LABELS imported above
 import type { SessionEntry, SessionMediaRef as SessionMediaRefType, SessionMediaMap, StudentProgress } from '@/lib/lesson-plan/types';
 import './course-detail.css';
 import './course-learners.css';
@@ -117,6 +120,56 @@ const statusMap: Record<string, 'draft' | 'active' | 'archived'> = {
 };
 
 import { SectionHeader } from './SectionHeader';
+
+// ── Course Detail Insight Badges ───────────────────────
+
+function CourseDetailInsights({ detail, subjects }: {
+  detail: { config?: Record<string, unknown> | null };
+  subjects: { teachingProfile: string | null }[];
+}) {
+  const config = (detail.config || {}) as Record<string, any>;
+  const badges: { icon: string; label: string; tooltip: string }[] = [];
+
+  // Teaching profile → interaction pattern + mode
+  const tp = subjects.find((s) => s.teachingProfile)?.teachingProfile;
+  if (tp) {
+    const profile = getTeachingProfile(tp);
+    if (profile) {
+      const patternInfo = INTERACTION_PATTERN_LABELS[profile.interactionPattern as InteractionPattern];
+      if (patternInfo) {
+        badges.push({ icon: patternInfo.icon, label: patternInfo.label, tooltip: patternInfo.description });
+      }
+      const modeLabel = tp.replace(/-led$/, '');
+      badges.push({
+        icon: '📖',
+        label: modeLabel.charAt(0).toUpperCase() + modeLabel.slice(1),
+        tooltip: profile.description,
+      });
+    }
+  }
+
+  // Audience
+  const audienceId = config.audience as string | undefined;
+  if (audienceId) {
+    const opt = getAudienceOption(audienceId);
+    if (opt) {
+      badges.push({ icon: '👤', label: `${opt.label} (${opt.ages})`, tooltip: opt.description });
+    }
+  }
+
+  if (badges.length === 0) return null;
+
+  return (
+    <div className="hf-flex hf-gap-xs hf-mb-lg hf-flex-wrap">
+      {badges.map((b, i) => (
+        <span key={i} className="hf-insight-badge" title={b.tooltip}>
+          <span className="hf-insight-badge-icon">{b.icon}</span>
+          {b.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 // ── Main Component ─────────────────────────────────────
 
@@ -798,32 +851,36 @@ export default function CourseDetailPage() {
       ) : null}
 
       {/* ── Stats Row ─────────────────────────────────── */}
-      <div className="hf-flex hf-gap-lg hf-mb-lg">
-        <button type="button" onClick={() => handleTabChange('overview')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
-          <div className="hf-stat-value-sm">{subjects.length}</div>
+      <div className="hf-flex hf-gap-lg hf-mb-sm hf-flex-wrap">
+        <button type="button" onClick={() => handleTabChange('overview')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable" title={`${subjects.length} ${plural('knowledge_area').toLowerCase()} linked to this course`}>
+          <div className="hf-stat-value-sm"><BookMarked size={14} className="hf-icon-inline hf-text-accent" /> {subjects.length}</div>
           <div className="hf-text-xs hf-text-muted">{plural('knowledge_area')}</div>
         </button>
-        <button type="button" onClick={() => handleTabChange('content')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
-          <div className="hf-stat-value-sm">{contentOnlyCount}</div>
-          <div className="hf-text-xs hf-text-muted">Content</div>
+        <button type="button" onClick={() => handleTabChange('content')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable" title={`${contentOnlyCount} teaching points extracted from uploaded content`}>
+          <div className="hf-stat-value-sm"><Target size={14} className="hf-icon-inline hf-text-accent" /> {contentOnlyCount}</div>
+          <div className="hf-text-xs hf-text-muted">Teaching Points</div>
         </button>
         {instructionTotal > 0 && (
-          <button type="button" onClick={() => handleTabChange('overview')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
-            <div className="hf-stat-value-sm">{instructionTotal}</div>
+          <button type="button" onClick={() => handleTabChange('overview')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable" title={`${instructionTotal} teaching rules, skills, and edge cases from course guide`}>
+            <div className="hf-stat-value-sm"><Zap size={14} className="hf-icon-inline hf-text-accent" /> {instructionTotal}</div>
             <div className="hf-text-xs hf-text-muted">Rules</div>
           </button>
         )}
-        <button type="button" onClick={() => handleTabChange('content')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable">
-          <div className="hf-stat-value-sm">{totalSources}</div>
+        <button type="button" onClick={() => handleTabChange('content')} className="hf-stat-card hf-stat-card-compact hf-stat-card-clickable" title={`${totalSources} uploaded documents (textbooks, worksheets, guides)`}>
+          <div className="hf-stat-value-sm"><FileText size={14} className="hf-icon-inline hf-text-accent" /> {totalSources}</div>
           <div className="hf-text-xs hf-text-muted">Sources</div>
         </button>
         {detail.publishedAt && (
-          <div className="hf-stat-card hf-stat-card-compact">
+          <div className="hf-stat-card hf-stat-card-compact" title={`Published on ${new Date(detail.publishedAt).toLocaleDateString()}`}>
             <div className="hf-text-sm hf-text-bold">{new Date(detail.publishedAt).toLocaleDateString()}</div>
             <div className="hf-text-xs hf-text-muted">Published</div>
           </div>
         )}
       </div>
+
+      {/* ── Insight Badges ────────────────────────────── */}
+      <CourseDetailInsights detail={detail} subjects={subjects} />
+
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <DraggableTabs
