@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { signOut } from "next-auth/react";
 import { ArrowUp, Loader2, Check, Upload, Headphones, BookMarked, Link2, Plus } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { MessageActions } from "./MessageActions";
@@ -376,7 +377,10 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         });
 
         if (!res.ok) {
-          if (res.status === 401) return { error: "Your session has expired. Please refresh the page and log in again." };
+          if (res.status === 401) {
+            signOut({ callbackUrl: "/login" });
+            return { error: "Session expired — redirecting to login…" };
+          }
           const err = await res.json().catch(() => ({ error: "Request failed" }));
           return { error: err.error || `Server error (${res.status}). Try again in a moment.` };
         }
