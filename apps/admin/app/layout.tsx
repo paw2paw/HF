@@ -359,6 +359,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="app-version" content={process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev'} />
       </head>
       <body className="overflow-hidden bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 antialiased" style={{ height: '100dvh' }}>
         <EnvironmentBanner />
