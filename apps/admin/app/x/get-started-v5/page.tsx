@@ -1,6 +1,6 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ConversationalWizard } from "../wizard/components/ConversationalWizard";
 import { V5WizardWithSelector } from "./V5WizardWithSelector";
 
 /**
@@ -15,7 +15,7 @@ export default async function GetStartedV5Page({
   searchParams: Promise<{ courseId?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user) return <ConversationalWizard wizardVersion="v5" />;
+  if (!session?.user) redirect("/login");
 
   const { user } = session;
   const institutionId = user.institutionId;
