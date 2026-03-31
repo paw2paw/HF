@@ -25,6 +25,8 @@ const STALE_TASK_MS = 5 * 60 * 1000;
 
 export interface SourceStatus {
   assertionCount: number;
+  questionCount: number;
+  vocabularyCount: number;
   embeddedCount: number;
   structuredCount: number;
   jobStatus: "pending" | "extracting" | "importing" | "done" | "error" | null;
@@ -57,7 +59,23 @@ export async function GET(req: NextRequest) {
     });
     const countMap = new Map(assertionCounts.map((r) => [r.sourceId, r._count.id]));
 
-    // 2. Embedded assertion counts (assertions with embedding IS NOT NULL)
+    // 2. Question counts per source
+    const questionCounts = await prisma.contentQuestion.groupBy({
+      by: ["sourceId"],
+      where: { sourceId: { in: sourceIds } },
+      _count: { id: true },
+    });
+    const questionMap = new Map(questionCounts.map((r) => [r.sourceId, r._count.id]));
+
+    // 3. Vocabulary counts per source
+    const vocabularyCounts = await prisma.contentVocabulary.groupBy({
+      by: ["sourceId"],
+      where: { sourceId: { in: sourceIds } },
+      _count: { id: true },
+    });
+    const vocabularyMap = new Map(vocabularyCounts.map((r) => [r.sourceId, r._count.id]));
+
+    // 5. Embedded assertion counts (assertions with embedding IS NOT NULL)
     const embeddedCounts = await prisma.$queryRaw<Array<{ sourceId: string; cnt: bigint }>>`
       SELECT "sourceId", COUNT(*) as cnt
       FROM "ContentAssertion"
@@ -67,7 +85,7 @@ export async function GET(req: NextRequest) {
     `;
     const embeddedMap = new Map(embeddedCounts.map((r) => [r.sourceId, Number(r.cnt)]));
 
-    // 3. Structured assertion counts (depth > 0 means part of pyramid)
+    // 6. Structured assertion counts (depth > 0 means part of pyramid)
     const structuredCounts = await prisma.contentAssertion.groupBy({
       by: ["sourceId"],
       where: { sourceId: { in: sourceIds }, depth: { gt: 0 } },
@@ -75,7 +93,7 @@ export async function GET(req: NextRequest) {
     });
     const structuredMap = new Map(structuredCounts.map((r) => [r.sourceId, r._count.id]));
 
-    // 4. Latest extraction job status per source (from UserTask)
+    // 7. Latest extraction job status per source (from UserTask)
     // TaskStatus enum: in_progress | completed | abandoned
     // Error info is stored in the context JSON, not a separate column
     const tasks = await prisma.userTask.findMany({
@@ -133,6 +151,8 @@ export async function GET(req: NextRequest) {
       const job = jobMap.get(id);
       sources[id] = {
         assertionCount,
+        questionCount: questionMap.get(id) || 0,
+        vocabularyCount: vocabularyMap.get(id) || 0,
         embeddedCount: embeddedMap.get(id) || 0,
         structuredCount: structuredMap.get(id) || 0,
         jobStatus: (job?.status as SourceStatus["jobStatus"]) || (assertionCount > 0 ? "done" : null),

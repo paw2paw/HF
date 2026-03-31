@@ -17,6 +17,8 @@ import { useMemo } from 'react';
 
 export interface SourceStatusData {
   assertionCount: number;
+  questionCount: number;
+  vocabularyCount: number;
   embeddedCount: number;
   structuredCount: number;
   jobStatus: 'pending' | 'extracting' | 'importing' | 'done' | 'error' | null;

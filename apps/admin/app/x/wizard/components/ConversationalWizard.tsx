@@ -781,11 +781,16 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
       if (courseRefIndices.length === 0) {
         // Non-COURSE_REFERENCE extraction done — show a quiet status in chat
         // so the user knows their content is ready (no AI round-trip needed).
-        if (totals.assertions > 0) {
+        const total = totals.assertions + totals.questions + totals.vocabulary;
+        if (total > 0) {
+          const parts: string[] = [];
+          if (totals.assertions > 0) parts.push(`${totals.assertions} teaching pt${totals.assertions !== 1 ? "s" : ""}`);
+          if (totals.questions > 0) parts.push(`${totals.questions} question${totals.questions !== 1 ? "s" : ""}`);
+          if (totals.vocabulary > 0) parts.push(`${totals.vocabulary} vocab`);
           const doneMsg: Message = {
             id: uid(),
             role: "system",
-            content: `${totals.assertions} teaching point${totals.assertions !== 1 ? "s" : ""} extracted — ready for your course`,
+            content: `${parts.join(" · ")} extracted — ready for your course`,
             systemType: "timeline",
           };
           setMessages((prev) => {

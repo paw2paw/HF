@@ -93,12 +93,14 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
     pollInterval: 5_000,
   });
 
-  const { totalAssertions, totalEmbedded, extractionDone } = useMemo(() => {
+  const { totalAssertions, totalQuestions, totalVocabulary, totalEmbedded, extractionDone } = useMemo(() => {
     const values = Object.values(statusMap);
     if (values.length === 0 || values.length < sourceIds.length) {
-      return { totalAssertions: 0, totalEmbedded: 0, extractionDone: false };
+      return { totalAssertions: 0, totalQuestions: 0, totalVocabulary: 0, totalEmbedded: 0, extractionDone: false };
     }
     const assertions = values.reduce((sum, s) => sum + s.assertionCount, 0);
+    const questions = values.reduce((sum, s) => sum + (s.questionCount ?? 0), 0);
+    const vocabulary = values.reduce((sum, s) => sum + (s.vocabularyCount ?? 0), 0);
     const embedded = values.reduce((sum, s) => sum + s.embeddedCount, 0);
     // Done = every source either has assertions OR reached a terminal state.
     // Do NOT treat jobStatus=null as done — extraction may not have started yet.
@@ -107,7 +109,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
       || s.jobStatus === "error"
       || s.jobStatus === "done"
     );
-    return { totalAssertions: assertions, totalEmbedded: embedded, extractionDone: done };
+    return { totalAssertions: assertions, totalQuestions: questions, totalVocabulary: vocabulary, totalEmbedded: embedded, extractionDone: done };
   }, [statusMap, sourceIds]);
 
   // Auto-transition when extraction completes
@@ -115,9 +117,9 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
     if (extractionDone && phase === "tracking" && !notifiedDone.current) {
       notifiedDone.current = true;
       setPhase("done");
-      onExtractionDone?.({ assertions: totalAssertions, questions: 0, vocabulary: 0 });
+      onExtractionDone?.({ assertions: totalAssertions, questions: totalQuestions, vocabulary: totalVocabulary });
     }
-  }, [extractionDone, phase, totalAssertions, onExtractionDone]);
+  }, [extractionDone, phase, totalAssertions, totalQuestions, totalVocabulary, onExtractionDone]);
 
   // ── File handling ─────────────────────────────────────
 
@@ -493,7 +495,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
       {phase === "done" && (
         <div className="cv4-sources-done">
           <Check size={14} />
-          <span>{totalAssertions} item{totalAssertions !== 1 ? "s" : ""} ready</span>
+          <span>{totalAssertions + totalQuestions + totalVocabulary} item{(totalAssertions + totalQuestions + totalVocabulary) !== 1 ? "s" : ""} ready</span>
           <span className="cv4-sources-done-hint">Available across all sessions</span>
         </div>
       )}

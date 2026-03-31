@@ -48,6 +48,7 @@
   - [Playbooks](#playbooks)
   - [Prompts](#prompts)
   - [Specs](#specs)
+  - [Student](#student)
   - [Subjects](#subjects)
   - [System](#system)
   - [Transcripts](#transcripts)
@@ -439,6 +440,7 @@ Create a new caller. Auto-assigns the default domain if none specified. Generate
 | domainId | body | string | No | Domain ID to assign (optional, defaults to system default domain) |
 | playbookId | body | string | No | Enroll in this specific playbook only (optional, skips domain-wide enrollment) |
 | role | body | string | No | Caller role (optional, default LEARNER) |
+| skipOnboarding | body | boolean | No | Skip onboarding flow + surveys, dive straight into content (optional, default false) |
 
 **Response** `200`
 ```json
@@ -4252,6 +4254,71 @@ Returns a hierarchical tree structure of ALL specs grouped by Domain > Scope > O
 **Response** `500`
 ```json
 { ok: false, error: "..." }
+```
+
+---
+
+## Student
+
+### `GET` /api/v1/student/courses
+
+List all course enrollments for the authenticated student. Returns playbook metadata, status, session count, and active goal count.
+
+**Auth**: STUDENT | OPERATOR+ (with callerId param) · **Scope**: `student:read`
+
+**Response** `200`
+```json
+{ ok: true, enrollments: Enrollment[] }
+```
+
+---
+
+### `POST` /api/v1/student/courses/:enrollmentId/activate
+
+Switch the student's active course. Sets this enrollment as default and triggers prompt recomposition.
+
+**Auth**: STUDENT | OPERATOR+ (with callerId param) · **Scope**: `student:write`
+
+**Response** `200`
+```json
+{ ok: true, enrollment: { id, status, isDefault } }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Enrollment not found" }
+```
+
+---
+
+### `POST` /api/v1/student/courses/:enrollmentId/retake
+
+Soft-restart a completed course. Resets goals, curriculum progress, surveys, and onboarding
+
+**Auth**: STUDENT | OPERATOR+ (with callerId param) · **Scope**: `student:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| skipOnboarding | body | boolean | No | Skip onboarding on retake, go straight to content (optional, default false) |
+
+**Response** `200`
+```json
+{ ok: true, enrollment: { id, status, isDefault } }
+```
+
+**Response** `400`
+```json
+{ ok: false, error: "..." }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Enrollment not found" }
 ```
 
 ---
