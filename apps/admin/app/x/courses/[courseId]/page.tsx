@@ -192,6 +192,7 @@ export default function CourseDetailPage() {
   const [contentMethods, setContentMethods] = useState<MethodBreakdown[]>([]);
   const [contentTotal, setContentTotal] = useState(0);
   const [instructionTotal, setInstructionTotal] = useState(0);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   // Tabs
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -263,6 +264,7 @@ export default function CourseDetailPage() {
           setContentMethods(breakdownData.methods || []);
           setContentTotal(breakdownData.total || 0);
           setInstructionTotal(breakdownData.instructionCount || 0);
+          setCategoryCounts(breakdownData.categoryCounts || {});
         }
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
@@ -934,6 +936,7 @@ export default function CourseDetailPage() {
           subjects={subjects}
           contentMethods={contentMethods}
           contentTotal={contentTotal}
+          categoryCounts={categoryCounts}
           isOperator={isOperator}
           onContentRefresh={(methods, total, instrCount) => {
             setContentMethods(methods);

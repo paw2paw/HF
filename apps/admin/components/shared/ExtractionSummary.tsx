@@ -16,17 +16,7 @@ import './wizard-summary.css'; // reuse wiz-hero-check + wiz-fade-up keyframes
 import { FileText, AlertTriangle, Check } from 'lucide-react';
 import type { PackUploadResult } from '@/components/wizards/PackUploadStep';
 import { DocTypeBadge } from '@/app/x/content-sources/_components/shared/badges';
-
-// ── Category pill colors ─────────────────────────
-
-const CATEGORY_PILL_COLORS: Record<string, { color: string; bg: string }> = {
-  fact:       { color: 'var(--accent-primary)',        bg: 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' },
-  definition: { color: 'var(--badge-cyan-text, #0891b2)', bg: 'color-mix(in srgb, var(--badge-cyan-text, #0891b2) 10%, transparent)' },
-  rule:       { color: 'var(--status-warning-text)',    bg: 'color-mix(in srgb, var(--status-warning-text) 10%, transparent)' },
-  process:    { color: 'var(--accent-secondary, #8b5cf6)', bg: 'color-mix(in srgb, var(--accent-secondary, #8b5cf6) 10%, transparent)' },
-  example:    { color: 'var(--status-success-text)',    bg: 'color-mix(in srgb, var(--status-success-text) 10%, transparent)' },
-  threshold:  { color: 'var(--badge-pink-text, #be185d)', bg: 'color-mix(in srgb, var(--badge-pink-text, #be185d) 10%, transparent)' },
-};
+import { CONTENT_CATEGORIES } from '@/lib/content-categories';
 
 // ── Props ────────────────────────────────────────
 
@@ -157,7 +147,7 @@ export function ExtractionSummary({
           <div className="es-section-label">Teaching Points by Type</div>
           <div className="es-categories">
             {sortedCategories.map(([cat, count]) => {
-              const colors = CATEGORY_PILL_COLORS[cat];
+              const colors = CONTENT_CATEGORIES[cat];
               return (
                 <span
                   key={cat}

@@ -191,7 +191,7 @@ export async function GET(
     }
 
     // ── Summary mode: counts by teachMethod ───────────
-    const [methodGroups, totalCount, reviewedCount, instructionCount] = await Promise.all([
+    const [methodGroups, totalCount, reviewedCount, instructionCount, categoryGroups] = await Promise.all([
       prisma.contentAssertion.groupBy({
         by: ["teachMethod"],
         where: { sourceId: { in: sourceIds } },
@@ -207,7 +207,18 @@ export async function GET(
       prisma.contentAssertion.count({
         where: { sourceId: { in: sourceIds }, category: { in: [...INSTRUCTION_CATEGORIES] } },
       }),
+      prisma.contentAssertion.groupBy({
+        by: ["category"],
+        where: { sourceId: { in: sourceIds } },
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+      }),
     ]);
+
+    const categoryCounts: Record<string, number> = {};
+    for (const g of categoryGroups) {
+      if (g.category) categoryCounts[g.category] = g._count.id;
+    }
 
     const methods = methodGroups.map((g) => ({
       teachMethod: g.teachMethod || "unassigned",
@@ -292,6 +303,7 @@ export async function GET(
       contentCount: totalCount - instructionCount,
       instructionCount,
       reviewedCount,
+      categoryCounts,
       ...(bySubjectData ? { bySubject: bySubjectData } : {}),
     });
   } catch (error: unknown) {

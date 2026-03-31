@@ -13,6 +13,7 @@
 import { Loader2, RotateCcw, ExternalLink, Pencil } from "lucide-react";
 import { estimateTeachingSessions } from "@/lib/lesson-plan/session-ui";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import { CONTENT_CATEGORIES, CATEGORY_ORDER } from "@/lib/content-categories";
 import "./scaffold-panel.css";
 
 type ScaffoldStatus = "waiting" | "collecting" | "ready" | "resolved" | "building" | "done";
@@ -253,6 +254,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   const isExtracting = !!extractionProgress;
   const contentTotals = isExtracting ? extractionProgress : extractionTotals;
   const sourceCount = getData<number>("sourceCount");
+  const categoryCounts = getData<Record<string, number>>("categoryCounts");
 
   // Default detection helper
   const isDefault = (field: string) => !userSetFields.includes(field);
@@ -507,6 +509,20 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
                     }
                     {contentParts.length > 0 && (
                       <span className="gs-bp-content-detail">{contentParts.join(" · ")}</span>
+                    )}
+                    {categoryCounts && contentTotals && contentTotals.assertions > 0 && (
+                      <span className="gs-bp-category-dots">
+                        {CATEGORY_ORDER
+                          .filter(cat => (categoryCounts[cat] ?? 0) > 0)
+                          .map(cat => (
+                            <span
+                              key={cat}
+                              className="gs-bp-category-dot"
+                              title={`${CONTENT_CATEGORIES[cat].label}: ${categoryCounts[cat]}`}
+                              style={{ background: CONTENT_CATEGORIES[cat].color }}
+                            />
+                          ))}
+                      </span>
                     )}
                     <span className="gs-bp-content-hint">Available across all sessions</span>
                   </>

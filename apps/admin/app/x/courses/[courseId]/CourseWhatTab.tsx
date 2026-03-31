@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { getDocTypeInfo } from '@/lib/doc-type-icons';
+import { CONTENT_CATEGORIES, CATEGORY_ORDER } from '@/lib/content-categories';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export type CourseWhatTabProps = {
   subjects: SubjectSummary[];
   contentMethods: MethodBreakdown[];
   contentTotal: number;
+  categoryCounts?: Record<string, number>;
   isOperator: boolean;
   onContentRefresh?: (methods: MethodBreakdown[], total: number, instructionCount?: number) => void;
 };
@@ -180,6 +182,7 @@ export function CourseWhatTab({
   subjects,
   contentMethods,
   contentTotal,
+  categoryCounts,
   isOperator,
   onContentRefresh,
 }: CourseWhatTabProps) {
@@ -315,6 +318,35 @@ export function CourseWhatTab({
             )}
 
             <TeachMethodStats methods={contentMethods} total={contentTotal} />
+
+            {/* Category breakdown pills */}
+            {categoryCounts && Object.keys(categoryCounts).length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div className="hf-category-label" style={{ marginBottom: 6 }}>
+                  By Category
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {CATEGORY_ORDER
+                    .filter(cat => (categoryCounts[cat] ?? 0) > 0)
+                    .map(cat => {
+                      const meta = CONTENT_CATEGORIES[cat];
+                      return (
+                        <span
+                          key={cat}
+                          className="hf-badge"
+                          style={{
+                            color: meta.color,
+                            background: meta.bg,
+                          }}
+                        >
+                          {meta.label}
+                          <span style={{ opacity: 0.7, marginLeft: 4 }}>{categoryCounts[cat]}</span>
+                        </span>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}

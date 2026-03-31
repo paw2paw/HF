@@ -330,7 +330,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
       "behaviorTargets", "lessonPlanModel", "personalityPreset", "personalityDescription",
       "physicalMaterials",
       "draftDomainId", "draftInstitutionId", "draftPlaybookId", "draftCallerId",
-      "launched", "sourceId", "packSubjectIds", "extractionTotals", "contentSkipped",
+      "launched", "sourceId", "packSubjectIds", "extractionTotals", "categoryCounts", "contentSkipped",
       "lastUploadClassifications", "courseContext",
       "welcomeSkipped", "tuneSkipped",
       "communityMode", "draftCohortGroupId", "communityJoinToken", "communityHubUrl",
@@ -768,6 +768,17 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
   const handleExtractionDone = useCallback(
     async (totals: { assertions: number; questions: number; vocabulary: number }) => {
       setData("extractionTotals", { ...totals, images: 0 });
+
+      // Fetch category breakdown (fire-and-forget — ScaffoldPanel picks it up via getData)
+      const uploadIds = getData<string[]>("uploadSourceIds");
+      if (uploadIds?.length) {
+        fetch(`/api/content-sources/category-counts?ids=${uploadIds.join(",")}`)
+          .then(r => r.json())
+          .then((d: { ok: boolean; categoryCounts?: Record<string, number> }) => {
+            if (d.ok && d.categoryCounts) setData("categoryCounts", d.categoryCounts);
+          })
+          .catch(() => {});
+      }
 
       // Check if any uploaded files were COURSE_REFERENCE — if so, fetch their
       // assertions and build a digest for the wizard AI to reflect back.

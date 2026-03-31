@@ -4856,6 +4856,19 @@ Mark multiple vocabulary entries as reviewed in a single transaction.
 
 ---
 
+### `GET` /api/content-sources/category-counts
+
+Returns assertion counts grouped by category for given content sources.
+
+**Auth**: VIEWER · **Scope**: `content-sources:read`
+
+**Response** `200`
+```json
+{ ok: true, categoryCounts: Record<string, number> }
+```
+
+---
+
 ### `GET` /api/content-sources/status
 
 Batch status for multiple content sources. Returns per-source
@@ -13552,8 +13565,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 407 |
-| Files with annotations | 406 |
+| Route files found | 408 |
+| Files with annotations | 407 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 
