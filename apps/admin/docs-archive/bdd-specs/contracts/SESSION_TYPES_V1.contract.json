@@ -19,7 +19,7 @@
         "color": "var(--login-blue)",
         "icon": "ClipboardList",
         "autoInclude": "before_first",
-        "canSkip": true,
+        "canSkip": false,
         "sortOrder": 0
       },
       {

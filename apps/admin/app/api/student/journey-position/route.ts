@@ -144,8 +144,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (isFormStop(entry.type)) {
         // Survey stop — check if submitted or skipped
+        // Mandatory surveys (isOptional === false) cannot be skipped — only submission counts
         const scope = surveyScope(entry.type);
-        const isDone = (scope && surveySubmitted.has(scope)) || isSkipped;
+        const isSubmitted = !!(scope && surveySubmitted.has(scope));
+        const isDone = isSubmitted || (isSkipped && entry.isOptional !== false);
         if (isDone) {
           completedStops++;
           continue;

@@ -634,6 +634,11 @@ export async function executeWizardTool(
             const constraints = (input.constraints as string[]) || (setupData?.constraints as string[]);
             if (constraints) configUpdate.constraints = constraints;
 
+            // Enable pre-survey by default (mandatory per product decision)
+            if (!configUpdate.surveys) {
+              configUpdate.surveys = { pre: { enabled: true }, mid: { enabled: false }, post: { enabled: true } };
+            }
+
             await prisma.playbook.update({
               where: { id: existingPlaybookId },
               data: { config: JSON.parse(JSON.stringify(configUpdate)) },
@@ -967,6 +972,11 @@ export async function executeWizardTool(
           if (newLOGoals.length > 0) {
             configUpdate.goals = [...existingGoals, ...newLOGoals];
           }
+        }
+
+        // Enable pre-survey by default (mandatory per product decision)
+        if (!configUpdate.surveys) {
+          configUpdate.surveys = { pre: { enabled: true }, mid: { enabled: false }, post: { enabled: true } };
         }
 
         await prisma.playbook.update({
