@@ -608,7 +608,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
       // (the course-ref flow outlives the initial upload-notification API call).
       setBusyReason((prev) => prev === "course-ref-analysing" ? prev : "sending");
       const result = await sendToAPI(msg, newMessages, overrides);
-      setBusyReason((prev) => prev === "sending" ? null : prev);
+      setBusyReason((prev) => (prev === "sending" || prev === "course-ref-analysing") ? null : prev);
 
       if (!result) {
         // Aborted — no error to show
