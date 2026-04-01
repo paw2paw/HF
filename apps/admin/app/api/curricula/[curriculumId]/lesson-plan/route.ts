@@ -441,54 +441,19 @@ Total modules: ${modules.length}`;
         : undefined,
     }));
 
-    // ── Auto-wrap with survey stops if playbook has surveys enabled ──
-    // Check playbook config for survey selections
+    // ── Auto-inject structural + survey stops from SESSION_TYPES_V1 contract ──
     const playbookForSurvey = await prisma.playbook.findFirst({
       where: { subjects: { some: { subject: { curricula: { some: { id: curriculumId } } } } } },
       select: { config: true },
     });
     const pbSurveys = (playbookForSurvey?.config as Record<string, any>)?.surveys as
-      { pre?: { enabled: boolean }; mid?: { enabled: boolean }; post?: { enabled: boolean } } | undefined;
+      import("@/lib/lesson-plan/apply-auto-include-stops").SurveyConfig | undefined;
 
-    if (pbSurveys) {
-      // Prepend pre-survey if enabled
-      if (pbSurveys.pre?.enabled) {
-        entries.unshift({
-          session: 0, type: "pre_survey", moduleId: null, moduleLabel: "",
-          label: "Pre-Survey", estimatedDurationMins: 2, assertionIds: [],
-          isOptional: true,
-        });
-      }
-      // Insert mid-survey at halfway if enabled
-      if (pbSurveys.mid?.enabled) {
-        const teachingEntries = entries.filter((e) => !["pre_survey", "onboarding", "offboarding", "post_survey"].includes(e.type));
-        const midPoint = Math.ceil(teachingEntries.length / 2);
-        // Find the position after the midPoint-th teaching entry
-        let count = 0;
-        let insertIdx = entries.length;
-        for (let i = 0; i < entries.length; i++) {
-          if (!["pre_survey", "onboarding", "offboarding", "post_survey"].includes(entries[i].type)) {
-            count++;
-            if (count === midPoint) { insertIdx = i + 1; break; }
-          }
-        }
-        entries.splice(insertIdx, 0, {
-          session: 0, type: "mid_survey", moduleId: null, moduleLabel: "",
-          label: "Mid-Survey", estimatedDurationMins: 2, assertionIds: [],
-          isOptional: true,
-        });
-      }
-      // Append post-survey if enabled
-      if (pbSurveys.post?.enabled) {
-        entries.push({
-          session: 0, type: "post_survey", moduleId: null, moduleLabel: "",
-          label: "Post-Survey", estimatedDurationMins: 2, assertionIds: [],
-          isOptional: true,
-        });
-      }
-      // Renumber all entries
-      entries.forEach((e, i) => { e.session = i + 1; });
-    }
+    const { applyAutoIncludeStops } = await import("@/lib/lesson-plan/apply-auto-include-stops");
+    const expandedEntries = await applyAutoIncludeStops(entries, pbSurveys);
+    // Replace entries in-place so downstream code (assertion distribution) uses expanded list
+    entries.length = 0;
+    entries.push(...expandedEntries);
 
     // Distribute content assertions across sessions (round-robin)
     // Use course-aware resolution (PlaybookSubject → Subject → SubjectSource),

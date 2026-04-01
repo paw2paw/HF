@@ -36,8 +36,9 @@ export async function initializeLessonPlanSession(
     const lessonPlan = dc?.lessonPlan;
     if (!lessonPlan?.entries?.length || lessonPlan.entries.length < 2) continue;
 
-    // Find first non-onboarding session number
-    const firstLessonEntry = lessonPlan.entries.find((e: any) => e.type !== "onboarding");
+    // Find first teaching session (skip structural + survey stops)
+    const nonTeachingTypes = ["onboarding", "offboarding", "pre_survey", "mid_survey", "post_survey"];
+    const firstLessonEntry = lessonPlan.entries.find((e: any) => !nonTeachingTypes.includes(e.type));
     const firstLessonSession = firstLessonEntry?.session ?? 2;
 
     await updateCurriculumProgress(callerId, curriculum.slug, {

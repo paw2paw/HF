@@ -2176,6 +2176,18 @@ async function generateLessonPlanPreview(
     });
     if (!subject) return;
 
+    // Auto-inject structural + survey stops from SESSION_TYPES_V1 contract
+    let surveyConfig: import("@/lib/lesson-plan/apply-auto-include-stops").SurveyConfig | undefined;
+    if (playbookId) {
+      const pb = await prisma.playbook.findUnique({
+        where: { id: playbookId },
+        select: { config: true },
+      });
+      surveyConfig = (pb?.config as Record<string, any>)?.surveys;
+    }
+    const { applyAutoIncludeStops } = await import("@/lib/lesson-plan/apply-auto-include-stops");
+    const expandedEntries = await applyAutoIncludeStops(planEntries, surveyConfig);
+
     const curriculumSlug = `${subject.slug}-curriculum`;
     const existingCurriculum = await prisma.curriculum.findFirst({
       where: { subjectId: subject.id },
@@ -2183,13 +2195,16 @@ async function generateLessonPlanPreview(
     });
 
     const lessonPlanData = {
-      estimatedSessions: sessionCount || planEntries.length,
-      entries: planEntries,
+      estimatedSessions: sessionCount || expandedEntries.length,
+      entries: expandedEntries,
       generatedAt: new Date().toISOString(),
       generatedFrom,
     };
 
-    const modulesFromPlan = planEntries.map((e, i) => ({
+    const teachingEntries = expandedEntries.filter((e) =>
+      !["pre_survey", "mid_survey", "post_survey", "onboarding", "offboarding"].includes(e.type),
+    );
+    const modulesFromPlan = teachingEntries.map((e, i) => ({
       id: `MOD-${i + 1}`,
       title: e.label,
       description: `${e.type} session`,
