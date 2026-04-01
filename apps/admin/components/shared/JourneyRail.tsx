@@ -409,6 +409,23 @@ export function JourneyRail({
     }
   }, []);
 
+  // Auto-poll when plan is empty — background generation may be in progress.
+  // Polls the sessions API directly (not onRetry) to avoid flashing the loading state.
+  useEffect(() => {
+    if (sessions.length > 0 || loading || !!error || !onRetry) return;
+    const id = setInterval(() => {
+      fetch(`/api/courses/${courseId}/sessions`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok && data.plan?.entries?.length > 0) {
+            onRetry(); // Triggers full parent reload now that data exists
+          }
+        })
+        .catch(() => {}); // Silently retry on next interval
+    }, 3000);
+    return () => clearInterval(id);
+  }, [sessions.length, loading, error, onRetry, courseId]);
+
   // ── Loading / Error / Empty ───────────────────────
 
   if (loading) {
@@ -434,11 +451,15 @@ export function JourneyRail({
 
   if (sessions.length === 0) {
     return (
-      <div className="jrl-empty">
+      <div className={`jrl-empty${onRetry ? " hf-glow-active" : ""}`}>
         <ListOrdered size={36} className="hf-text-tertiary" />
-        <div className="hf-heading-sm hf-text-secondary">No lesson plan yet</div>
+        <div className="hf-heading-sm hf-text-secondary">
+          {onRetry ? "Generating lesson plan..." : "No lesson plan yet"}
+        </div>
         <p className="hf-text-xs hf-text-muted">
-          A lesson plan is created when you set up your course content.
+          {onRetry
+            ? "This usually takes a few seconds."
+            : "A lesson plan is created when you set up your course content."}
         </p>
       </div>
     );
