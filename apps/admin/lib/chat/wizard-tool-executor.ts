@@ -1280,8 +1280,9 @@ export async function executeWizardTool(
         let cohort = await prisma.cohortGroup.findFirst({
           where: { domainId, name: cohortName },
         });
+        let joinToken = cohort?.joinToken || "";
         if (!cohort) {
-          const joinToken = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+          joinToken = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
           cohort = await prisma.cohortGroup.create({
             data: {
               name: cohortName,

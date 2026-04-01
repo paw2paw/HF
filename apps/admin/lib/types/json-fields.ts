@@ -129,6 +129,12 @@ export interface PlaybookConfig {
   welcomeMessage?: string;
   courseContext?: string;
   offboarding?: OffboardingConfig;
+  /** Survey configuration — replaces buried phases[].surveySteps[] pattern */
+  surveys?: {
+    pre?: { enabled: boolean; questions: SurveyStepConfig[] };
+    mid?: { enabled: boolean; questions: SurveyStepConfig[] };
+    post?: { enabled: boolean; questions: SurveyStepConfig[] };
+  };
   [key: string]: any;
 }
 

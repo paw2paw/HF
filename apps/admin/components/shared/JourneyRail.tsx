@@ -133,9 +133,9 @@ function OnboardingSessionDetail({
         onClick={(e) => {
           e.stopPropagation();
           if (onSwitchTab) {
-            onSwitchTab("onboarding");
+            onSwitchTab("journey");
           } else {
-            router.push(`/x/courses/${courseId}?tab=onboarding`);
+            router.push(`/x/courses/${courseId}?tab=journey`);
           }
         }}
         type="button"
@@ -173,9 +173,9 @@ function OffboardingSessionDetail({
         onClick={(e) => {
           e.stopPropagation();
           if (onSwitchTab) {
-            onSwitchTab("onboarding");
+            onSwitchTab("journey");
           } else {
-            router.push(`/x/courses/${courseId}?tab=onboarding`);
+            router.push(`/x/courses/${courseId}?tab=journey`);
           }
         }}
         type="button"

@@ -2,6 +2,7 @@
 
 export const SURVEY_SCOPES = {
   PRE: "PRE_SURVEY",
+  MID: "MID_SURVEY",
   POST: "POST_SURVEY",
 } as const;
 
@@ -10,6 +11,13 @@ export const PRE_SURVEY_KEYS = {
   PRIOR_KNOWLEDGE: "prior_knowledge",
   GOAL_TEXT: "goal_text",
   CONCERN_TEXT: "concern_text",
+  SUBMITTED_AT: "submitted_at",
+} as const;
+
+export const MID_SURVEY_KEYS = {
+  PROGRESS_FEELING: "progress_feeling",
+  MID_SATISFACTION: "mid_satisfaction",
+  HELP_NEEDED: "help_needed",
   SUBMITTED_AT: "submitted_at",
 } as const;
 

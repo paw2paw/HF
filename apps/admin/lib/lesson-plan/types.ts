@@ -120,6 +120,8 @@ export interface SessionEntry {
   learningOutcomeRefs?: string[] | null;
   assertionIds?: string[] | null;
   media?: SessionMediaRef[] | null;
+  /** Educator sets — learners can skip this stop */
+  isOptional?: boolean;
 }
 
 export interface StudentProgress {

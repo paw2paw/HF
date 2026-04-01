@@ -127,7 +127,7 @@ export function OnboardingEditor({
         const obData = await obRes.json();
         if (obData.ok && obData.offboarding) {
           const ob = obData.offboarding as OffboardingConfig;
-          const obWithIds = ob.phases.map((p: OnboardingPhase) => ({
+          const obWithIds = (ob.phases ?? []).map((p: OnboardingPhase) => ({
             ...p,
             _id: crypto.randomUUID(),
           }));

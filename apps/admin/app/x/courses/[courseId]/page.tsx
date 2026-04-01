@@ -5,9 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
-  Sparkles, AlertTriangle, Info,
+  Sparkles, AlertTriangle,
   Settings as SettingsIcon, Users2,
-  ListOrdered, Zap, Target, BarChart3,
+  Zap, Target, BarChart3,
   PlayCircle,
 } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
@@ -15,7 +15,7 @@ import { getAudienceOption } from '@/lib/prompt/composition/transforms/audience'
 import { getTeachingProfile } from '@/lib/content-trust/teaching-profiles';
 import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS, type InteractionPattern } from '@/lib/content-trust/resolve-config';
 import { CourseOverviewTab } from './CourseOverviewTab';
-import { CourseOnboardingTab } from './CourseOnboardingTab';
+import { OnboardingEditor } from '@/components/shared/OnboardingEditor';
 import { CourseContentTab } from './CourseContentTab';
 import { CourseWhoTab } from './CourseWhoTab';
 import { CourseGoalsTab } from './CourseGoalsTab';
@@ -301,9 +301,8 @@ export default function CourseDetailPage() {
 
   const tabs: TabDefinition[] = useMemo(() => [
     { id: 'overview', label: 'Overview', icon: <Sparkles size={14} /> },
-    { id: 'onboarding', label: 'Journey', icon: <PlayCircle size={14} /> },
+    { id: 'journey', label: 'Journey', icon: <PlayCircle size={14} />, count: sessions?.plan?.estimatedSessions || null },
     { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: contentOnlyCount || null },
-    { id: 'sessions', label: 'Sessions', icon: <ListOrdered size={14} />, count: sessions?.plan?.estimatedSessions || null },
     { id: 'audience', label: 'Cohort', icon: <Users2 size={14} /> },
     { id: 'learners', label: 'Learners', icon: <Users2 size={14} /> },
     { id: 'proof', label: 'Proof Points', icon: <BarChart3 size={14} /> },
@@ -313,8 +312,10 @@ export default function CourseDetailPage() {
 
   // ── Tab change: lazy load lesson plan data ──
   const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    if (tab === 'sessions' && sessions === null && !sessionsLoading) {
+    // URL compat: old tab names redirect to journey
+    const resolvedTab = (tab === 'sessions' || tab === 'onboarding') ? 'journey' : tab;
+    setActiveTab(resolvedTab);
+    if (resolvedTab === 'journey' && sessions === null && !sessionsLoading) {
       setSessionsLoading(true);
       setSessionsError(null);
       fetch(`/api/courses/${courseId}/sessions?includeProgress=true`)
@@ -916,75 +917,9 @@ export default function CourseDetailPage() {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
-      {/* ONBOARDING TAB                                 */}
+      {/* JOURNEY TAB — unified rail: surveys + calls    */}
       {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'onboarding' && (
-        <CourseOnboardingTab
-          courseId={courseId!}
-          detail={detail}
-          isOperator={isOperator}
-        />
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* CONTENT TAB                                    */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'content' && (
-        <CourseContentTab
-          courseId={courseId!}
-          detail={detail}
-          subjects={subjects}
-          contentMethods={contentMethods}
-          contentTotal={contentTotal}
-          categoryCounts={categoryCounts}
-          isOperator={isOperator}
-          onContentRefresh={(methods, total, instrCount) => {
-            setContentMethods(methods);
-            setContentTotal(total);
-            if (instrCount !== undefined) setInstructionTotal(instrCount);
-          }}
-        />
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* AUDIENCE TAB                                   */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'audience' && (
-        <CourseWhoTab
-          courseId={courseId!}
-          detail={detail}
-          isOperator={isOperator}
-          persona={persona}
-          specGroups={specGroups}
-          onDetailUpdate={setDetail}
-        />
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* LEARNERS TAB                                   */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'learners' && (
-        <CourseLearnersTab courseId={courseId!} />
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* PROOF POINTS TAB                               */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'proof' && (
-        <CourseProofTab courseId={courseId!} />
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* GOALS TAB                                      */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'goals' && (
-        <CourseGoalsTab courseId={courseId!} />
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* SESSIONS TAB — Rail-first: click stop to expand */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'sessions' && (
+      {activeTab === 'journey' && (
         <>
           <JourneyRail
             sessions={sessions?.plan?.entries ?? []}
@@ -1000,23 +935,24 @@ export default function CourseDetailPage() {
             renderSessionDetail={(entry) => {
               if (entry.type === 'onboarding') {
                 return (
-                  <div className="hf-card-compact">
-                    <div className="hf-flex hf-gap-sm hf-items-center hf-mb-sm">
-                      <Sparkles size={15} className="hf-text-accent" />
-                      <span className="hf-text-sm hf-text-bold">First Call</span>
-                    </div>
-                    <p className="hf-text-xs hf-text-muted hf-mb-sm">
-                      The onboarding flow introduces the learner to their AI tutor and sets expectations for the course.
-                    </p>
-                    <button
-                      type="button"
-                      className="hf-btn hf-btn-xs hf-btn-outline hf-flex hf-items-center hf-gap-xs"
-                      onClick={() => handleTabChange('onboarding')}
-                    >
-                      <Info size={12} />
-                      Edit onboarding on the Journey tab
-                    </button>
-                  </div>
+                  <OnboardingEditor
+                    courseId={courseId!}
+                    domainId={detail.domain.id}
+                    domainName={detail.domain.name}
+                    isOperator={isOperator}
+                    mode="onboarding"
+                  />
+                );
+              }
+              if (entry.type === 'offboarding') {
+                return (
+                  <OnboardingEditor
+                    courseId={courseId!}
+                    domainId={detail.domain.id}
+                    domainName={detail.domain.name}
+                    isOperator={isOperator}
+                    mode="offboarding"
+                  />
                 );
               }
               return (
@@ -1074,6 +1010,63 @@ export default function CourseDetailPage() {
           )}
         </>
       )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* CONTENT TAB                                    */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'content' && (
+        <CourseContentTab
+          courseId={courseId!}
+          detail={detail}
+          subjects={subjects}
+          contentMethods={contentMethods}
+          contentTotal={contentTotal}
+          categoryCounts={categoryCounts}
+          isOperator={isOperator}
+          onContentRefresh={(methods, total, instrCount) => {
+            setContentMethods(methods);
+            setContentTotal(total);
+            if (instrCount !== undefined) setInstructionTotal(instrCount);
+          }}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* AUDIENCE TAB                                   */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'audience' && (
+        <CourseWhoTab
+          courseId={courseId!}
+          detail={detail}
+          isOperator={isOperator}
+          persona={persona}
+          specGroups={specGroups}
+          onDetailUpdate={setDetail}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* LEARNERS TAB                                   */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'learners' && (
+        <CourseLearnersTab courseId={courseId!} />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* PROOF POINTS TAB                               */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'proof' && (
+        <CourseProofTab courseId={courseId!} />
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* GOALS TAB                                      */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === 'goals' && (
+        <CourseGoalsTab courseId={courseId!} />
+      )}
+
+      {/* Sessions tab removed — merged into Journey tab above */}
 
 
       {/* ═══════════════════════════════════════════════ */}

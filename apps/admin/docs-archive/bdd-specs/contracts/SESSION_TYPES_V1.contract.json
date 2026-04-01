@@ -1,0 +1,171 @@
+{
+  "contractId": "SESSION_TYPES_V1",
+  "version": "1.0",
+  "status": "active",
+  "description": "Session type definitions for lesson plan journey rails. Defines stop types, educator-facing labels, auto-include positions, and per-learner skip rules.",
+
+  "appliesTo": {
+    "specRoles": ["ORCHESTRATE"],
+    "domains": ["session", "lesson-plan", "journey"]
+  },
+
+  "config": {
+    "types": [
+      {
+        "value": "pre_survey",
+        "label": "Pre-Survey",
+        "educatorLabel": "Pre-Survey",
+        "category": "survey",
+        "color": "var(--login-blue)",
+        "icon": "ClipboardList",
+        "autoInclude": "before_first",
+        "canSkip": true,
+        "sortOrder": 0
+      },
+      {
+        "value": "onboarding",
+        "label": "First Call",
+        "educatorLabel": "First Call",
+        "category": "structural",
+        "color": "var(--accent-primary)",
+        "icon": "Sparkles",
+        "autoInclude": "first",
+        "canSkip": false,
+        "sortOrder": 1
+      },
+      {
+        "value": "introduce",
+        "label": "Introduce",
+        "educatorLabel": "Learn",
+        "category": "teaching",
+        "color": "var(--status-info-text)",
+        "icon": "BookOpen",
+        "autoInclude": null,
+        "canSkip": true,
+        "sortOrder": 10
+      },
+      {
+        "value": "deepen",
+        "label": "Deepen",
+        "educatorLabel": "Learn",
+        "category": "teaching",
+        "color": "var(--status-info-text)",
+        "icon": "BookOpen",
+        "autoInclude": null,
+        "canSkip": true,
+        "sortOrder": 11
+      },
+      {
+        "value": "review",
+        "label": "Review",
+        "educatorLabel": "Review",
+        "category": "teaching",
+        "color": "var(--status-warning-text)",
+        "icon": "RotateCcw",
+        "autoInclude": null,
+        "canSkip": true,
+        "sortOrder": 12
+      },
+      {
+        "value": "assess",
+        "label": "Assess",
+        "educatorLabel": "Assess",
+        "category": "teaching",
+        "color": "var(--status-error-text)",
+        "icon": "Target",
+        "autoInclude": null,
+        "canSkip": true,
+        "sortOrder": 13
+      },
+      {
+        "value": "consolidate",
+        "label": "Consolidate",
+        "educatorLabel": "Review",
+        "category": "teaching",
+        "color": "var(--status-success-text)",
+        "icon": "RotateCcw",
+        "autoInclude": null,
+        "canSkip": true,
+        "sortOrder": 14
+      },
+      {
+        "value": "mid_survey",
+        "label": "Mid-Survey",
+        "educatorLabel": "Mid-Survey",
+        "category": "survey",
+        "color": "var(--login-blue)",
+        "icon": "ClipboardList",
+        "autoInclude": null,
+        "canSkip": true,
+        "sortOrder": 50
+      },
+      {
+        "value": "offboarding",
+        "label": "Last Call",
+        "educatorLabel": "Last Call",
+        "category": "structural",
+        "color": "var(--login-gold)",
+        "icon": "Flag",
+        "autoInclude": "last",
+        "canSkip": false,
+        "sortOrder": 98
+      },
+      {
+        "value": "post_survey",
+        "label": "Post-Survey",
+        "educatorLabel": "Post-Survey",
+        "category": "survey",
+        "color": "var(--login-blue)",
+        "icon": "ClipboardList",
+        "autoInclude": "after_last",
+        "canSkip": true,
+        "sortOrder": 99
+      }
+    ],
+
+    "educatorTypes": [
+      {
+        "educatorLabel": "Learn",
+        "dbTypes": ["introduce", "deepen"],
+        "icon": "BookOpen",
+        "category": "teaching"
+      },
+      {
+        "educatorLabel": "Review",
+        "dbTypes": ["review", "consolidate"],
+        "icon": "RotateCcw",
+        "category": "teaching"
+      },
+      {
+        "educatorLabel": "Assess",
+        "dbTypes": ["assess"],
+        "icon": "Target",
+        "category": "teaching"
+      },
+      {
+        "educatorLabel": "Survey",
+        "dbTypes": ["pre_survey", "mid_survey", "post_survey"],
+        "icon": "ClipboardList",
+        "category": "survey"
+      }
+    ],
+
+    "categories": {
+      "survey": {
+        "label": "Form",
+        "description": "Web-based form stop (ChatSurvey widget). Not a voice call.",
+        "dotIcon": "diamond"
+      },
+      "structural": {
+        "label": "Voice",
+        "description": "Pinned voice call stop. Cannot be removed.",
+        "dotIcon": "circle"
+      },
+      "teaching": {
+        "label": "Voice",
+        "description": "Teaching voice call stop. Can be added, removed, reordered.",
+        "dotIcon": "circle"
+      }
+    }
+  }
+}
