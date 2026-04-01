@@ -814,13 +814,13 @@ export async function executeWizardTool(
             syncInstructionsToIdentitySpec(existingPlaybookId).catch(err =>
               console.error("[wizard] instruction spec sync failed (non-fatal):", err.message));
 
-            // Generate real lesson plan from content sources (if available)
-            const existingLessonPlanPreview = await generateLessonPlanPreview(
+            // Generate real lesson plan from content sources (background — don't block response)
+            generateLessonPlanPreview(
               prisma, packSubjectIds, existingPbSubject?.subjectId,
               input.sessionCount ? Number(input.sessionCount) : undefined,
               input.durationMins ? Number(input.durationMins) : undefined,
               existingPlaybookId,
-            );
+            ).catch(err => console.error("[wizard] Lesson plan preview (existing) failed (non-fatal):", err.message));
 
             return {
               ...base,
@@ -830,7 +830,6 @@ export async function executeWizardTool(
                 callerId: caller.id,
                 callerName,
                 existingCourse: true,
-                lessonPlanPreview: existingLessonPlanPreview,
               }),
             };
           }
@@ -1412,13 +1411,13 @@ export async function executeWizardTool(
           },
         }).catch(err => console.error("[wizard] Instant curriculum failed (non-fatal):", err.message));
 
-        // Generate real lesson plan from content sources (with IDs for session-scoped content)
-        const lessonPlanPreview = await generateLessonPlanPreview(
+        // Generate real lesson plan from content sources (background — don't block response)
+        generateLessonPlanPreview(
           prisma, subjectIdsToLink.length > 0 ? subjectIdsToLink : packSubjectIds, subject.id,
           input.sessionCount ? Number(input.sessionCount) : undefined,
           input.durationMins ? Number(input.durationMins) : undefined,
           playbookId,
-        );
+        ).catch(err => console.error("[wizard] Lesson plan preview failed (non-fatal):", err.message));
 
         // Build first call preview data (phases + resolved media filenames)
         const previewDomain = await prisma.domain.findUnique({
@@ -1457,7 +1456,6 @@ export async function executeWizardTool(
             ...(demoCaller ? { demoCallerId: demoCaller.id, demoCallerName: demoName } : {}),
             cohortId: cohort.id,
             joinToken,
-            lessonPlanPreview,
             firstCallPreview,
           }),
         };
