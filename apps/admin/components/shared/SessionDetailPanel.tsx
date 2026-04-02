@@ -58,6 +58,11 @@ export function SessionDetailPanel({ entry, courseId, tps, showEditLink }: Sessi
       </div>
 
       {/* Phases — zebra striped */}
+      {phases.length === 0 && totalTPs === 0 && !entry.notes && allMedia.length === 0 && (
+        <p className="hf-text-xs hf-text-muted sdp-empty">
+          No details yet — teaching points and phases will appear after content is assigned.
+        </p>
+      )}
       {phases.length > 0 && (
         <div className="sdp-phases">
           {phases.map((phase, i) => (

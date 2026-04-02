@@ -735,6 +735,14 @@
   max-width: 100%;
 }
 
+.sdp-empty {
+  padding: 12px;
+  text-align: center;
+  border: 1px dashed var(--border-default);
+  border-radius: 6px;
+  margin: 4px 0;
+}
+
 /* ── Admin Controls ──────────────────────────────── */
 
 .jrl-drag-handle {
@@ -781,6 +789,19 @@
   gap: 0.25rem;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.jrl-survey-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jrl-survey-off-label {
+  color: var(--status-error-text);
+  font-weight: 500;
 }
 
 .jrl-remove-btn {

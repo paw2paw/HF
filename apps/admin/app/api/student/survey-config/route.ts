@@ -2,10 +2,13 @@
  * @api GET /api/student/survey-config
  * @auth STUDENT | OPERATOR+ (with callerId param)
  * @tags student, survey
- * @desc Returns onboarding + offboarding survey config for the student's enrolled course.
- *       Resolves the student's active CallerPlaybook → Playbook.config → survey steps.
- *       Falls back to defaults from lib/learner/survey-config.
- * @response 200 { ok, subject, onboarding: { surveySteps, endAction }, midSurvey: { endAction }, offboarding: { triggerAfterCalls, surveySteps, endAction } }
+ * @desc Returns survey + assessment config for the student's enrolled course.
+ *       Resolution chain per survey type:
+ *         1. playbook.config.surveys.{pre,mid,post}.questions  (educator overrides)
+ *         2. playbook.config.onboardingFlowPhases (legacy fallback for pre)
+ *         3. SURVEY_TEMPLATES_V1 contract defaults
+ *       Also returns assessment config (personality questions, pre/post-test settings).
+ * @response 200 { ok, subject, assessment, onboarding, midSurvey, offboarding }
  * @response 404 { ok: false, error: "..." }
  */
 
@@ -16,20 +19,22 @@ import type {
   PlaybookConfig,
   OnboardingPhase,
   OffboardingConfig,
+  SurveyStepConfig,
 } from "@/lib/types/json-fields";
 import {
   DEFAULT_ONBOARDING_SURVEY,
   DEFAULT_OFFBOARDING_SURVEY,
   DEFAULT_OFFBOARDING_TRIGGER,
+  DEFAULT_MID_SURVEY,
   getSurveyTemplateConfig,
 } from "@/lib/learner/survey-config";
+import { DEFAULT_PERSONALITY_QUESTIONS } from "@/lib/assessment/personality-defaults";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const auth = await requireStudentOrAdmin(request);
     if (isStudentAuthError(auth)) return auth.error;
 
-    // Find the student's active enrollment
     const enrollment = await prisma.callerPlaybook.findFirst({
       where: { callerId: auth.callerId, status: "ACTIVE" },
       select: {
@@ -52,38 +57,74 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const pbConfig = (enrollment.playbook.config ?? {}) as PlaybookConfig;
     const subject = enrollment.playbook.domain?.name ?? enrollment.playbook.name;
+    const templates = await getSurveyTemplateConfig();
 
-    // Onboarding: find a phase with surveySteps
-    const phases = pbConfig.onboardingFlowPhases?.phases ?? [];
-    const surveyPhase = phases.find(
+    // ── Resolution chain: pre-survey questions ──
+    // 1. config.surveys.pre.questions (educator override)
+    // 2. onboardingFlowPhases.phases[].surveySteps (legacy)
+    // 3. contract/fallback defaults
+    const legacyPhases = pbConfig.onboardingFlowPhases?.phases ?? [];
+    const legacySurveyPhase = legacyPhases.find(
       (p: OnboardingPhase) => p.surveySteps && p.surveySteps.length > 0,
     );
-    const onboardingSurveySteps =
-      surveyPhase?.surveySteps ?? DEFAULT_ONBOARDING_SURVEY;
+    const onboardingSurveySteps: SurveyStepConfig[] =
+      pbConfig.surveys?.pre?.questions?.length
+        ? pbConfig.surveys.pre.questions
+        : legacySurveyPhase?.surveySteps?.length
+          ? legacySurveyPhase.surveySteps
+          : templates.templates.pre_survey.questions ?? DEFAULT_ONBOARDING_SURVEY;
 
-    // Offboarding
+    // ── Resolution chain: mid-survey questions ──
+    const midSurveySteps: SurveyStepConfig[] =
+      pbConfig.surveys?.mid?.questions?.length
+        ? pbConfig.surveys.mid.questions
+        : templates.templates.mid_survey.questions ?? DEFAULT_MID_SURVEY;
+
+    // ── Resolution chain: post-survey questions ──
     const offboardingCfg = pbConfig.offboarding as OffboardingConfig | undefined;
-    const offboardingSurveySteps =
-      offboardingCfg?.phases?.[0]?.surveySteps ?? DEFAULT_OFFBOARDING_SURVEY;
+    const postSurveySteps: SurveyStepConfig[] =
+      pbConfig.surveys?.post?.questions?.length
+        ? pbConfig.surveys.post.questions
+        : offboardingCfg?.phases?.[0]?.surveySteps?.length
+          ? offboardingCfg.phases[0].surveySteps
+          : templates.templates.post_survey.questions ?? DEFAULT_OFFBOARDING_SURVEY;
+
     const triggerAfterCalls =
       offboardingCfg?.triggerAfterCalls ?? DEFAULT_OFFBOARDING_TRIGGER;
 
-    // Load endAction defaults from contract/fallback templates
-    const templates = await getSurveyTemplateConfig();
+    // ── Assessment config (personality + pre/post-test) ──
+    const personalityQuestions: SurveyStepConfig[] =
+      pbConfig.assessment?.personality?.questions?.length
+        ? pbConfig.assessment.personality.questions
+        : DEFAULT_PERSONALITY_QUESTIONS;
 
     return NextResponse.json({
       ok: true,
       subject,
+      assessment: {
+        personality: {
+          enabled: pbConfig.assessment?.personality?.enabled ?? true,
+          questions: personalityQuestions,
+        },
+        preTest: {
+          enabled: pbConfig.assessment?.preTest?.enabled ?? true,
+          questionCount: pbConfig.assessment?.preTest?.questionCount ?? 5,
+        },
+        postTest: {
+          enabled: pbConfig.assessment?.postTest?.enabled ?? true,
+        },
+      },
       onboarding: {
         surveySteps: onboardingSurveySteps,
         endAction: templates.templates.pre_survey.endAction,
       },
       midSurvey: {
+        surveySteps: midSurveySteps,
         endAction: templates.templates.mid_survey.endAction,
       },
       offboarding: {
         triggerAfterCalls,
-        surveySteps: offboardingSurveySteps,
+        surveySteps: postSurveySteps,
         endAction: templates.templates.post_survey.endAction,
       },
     });

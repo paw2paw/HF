@@ -50,6 +50,14 @@ export interface JourneyRailProps {
   onRetypeSession?: (sessionNumber: number, newType: string) => void;
   onToggleOptional?: (sessionNumber: number, isOptional: boolean) => void;
   onReorderSession?: (fromIndex: number, toIndex: number) => void;
+  /** Toggle pre+post assessments on/off (linked master toggle) */
+  onToggleAssessments?: (enabled: boolean) => void;
+  /** Whether assessments (pre+post) are currently enabled */
+  assessmentsEnabled?: boolean;
+  /** Toggle mid-survey independently (only available when assessments are on) */
+  onToggleMidSurvey?: (enabled: boolean) => void;
+  /** Whether mid-survey is currently enabled */
+  midSurveyEnabled?: boolean;
   /** Loaded session type config (for type dropdowns) */
   sessionTypeConfig?: SessionTypeConfig;
   /** Educator type groups (for simplified type picker) */
@@ -345,6 +353,10 @@ export function JourneyRail({
   onRetypeSession,
   onToggleOptional,
   onReorderSession,
+  onToggleAssessments,
+  assessmentsEnabled,
+  onToggleMidSurvey,
+  midSurveyEnabled,
   sessionTypeConfig,
   educatorTypes,
 }: JourneyRailProps) {
@@ -358,6 +370,7 @@ export function JourneyRail({
 
   const isAdmin = !!(onAddSession || onRemoveSession || onRetypeSession);
   const isPinned = (type: string) => ["onboarding", "offboarding"].includes(type);
+
 
   // Sync external prop
   useEffect(() => {
@@ -585,8 +598,46 @@ export function JourneyRail({
               </span>
             )}
 
-            {/* Admin: optional toggle */}
-            {isAdmin && !pinned && onToggleOptional && (
+            {/* Admin: assessments master toggle (pre+post linked, shown on pre_survey) */}
+            {isAdmin && formStop && onToggleAssessments && entry.type === "pre_survey" && (
+              <label
+                className="jrl-survey-toggle"
+                onClick={(e) => e.stopPropagation()}
+                title={assessmentsEnabled ? "Assessments enabled — click to disable all" : "Assessments disabled — click to enable all"}
+              >
+                <input
+                  type="checkbox"
+                  checked={assessmentsEnabled ?? true}
+                  onChange={(e) => onToggleAssessments(e.target.checked)}
+                  className="hf-checkbox"
+                />
+                <span className={`hf-text-xs ${assessmentsEnabled ? "hf-text-muted" : "jrl-survey-off-label"}`}>
+                  {assessmentsEnabled ? "Assessments" : "Assessments off"}
+                </span>
+              </label>
+            )}
+
+            {/* Admin: mid-survey independent toggle (only when assessments are on) */}
+            {isAdmin && formStop && onToggleMidSurvey && entry.type === "mid_survey" && assessmentsEnabled && (
+              <label
+                className="jrl-survey-toggle"
+                onClick={(e) => e.stopPropagation()}
+                title={midSurveyEnabled ? "Mid check-in enabled" : "Mid check-in disabled"}
+              >
+                <input
+                  type="checkbox"
+                  checked={midSurveyEnabled ?? false}
+                  onChange={(e) => onToggleMidSurvey(e.target.checked)}
+                  className="hf-checkbox"
+                />
+                <span className={`hf-text-xs ${midSurveyEnabled ? "hf-text-muted" : "jrl-survey-off-label"}`}>
+                  {midSurveyEnabled ? "Mid Check-in" : "Mid Check-in off"}
+                </span>
+              </label>
+            )}
+
+            {/* Admin: optional toggle (teaching stops only) */}
+            {isAdmin && !pinned && !formStop && onToggleOptional && (
               <label
                 className="jrl-optional-toggle"
                 onClick={(e) => e.stopPropagation()}

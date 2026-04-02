@@ -43,6 +43,7 @@
   - [Course Pack](#course-pack)
   - [Courses](#courses)
   - [Curricula](#curricula)
+  - [Curriculum](#curriculum)
   - [Dashboard](#dashboard)
   - [Data Dictionary](#data-dictionary)
   - [Dev](#dev)
@@ -66,6 +67,7 @@
   - [Other](#other)
   - [Parameters](#parameters)
   - [Pipeline](#pipeline)
+  - [Playbook](#playbook)
   - [Playbooks](#playbooks)
   - [Prompts](#prompts)
   - [Settings](#settings)
@@ -5473,6 +5475,19 @@ Returns content assertions grouped by lesson plan session.
 
 ---
 
+## Curriculum
+
+### `GET` /api/curricula/:curriculumId/assessment-preview
+
+**Auth**: OPERATOR+
+
+**Response** `200`
+```json
+{ ok, questions: SurveyStepConfig[], questionCount, sourceId, skipped, skipReason? }
+```
+
+---
+
 ## Dashboard
 
 ### `GET` /api/dashboard
@@ -10107,6 +10122,29 @@ Returns pipeline stage configuration for visualization and documentation.
 
 ---
 
+## Playbook
+
+### `POST` /api/playbooks/:playbookId/reset-mcqs
+
+**Auth**: OPERATOR+
+
+**Response** `200`
+```json
+{ ok, created, duplicatesSkipped }
+```
+
+**Response** `200`
+```json
+{ ok: false, hasResults: true, affectedCallerCount }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Playbooks
 
 ### `GET` /api/playbooks
@@ -12058,7 +12096,7 @@ Resolves the student's next stop on the course journey rail.
 
 **Response** `200`
 ```json
-{ ok, subject, onboarding: { surveySteps, endAction }, midSurvey: { endAction }, offboarding: { triggerAfterCalls, surveySteps, endAction } }
+{ ok, subject, assessment, onboarding, midSurvey, offboarding }
 ```
 
 **Response** `404`
@@ -13624,8 +13662,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 411 |
-| Files with annotations | 410 |
+| Route files found | 413 |
+| Files with annotations | 412 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 

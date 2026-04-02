@@ -46,8 +46,13 @@ export default function MidSurveyPage(): React.ReactElement {
         if (surveyData?.ok && surveyData.answers?.[MID_SURVEY_KEYS.SUBMITTED_AT]) {
           setAlreadyDone(true);
         }
-        if (configData?.ok && configData.midSurvey?.endAction) {
-          setEndAction(configData.midSurvey.endAction);
+        if (configData?.ok) {
+          if (configData.midSurvey?.surveySteps?.length > 0) {
+            setMidConfigs(configData.midSurvey.surveySteps);
+          }
+          if (configData.midSurvey?.endAction) {
+            setEndAction(configData.midSurvey.endAction);
+          }
         }
       })
       .catch(() => {})

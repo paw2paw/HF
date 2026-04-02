@@ -161,7 +161,14 @@ export async function PUT(
 
     const { curriculumId } = await params;
     const body = await request.json();
-    const { entries } = body;
+    let { entries } = body;
+    const { surveys } = body as { surveys?: import("@/lib/lesson-plan/apply-auto-include-stops").SurveyConfig };
+
+    // If surveys config provided, re-apply auto-include stops to reflect toggle changes
+    if (surveys) {
+      const { applyAutoIncludeStops } = await import("@/lib/lesson-plan/apply-auto-include-stops");
+      entries = await applyAutoIncludeStops(entries, surveys);
+    }
 
     // Validate
     const validationError = validateEntries(entries);
@@ -212,7 +219,7 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({ ok: true, plan });
+    return NextResponse.json({ ok: true, plan, entries: plan.entries });
   } catch (error: any) {
     console.error("[curricula/:id/lesson-plan] PUT error:", error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

@@ -22,6 +22,9 @@ import { CourseGoalsTab } from './CourseGoalsTab';
 import { CourseLearnersTab } from './CourseLearnersTab';
 import { CourseProofTab } from './CourseProofTab';
 import { SessionDetailPanel } from '@/components/shared/SessionDetailPanel';
+import { SurveyStopDetail } from '@/components/shared/SurveyStopDetail';
+import type { SurveyStepConfig } from '@/lib/types/json-fields';
+import { isFormStop } from '@/lib/lesson-plan/session-ui';
 import { useSession } from 'next-auth/react';
 import { useEntityContext } from '@/contexts/EntityContext';
 import { EditableTitle } from '@/components/shared/EditableTitle';
@@ -215,6 +218,9 @@ export default function CourseDetailPage() {
   const [unassignedTPs, setUnassignedTPs] = useState<TPItem[]>([]);
   const [tpLoaded, setTpLoaded] = useState(false);
 
+  // Assessment MCQ preview
+  const [mcqPreview, setMcqPreview] = useState<{ questions: SurveyStepConfig[]; skipped: boolean; skipReason?: string } | null>(null);
+
   // Session media map (SessionMediaMap imported from @/lib/lesson-plan/types)
   type MediaRef = SessionMediaRefType & { mimeType: string };
   const [sessionMediaMap, setSessionMediaMap] = useState<SessionMediaMap | null>(null);
@@ -362,6 +368,11 @@ export default function CourseDetailPage() {
                   }
                 })
                 .catch(() => {}); // silent — TPs are supplementary
+              // Fetch assessment MCQ preview
+              fetch(`/api/curricula/${data.curriculumId}/assessment-preview`)
+                .then((r) => r.json())
+                .then((ap) => { if (ap.ok) setMcqPreview(ap); })
+                .catch(() => {}); // silent — supplementary
               // Fetch session media map
               setMediaMapLoading(true);
               fetch(`/api/curricula/${data.curriculumId}/lesson-plan/media-map`)
@@ -463,6 +474,89 @@ export default function CourseDetailPage() {
       setShowDeleteConfirm(false);
     }
   };
+
+  // ── MCQ regenerate handler ──
+  const [mcqRegenerating, setMcqRegenerating] = useState(false);
+  const handleRegenerateMcqs = useCallback(async () => {
+    if (!detail) return;
+    setMcqRegenerating(true);
+    try {
+      const res = await fetch(`/api/playbooks/${detail.id}/reset-mcqs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: false }),
+      });
+      const data = await res.json();
+      if (data.hasResults) {
+        // Warn user about affected callers
+        if (confirm(`${data.message}\n\nRegenerate anyway?`)) {
+          const forceRes = await fetch(`/api/playbooks/${detail.id}/reset-mcqs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: true }),
+          });
+          const forceData = await forceRes.json();
+          if (forceData.ok && sessions?.curriculumId) {
+            // Refresh MCQ preview
+            const preview = await fetch(`/api/curricula/${sessions.curriculumId}/assessment-preview`).then(r => r.json());
+            if (preview.ok) setMcqPreview(preview);
+          }
+        }
+      } else if (data.ok && sessions?.curriculumId) {
+        // Refresh MCQ preview
+        const preview = await fetch(`/api/curricula/${sessions.curriculumId}/assessment-preview`).then(r => r.json());
+        if (preview.ok) setMcqPreview(preview);
+      }
+    } catch {
+      // silent
+    } finally {
+      setMcqRegenerating(false);
+    }
+  }, [detail, sessions?.curriculumId]);
+
+  // ── Survey question save handler ──
+  const [surveySaving, setSurveySaving] = useState(false);
+  const handleSurveyQuestions = useCallback(async (sectionKey: string, questions: SurveyStepConfig[]) => {
+    if (!detail) return;
+    setSurveySaving(true);
+    try {
+      const cfg = (detail.config ?? {}) as Record<string, any>;
+      let newConfig: Record<string, any>;
+
+      if (sectionKey === 'personality') {
+        newConfig = {
+          ...cfg,
+          assessment: { ...cfg.assessment, personality: { ...cfg.assessment?.personality, questions } },
+        };
+      } else if (sectionKey === 'mid') {
+        newConfig = {
+          ...cfg,
+          surveys: { ...cfg.surveys, mid: { ...cfg.surveys?.mid, questions } },
+        };
+      } else if (sectionKey === 'post') {
+        newConfig = {
+          ...cfg,
+          surveys: { ...cfg.surveys, post: { ...cfg.surveys?.post, questions } },
+        };
+      } else {
+        return;
+      }
+
+      const res = await fetch(`/api/playbooks/${detail.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: newConfig }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setDetail((prev) => prev ? { ...prev, config: newConfig } : prev);
+      }
+    } catch {
+      // silent — optimistic UI already shows updated questions
+    } finally {
+      setSurveySaving(false);
+    }
+  }, [detail]);
 
   const handleEditDescription = () => {
     setDescDraft(detail?.description ?? '');
@@ -972,6 +1066,19 @@ export default function CourseDetailPage() {
                   />
                 );
               }
+              if (isFormStop(entry.type)) {
+                return (
+                  <SurveyStopDetail
+                    type={entry.type}
+                    playbookConfig={detail.config as Record<string, unknown>}
+                    onSave={isOperator ? handleSurveyQuestions : undefined}
+                    saving={surveySaving}
+                    mcqPreview={mcqPreview}
+                    onRegenerate={isOperator ? handleRegenerateMcqs : undefined}
+                    regenerating={mcqRegenerating}
+                  />
+                );
+              }
               return (
                 <SessionDetailPanel
                   entry={entry}
@@ -1042,6 +1149,60 @@ export default function CourseDetailPage() {
               fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ entries: updated }),
+              }).catch(() => {});
+            } : undefined}
+            assessmentsEnabled={(detail.config as any)?.surveys?.pre?.enabled ?? true}
+            midSurveyEnabled={(detail.config as any)?.surveys?.mid?.enabled ?? false}
+            onToggleAssessments={isOperator ? (enabled) => {
+              // Toggle pre + post linked; if turning off, also force mid off
+              const cfg = (detail.config ?? {}) as Record<string, any>;
+              const surveys = {
+                pre: { ...cfg.surveys?.pre, enabled },
+                mid: { ...cfg.surveys?.mid, enabled: enabled ? (cfg.surveys?.mid?.enabled ?? false) : false },
+                post: { ...cfg.surveys?.post, enabled },
+              };
+              const newConfig = { ...cfg, surveys };
+              setDetail((prev) => prev ? { ...prev, config: newConfig } : prev);
+
+              fetch(`/api/playbooks/${detail.id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config: newConfig }),
+              }).then(() => {
+                if (sessions?.curriculumId && sessions?.plan?.entries) {
+                  fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: sessions.plan.entries, surveys }),
+                  }).then((r) => r.json()).then((data) => {
+                    if (data.ok && data.entries) {
+                      setSessions((prev) => prev ? { ...prev, plan: prev.plan ? { ...prev.plan, entries: data.entries } : null } : null);
+                    }
+                  }).catch(() => {});
+                }
+              }).catch(() => {});
+            } : undefined}
+            onToggleMidSurvey={isOperator ? (enabled) => {
+              const cfg = (detail.config ?? {}) as Record<string, any>;
+              const surveys = {
+                ...cfg.surveys,
+                mid: { ...cfg.surveys?.mid, enabled },
+              };
+              const newConfig = { ...cfg, surveys };
+              setDetail((prev) => prev ? { ...prev, config: newConfig } : prev);
+
+              fetch(`/api/playbooks/${detail.id}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config: newConfig }),
+              }).then(() => {
+                if (sessions?.curriculumId && sessions?.plan?.entries) {
+                  fetch(`/api/curricula/${sessions.curriculumId}/lesson-plan`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entries: sessions.plan.entries, surveys }),
+                  }).then((r) => r.json()).then((data) => {
+                    if (data.ok && data.entries) {
+                      setSessions((prev) => prev ? { ...prev, plan: prev.plan ? { ...prev.plan, entries: data.entries } : null } : null);
+                    }
+                  }).catch(() => {});
+                }
               }).catch(() => {});
             } : undefined}
           />

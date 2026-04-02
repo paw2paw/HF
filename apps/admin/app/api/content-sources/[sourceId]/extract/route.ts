@@ -45,6 +45,7 @@ import {
 import type { DocumentType, InteractionPattern, TeachingMode } from "@/lib/content-trust/resolve-config";
 import { syncGoalsFromReference } from "@/lib/goals/sync-goals-from-reference";
 import { syncConstraintsFromReference } from "@/lib/goals/sync-constraints-from-reference";
+import { maybeGenerateMcqs } from "@/lib/assessment/generate-mcqs";
 
 /**
  * @api POST /api/content-sources/:sourceId/extract
@@ -454,6 +455,12 @@ async function runBackgroundExtraction(
       console.error(`[extract] Constraint sync failed for source ${sourceId}:`, err)
     );
   }
+
+  // ── MCQ auto-generation (non-blocking) ──
+  // If this source is a curriculum's primarySource and has no MCQs, generate from assertions.
+  maybeGenerateMcqs(sourceId, userId).catch((err) =>
+    console.error(`[extract] MCQ generation failed for source ${sourceId}:`, err),
+  );
 
   // ── Image extraction (non-blocking) ──
   // Extract embedded images from the source document and link to assertions.
