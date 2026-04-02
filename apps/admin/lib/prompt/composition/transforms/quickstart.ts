@@ -12,7 +12,7 @@ import type { SpecConfig, PlaybookConfig } from "@/lib/types/json-fields";
 import type { AssembledContext, CallerAttributeData } from "../types";
 import { PARAMS } from "@/lib/registry";
 import { getAudienceOption } from "./audience";
-import { SURVEY_SCOPES, PRE_SURVEY_KEYS } from "@/lib/learner/survey-keys";
+import { SURVEY_SCOPES, PRE_SURVEY_KEYS, MID_SURVEY_KEYS } from "@/lib/learner/survey-keys";
 
 registerTransform("computeQuickStart", (
   _rawData: any,
@@ -147,7 +147,15 @@ registerTransform("computeQuickStart", (
       const surveyAttrs = loadedData.callerAttributes.filter(
         (a: CallerAttributeData) => a.scope === SURVEY_SCOPES.PRE,
       );
-      if (surveyAttrs.length === 0) return null;
+
+      const getFromScope = (scope: string, key: string): string | null => {
+        const attr = loadedData.callerAttributes.find(
+          (a: CallerAttributeData) => a.scope === scope && a.key === key,
+        );
+        if (!attr) return null;
+        const val = getAttributeValue(attr);
+        return val != null ? String(val) : null;
+      };
 
       const get = (key: string): string | null => {
         const attr = surveyAttrs.find((a: CallerAttributeData) => a.key === key);
@@ -161,13 +169,54 @@ registerTransform("computeQuickStart", (
       const concern = get(PRE_SURVEY_KEYS.CONCERN_TEXT);
       const confidence = get(PRE_SURVEY_KEYS.CONFIDENCE);
 
+      // Pre-test baseline score (0-1 scale)
+      const preTestScore = getFromScope(SURVEY_SCOPES.PRE_TEST, "score");
+
       const parts: string[] = [];
       if (goal) parts.push(`Goal: "${goal}"`);
       if (priorKnowledge) parts.push(`Prior knowledge: ${priorKnowledge}`);
       if (confidence) parts.push(`Self-rated confidence: ${confidence}/5`);
+      if (preTestScore) {
+        const pct = Math.round(parseFloat(preTestScore) * 100);
+        parts.push(`Baseline knowledge test: ${pct}%${pct >= 80 ? " (strong — can skip basics)" : pct <= 30 ? " (low — needs foundational support)" : ""}`);
+      }
       if (concern) parts.push(`Concern: "${concern}"`);
 
       return parts.length > 0 ? parts.join("\n") : null;
+    })(),
+
+    learner_mid_feedback: (() => {
+      const midAttrs = loadedData.callerAttributes.filter(
+        (a: CallerAttributeData) => a.scope === SURVEY_SCOPES.MID,
+      );
+      if (midAttrs.length === 0) return null;
+
+      const get = (key: string): string | null => {
+        const attr = midAttrs.find((a: CallerAttributeData) => a.key === key);
+        if (!attr) return null;
+        const val = getAttributeValue(attr);
+        return val != null ? String(val) : null;
+      };
+
+      const feeling = get(MID_SURVEY_KEYS.PROGRESS_FEELING);
+      const satisfaction = get(MID_SURVEY_KEYS.MID_SATISFACTION);
+      const helpNeeded = get(MID_SURVEY_KEYS.HELP_NEEDED);
+
+      const parts: string[] = [];
+      if (feeling) parts.push(`Mid-course feeling: ${feeling}`);
+      if (satisfaction) parts.push(`Satisfaction: ${satisfaction}/5`);
+      if (helpNeeded) parts.push(`Requested help with: "${helpNeeded}"`);
+
+      if (parts.length === 0) return null;
+
+      // Add adaptation instruction based on feedback
+      if (feeling === "struggling") {
+        parts.push("→ ADAPT: Slow down, offer more examples, check understanding frequently.");
+      } else if (feeling === "great") {
+        parts.push("→ ADAPT: Student is thriving — increase challenge, go deeper.");
+      }
+
+      return parts.join("\n");
     })(),
 
     this_session: (() => {
