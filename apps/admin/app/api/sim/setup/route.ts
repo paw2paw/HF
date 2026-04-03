@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { resolveAndEnrollSingle } from "@/lib/enrollment";
+import { applySkipOnboarding, resetOnboarding } from "@/lib/enrollment/skip-onboarding";
 
 /**
  * @api POST /api/sim/setup
@@ -11,6 +12,7 @@ import { resolveAndEnrollSingle } from "@/lib/enrollment";
  * @description Creates a Caller record linked to the authenticated user in the specified domain. Auto-enrolls in a single playbook if available. Used on first sim access.
  * @body domainId string - Domain to create caller in (required)
  * @body playbookId string - Specific playbook to enroll in (optional, auto-resolves if omitted)
+ * @body skipOnboarding boolean - Skip onboarding + surveys and jump to content (optional, default false)
  * @response 200 { ok: true, caller: { id, name, domainId, playbookId? } }
  * @response 400 { ok: false, error: "..." }
  * @response 401 { ok: false, error: "Unauthorized" }
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
   const { session } = authResult;
 
   const body = await request.json();
-  const { domainId, playbookId } = body;
+  const { domainId, playbookId, skipOnboarding } = body;
 
   if (!domainId) {
     return NextResponse.json(
@@ -51,6 +53,13 @@ export async function POST(request: NextRequest) {
     // Ensure enrollment exists (may be missing if course was created after caller)
     const enrollment = await resolveAndEnrollSingle(existingCaller.id, domainId, "sim-setup", playbookId);
 
+    // Reset onboarding state based on educator's choice
+    if (skipOnboarding) {
+      await applySkipOnboarding(existingCaller.id, domainId);
+    } else {
+      await resetOnboarding(existingCaller.id, domainId);
+    }
+
     return NextResponse.json({
       ok: true,
       caller: {
@@ -75,6 +84,11 @@ export async function POST(request: NextRequest) {
 
   // Auto-enroll: specific playbook > smart single resolve
   const enrollment = await resolveAndEnrollSingle(caller.id, domainId, "sim-setup", playbookId);
+
+  // Skip onboarding if requested
+  if (skipOnboarding) {
+    await applySkipOnboarding(caller.id, domainId);
+  }
 
   return NextResponse.json({
     ok: true,

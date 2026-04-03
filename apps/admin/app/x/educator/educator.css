@@ -367,6 +367,75 @@
 .edu-assess-dot-orange { background: var(--status-warning-text); }
 .edu-assess-dot-red { background: var(--status-error-text); }
 
+/* ── Try It Page — Dual CTA ──────────────────── */
+
+.try-info-banner {
+  padding: 16px;
+  background: color-mix(in srgb, var(--accent-secondary, #8b5cf6) 8%, transparent);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.try-cta-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.try-cta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.try-cta-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 16px;
+  background: var(--surface-primary);
+  border: 2px solid var(--button-primary-bg);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.try-cta-card:hover:not(.try-cta-disabled) {
+  background: color-mix(in srgb, var(--button-primary-bg) 8%, transparent);
+}
+
+.try-cta-card-alt {
+  border-color: var(--border-default);
+  background: var(--surface-secondary);
+}
+
+.try-cta-card-alt:hover:not(.try-cta-disabled) {
+  border-color: var(--text-secondary);
+  background: var(--surface-primary);
+}
+
+.try-cta-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.try-cta-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.try-cta-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* Loading state */
 .edu-loading { padding: 32px; }
 .edu-loading-text {

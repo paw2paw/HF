@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import "../educator.css";
 
 async function fetchApi(url: string, options?: RequestInit) {
   const res = await fetch(url, {
@@ -36,7 +37,7 @@ function TryItContent() {
   const institutionId = searchParams.get("institutionId");
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
-  const [starting, setStarting] = useState(false);
+  const [starting, setStarting] = useState<"full" | "skip" | false>(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [playbooks, setPlaybooks] = useState<PlaybookOption[]>([]);
   const [selectedPlaybookId, setSelectedPlaybookId] = useState<string | null>(null);
@@ -71,28 +72,22 @@ function TryItContent() {
       });
   }, [selected]);
 
-  const handleStart = async () => {
-    setStarting(true);
+  const handleStart = async (skipOnboarding: boolean) => {
+    setStarting(skipOnboarding ? "skip" : "full");
 
     const simParams = new URLSearchParams();
     if (selectedPlaybookId) simParams.set("playbookId", selectedPlaybookId);
     if (selected) simParams.set("domainId", selected);
     const qs = simParams.toString() ? `?${simParams.toString()}` : "";
 
-    // Check if educator already has a sim caller
-    const setupInfo = await fetchApi("/api/sim/setup-info");
-
-    if (setupInfo?.caller) {
-      // Already has a caller — open sim in new tab
-      window.open(`/x/sim/${setupInfo.caller.id}${qs}`, "_blank");
-      setStarting(false);
-      return;
-    }
-
-    // Create a caller via sim setup (pass playbookId for enrollment)
+    // Create or reuse a caller via sim setup (handles both paths)
     const res = await fetchApi("/api/sim/setup", {
       method: "POST",
-      body: JSON.stringify({ domainId: selected, playbookId: selectedPlaybookId }),
+      body: JSON.stringify({
+        domainId: selected,
+        playbookId: selectedPlaybookId,
+        skipOnboarding,
+      }),
     });
 
     if (res?.ok && res.caller) {
@@ -103,6 +98,8 @@ function TryItContent() {
     }
     setStarting(false);
   };
+
+  const canStart = !!selected && !starting && (playbooks.length <= 1 || !!selectedPlaybookId);
 
   if (loading) {
     return (
@@ -270,45 +267,38 @@ function TryItContent() {
             </div>
           )}
 
-          <div
-            style={{
-              padding: 16,
-              background: "color-mix(in srgb, var(--accent-secondary, #8b5cf6) 8%, transparent)",
-              borderRadius: 8,
-              marginBottom: 20,
-              fontSize: 13,
-              color: "var(--text-secondary)",
-              lineHeight: 1.5,
-            }}
-          >
+          <div className="try-info-banner">
             You&apos;ll have a conversation with the same AI tutor your students
-            interact with. This is a great way to understand the experience and
-            spot areas for improvement.
+            interact with. Choose how you&apos;d like to experience it.
           </div>
 
-          <button
-            disabled={!selected || starting || (playbooks.length > 1 && !selectedPlaybookId)}
-            onClick={handleStart}
-            style={{
-              width: "100%",
-              padding: "12px 20px",
-              background:
-                !selected || starting || (playbooks.length > 1 && !selectedPlaybookId)
-                  ? "var(--border-default)"
-                  : "var(--button-primary-bg)",
-              color:
-                !selected || starting || (playbooks.length > 1 && !selectedPlaybookId)
-                  ? "var(--text-muted)"
-                  : "var(--button-primary-text)",
-              border: "none",
-              borderRadius: 8,
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: !selected || starting ? "not-allowed" : "pointer",
-            }}
-          >
-            {starting ? "Starting..." : "Start Call"}
-          </button>
+          <div className="try-cta-label">Choose your experience</div>
+          <div className="try-cta-grid">
+            <button
+              disabled={!canStart}
+              onClick={() => handleStart(false)}
+              className={`try-cta-card${!canStart ? " try-cta-disabled" : ""}`}
+            >
+              <div className="try-cta-title">
+                {starting === "full" ? "Starting..." : "Full Experience"}
+              </div>
+              <div className="try-cta-desc">
+                Onboarding, personality quiz &amp; baseline test — just like your students
+              </div>
+            </button>
+            <button
+              disabled={!canStart}
+              onClick={() => handleStart(true)}
+              className={`try-cta-card try-cta-card-alt${!canStart ? " try-cta-disabled" : ""}`}
+            >
+              <div className="try-cta-title">
+                {starting === "skip" ? "Starting..." : "Jump to Content"}
+              </div>
+              <div className="try-cta-desc">
+                Skip straight to the teaching conversation
+              </div>
+            </button>
+          </div>
         </div>
       )}
     </div>

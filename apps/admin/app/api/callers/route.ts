@@ -5,8 +5,7 @@ import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/
 import { enrollCaller, enrollCallerInCohortPlaybooks, resolveAndEnrollSingle } from "@/lib/enrollment";
 import { instantiatePlaybookGoals } from "@/lib/enrollment/instantiate-goals";
 import { autoComposeForCaller } from "@/lib/enrollment/auto-compose";
-import { initializeLessonPlanSession } from "@/lib/enrollment/init-lesson-plan";
-import { SURVEY_SCOPES, PRE_SURVEY_KEYS, POST_SURVEY_KEYS } from "@/lib/learner/survey-keys";
+import { applySkipOnboarding } from "@/lib/enrollment/skip-onboarding";
 import { parsePagination } from "@/lib/api-utils";
 
 /**
@@ -268,42 +267,7 @@ export async function POST(req: Request) {
     // Skip onboarding: mark onboarding complete, mark surveys submitted, init lesson plan
     // Must happen BEFORE auto-compose so the composed prompt sees post-onboarding state
     if (skipOnboarding && caller.domainId) {
-      await prisma.onboardingSession.upsert({
-        where: { callerId_domainId: { callerId: caller.id, domainId: caller.domainId } },
-        create: {
-          callerId: caller.id,
-          domainId: caller.domainId,
-          isComplete: true,
-          wasSkipped: true,
-          completedAt: new Date(),
-        },
-        update: {
-          isComplete: true,
-          wasSkipped: true,
-          completedAt: new Date(),
-        },
-      });
-
-      // Mark pre-survey and post-survey as submitted so student pages skip them
-      const now = new Date().toISOString();
-      for (const scope of [SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST]) {
-        const key = scope === SURVEY_SCOPES.PRE ? PRE_SURVEY_KEYS.SUBMITTED_AT : POST_SURVEY_KEYS.SUBMITTED_AT;
-        await prisma.callerAttribute.upsert({
-          where: { callerId_key_scope: { callerId: caller.id, key, scope } },
-          create: {
-            callerId: caller.id,
-            key,
-            scope,
-            valueType: "STRING",
-            stringValue: now,
-          },
-          update: { stringValue: now },
-        });
-      }
-
-      // Initialize lesson plan session to first content session
-      await initializeLessonPlanSession(caller.id, caller.domainId);
-      console.log(`[callers] Skipped onboarding for ${caller.id}`);
+      await applySkipOnboarding(caller.id, caller.domainId);
     }
 
     // Instantiate goals from playbook config (if any)

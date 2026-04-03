@@ -357,15 +357,11 @@ export function LogViewer({
             <span className="calls-popup-stat-value">{totalTokens > 0 ? `${Math.round(totalTokens / 1000)}k` : '0'}</span>
             <span className="calls-popup-stat-label">Tokens</span>
           </div>
-          {deepCount > 0 && (
-            <>
-              <div className="calls-popup-stat-divider" />
-              <div className="calls-popup-stat">
-                <span className="calls-popup-stat-value" style={{ color: 'var(--status-error-text)' }}>{deepCount}</span>
-                <span className="calls-popup-stat-label">Deep</span>
-              </div>
-            </>
-          )}
+          <div className="calls-popup-stat-divider" />
+          <div className="calls-popup-stat">
+            <span className="calls-popup-stat-value" style={deepCount > 0 ? { color: 'var(--status-error-text)' } : undefined}>{deepCount}</span>
+            <span className="calls-popup-stat-label">Deep</span>
+          </div>
         </div>
 
         {/* Tabs */}

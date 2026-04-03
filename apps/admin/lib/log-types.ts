@@ -45,7 +45,9 @@ export function isDeepEntry(log: LogEntry): boolean {
 export function isErrorEntry(log: LogEntry): boolean {
   return (
     log.level === "error" ||
-    (log.metadata?.level as string) === "error"
+    (log.metadata?.level as string) === "error" ||
+    log.stage?.includes(":error") === true ||
+    log.metadata?.error != null
   );
 }
 
