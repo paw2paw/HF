@@ -526,6 +526,21 @@ export const config = {
     get crefRules(): string {
       return optional("CREF_RULES_SPEC_SLUG", "PROMPT-CREF-RULES-001");
     },
+
+    // ── Contracts (DB-backed config with code fallbacks) ──
+
+    /** Onboarding Assessment contract (default: ONBOARDING_ASSESSMENT_V1) */
+    get onboardingAssessment(): string {
+      return optional("ONBOARDING_ASSESSMENT_CONTRACT_SLUG", "ONBOARDING_ASSESSMENT_V1");
+    },
+    /** Survey Templates contract (default: SURVEY_TEMPLATES_V1) */
+    get surveyTemplates(): string {
+      return optional("SURVEY_TEMPLATES_CONTRACT_SLUG", "SURVEY_TEMPLATES_V1");
+    },
+    /** Session Types contract (default: SESSION_TYPES_V1) */
+    get sessionTypes(): string {
+      return optional("SESSION_TYPES_CONTRACT_SLUG", "SESSION_TYPES_V1");
+    },
   },
 
   // ---------------------------------------------------------------------------

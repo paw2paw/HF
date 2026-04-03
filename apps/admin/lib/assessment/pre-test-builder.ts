@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import type { SurveyStepConfig } from "@/lib/types/json-fields";
 
@@ -18,6 +19,7 @@ interface ContentQuestionRow {
   questionType: string;
   options: unknown;
   correctAnswer: string | null;
+  answerExplanation: string | null;
   chapter: string | null;
   section: string | null;
   learningOutcomeRef: string | null;
@@ -52,7 +54,7 @@ const DEFAULT_CONFIG: AssessmentConfig = {
 
 async function getAssessmentConfig(): Promise<AssessmentConfig> {
   try {
-    const contract = await ContractRegistry.getContract("ONBOARDING_ASSESSMENT_V1");
+    const contract = await ContractRegistry.getContract(config.specs.onboardingAssessment);
     const preTest = contract?.config?.phases?.pre_test;
     if (preTest) {
       return {
@@ -98,6 +100,7 @@ async function fetchQuestions(
       questionType: true,
       options: true,
       correctAnswer: true,
+      answerExplanation: true,
       chapter: true,
       section: true,
       learningOutcomeRef: true,
@@ -179,10 +182,12 @@ function toSurveyStep(q: ContentQuestionRow): SurveyStepConfig | null {
 
   return {
     id: q.id,
-    type: "mcq",
+    type: q.questionType === "TRUE_FALSE" ? "true_false" as const : "mcq" as const,
     prompt: q.questionText,
     options,
     correctAnswer: correctValue,
+    explanation: q.answerExplanation ?? undefined,
+    chapter: q.chapter ?? undefined,
     contentQuestionId: q.id,
   };
 }
@@ -260,6 +265,7 @@ export async function buildPostTest(callerId: string): Promise<PreTestResult> {
       questionType: true,
       options: true,
       correctAnswer: true,
+      answerExplanation: true,
       chapter: true,
       section: true,
       learningOutcomeRef: true,

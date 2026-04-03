@@ -1,4 +1,5 @@
 import type { SurveyStepConfig } from "@/lib/types/json-fields";
+import { config } from "@/lib/config";
 import { ContractRegistry } from "@/lib/contracts/registry";
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,7 @@ export async function getSurveyTemplateConfig(): Promise<SurveyTemplateConfig> {
   if (_cached) return _cached;
 
   try {
-    const contract = await ContractRegistry.getContract("SURVEY_TEMPLATES_V1");
+    const contract = await ContractRegistry.getContract(config.specs.surveyTemplates);
     if (contract?.config?.templates) {
       _cached = contract.config as SurveyTemplateConfig;
       return _cached;

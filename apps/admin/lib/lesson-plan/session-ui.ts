@@ -10,6 +10,7 @@ import {
   Sparkles, BookOpen, Layers, RotateCcw, Target, CheckCircle, Flag,
   ClipboardList,
 } from 'lucide-react';
+import { config } from "@/lib/config";
 import { ContractRegistry } from "@/lib/contracts/registry";
 
 // ── Types ──────────────────────────────────────────────
@@ -81,7 +82,7 @@ export async function getSessionTypeConfig(): Promise<SessionTypeConfig> {
   if (_cachedConfig) return _cachedConfig;
 
   try {
-    const contract = await ContractRegistry.getContract("SESSION_TYPES_V1");
+    const contract = await ContractRegistry.getContract(config.specs.sessionTypes);
     if (contract?.config?.types) {
       _cachedConfig = contract.config as SessionTypeConfig;
       return _cachedConfig;

@@ -354,7 +354,7 @@ export function ConversationList() {
                     background: 'var(--wa-surface)',
                     border: '1px solid var(--wa-divider)',
                     borderRadius: 12,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                    boxShadow: '0 4px 16px color-mix(in srgb, black 15%, transparent)',
                     width: 220,
                     zIndex: 50,
                     overflow: 'hidden',
