@@ -9,6 +9,7 @@ import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 import { getStorageAdapter, computeContentHash } from "@/lib/storage";
 import { config } from "@/lib/config";
 import { findDuplicateSource } from "@/lib/content-trust/dedup-source";
+import { maybeGenerateMcqs } from "@/lib/assessment/generate-mcqs";
 
 /**
  * @api POST /api/subjects/:subjectId/upload
@@ -104,6 +105,11 @@ export async function POST(
       }
 
       console.log(`[subjects/:id/upload] Deduplicated "${file.name}" → reusing source ${existingId} (${dedup.assertionCount} assertions)`);
+
+      // Fire-and-forget: generate MCQs if the reused source doesn't have any yet
+      maybeGenerateMcqs(existingId, auth.userId).catch((err) =>
+        console.error(`[subjects/:id/upload] MCQ generation failed for dedup source ${existingId}:`, err),
+      );
 
       return NextResponse.json(
         {

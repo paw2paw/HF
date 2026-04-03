@@ -79,21 +79,34 @@ export async function generateMcqsForSource(
   const count = options?.count ?? DEFAULT_COUNT;
 
   // Load assertions for this source (scoped by subjectSourceId when available)
-  const assertions = await prisma.contentAssertion.findMany({
+  // Fall back to unscoped if scoped query returns too few — handles pre-epic-#94 data
+  const assertionSelect = {
+    id: true,
+    assertion: true,
+    category: true,
+    chapter: true,
+    section: true,
+  } as const;
+
+  let assertions = await prisma.contentAssertion.findMany({
     where: {
       sourceId,
       ...(options?.subjectSourceId ? { subjectSourceId: options.subjectSourceId } : {}),
     },
-    select: {
-      id: true,
-      assertion: true,
-      category: true,
-      chapter: true,
-      section: true,
-    },
+    select: assertionSelect,
     orderBy: { sortOrder: "asc" },
     take: 100, // Cap to avoid huge prompts
   });
+
+  // Fallback: if scoped query found too few, retry without subject scope
+  if (assertions.length < 3 && options?.subjectSourceId) {
+    assertions = await prisma.contentAssertion.findMany({
+      where: { sourceId },
+      select: assertionSelect,
+      orderBy: { sortOrder: "asc" },
+      take: 100,
+    });
+  }
 
   if (assertions.length < 3) {
     return { created: 0, duplicatesSkipped: 0, skipped: true, skipReason: "too_few_assertions" };

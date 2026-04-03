@@ -503,9 +503,14 @@ export default function CourseDetailPage() {
           }
         }
       } else if (data.ok && sessions?.curriculumId) {
-        // Refresh MCQ preview
-        const preview = await fetch(`/api/curricula/${sessions.curriculumId}/assessment-preview?playbookId=${courseId}`).then(r => r.json());
-        if (preview.ok) setMcqPreview(preview);
+        if (data.skipped) {
+          // Generation was skipped — update preview to show reason
+          setMcqPreview({ questions: [], skipped: true, skipReason: data.skipReason ?? "generation_skipped" });
+        } else {
+          // Refresh MCQ preview
+          const preview = await fetch(`/api/curricula/${sessions.curriculumId}/assessment-preview?playbookId=${courseId}`).then(r => r.json());
+          if (preview.ok) setMcqPreview(preview);
+        }
       }
     } catch {
       // silent
