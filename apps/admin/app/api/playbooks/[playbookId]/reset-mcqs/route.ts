@@ -28,46 +28,31 @@ export async function POST(
   const body = await req.json().catch(() => ({}));
   const force = body.force === true;
 
-  // Resolve curriculum + source(s) — check primarySourceId first, fall back to SubjectSource
-  const playbook = await prisma.playbook.findUnique({
-    where: { id: playbookId },
-    select: {
-      curriculum: {
-        select: {
-          id: true,
-          primarySourceId: true,
-          subjectId: true,
-        },
-      },
-    },
+  // Resolve content sources via Playbook → PlaybookSubject → SubjectSource
+  const subjects = await prisma.playbookSubject.findMany({
+    where: { playbookId },
+    select: { subjectId: true },
   });
 
-  if (!playbook?.curriculum) {
+  if (subjects.length === 0) {
     return NextResponse.json(
-      { ok: false, error: "No curriculum found for this course" },
+      { ok: false, error: "No subjects linked to this course" },
       { status: 404 },
     );
   }
 
-  // Resolve source IDs: primarySourceId > SubjectSource fallback
-  let sourceIds: string[] = [];
-  let subjectSourceId: string | undefined;
+  const subjectSources = await prisma.subjectSource.findMany({
+    where: { subjectId: { in: subjects.map((s) => s.subjectId) } },
+    select: { id: true, sourceId: true },
+    orderBy: { createdAt: "asc" },
+  });
 
-  if (playbook.curriculum.primarySourceId) {
-    sourceIds = [playbook.curriculum.primarySourceId];
-  } else if (playbook.curriculum.subjectId) {
-    const subjectSources = await prisma.subjectSource.findMany({
-      where: { subjectId: playbook.curriculum.subjectId },
-      select: { id: true, sourceId: true },
-      orderBy: { createdAt: "asc" },
-    });
-    sourceIds = subjectSources.map((s) => s.sourceId);
-    subjectSourceId = subjectSources[0]?.id;
-  }
+  const sourceIds = [...new Set(subjectSources.map((s) => s.sourceId))];
+  const subjectSourceId = subjectSources[0]?.id;
 
   if (sourceIds.length === 0) {
     return NextResponse.json(
-      { ok: false, error: "No content sources linked to this curriculum" },
+      { ok: false, error: "No content sources linked to this course" },
       { status: 404 },
     );
   }
