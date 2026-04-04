@@ -81,7 +81,7 @@ export async function POST(
   { params }: { params: Promise<{ callerId: string }> }
 ) {
   try {
-    const authResult = await requireAuth("OPERATOR");
+    const authResult = await requireAuth("STUDENT");
     if (isAuthError(authResult)) return authResult.error;
 
     const { callerId } = await params;
