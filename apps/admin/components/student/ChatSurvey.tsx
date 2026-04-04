@@ -258,17 +258,17 @@ export function ChatSurvey({
       setLastWasWrong(true);
     }
 
-    // Show explanation if available
-    if (step.explanation) {
+    // Market test: log wrong answers silently, no correction shown
+    // Show explanation only for correct answers
+    if (isCorrect && step.explanation) {
       await triggerTyping();
-      const explainPrefix = isCorrect ? '✓ ' : '✗ ';
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: explainPrefix + step.explanation, variant: 'explanation' },
+        { role: 'assistant', content: '✓ ' + step.explanation, variant: 'explanation' },
       ]);
     }
 
-    // Encouragement on streak milestones or bounce-back
+    // Encouragement on streak milestones or bounce-back (correct answers only)
     if (isCorrect && newStreak >= 3 && newStreak % 3 === 0) {
       await new Promise((r) => setTimeout(r, 300));
       const msg = newStreak >= 6 ? enc.streak6 : enc.streak3;
@@ -281,12 +281,6 @@ export function ChatSurvey({
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: enc.bounceBack, variant: 'encouragement' },
-      ]);
-    } else if (!isCorrect) {
-      await new Promise((r) => setTimeout(r, 300));
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: enc.hardWrong, variant: 'encouragement' },
       ]);
     }
 

@@ -46,4 +46,11 @@ export const DEFAULT_PERSONALITY_QUESTIONS: SurveyStepConfig[] = [
     placeholder: "e.g. Pass my exam, understand the fundamentals...",
     maxLength: 200,
   },
+  {
+    id: "motivation",
+    type: "text",
+    prompt: "Why are you here? What do you want to get out of this course?",
+    placeholder: "e.g. Pass my exam, switch careers, satisfy curiosity...",
+    maxLength: 300,
+  },
 ];

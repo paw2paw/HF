@@ -340,22 +340,6 @@ export function WelcomeSurveyFlow({ callerId, onComplete, onAlreadyDone }: Welco
       <div className="welcome-page">
         <div style={{ maxWidth: 520, margin: "0 auto", padding: "0 16px" }}>
           {phaseIndicator}
-          <div className="hf-flex hf-justify-end hf-mb-sm">
-            <button
-              className="hf-btn hf-btn-xs hf-btn-outline"
-              onClick={() => {
-                const nextPhaseIndex = phases.indexOf("personality") + 1;
-                if (nextPhaseIndex < phases.length) {
-                  setCurrentPhase(phases[nextPhaseIndex]);
-                } else {
-                  onComplete(endAction);
-                }
-              }}
-              type="button"
-            >
-              Skip →
-            </button>
-          </div>
         </div>
         <ChatSurvey
           steps={buildPersonalitySteps(personalityConfigs, subject, teacherName)}
