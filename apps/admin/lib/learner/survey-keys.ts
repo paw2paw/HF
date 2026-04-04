@@ -14,6 +14,7 @@ export const PRE_SURVEY_KEYS = {
   PRIOR_KNOWLEDGE: "prior_knowledge",
   GOAL_TEXT: "goal_text",
   CONCERN_TEXT: "concern_text",
+  MOTIVATION: "motivation",
   SUBMITTED_AT: "submitted_at",
 } as const;
 

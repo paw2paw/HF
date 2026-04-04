@@ -11,9 +11,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SurveyStep } from '@/components/student/ChatSurvey';
 import type { SurveyStepConfig } from '@/lib/types/json-fields';
-import { SURVEY_SCOPES, PRE_SURVEY_KEYS, MID_SURVEY_KEYS } from '@/lib/learner/survey-keys';
+import { SURVEY_SCOPES, PRE_SURVEY_KEYS, MID_SURVEY_KEYS, POST_SURVEY_KEYS } from '@/lib/learner/survey-keys';
 import { DEFAULT_PERSONALITY_QUESTIONS } from '@/lib/assessment/personality-defaults';
-import { DEFAULT_MID_SURVEY } from '@/lib/learner/survey-config';
+import { DEFAULT_MID_SURVEY, DEFAULT_OFFBOARDING_SURVEY } from '@/lib/learner/survey-config';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,6 +119,14 @@ function buildMidSteps(configs: SurveyStepConfig[]): SurveyStep[] {
     { id: '_mid_greeting', type: 'message' as const, prompt: "Hey! You're making great progress. Before your next session, I'd love a quick check-in." },
     ...configs,
     { id: '_mid_thanks', type: 'message' as const, prompt: "Thanks for sharing! Let's keep going — your next session is ready." },
+  ];
+}
+
+function buildPostSteps(configs: SurveyStepConfig[]): SurveyStep[] {
+  return [
+    { id: '_post_greeting', type: 'message' as const, prompt: "You've finished all your sessions — amazing work! Before you go, I'd love to hear how it went." },
+    ...configs,
+    { id: '_post_thanks', type: 'message' as const, prompt: "Thanks so much for your feedback! You've been brilliant. Good luck with everything!" },
   ];
 }
 
@@ -232,6 +240,16 @@ export function useJourneyChat({ callerId, forceFirstCall }: UseJourneyChatOptio
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scope: SURVEY_SCOPES.MID, answers: surveyAnswers }),
         });
+      } else if (phase === 'post') {
+        const surveyAnswers: Record<string, string | number> = {};
+        for (const [key, value] of Object.entries(answers)) {
+          if (!key.startsWith('_') && typeof value !== 'boolean') surveyAnswers[key] = value;
+        }
+        await fetch(url('/api/student/survey', callerId), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope: SURVEY_SCOPES.POST, answers: surveyAnswers }),
+        });
       }
     } catch (err) {
       console.error('[journey] survey submit failed:', err);
@@ -332,6 +350,35 @@ export function useJourneyChat({ callerId, forceFirstCall }: UseJourneyChatOptio
     }
   }, [callerId, pushItems, startSurveyPhase]);
 
+  // ── Load and start post-survey ──
+  const loadPostSurvey = useCallback(async () => {
+    try {
+      pushItems(dividerItem('Course Feedback'));
+
+      const [surveyRes, configRes] = await Promise.all([
+        fetch(url('/api/student/survey', callerId, { scope: SURVEY_SCOPES.POST })),
+        fetch(url('/api/student/survey-config', callerId)),
+      ]);
+      const [surveyData, configData] = await Promise.all([surveyRes.json(), configRes.json()]);
+
+      // Already done?
+      if (surveyData?.ok && surveyData.answers?.[POST_SURVEY_KEYS.SUBMITTED_AT]) {
+        resolveJourneyPosition();
+        return;
+      }
+
+      let postConfigs: SurveyStepConfig[] = DEFAULT_OFFBOARDING_SURVEY;
+      if (configData?.ok && configData.postSurvey?.surveySteps?.length > 0) {
+        postConfigs = configData.postSurvey.surveySteps;
+      }
+
+      startSurveyPhase('post', buildPostSteps(postConfigs));
+    } catch (err) {
+      console.error('[journey] post-survey load failed:', err);
+      setState('teaching');
+    }
+  }, [callerId, pushItems, startSurveyPhase]);
+
   // ── Load onboarding ──
   const loadOnboarding = useCallback(async () => {
     try {
@@ -395,8 +442,7 @@ export function useJourneyChat({ callerId, forceFirstCall }: UseJourneyChatOptio
       } else if (stopType === 'mid_survey') {
         await loadMidSurvey();
       } else if (stopType === 'post_survey') {
-        // TODO: post-survey — for now fall through to teaching
-        setState('teaching');
+        await loadPostSurvey();
       } else if (stopType === 'onboarding') {
         await loadOnboarding();
       } else if (stopType === 'complete') {
@@ -411,7 +457,7 @@ export function useJourneyChat({ callerId, forceFirstCall }: UseJourneyChatOptio
     } finally {
       resolving.current = false;
     }
-  }, [callerId, pushItems, loadPreSurvey, loadMidSurvey, loadOnboarding]);
+  }, [callerId, pushItems, loadPreSurvey, loadMidSurvey, loadPostSurvey, loadOnboarding]);
 
   // ── Handle survey answer ──
   const onSurveyAnswer = useCallback((stepId: string, value: string | number, displayText: string) => {
