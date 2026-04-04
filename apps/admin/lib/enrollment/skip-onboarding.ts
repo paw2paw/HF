@@ -29,10 +29,16 @@ export async function applySkipOnboarding(
     },
   });
 
-  // Mark pre-survey and post-survey as submitted so student pages skip them
+  // Mark all survey scopes as submitted so journey-position skips them.
+  // journey-position requires: PERSONALITY submitted_at + PRE_TEST (submitted or skipped) + PRE + POST
   const now = new Date().toISOString();
-  for (const scope of [SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST]) {
-    const key = scope === SURVEY_SCOPES.PRE ? PRE_SURVEY_KEYS.SUBMITTED_AT : POST_SURVEY_KEYS.SUBMITTED_AT;
+  const markers: Array<{ scope: string; key: string; value: string }> = [
+    { scope: SURVEY_SCOPES.PRE, key: PRE_SURVEY_KEYS.SUBMITTED_AT, value: now },
+    { scope: SURVEY_SCOPES.POST, key: POST_SURVEY_KEYS.SUBMITTED_AT, value: now },
+    { scope: SURVEY_SCOPES.PERSONALITY, key: "submitted_at", value: now },
+    { scope: SURVEY_SCOPES.PRE_TEST, key: "skipped", value: "true" },
+  ];
+  for (const { scope, key, value } of markers) {
     await prisma.callerAttribute.upsert({
       where: { callerId_key_scope: { callerId, key, scope } },
       create: {
@@ -40,9 +46,9 @@ export async function applySkipOnboarding(
         key,
         scope,
         valueType: "STRING",
-        stringValue: now,
+        stringValue: value,
       },
-      update: { stringValue: now },
+      update: { stringValue: value },
     });
   }
 
@@ -76,13 +82,18 @@ export async function resetOnboarding(
     },
   });
 
-  // Remove survey submission markers so surveys appear again
-  for (const scope of [SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST]) {
-    const key = scope === SURVEY_SCOPES.PRE ? PRE_SURVEY_KEYS.SUBMITTED_AT : POST_SURVEY_KEYS.SUBMITTED_AT;
-    await prisma.callerAttribute.deleteMany({
-      where: { callerId, key, scope },
-    });
-  }
+  // Remove all survey submission markers so surveys appear again
+  await prisma.callerAttribute.deleteMany({
+    where: {
+      callerId,
+      OR: [
+        { scope: SURVEY_SCOPES.PRE, key: PRE_SURVEY_KEYS.SUBMITTED_AT },
+        { scope: SURVEY_SCOPES.POST, key: POST_SURVEY_KEYS.SUBMITTED_AT },
+        { scope: SURVEY_SCOPES.PERSONALITY, key: "submitted_at" },
+        { scope: SURVEY_SCOPES.PRE_TEST, key: "skipped" },
+      ],
+    },
+  });
 
   console.log(`[skip-onboarding] Reset onboarding for ${callerId}`);
 }

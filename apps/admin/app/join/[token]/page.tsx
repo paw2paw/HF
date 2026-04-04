@@ -68,7 +68,13 @@ export default function JoinPage() {
       const res = await fetch(`/api/join/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          ...(searchParams.get("course") ? { playbookId: searchParams.get("course") } : {}),
+          ...(searchParams.get("skipOnboarding") === "true" ? { skipOnboarding: true } : {}),
+        }),
       });
 
       const data = await res.json();

@@ -1692,3 +1692,15 @@
   background: var(--border-default);
 }
 
+/* ── Responsive: hide RHS panel on narrow screens ──── */
+
+@media (max-width: 768px) {
+  .cv4-panel-column {
+    display: none;
+  }
+
+  .cv4-chat-column {
+    padding: 0 8px;
+  }
+}
+

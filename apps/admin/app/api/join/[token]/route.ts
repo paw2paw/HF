@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { encode } from "next-auth/jwt";
 import { validateBody, joinPostSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
-import { enrollCallerInCohortPlaybooks } from "@/lib/enrollment";
+import { enrollCaller, enrollCallerInCohortPlaybooks } from "@/lib/enrollment";
+import { applySkipOnboarding } from "@/lib/enrollment/skip-onboarding";
 
 /** Separate rate-limit key for GET (token probing) vs POST (account creation) */
 const RATE_LIMIT_KEY_VERIFY = "join-verify";
@@ -85,6 +86,8 @@ export async function GET(
  * @body firstName string (required)
  * @body lastName string (required)
  * @body email string (required)
+ * @body playbookId string (optional) — enroll in a specific course instead of all cohort playbooks
+ * @body skipOnboarding boolean (optional) — skip onboarding wizard + surveys
  */
 export async function POST(
   request: NextRequest,
@@ -97,7 +100,7 @@ export async function POST(
   const body = await request.json();
   const v = validateBody(joinPostSchema, body);
   if (!v.ok) return v.error;
-  const { firstName, lastName, email } = v.data;
+  const { firstName, lastName, email, playbookId, skipOnboarding } = v.data;
 
   const cohort = await prisma.cohortGroup.findUnique({
     where: { joinToken: token },
@@ -124,6 +127,20 @@ export async function POST(
       { ok: false, error: "This join link has expired" },
       { status: 410 }
     );
+  }
+
+  // Validate playbookId belongs to the cohort's domain (prevent cross-domain enrollment)
+  if (playbookId) {
+    const playbook = await prisma.playbook.findFirst({
+      where: { id: playbookId, domainId: cohort.domainId },
+      select: { id: true },
+    });
+    if (!playbook) {
+      return NextResponse.json(
+        { ok: false, error: "Course not found in this classroom" },
+        { status: 400 }
+      );
+    }
   }
 
   // Check if user already exists
@@ -169,9 +186,18 @@ export async function POST(
       data: { callerId: newCaller.id, cohortGroupId: cohort.id },
     });
 
-    // Auto-enroll in cohort's playbooks (falls back to domain-wide if none assigned)
+    // Enroll — single course if specified, otherwise all cohort playbooks
     if (cohort.domainId) {
-      await enrollCallerInCohortPlaybooks(newCaller.id, cohort.id, cohort.domainId, "join");
+      if (playbookId) {
+        await enrollCaller(newCaller.id, playbookId, "join");
+      } else {
+        await enrollCallerInCohortPlaybooks(newCaller.id, cohort.id, cohort.domainId, "join");
+      }
+    }
+
+    // Skip onboarding if requested
+    if (skipOnboarding && cohort.domainId) {
+      await applySkipOnboarding(newCaller.id, cohort.domainId);
     }
 
     return NextResponse.json({
@@ -182,7 +208,7 @@ export async function POST(
   }
 
   // Create new user + caller in one transaction
-  const user = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const newUser = await tx.user.create({
       data: {
         email: email.trim().toLowerCase(),
@@ -213,13 +239,22 @@ export async function POST(
       data: { callerId: newCaller.id, cohortGroupId: cohort.id },
     });
 
-    // Auto-enroll in cohort's playbooks (falls back to domain-wide if none assigned)
+    // Enroll — single course if specified, otherwise all cohort playbooks
     if (cohort.domainId) {
-      await enrollCallerInCohortPlaybooks(newCaller.id, cohort.id, cohort.domainId, "join", tx);
+      if (playbookId) {
+        await enrollCaller(newCaller.id, playbookId, "join", tx);
+      } else {
+        await enrollCallerInCohortPlaybooks(newCaller.id, cohort.id, cohort.domainId, "join", tx);
+      }
     }
 
-    return newUser;
+    return { newUser, newCallerId: newCaller.id };
   });
+
+  // Skip onboarding after tx commits (applySkipOnboarding uses global prisma)
+  if (skipOnboarding && cohort.domainId) {
+    await applySkipOnboarding(result.newCallerId, cohort.domainId);
+  }
 
   // Auto sign-in via JWT cookie
   const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
@@ -232,11 +267,11 @@ export async function POST(
 
   const jwtToken = await encode({
     token: {
-      sub: user.id,
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
+      sub: result.newUser.id,
+      id: result.newUser.id,
+      email: result.newUser.email,
+      name: result.newUser.name,
+      role: result.newUser.role,
     },
     secret,
     salt: "authjs.session-token",

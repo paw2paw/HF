@@ -98,7 +98,7 @@ export function SuccessCard({
                 </a>
                 {communityJoinToken ? (
                   <a
-                    href={`/join/${communityJoinToken}`}
+                    href={`/join/${communityJoinToken}${draftPlaybookId ? `?course=${draftPlaybookId}` : ""}`}
                     className="hf-btn hf-btn-secondary cv4-success-btn-half"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -132,7 +132,7 @@ export function SuccessCard({
               className="hf-btn hf-btn-secondary cv4-success-btn-half"
               onClick={() => {
                 const url = communityJoinToken
-                  ? `${window.location.origin}/join/${communityJoinToken}`
+                  ? `${window.location.origin}/join/${communityJoinToken}${draftPlaybookId ? `?course=${draftPlaybookId}` : ""}`
                   : `${window.location.origin}/x/sim/${draftCallerId}?${new URLSearchParams({
                       forceFirstCall: "true",
                       ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),

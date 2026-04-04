@@ -29,6 +29,10 @@ export const joinPostSchema = z.object({
   firstName: nameSchema,
   lastName: nameSchema,
   email: emailSchema,
+  /** Enroll in a specific course (playbook) instead of all cohort playbooks */
+  playbookId: z.string().cuid().optional(),
+  /** Skip onboarding wizard + surveys — go straight to teaching */
+  skipOnboarding: z.boolean().optional(),
 });
 
 /** POST /api/auth/login (superadmin token auth) */
