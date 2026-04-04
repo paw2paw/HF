@@ -462,10 +462,19 @@ export async function computeSharedState(
 
   const thresholds = specConfig.thresholds || { high: 0.65, low: 0.35 };
 
+  // Determine if this is the final teaching session
+  const pbConfig = (data.playbooks?.[0]?.config || {}) as Record<string, any>;
+  const sessionCount = pbConfig.sessionCount as number | undefined;
+  const callNumber = currentSessionNumber ?? data.recentCalls.length;
+  const isFinalBySessionCount = !!(sessionCount && sessionCount > 0 && callNumber >= sessionCount);
+  const isFinalByModules = modules.length > 0 && completedModules.size >= modules.length;
+  const isFinalSession = isFinalBySessionCount || isFinalByModules;
+
   return {
     modules,
     isFirstCall,
     isFirstCallInDomain, // For domain-switch re-onboarding
+    isFinalSession,
     daysSinceLastCall,
     completedModules,
     estimatedProgress,

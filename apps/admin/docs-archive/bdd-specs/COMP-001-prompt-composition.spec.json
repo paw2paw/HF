@@ -901,6 +901,21 @@
       ]
     },
     {
+      "id": "offboarding",
+      "name": "Offboarding Guidance",
+      "priority": 13.5,
+      "dataSource": "_assembled",
+      "activateWhen": {
+        "condition": "always"
+      },
+      "fallback": {
+        "action": "null"
+      },
+      "transform": "computeOffboarding",
+      "outputKey": "offboarding",
+      "dependsOn": ["curriculum"]
+    },
+    {
       "id": "instructions_voice",
       "name": "Voice Guidance",
       "priority": 14,

@@ -44,6 +44,7 @@ import "./transforms/physical-materials";
 import "./transforms/session-materials";
 import "./transforms/course-instructions";
 import "./transforms/audience";
+import "./transforms/offboarding";
 
 /**
  * Execute the full composition pipeline.
@@ -710,6 +711,17 @@ export function getDefaultSections(): CompositionSectionDef[] {
       fallback: { action: "null" },
       transform: "computeSessionPedagogy",
       outputKey: "instructions_pedagogy",
+      dependsOn: ["curriculum"],
+    },
+    {
+      id: "offboarding",
+      name: "Offboarding Guidance",
+      priority: 13.5,
+      dataSource: "_assembled",
+      activateWhen: { condition: "always" },
+      fallback: { action: "null" },
+      transform: "computeOffboarding",
+      outputKey: "offboarding",
       dependsOn: ["curriculum"],
     },
     {

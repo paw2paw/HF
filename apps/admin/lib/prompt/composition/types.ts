@@ -252,6 +252,8 @@ export interface SharedComputedState {
   curriculumSpecSlug?: string;
   /** Whether first call in current domain (for domain-switch re-onboarding) */
   isFirstCallInDomain?: boolean;
+  /** Whether this is the learner's final teaching session (by sessionCount or module completion) */
+  isFinalSession: boolean;
   /** Current lesson plan session number (1-based), null if no lesson plan */
   currentSessionNumber?: number | null;
   /** Session type from lesson plan entry (introduce, deepen, review, assess, consolidate) */
