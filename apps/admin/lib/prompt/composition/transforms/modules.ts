@@ -275,7 +275,9 @@ export async function computeSharedState(
   data: LoadedDataContext,
   resolvedSpecs: ResolvedSpecs,
   specConfig: Record<string, any>,
+  triggerType?: string,
 ): Promise<SharedComputedState> {
+  const channel: 'text' | 'voice' = triggerType === 'sim' ? 'text' : 'voice';
   // DB-first: try CurriculumModule records before JSON paths
   const curriculumInfo = findCurriculumInfo(data);
   const curriculumId = curriculumInfo?.id || null;
@@ -471,6 +473,7 @@ export async function computeSharedState(
   const isFinalSession = isFinalBySessionCount || isFinalByModules;
 
   return {
+    channel,
     modules,
     isFirstCall,
     isFirstCallInDomain, // For domain-switch re-onboarding

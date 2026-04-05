@@ -57,9 +57,18 @@ Each item: {
   "markScheme": string?,           // mark allocation / rubric for this question
   "learningOutcomeRef": string?,   // which LO is tested
   "difficulty": number?,           // 1-5 estimate
+  "bloomLevel": "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "EVALUATE" | "CREATE",
   "section": string?,              // "Section A", "Part 2", etc.
   "tags": string[]
 }
+
+Bloom level classification:
+- REMEMBER: Recall, define, list, name, identify
+- UNDERSTAND: Explain, describe, interpret, summarise
+- APPLY: Calculate, demonstrate, use, solve
+- ANALYZE: Compare, contrast, examine, distinguish
+- EVALUATE: Justify, critique, assess, argue
+- CREATE: Design, construct, produce, plan
 
 Difficulty estimation:
 - 1: Recall/recognition (define, list, name)
@@ -76,6 +85,30 @@ IMPORTANT:
 - For open questions, include the model answer/mark scheme if available
 - Do NOT invent answers not in the source
 - Return ONLY valid JSON`;
+
+// ------------------------------------------------------------------
+// Bloom level helpers
+// ------------------------------------------------------------------
+
+type BloomLevel = "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "EVALUATE" | "CREATE";
+
+const VALID_BLOOM_LEVELS = new Set<BloomLevel>(["REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE"]);
+
+function normalizeBloomLevel(raw: unknown): BloomLevel | undefined {
+  if (typeof raw !== "string") return undefined;
+  const upper = raw.toUpperCase().trim() as BloomLevel;
+  return VALID_BLOOM_LEVELS.has(upper) ? upper : undefined;
+}
+
+/** Infer bloom from existing difficulty 1-5 scale as fallback */
+function inferBloomFromDifficulty(difficulty: number | undefined): BloomLevel | undefined {
+  if (!difficulty) return undefined;
+  if (difficulty <= 1) return "REMEMBER";
+  if (difficulty <= 2) return "UNDERSTAND";
+  if (difficulty <= 3) return "APPLY";
+  if (difficulty <= 4) return "ANALYZE";
+  return "EVALUATE";
+}
 
 // ------------------------------------------------------------------
 // Assessment Extractor
@@ -134,21 +167,26 @@ export class AssessmentExtractor extends DocumentExtractor {
 
     const questions: ExtractedQuestion[] = (rawQuestions as any[])
       .filter((q: any) => q.questionText)
-      .map((q: any) => ({
-        questionText: String(q.questionText),
-        questionType: validQuestionTypes.has(q.questionType) ? q.questionType : "SHORT_ANSWER",
-        options: Array.isArray(q.options) ? q.options : undefined,
-        correctAnswer: q.correctAnswer ? String(q.correctAnswer) : undefined,
-        answerExplanation: q.answerExplanation ? String(q.answerExplanation) : undefined,
-        markScheme: q.markScheme ? String(q.markScheme) : undefined,
-        learningOutcomeRef: q.learningOutcomeRef || undefined,
-        difficulty: typeof q.difficulty === "number" && q.difficulty >= 1 && q.difficulty <= 5
+      .map((q: any) => {
+        const difficulty = typeof q.difficulty === "number" && q.difficulty >= 1 && q.difficulty <= 5
           ? q.difficulty
-          : undefined,
-        section: q.section || undefined,
-        tags: Array.isArray(q.tags) ? q.tags : [],
-        contentHash: hashContent(`question:${q.questionText}`),
-      }));
+          : undefined;
+        return {
+          questionText: String(q.questionText),
+          questionType: validQuestionTypes.has(q.questionType) ? q.questionType : "SHORT_ANSWER",
+          options: Array.isArray(q.options) ? q.options : undefined,
+          correctAnswer: q.correctAnswer ? String(q.correctAnswer) : undefined,
+          answerExplanation: q.answerExplanation ? String(q.answerExplanation) : undefined,
+          markScheme: q.markScheme ? String(q.markScheme) : undefined,
+          learningOutcomeRef: q.learningOutcomeRef || undefined,
+          difficulty,
+          bloomLevel: normalizeBloomLevel(q.bloomLevel) ?? inferBloomFromDifficulty(difficulty),
+          assessmentUse: "BOTH" as const,
+          section: q.section || undefined,
+          tags: Array.isArray(q.tags) ? q.tags : [],
+          contentHash: hashContent(`question:${q.questionText}`),
+        };
+      });
 
     return { assertions, questions, vocabulary: [], warnings: [] };
   }

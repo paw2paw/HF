@@ -24,6 +24,7 @@ interface ContentQuestionRow {
   section: string | null;
   learningOutcomeRef: string | null;
   difficulty: number | null;
+  bloomLevel: string | null;
 }
 
 interface McqOption {
@@ -136,6 +137,7 @@ async function fetchQuestions(
       section: true,
       learningOutcomeRef: true,
       difficulty: true,
+      bloomLevel: true,
     },
     orderBy: { sortOrder: "asc" },
   });
@@ -183,6 +185,43 @@ function selectRandom(
 ): ContentQuestionRow[] {
   const shuffled = [...questions].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
+}
+
+/**
+ * Select questions distributed across Bloom cognitive levels.
+ * Prioritises higher-order thinking (UNDERSTAND, ANALYZE) over pure recall.
+ */
+function selectByBloomSpread(
+  questions: ContentQuestionRow[],
+  count: number,
+): ContentQuestionRow[] {
+  const byBloom = new Map<string, ContentQuestionRow[]>();
+  for (const q of questions) {
+    const key = q.bloomLevel ?? "REMEMBER";
+    const group = byBloom.get(key) ?? [];
+    group.push(q);
+    byBloom.set(key, group);
+  }
+
+  // Priority order: UNDERSTAND and ANALYZE first (the most diagnostic),
+  // then REMEMBER (baseline), EVALUATE, APPLY, CREATE
+  const priority = ["UNDERSTAND", "ANALYZE", "REMEMBER", "EVALUATE", "APPLY", "CREATE"];
+
+  const selected: ContentQuestionRow[] = [];
+  let round = 0;
+
+  while (selected.length < count && round < 10) {
+    for (const level of priority) {
+      if (selected.length >= count) break;
+      const group = byBloom.get(level);
+      if (group && round < group.length) {
+        selected.push(group[round]);
+      }
+    }
+    round++;
+  }
+
+  return selected;
 }
 
 // ---------------------------------------------------------------------------
@@ -263,10 +302,18 @@ async function buildFromSourceIds(sourceIds: string[]): Promise<PreTestResult> {
   }
 
   // Apply selection strategy
+  // Auto-select bloom_spread when questions have bloom data
+  const hasBloomData = allQuestions.some((q) => q.bloomLevel != null);
+  const strategy = assessmentCfg.selectionStrategy === "bloom_spread" || hasBloomData
+    ? "bloom_spread"
+    : assessmentCfg.selectionStrategy;
+
   const selected =
-    assessmentCfg.selectionStrategy === "one_per_module"
-      ? selectOnePerModule(allQuestions, assessmentCfg.questionCount)
-      : selectRandom(allQuestions, assessmentCfg.questionCount);
+    strategy === "bloom_spread"
+      ? selectByBloomSpread(allQuestions, assessmentCfg.questionCount)
+      : strategy === "one_per_module"
+        ? selectOnePerModule(allQuestions, assessmentCfg.questionCount)
+        : selectRandom(allQuestions, assessmentCfg.questionCount);
 
   // Convert to SurveyStepConfig
   const steps = selected.map(toSurveyStep).filter((s): s is SurveyStepConfig => s !== null);
@@ -313,6 +360,7 @@ export async function buildPostTest(callerId: string): Promise<PreTestResult> {
       section: true,
       learningOutcomeRef: true,
       difficulty: true,
+      bloomLevel: true,
     },
   });
 

@@ -66,6 +66,25 @@ enum QuestionType {
   TUTOR_QUESTION // Skill-mapped question with tiered model responses + tutor moves (from QUESTION_BANK)
 }
 
+// Bloom's Taxonomy cognitive levels for question classification
+enum BloomLevel {
+  REMEMBER // Locate/recall explicit information
+  UNDERSTAND // Explain, infer, interpret meaning
+  APPLY // Use knowledge in new context
+  ANALYZE // Examine structure, purpose, technique
+  EVALUATE // Justify opinion with evidence
+  CREATE // Produce original response
+}
+
+// How a question should be used in assessment
+enum AssessmentUse {
+  PRE_TEST // Only in pre-test
+  POST_TEST // Only in post-test
+  BOTH // Pre and post test
+  FORMATIVE // During tutor calls (practice)
+  TUTOR_ONLY // Tutor reference only (never shown to student as MCQ)
+}
+
 // Conversation artifact types - content worth sharing from a call
 enum ConversationArtifactType {
   SUMMARY // Call summary / key takeaways
@@ -3698,6 +3717,8 @@ model ContentQuestion {
   tags               String[]
   sortOrder          Int                          @default(0)
   contentHash        String?
+  bloomLevel         BloomLevel?
+  assessmentUse      AssessmentUse?
   embedding          Unsupported("vector(1536)")?
 
   // Type-specific metadata (tiered responses, tutor moves, text references for TUTOR_QUESTION)
@@ -3717,6 +3738,8 @@ model ContentQuestion {
   @@index([assertionId])
   @@index([learningOutcomeRef])
   @@index([skillRef])
+  @@index([bloomLevel])
+  @@index([assessmentUse])
 }
 
 // =========================

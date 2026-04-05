@@ -41,6 +41,8 @@ export interface ExtractedQuestion {
   section?: string;
   tags: string[];
   contentHash: string;
+  bloomLevel?: "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "EVALUATE" | "CREATE";
+  assessmentUse?: "PRE_TEST" | "POST_TEST" | "BOTH" | "FORMATIVE" | "TUTOR_ONLY";
 }
 
 export interface ExtractedVocabulary {

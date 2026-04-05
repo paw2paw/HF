@@ -235,6 +235,8 @@ export interface CurriculumMetadata {
 }
 
 export interface SharedComputedState {
+  /** Delivery channel — 'text' for sim chat, 'voice' for VAPI/phone */
+  channel: 'text' | 'voice';
   modules: ModuleData[];
   isFirstCall: boolean;
   daysSinceLastCall: number;

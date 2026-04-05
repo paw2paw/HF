@@ -7,6 +7,7 @@ vi.mock("@/lib/prisma", () => ({
       count: vi.fn(),
       createMany: vi.fn(),
       findMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
     contentAssertion: {
       findMany: vi.fn(),
@@ -19,6 +20,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     subjectSource: {
       count: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
@@ -40,6 +44,7 @@ import {
   sourceNeedsMcqs,
   isLinkedSource,
   maybeGenerateMcqs,
+  regenerateSiblingMcqs,
 } from "@/lib/assessment/generate-mcqs";
 
 const mocks = {
@@ -48,11 +53,52 @@ const mocks = {
   save: saveQuestions as ReturnType<typeof vi.fn>,
 };
 
+/** Helper: mock a non-comprehension teaching profile (default path) */
+function mockDefaultTeachingProfile(): void {
+  mocks.prisma.subjectSource.findUnique.mockResolvedValue(null);
+  mocks.prisma.subjectSource.findFirst.mockResolvedValue(null);
+}
+
+/** Helper: mock a comprehension-led teaching profile */
+function mockComprehensionProfile(subjectId = "sub-1"): void {
+  mocks.prisma.subjectSource.findUnique.mockResolvedValue({
+    subject: { id: subjectId, teachingProfile: "comprehension-led" },
+  });
+  mocks.prisma.subjectSource.findFirst.mockResolvedValue({
+    subject: { id: subjectId, teachingProfile: "comprehension-led" },
+  });
+}
+
+/** Helper: mock TUTOR_QUESTIONs from a question bank */
+function mockTutorQuestions(count = 5): void {
+  const tutorQs = Array.from({ length: count }, (_, i) => ({
+    questionText: `How does the character feel in scene ${i}?`,
+    skillRef: `SKILL-0${(i % 4) + 1}:${["Retrieval", "Inference", "Vocabulary", "Language Effect"][i % 4]}`,
+    bloomLevel: ["REMEMBER", "UNDERSTAND", "UNDERSTAND", "ANALYZE"][i % 4],
+    metadata: {
+      modelResponses: {
+        emerging: { response: `Simple answer ${i}`, tutorMove: `Guide ${i}` },
+        developing: { response: `Better answer ${i}`, tutorMove: `Push ${i}` },
+        secure: { response: `Strong analytical answer ${i}`, tutorMove: `Confirm ${i}` },
+      },
+      assessmentNote: `Tests comprehension skill ${i}`,
+    },
+  }));
+
+  // Mock the sibling QB sources lookup
+  mocks.prisma.subjectSource.findMany.mockResolvedValue(
+    [{ sourceId: "qb-src-1" }],
+  );
+  // Mock TUTOR_QUESTION fetch
+  mocks.prisma.contentQuestion.findMany.mockResolvedValue(tutorQs);
+}
+
 describe("generate-mcqs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: source is a reading passage (eligible for MCQ generation)
     mocks.prisma.contentSource.findUnique.mockResolvedValue({ documentType: "READING_PASSAGE" });
+    mockDefaultTeachingProfile();
   });
 
   describe("sourceNeedsMcqs", () => {
@@ -109,7 +155,7 @@ describe("generate-mcqs", () => {
       expect(mocks.ai).not.toHaveBeenCalled();
     });
 
-    it("generates MCQs from assertions and saves them", async () => {
+    it("generates bloom-distributed MCQs from assertions", async () => {
       const assertions = Array.from({ length: 5 }, (_, i) => ({
         id: `a${i}`,
         assertion: `Concept ${i}: important fact about topic ${i}`,
@@ -122,6 +168,7 @@ describe("generate-mcqs", () => {
       const aiResponse = JSON.stringify([
         {
           question: "What is concept 0?",
+          bloomLevel: "REMEMBER",
           options: [
             { label: "A", text: "Correct answer", isCorrect: true },
             { label: "B", text: "Wrong 1", isCorrect: false },
@@ -133,7 +180,8 @@ describe("generate-mcqs", () => {
           explanation: "Because fact 0",
         },
         {
-          question: "What is concept 1?",
+          question: "Why does concept 1 matter?",
+          bloomLevel: "UNDERSTAND",
           options: [
             { label: "A", text: "Wrong 1", isCorrect: false },
             { label: "B", text: "Correct answer", isCorrect: true },
@@ -157,7 +205,9 @@ describe("generate-mcqs", () => {
           questionText: "What is concept 0?",
           questionType: "MCQ",
           correctAnswer: "A",
-          tags: ["auto-generated"],
+          bloomLevel: "REMEMBER",
+          assessmentUse: "BOTH",
+          tags: expect.arrayContaining(["auto-generated", "bloom-distributed"]),
         }),
       ]), undefined);
     });
@@ -175,7 +225,6 @@ describe("generate-mcqs", () => {
     });
 
     it("excludes instruction-category assertions from AI prompt", async () => {
-      // Mix of student content and instruction categories
       const assertions = [
         { id: "a1", assertion: "Photosynthesis converts light to energy", category: "fact", chapter: "Ch1", section: null },
         { id: "a2", assertion: "Cells divide through mitosis", category: "definition", chapter: "Ch2", section: null },
@@ -184,13 +233,13 @@ describe("generate-mcqs", () => {
         { id: "a5", assertion: "SKILL-01 focuses on recall", category: "skill_description", chapter: null, section: null },
         { id: "a6", assertion: "Water boils at 100C", category: "fact", chapter: "Ch3", section: null },
       ];
-      // The query uses notIn filter — mock should only return non-instruction assertions
       mocks.prisma.contentAssertion.findMany.mockResolvedValue(
         assertions.filter((a) => !["assessment_guidance", "session_metadata", "skill_description"].includes(a.category)),
       );
       mocks.ai.mockResolvedValue({
         content: JSON.stringify([{
           question: "What does photosynthesis convert?",
+          bloomLevel: "REMEMBER",
           options: [
             { label: "A", text: "Light to energy", isCorrect: true },
             { label: "B", text: "Water to air", isCorrect: false },
@@ -203,7 +252,6 @@ describe("generate-mcqs", () => {
       const result = await generateMcqsForSource("src-1");
       expect(result.skipped).toBe(false);
 
-      // Verify the AI prompt only contains subject matter, not framework language
       const aiCall = mocks.ai.mock.calls[0][0];
       const userMessage = aiCall.messages.find((m: any) => m.role === "user")?.content;
       expect(userMessage).toContain("Photosynthesis");
@@ -219,11 +267,11 @@ describe("generate-mcqs", () => {
       }));
       mocks.prisma.contentAssertion.findMany.mockResolvedValue(assertions);
 
-      // AI returns a mix of good and bad questions
       mocks.ai.mockResolvedValue({
         content: JSON.stringify([
           {
             question: "What does photosynthesis produce?",
+            bloomLevel: "REMEMBER",
             options: [
               { label: "A", text: "Oxygen", isCorrect: true },
               { label: "B", text: "Carbon dioxide", isCorrect: false },
@@ -232,6 +280,7 @@ describe("generate-mcqs", () => {
           },
           {
             question: "According to the skill framework, what characterizes a student at the Emerging level?",
+            bloomLevel: "UNDERSTAND",
             options: [
               { label: "A", text: "Can recall", isCorrect: false },
               { label: "B", text: "Describes plot events", isCorrect: true },
@@ -240,6 +289,7 @@ describe("generate-mcqs", () => {
           },
           {
             question: "What does SKILL-02 assess in this assessment framework?",
+            bloomLevel: "ANALYZE",
             options: [
               { label: "A", text: "Inference", isCorrect: true },
               { label: "B", text: "Recall", isCorrect: false },
@@ -253,7 +303,6 @@ describe("generate-mcqs", () => {
       const result = await generateMcqsForSource("src-1");
       expect(result.skipped).toBe(false);
 
-      // Only the clean question should be saved
       const savedQuestions = mocks.save.mock.calls[0][1];
       expect(savedQuestions).toHaveLength(1);
       expect(savedQuestions[0].questionText).toBe("What does photosynthesis produce?");
@@ -267,6 +316,7 @@ describe("generate-mcqs", () => {
       mocks.ai.mockResolvedValue({
         content: JSON.stringify([{
           question: "Q1?",
+          bloomLevel: "REMEMBER",
           options: [
             { label: "A", text: "Right", isCorrect: true },
             { label: "B", text: "Wrong", isCorrect: false },
@@ -279,6 +329,187 @@ describe("generate-mcqs", () => {
       const result = await generateMcqsForSource("src-1");
       expect(result.duplicatesSkipped).toBe(1);
       expect(result.created).toBe(0);
+    });
+  });
+
+  // ── Comprehension path tests ──
+  describe("generateMcqsForSource — comprehension path", () => {
+    beforeEach(() => {
+      mockComprehensionProfile("sub-1");
+    });
+
+    it("uses TUTOR_QUESTIONs when comprehension-led and QB exists", async () => {
+      mockTutorQuestions(5);
+
+      const aiResponse = JSON.stringify([
+        {
+          question: "Based on the passage, what best describes the character's reaction?",
+          questionType: "MCQ",
+          bloomLevel: "UNDERSTAND",
+          skillRef: "SKILL-02:Inference",
+          options: [
+            { label: "A", text: "Frightened", isCorrect: false },
+            { label: "B", text: "Annoyed and demanding", isCorrect: true },
+            { label: "C", text: "Sad about the situation", isCorrect: false },
+            { label: "D", text: "Relieved to be found", isCorrect: false },
+          ],
+          correctAnswer: "B",
+          chapter: "Inference",
+          explanation: "The character stamps her foot, showing annoyance not sadness.",
+        },
+      ]);
+
+      mocks.ai.mockResolvedValue({ content: aiResponse });
+      mocks.save.mockResolvedValue({ created: 1, duplicatesSkipped: 0 });
+
+      const result = await generateMcqsForSource("src-1", { subjectSourceId: "ss-1" });
+      expect(result.skipped).toBe(false);
+      expect(result.created).toBe(1);
+
+      // Verify comprehension call point was used
+      const aiCall = mocks.ai.mock.calls[0][0];
+      expect(aiCall.callPoint).toBe("content-trust.generate-mcq-comprehension");
+
+      // Verify saved question has skill-aligned metadata
+      const saved = mocks.save.mock.calls[0][1];
+      expect(saved[0]).toMatchObject({
+        bloomLevel: "UNDERSTAND",
+        assessmentUse: "BOTH",
+        chapter: "Inference",
+        tags: expect.arrayContaining(["auto-generated", "comprehension-skill"]),
+      });
+    });
+
+    it("falls back to assertion path when < 3 TUTOR_QUESTIONs", async () => {
+      // Mock only 2 tutor questions (below threshold)
+      mocks.prisma.subjectSource.findMany.mockResolvedValue([{ sourceId: "qb-src-1" }]);
+      mocks.prisma.contentQuestion.findMany.mockResolvedValue([
+        { questionText: "Q1?", skillRef: "SKILL-01:Retrieval", bloomLevel: "REMEMBER", metadata: {} },
+        { questionText: "Q2?", skillRef: "SKILL-02:Inference", bloomLevel: "UNDERSTAND", metadata: {} },
+      ]);
+
+      // Need assertions for the fallback path
+      const assertions = Array.from({ length: 5 }, (_, i) => ({
+        id: `a${i}`, assertion: `Fact ${i}`, category: "fact", chapter: null, section: null,
+      }));
+      mocks.prisma.contentAssertion.findMany.mockResolvedValue(assertions);
+
+      mocks.ai.mockResolvedValue({
+        content: JSON.stringify([{
+          question: "Basic recall question?",
+          bloomLevel: "REMEMBER",
+          options: [
+            { label: "A", text: "Right", isCorrect: true },
+            { label: "B", text: "Wrong", isCorrect: false },
+          ],
+          correctAnswer: "A",
+        }]),
+      });
+      mocks.save.mockResolvedValue({ created: 1, duplicatesSkipped: 0 });
+
+      const result = await generateMcqsForSource("src-1", { subjectSourceId: "ss-1" });
+      expect(result.skipped).toBe(false);
+
+      // Should use default call point (not comprehension)
+      const aiCall = mocks.ai.mock.calls[0][0];
+      expect(aiCall.callPoint).toBe("content-trust.generate-mcq");
+    });
+
+    it("falls back to assertion path when no QB sources exist", async () => {
+      // No QB sources for this subject
+      mocks.prisma.subjectSource.findMany.mockResolvedValue([]);
+
+      const assertions = Array.from({ length: 5 }, (_, i) => ({
+        id: `a${i}`, assertion: `Fact ${i}`, category: "fact", chapter: null, section: null,
+      }));
+      mocks.prisma.contentAssertion.findMany.mockResolvedValue(assertions);
+
+      mocks.ai.mockResolvedValue({
+        content: JSON.stringify([{
+          question: "Basic question?",
+          bloomLevel: "REMEMBER",
+          options: [
+            { label: "A", text: "Right", isCorrect: true },
+            { label: "B", text: "Wrong", isCorrect: false },
+          ],
+          correctAnswer: "A",
+        }]),
+      });
+      mocks.save.mockResolvedValue({ created: 1, duplicatesSkipped: 0 });
+
+      const result = await generateMcqsForSource("src-1", { subjectSourceId: "ss-1" });
+      expect(result.skipped).toBe(false);
+
+      const aiCall = mocks.ai.mock.calls[0][0];
+      expect(aiCall.callPoint).toBe("content-trust.generate-mcq");
+    });
+  });
+
+  // ── Sibling MCQ regeneration tests ──
+  describe("regenerateSiblingMcqs", () => {
+    it("deletes auto-generated MCQs and regenerates for sibling sources", async () => {
+      // Mock sibling content sources (first findMany call)
+      // Then QB sources for comprehension path (second findMany call)
+      mocks.prisma.subjectSource.findMany
+        .mockResolvedValueOnce([{ id: "ss-1", sourceId: "reading-src-1" }])
+        .mockResolvedValueOnce([{ sourceId: "qb-src-1" }]);
+      mocks.prisma.contentQuestion.deleteMany.mockResolvedValue({ count: 3 });
+
+      // Mock the regeneration path
+      mocks.prisma.contentSource.findUnique.mockResolvedValue({ documentType: "READING_PASSAGE" });
+      mockComprehensionProfile("sub-1");
+      // Mock TUTOR_QUESTION fetch (contentQuestion.findMany called after deleteMany)
+      const tutorQs = Array.from({ length: 5 }, (_, i) => ({
+        questionText: `How does the character feel in scene ${i}?`,
+        skillRef: `SKILL-0${(i % 4) + 1}:${["Retrieval", "Inference", "Vocabulary", "Language Effect"][i % 4]}`,
+        bloomLevel: ["REMEMBER", "UNDERSTAND", "UNDERSTAND", "ANALYZE"][i % 4],
+        metadata: {
+          modelResponses: {
+            emerging: { response: `Simple answer ${i}`, tutorMove: `Guide ${i}` },
+            developing: { response: `Better answer ${i}`, tutorMove: `Push ${i}` },
+            secure: { response: `Strong analytical answer ${i}`, tutorMove: `Confirm ${i}` },
+          },
+          assessmentNote: `Tests comprehension skill ${i}`,
+        },
+      }));
+      mocks.prisma.contentQuestion.findMany.mockResolvedValue(tutorQs);
+
+      mocks.ai.mockResolvedValue({
+        content: JSON.stringify([{
+          question: "Comprehension MCQ?",
+          bloomLevel: "UNDERSTAND",
+          skillRef: "SKILL-02:Inference",
+          options: [
+            { label: "A", text: "Right", isCorrect: true },
+            { label: "B", text: "Wrong", isCorrect: false },
+          ],
+          correctAnswer: "A",
+        }]),
+      });
+      mocks.save.mockResolvedValue({ created: 1, duplicatesSkipped: 0 });
+
+      await regenerateSiblingMcqs("sub-1", "qb-src-1", "user-1");
+
+      // Verify old MCQs were deleted
+      expect(mocks.prisma.contentQuestion.deleteMany).toHaveBeenCalledWith({
+        where: {
+          sourceId: "reading-src-1",
+          questionType: { in: ["MCQ", "TRUE_FALSE"] },
+          tags: { hasSome: ["auto-generated"] },
+        },
+      });
+
+      // Verify new MCQs were generated
+      expect(mocks.ai).toHaveBeenCalled();
+    });
+
+    it("does nothing when no sibling sources exist", async () => {
+      mocks.prisma.subjectSource.findMany.mockResolvedValue([]);
+
+      await regenerateSiblingMcqs("sub-1", "qb-src-1");
+
+      expect(mocks.prisma.contentQuestion.deleteMany).not.toHaveBeenCalled();
+      expect(mocks.ai).not.toHaveBeenCalled();
     });
   });
 
@@ -302,12 +533,9 @@ describe("generate-mcqs", () => {
     });
 
     it("generates when source is linked via SubjectSource and has no MCQs", async () => {
-      // sourceNeedsMcqs → true
       mocks.prisma.contentQuestion.count.mockResolvedValue(0);
-      // isLinkedSource → true (via SubjectSource, not primarySource)
       mocks.prisma.curriculum.count.mockResolvedValue(0);
       mocks.prisma.subjectSource.count.mockResolvedValue(1);
-      // generateMcqsForSource needs assertions
       mocks.prisma.contentAssertion.findMany.mockResolvedValue(
         Array.from({ length: 5 }, (_, i) => ({
           id: `a${i}`, assertion: `Fact ${i}`, category: "concept", chapter: null, section: null,
@@ -316,6 +544,7 @@ describe("generate-mcqs", () => {
       mocks.ai.mockResolvedValue({
         content: JSON.stringify([{
           question: "Q?",
+          bloomLevel: "REMEMBER",
           options: [
             { label: "A", text: "Right", isCorrect: true },
             { label: "B", text: "Wrong", isCorrect: false },

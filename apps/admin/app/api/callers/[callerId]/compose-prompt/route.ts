@@ -67,7 +67,7 @@ export async function POST(
     });
 
     // Execute composition pipeline
-    const composition = await executeComposition(callerId, sections, fullSpecConfig);
+    const composition = await executeComposition(callerId, sections, fullSpecConfig, triggerType);
     const { loadedData, resolvedSpecs, metadata } = composition;
 
     console.log(`[compose-prompt] Composition: ${metadata.sectionsActivated.length} activated, ${metadata.sectionsSkipped.length} skipped (load: ${metadata.loadTimeMs}ms, transform: ${metadata.transformTimeMs}ms)`);

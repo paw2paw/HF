@@ -129,6 +129,10 @@ registerTransform("computeQuickStart", (
       ? `${sessionCount ? `${sessionCount} sessions` : ""}${sessionCount && durationMins ? " x " : ""}${durationMins ? `${durationMins} min each` : ""}`
       : null,
 
+    channel_note: sharedState.channel === 'text'
+      ? "This is a TEXT chat — the learner types, not speaks. Typing is much slower than talking. Cover less material per session, keep messages concise, and don't rush through phases. A 20-min voice session is roughly equivalent to 5-7 min of text chat in content coverage."
+      : null,
+
     lesson_model: lessonPlanModel
       ? lessonPlanModel.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
       : null,

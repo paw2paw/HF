@@ -63,6 +63,8 @@ export async function saveQuestions(
       tags: q.tags || [],
       sortOrder: i,
       contentHash: q.contentHash,
+      bloomLevel: q.bloomLevel || null,
+      assessmentUse: q.assessmentUse || null,
     })),
     skipDuplicates: true,
   });

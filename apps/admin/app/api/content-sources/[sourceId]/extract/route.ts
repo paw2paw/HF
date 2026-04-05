@@ -45,7 +45,7 @@ import {
 import type { DocumentType, InteractionPattern, TeachingMode } from "@/lib/content-trust/resolve-config";
 import { syncGoalsFromReference } from "@/lib/goals/sync-goals-from-reference";
 import { syncConstraintsFromReference } from "@/lib/goals/sync-constraints-from-reference";
-import { maybeGenerateMcqs } from "@/lib/assessment/generate-mcqs";
+import { maybeGenerateMcqs, regenerateSiblingMcqs } from "@/lib/assessment/generate-mcqs";
 
 /**
  * @api POST /api/content-sources/:sourceId/extract
@@ -465,6 +465,15 @@ async function runBackgroundExtraction(
   maybeGenerateMcqs(sourceId, userId, subjectSourceId).catch((err) =>
     console.error(`[extract] MCQ generation failed for source ${sourceId}:`, err),
   );
+
+  // ── QB re-trigger: regenerate sibling MCQs when a QUESTION_BANK is extracted ──
+  // Comprehension courses generate MCQs from TUTOR_QUESTIONs — but those only exist
+  // after the QB is extracted. Re-trigger sibling sources so they get skill-aligned MCQs.
+  if (opts.documentType === "QUESTION_BANK" && subjectId) {
+    regenerateSiblingMcqs(subjectId, sourceId, userId).catch((err) =>
+      console.error(`[extract] Sibling MCQ regeneration failed for subject ${subjectId}:`, err),
+    );
+  }
 
   // ── Image extraction (non-blocking) ──
   // Extract embedded images from the source document and link to assertions.

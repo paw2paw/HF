@@ -39,6 +39,7 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
     sections: {},
     resolvedSpecs: { identitySpec: null, voiceSpec: null },
     sharedState: {
+      channel: 'voice',
       modules: [
         { slug: "m1", name: "Introduction" },
         { slug: "m2", name: "Advanced" },
@@ -559,6 +560,25 @@ describe("computeQuickStart transform", () => {
     });
     const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
     expect(result.discovery_guidance).toContain("Do NOT ask for name or goals");
+  });
+});
+
+// ── channel_note (text vs voice) ─────────────────────────────────────
+
+describe("channel_note", () => {
+  it("emits channel_note for text channel", () => {
+    const ctx = makeContext({
+      sharedState: { ...makeContext().sharedState, channel: 'text' },
+    });
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.channel_note).toContain("TEXT chat");
+    expect(result.channel_note).toContain("typing");
+  });
+
+  it("returns null channel_note for voice channel", () => {
+    const ctx = makeContext(); // default channel is 'voice'
+    const result = getTransform("computeQuickStart")!(null, ctx, makeSectionDef());
+    expect(result.channel_note).toBeNull();
   });
 });
 

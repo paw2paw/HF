@@ -148,6 +148,9 @@ export function SimChat({
   const callIdRef = useRef<string | null>(null);
   const startingRef = useRef(false);
   const msgCounter = useRef(0);
+  const durationBudgetRef = useRef<number | null>(null);
+  const wrapUpSentRef = useRef(false);
+  const [timeChip, setTimeChip] = useState<string | null>(null);
 
   // Voice mode — wired so transcribed speech sends as user message
   const voiceMode = useVoiceMode(useCallback((transcript: string) => {
@@ -349,7 +352,12 @@ export function SimChat({
         const composeData = await composeRes.json();
         const rawPromptId = composeData.prompt?.id;
         usedPromptId = (rawPromptId && !rawPromptId.startsWith('preview-')) ? rawPromptId : null;
-        firstLine = (composeData.prompt?.llmPrompt as any)?._quickStart?.first_line || null;
+        const quickStart = (composeData.prompt?.llmPrompt as any)?._quickStart;
+        firstLine = quickStart?.first_line || null;
+        // Extract duration budget for wrap-up cue
+        const pacingMatch = quickStart?.session_pacing?.match(/(\d+)\s*min/);
+        durationBudgetRef.current = pacingMatch ? parseInt(pacingMatch[1], 10) : null;
+        wrapUpSentRef.current = false;
       } else {
         console.warn('[sim] compose-prompt failed, continuing with existing prompt');
       }
@@ -557,10 +565,26 @@ export function SimChat({
       }).catch((err) => console.warn("[sim] Observer relay failed:", err));
     }
 
-    const history = updatedMessages.map(m => ({
+    let history: { role: string; content: string }[] = updatedMessages.map(m => ({
       role: m.role,
       content: m.content,
     }));
+
+    // Wrap-up cue: inject system message when near the session time budget
+    const budget = durationBudgetRef.current;
+    if (budget && !wrapUpSentRef.current) {
+      const userMsgCount = updatedMessages.filter(m => m.role === 'user').length;
+      const estimatedMins = userMsgCount * 2; // ~2 min per text exchange
+      if (estimatedMins >= budget * 0.8) {
+        const remaining = Math.max(1, budget - estimatedMins);
+        history = [...history, {
+          role: 'system',
+          content: `[Session time check] About ${estimatedMins} of ~${budget} minutes used. Begin wrapping up: summarise key points covered, suggest one thing to practice before next session, and close warmly.`,
+        }];
+        wrapUpSentRef.current = true;
+        setTimeChip(`~${remaining} min${remaining !== 1 ? 's' : ''} remaining`);
+      }
+    }
 
     streamAIResponse(input.trim(), history);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -921,6 +945,13 @@ export function SimChat({
               );
             })}
 
+            {/* Time-remaining chip — appears once when session nears its time budget */}
+            {timeChip && (
+              <div className="wa-date-chip" style={{ margin: '12px auto 8px' }}>
+                {timeChip}
+              </div>
+            )}
+
             {(isGreeting || (isStreaming && messages[messages.length - 1]?.content === '')) && (
               <TypingIndicator />
             )}
@@ -1110,6 +1141,9 @@ export function SimChat({
               setCallEndedAt(null);
               setCallId(null);
               callIdRef.current = null;
+              durationBudgetRef.current = null;
+              wrapUpSentRef.current = false;
+              setTimeChip(null);
               if (onNewCall) {
                 onNewCall(); // Embedded mode: parent handles remount
               } else {

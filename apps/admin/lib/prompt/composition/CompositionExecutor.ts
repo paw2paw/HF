@@ -52,11 +52,13 @@ import "./transforms/offboarding";
  * @param callerId - The caller to compose a prompt for
  * @param specSections - Section definitions from COMP-001 spec (or defaults)
  * @param specConfig - Full spec config (thresholds, limits, etc.)
+ * @param triggerType - What triggered this composition ('sim' → text channel, others → voice)
  */
 export async function executeComposition(
   callerId: string,
   specSections: CompositionSectionDef[],
   specConfig: Record<string, any>,
+  triggerType?: string,
 ): Promise<CompositionResult> {
   const loadStart = Date.now();
 
@@ -98,7 +100,7 @@ export async function executeComposition(
   console.log(`[CompositionExecutor] Voice: ${resolvedSpecs.voiceSpec?.name || "NONE"}`);
 
   // 3. Compute shared state (modules, session flow, etc.)
-  const sharedState = await computeSharedState(loadedData, resolvedSpecs, specConfig);
+  const sharedState = await computeSharedState(loadedData, resolvedSpecs, specConfig, triggerType);
 
   // 4. Initialize assembled context
   const context: AssembledContext = {

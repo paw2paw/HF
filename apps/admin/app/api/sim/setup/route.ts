@@ -50,6 +50,16 @@ export async function POST(request: NextRequest) {
   });
 
   if (existingCaller) {
+    // Sync caller name to current user profile (avoids stale name from test data)
+    const currentName = session.user.name || "Tester";
+    if (existingCaller.name !== currentName) {
+      await prisma.caller.update({
+        where: { id: existingCaller.id },
+        data: { name: currentName },
+      });
+      existingCaller.name = currentName;
+    }
+
     // Ensure enrollment exists (may be missing if course was created after caller)
     const enrollment = await resolveAndEnrollSingle(existingCaller.id, domainId, "sim-setup", playbookId);
 

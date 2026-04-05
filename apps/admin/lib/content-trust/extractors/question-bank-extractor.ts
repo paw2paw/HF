@@ -66,6 +66,7 @@ Each item: {
   "section": string?,              // Question number (e.g., "1.1", "2.3")
   "tags": string[],                // Include the skill name as a tag
   "skillRef": string?,             // Skill reference (e.g., "SKILL-01:Retrieval", "SKILL-02:Inference")
+  "bloomLevel": "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "EVALUATE" | "CREATE",
   "metadata": {
     "followUp": string?,           // Optional follow-up prompt
     "textReference": string?,      // Which part of the passage this relates to
@@ -87,6 +88,21 @@ Each item: {
   "exampleUsage": string?,
   "tags": string[]
 }
+
+BLOOM LEVEL — classify each question's cognitive demand:
+- REMEMBER = locate or recall explicit information from the text
+- UNDERSTAND = explain, infer, interpret meaning, deduce what is implied
+- APPLY = use knowledge or a skill in a new or unfamiliar context
+- ANALYZE = examine structure, purpose, technique, or why the writer made choices
+- EVALUATE = form and justify an opinion with specific textual evidence
+- CREATE = produce an original response, synthesis, or creative interpretation
+
+Mapping guide (comprehension skills → bloom):
+- Retrieval → REMEMBER
+- Inference, Vocabulary in Context → UNDERSTAND
+- Summary → UNDERSTAND
+- Language Effect, Structure Awareness → ANALYZE
+- Comparison, Evaluation with Evidence → EVALUATE
 
 SKILL REFERENCE FORMAT — use these standard refs when the document maps to comprehension skills:
 - SKILL-01:Retrieval
@@ -135,6 +151,37 @@ function normalizeSkillRef(raw: string | undefined | null): string | undefined {
   // Look up by lowercase name
   const key = raw.toLowerCase().trim();
   return SKILL_REF_MAP[key] || `SKILL-00:${raw}`;
+}
+
+// ------------------------------------------------------------------
+// Bloom level helpers
+// ------------------------------------------------------------------
+
+type BloomLevel = "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "EVALUATE" | "CREATE";
+
+const VALID_BLOOM_LEVELS = new Set<BloomLevel>(["REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE"]);
+
+function normalizeBloomLevel(raw: unknown): BloomLevel | undefined {
+  if (typeof raw !== "string") return undefined;
+  const upper = raw.toUpperCase().trim() as BloomLevel;
+  return VALID_BLOOM_LEVELS.has(upper) ? upper : undefined;
+}
+
+/** Infer bloom level from comprehension skill ref */
+const SKILL_TO_BLOOM: Record<string, BloomLevel> = {
+  "SKILL-01:Retrieval": "REMEMBER",
+  "SKILL-02:Inference": "UNDERSTAND",
+  "SKILL-03:Vocabulary": "UNDERSTAND",
+  "SKILL-04:Summary": "UNDERSTAND",
+  "SKILL-05:Language Effect": "ANALYZE",
+  "SKILL-06:Structure": "ANALYZE",
+  "SKILL-07:Comparison": "EVALUATE",
+  "SKILL-08:Evaluation": "EVALUATE",
+};
+
+function inferBloomFromSkill(skillRef: string | undefined): BloomLevel | undefined {
+  if (!skillRef) return undefined;
+  return SKILL_TO_BLOOM[skillRef];
 }
 
 // ------------------------------------------------------------------
@@ -207,12 +254,18 @@ export class QuestionBankExtractor extends DocumentExtractor {
           }
         }
 
+        // Infer bloom level from skillRef if AI didn't provide it
+        const bloomLevel = normalizeBloomLevel(q.bloomLevel)
+          ?? inferBloomFromSkill(skillRef);
+
         return {
           questionText: String(q.questionText),
           questionType: "TUTOR_QUESTION" as const,
           section: q.section || undefined,
           tags: Array.isArray(q.tags) ? q.tags : [],
           skillRef,
+          bloomLevel,
+          assessmentUse: "TUTOR_ONLY" as const,
           metadata: {
             followUp: metadata.followUp || undefined,
             textReference: metadata.textReference || undefined,
