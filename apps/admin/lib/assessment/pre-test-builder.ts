@@ -125,6 +125,8 @@ async function fetchQuestions(
     where: {
       sourceId: { in: sourceIds },
       questionType: { in: questionTypes as any },
+      // Exclude POST_TEST-only questions (e.g. comprehension-led MCQs)
+      assessmentUse: { notIn: ["POST_TEST"] },
     },
     select: {
       id: true,

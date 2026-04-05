@@ -523,7 +523,7 @@ async function parseAndSaveMcqs(
           : m.chapter,
         skillRef: m.skillRef,
         bloomLevel,
-        assessmentUse: "BOTH" as const,
+        assessmentUse: source === "comprehension" ? "POST_TEST" as const : "BOTH" as const,
         tags: ["auto-generated", source === "comprehension" ? "comprehension-skill" : "bloom-distributed"],
         contentHash: createHash("sha256")
           .update(`${source}-${qType.toLowerCase()}:${m.question}:${m.correctAnswer}`)

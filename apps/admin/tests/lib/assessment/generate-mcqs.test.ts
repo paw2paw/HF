@@ -371,10 +371,11 @@ describe("generate-mcqs", () => {
       expect(aiCall.callPoint).toBe("content-trust.generate-mcq-comprehension");
 
       // Verify saved question has skill-aligned metadata
+      // Comprehension MCQs are POST_TEST only (passage-dependent, can't be pre-tested)
       const saved = mocks.save.mock.calls[0][1];
       expect(saved[0]).toMatchObject({
         bloomLevel: "UNDERSTAND",
-        assessmentUse: "BOTH",
+        assessmentUse: "POST_TEST",
         chapter: "Inference",
         tags: expect.arrayContaining(["auto-generated", "comprehension-skill"]),
       });
