@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, PhoneOff, FolderOpen, Mic, Settings } from 'lucide-react';
+import { ArrowLeft, PhoneOff, FolderOpen, Mic, Settings, BarChart3 } from 'lucide-react';
 
 interface WhatsAppHeaderProps {
   title: string;
@@ -11,14 +11,16 @@ interface WhatsAppHeaderProps {
   onAvatarClick?: () => void;
   onVoiceToggle?: () => void;
   onAdminPanel?: () => void;
+  onProgressPanel?: () => void;
   mediaLibraryActive?: boolean;
   voiceActive?: boolean;
   callActive?: boolean;
   adminPanelActive?: boolean;
+  progressPanelActive?: boolean;
   avatarColor?: string;
 }
 
-export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, onAvatarClick, onVoiceToggle, onAdminPanel, mediaLibraryActive, voiceActive, callActive, adminPanelActive, avatarColor = 'var(--text-muted)' }: WhatsAppHeaderProps) {
+export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibrary, onAvatarClick, onVoiceToggle, onAdminPanel, onProgressPanel, mediaLibraryActive, voiceActive, callActive, adminPanelActive, progressPanelActive, avatarColor = 'var(--text-muted)' }: WhatsAppHeaderProps) {
   const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
@@ -62,6 +64,17 @@ export function WhatsAppHeader({ title, subtitle, onBack, onEndCall, onMediaLibr
         >
           <Mic size={20} />
           {voiceActive && <span className="wa-voice-dot" />}
+        </button>
+      )}
+      {onProgressPanel && (
+        <button
+          className="wa-back-btn"
+          onClick={onProgressPanel}
+          aria-label="Progress"
+          title="Progress"
+          style={{ color: progressPanelActive ? 'var(--wa-green-primary)' : undefined }}
+        >
+          <BarChart3 size={20} />
         </button>
       )}
       {onAdminPanel && (

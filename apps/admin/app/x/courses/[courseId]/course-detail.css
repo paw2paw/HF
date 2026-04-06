@@ -177,6 +177,133 @@
   color: var(--text-secondary);
 }
 
+/* ── Course Summary Card ── csc-* prefix ── */
+
+.csc-card {
+  margin-top: 16px;
+}
+
+.csc-header {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: 4px;
+}
+
+.csc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.csc-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  font: inherit;
+  color: inherit;
+}
+
+.csc-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+.csc-row:active {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.csc-row-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.csc-row-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.csc-row-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.csc-chevron {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.csc-row:hover .csc-chevron {
+  opacity: 0.6;
+}
+
+.csc-identity-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.csc-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.csc-stat-chip {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.csc-stat-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.csc-goal-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.csc-subject-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.csc-empty {
+  padding: 10px 12px;
+}
+
+.csc-footer {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-default);
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .csc-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
 /* ── Course Overview Tab ── cov-* prefix ── */
 
 /* Goal row */

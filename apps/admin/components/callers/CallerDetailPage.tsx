@@ -21,6 +21,7 @@ import { CallsSection, ProcessingNotice } from "./caller-detail/CallsTab";
 import { MemoriesSection, PersonalitySection, CallerSlugsSection, CallerEnrollmentsSection } from "./caller-detail/ProfileTab";
 import { SurveySection } from "./caller-detail/SurveySection";
 import { ScoresSection, LearningSection, AssessmentTargetsCard, TopicsCoveredSection, ExamReadinessSection, TopLevelAgentBehaviorSection, PlanProgressSection, ModuleProgressView } from "./caller-detail/ProgressTab";
+import { LearningTrajectoryCard } from "./caller-detail/cards/LearningTrajectoryCard";
 import { ArtifactsSection } from "./caller-detail/ArtifactsTab";
 import { UnifiedPromptSection } from "./caller-detail/PromptsSection";
 
@@ -1078,6 +1079,7 @@ export default function CallerDetailPage() {
           )}
           {progressVis.exam !== false && <ExamReadinessSection callerId={callerId} onDataLoaded={setHasExamData} />}
           {progressVis.plan !== false && <PlanProgressSection callerId={callerId} calls={data.calls} domainId={data.caller?.domainId} onDataLoaded={setHasPlanData} />}
+          <LearningTrajectoryCard callerId={callerId} />
         </>
       )}
 

@@ -6,6 +6,7 @@ import {
   Users2, TrendingUp, Phone, Target,
   Copy, RefreshCw, Send, RotateCcw, ExternalLink,
 } from 'lucide-react';
+import { CohortLearningAggregate } from './CohortLearningAggregate';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -252,6 +253,9 @@ export function CourseLearnersTab({ courseId }: Props): React.ReactElement {
 
   return (
     <div className="cl-container">
+      {/* Cohort learning aggregate — auto-hides if no learning data */}
+      <CohortLearningAggregate courseId={courseId} />
+
       {/* Summary cards */}
       <div className="cl-summary">
         <div className="hf-card-compact cl-stat">

@@ -68,7 +68,7 @@ RETURNING LEARNER (any course)
 
 | Profile | Scores extracted per session |
 |---------|----------------------------|
-| **comprehension-led** | COMP_THEME · COMP_INFERENCE · COMP_EVIDENCE · COMP_RECALL |
+| **comprehension-led** | COMP_RETRIEVAL · COMP_INFERENCE · COMP_VOCABULARY · COMP_LANGUAGE · COMP_EVALUATION · COMP_RECALL |
 | **discussion-led** | DISC_PERSPECTIVE · DISC_ARGUMENT · DISC_SHIFT · DISC_REFLECTION |
 | **coaching-led** | COACH_CLARITY · COACH_ACTION · COACH_AWARENESS · COACH_FOLLOWUP |
 

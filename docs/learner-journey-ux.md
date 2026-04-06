@@ -125,7 +125,7 @@ pre_survey:
   ├── personality (6 questions) ✓
   └── pre-test: SKIPPED (passage-dependent questions, student hasn't read it)
         ↓
-  teaching sessions (each scored: COMP_THEME, COMP_INFERENCE, COMP_EVIDENCE, COMP_RECALL)
+  teaching sessions (each scored: COMP_RETRIEVAL, COMP_INFERENCE, COMP_VOCABULARY, COMP_LANGUAGE, COMP_EVALUATION, COMP_RECALL)
         ↓
 post_survey:
   ├── satisfaction survey ✓

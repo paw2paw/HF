@@ -150,14 +150,18 @@ registerTransform("computeQuickStart", (
 
       if (level) parts.push(`Overall competency: ${level}`);
 
-      // Comprehension-specific
-      const theme = get("theme_understanding");
+      // Comprehension-specific (PIRLS/KS2-aligned)
+      const retrieval = get("retrieval_skill");
       const inference = get("inference_skill");
-      const evidence = get("evidence_usage");
+      const vocabulary = get("vocabulary_in_context");
+      const language = get("language_appreciation");
+      const evaluation = get("evaluation_skill");
       const recall = get("recall_accuracy");
-      if (theme) parts.push(`Theme understanding: ${theme}`);
+      if (retrieval) parts.push(`Retrieval: ${retrieval}`);
       if (inference) parts.push(`Inference: ${inference}`);
-      if (evidence) parts.push(`Evidence usage: ${evidence}`);
+      if (vocabulary) parts.push(`Vocabulary: ${vocabulary}`);
+      if (language) parts.push(`Language appreciation: ${language}`);
+      if (evaluation) parts.push(`Evaluation: ${evaluation}`);
       if (recall) parts.push(`Recall: ${recall}`);
 
       // Discussion-specific
@@ -181,6 +185,17 @@ registerTransform("computeQuickStart", (
       if (followup) parts.push(`Follow-through: ${followup}`);
 
       return parts.length > 0 ? parts.join("\n") : null;
+    })(),
+
+    learning_checkpoints: (() => {
+      const cpAttrs = loadedData.callerAttributes.filter(
+        (a: CallerAttributeData) => a.scope === "CHECKPOINT",
+      );
+      if (cpAttrs.length === 0) return null;
+      return cpAttrs
+        .sort((a, b) => a.key.localeCompare(b.key))
+        .map(a => `${a.key}: ${a.stringValue}${a.numberValue != null ? ` (${(a.numberValue * 100).toFixed(0)}%)` : ""}`)
+        .join(", ");
     })(),
 
     lesson_model: lessonPlanModel

@@ -27,6 +27,7 @@ import { aggregateCallerMemorySummary } from "@/lib/ops/memory-extract";
 import { runAdaptSpecs as runRuleBasedAdapt } from "@/lib/pipeline/adapt-runner";
 import { validateSpecDependencies } from "@/lib/pipeline/validate-dependencies";
 import { trackGoalProgress, applyAssessmentAdaptation } from "@/lib/goals/track-progress";
+import { evaluateCheckpoints } from "@/lib/assessment/checkpoint-evaluator";
 import { extractGoals, extractGoalCompletionSignals } from "@/lib/goals/extract-goals";
 import { extractArtifacts } from "@/lib/artifacts/extract-artifacts";
 import { deliverArtifacts } from "@/lib/artifacts/deliver-artifacts";
@@ -1971,6 +1972,17 @@ const stageExecutors: Record<string, StageExecutor> = {
       goalsUpdated: goalResult.updated,
       goalsCompleted: goalResult.completed,
     });
+
+    // 4b. Evaluate learning checkpoints (comprehension/discussion/coaching courses)
+    const sessionAttr = await prisma.callerAttribute.findFirst({
+      where: { callerId: ctx.callerId, scope: "CURRICULUM", key: "currentSession" },
+      select: { numberValue: true },
+    });
+    const sessionNumber = sessionAttr?.numberValue ?? 1;
+    const checkpointResults = await evaluateCheckpoints(ctx.callerId, ctx.callId, sessionNumber);
+    if (checkpointResults.length > 0) {
+      ctx.log.info(`Checkpoints evaluated`, { results: checkpointResults });
+    }
 
     // 5. Extract goal completion signals — detects "I passed!" claims for teacher confirmation
     const completionSignals = await extractGoalCompletionSignals(ctx.call, ctx.callerId, ctx.engine, ctx.log);

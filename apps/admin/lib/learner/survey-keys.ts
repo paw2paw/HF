@@ -26,6 +26,7 @@ export const MID_SURVEY_KEYS = {
 } as const;
 
 export const POST_SURVEY_KEYS = {
+  CONFIDENCE: "confidence",
   CONFIDENCE_LIFT: "confidence_lift",
   SATISFACTION: "satisfaction",
   NPS: "nps",

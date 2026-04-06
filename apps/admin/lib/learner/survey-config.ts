@@ -128,6 +128,11 @@ export const DEFAULT_MID_SURVEY: SurveyStepConfig[] = [
 
 export const DEFAULT_OFFBOARDING_SURVEY: SurveyStepConfig[] = [
   {
+    id: "confidence",
+    type: "stars",
+    prompt: "How confident are you in {subject} now?",
+  },
+  {
     id: "confidence_lift",
     type: "options",
     prompt: "Compared to when you started, how much more confident do you feel?",

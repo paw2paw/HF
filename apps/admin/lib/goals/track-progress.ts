@@ -177,6 +177,33 @@ async function calculateLearnProgress(
     }
   }
 
+  // Session-embedded learning: use COMP_/DISC_/COACH_ CallScores if available
+  const outcomeScores = await prisma.callScore.findMany({
+    where: {
+      callId,
+      parameter: {
+        OR: [
+          { parameterId: { startsWith: "COMP_" } },
+          { parameterId: { startsWith: "DISC_" } },
+          { parameterId: { startsWith: "COACH_" } },
+        ],
+      },
+    },
+    select: { score: true, parameter: { select: { parameterId: true } } },
+  });
+
+  if (outcomeScores.length > 0) {
+    const avgScore = outcomeScores.reduce((sum, s) => sum + s.score, 0) / outcomeScores.length;
+    if (avgScore > goal.progress) {
+      const paramNames = outcomeScores.map(s => s.parameter.parameterId).join(", ");
+      return {
+        goalId: goal.id,
+        progressDelta: avgScore - goal.progress,
+        evidence: `Session-embedded learning: avg ${(avgScore * 100).toFixed(0)}% across ${outcomeScores.length} params (${paramNames})`,
+      };
+    }
+  }
+
   // Fallback: small increment for engagement
   return {
     goalId: goal.id,

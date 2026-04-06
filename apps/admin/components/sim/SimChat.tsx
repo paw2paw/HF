@@ -17,6 +17,10 @@ import { useVoiceMode } from './useVoiceMode';
 import type { MediaInfo } from './MessageBubble';
 import { ChatSurveyInput } from './ChatSurveyInput';
 import { SimAdminPanel } from './SimAdminPanel';
+import { SimProgressPanel } from './SimProgressPanel';
+import { PostCallProgressCard } from './PostCallProgressCard';
+import { useStudentProgress } from '@/hooks/useStudentProgress';
+import { useJourneyPosition } from '@/hooks/useJourneyPosition';
 import type { ChatItem, UseJourneyChatResult } from '@/hooks/useJourneyChat';
 import type { SurveyStep } from '@/components/student/ChatSurvey';
 import type { UserRole } from '@prisma/client';
@@ -123,6 +127,9 @@ export function SimChat({
   const roleLevel = ROLE_LEVEL[(session?.user?.role ?? 'STUDENT') as UserRole] ?? 0;
   const isOperator = roleLevel >= 3;
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showProgressPanel, setShowProgressPanel] = useState(false);
+  const studentProgress = useStudentProgress(callerId);
+  const journeyPosition = useJourneyPosition(callerId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -747,7 +754,13 @@ export function SimChat({
         voiceActive={voiceMode.state !== 'off'}
         callActive={callPhase === 'active' && messages.length > 0}
         avatarColor={hashColor(callerId)}
-        onAdminPanel={isOperator ? () => setShowAdminPanel(prev => !prev) : undefined}
+        onProgressPanel={() => {
+          setShowProgressPanel(prev => !prev);
+          setShowAdminPanel(false);
+          setShowMediaLibrary(false);
+        }}
+        progressPanelActive={showProgressPanel}
+        onAdminPanel={isOperator ? () => { setShowAdminPanel(prev => !prev); setShowProgressPanel(false); } : undefined}
         adminPanelActive={showAdminPanel}
       />
 
@@ -854,6 +867,13 @@ export function SimChat({
             <div className="wa-date-chip">
               {group.sessionLabel || group.dateLabel}
             </div>
+            {gi === historyGroups.length - 1 && journeyPosition.position && journeyPosition.position.totalStops > 0 && (
+              <div className="wa-session-indicator">
+                Session {journeyPosition.position.currentPosition} of {journeyPosition.position.totalStops}
+                {studentProgress.data && studentProgress.data.goals.length > 0 && ` · ${studentProgress.data.goals.length} goal${studentProgress.data.goals.length !== 1 ? 's' : ''}`}
+                {studentProgress.data && studentProgress.data.topicCount > 0 && ` · ${studentProgress.data.topicCount} topic${studentProgress.data.topicCount !== 1 ? 's' : ''}`}
+              </div>
+            )}
             {group.messages.map((msg, mi) => {
               const prev = group.messages[mi - 1];
               const next = group.messages[mi + 1];
@@ -883,6 +903,19 @@ export function SimChat({
             margin: '32px auto 8px',
             padding: '24px',
           }}>
+            {journeyPosition.position && journeyPosition.position.totalStops > 0 && (
+              <div className="wa-lobby-journey">
+                <div className="wa-lobby-journey-bar">
+                  <div
+                    className="wa-lobby-journey-fill"
+                    style={{ width: `${(journeyPosition.position.completedStops / journeyPosition.position.totalStops) * 100}%` }}
+                  />
+                </div>
+                <span className="wa-lobby-journey-label">
+                  Session {journeyPosition.position.currentPosition} of {journeyPosition.position.totalStops}
+                </span>
+              </div>
+            )}
             <p style={{
               fontSize: 14,
               color: 'var(--wa-text-secondary)',
@@ -1003,6 +1036,11 @@ export function SimChat({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Post-call learning progress card */}
+        {callPhase === 'ended' && (
+          <PostCallProgressCard callerId={callerId} />
         )}
 
         {/* Post-call content — artifacts & actions from pipeline */}
@@ -1239,6 +1277,15 @@ export function SimChat({
 
       {/* Toast */}
       {toast && <div className="wa-toast">{toast}</div>}
+
+      {/* Progress panel — all roles */}
+      {showProgressPanel && (
+        <SimProgressPanel
+          onClose={() => setShowProgressPanel(false)}
+          callerId={callerId}
+          callerName={callerName}
+        />
+      )}
 
       {/* Admin debug panel — OPERATOR+ only */}
       {isOperator && showAdminPanel && (

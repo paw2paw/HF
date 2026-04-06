@@ -1,18 +1,18 @@
 {
   "$schema": "./feature-spec-schema.json",
   "id": "COMP-MEASURE-001",
-  "title": "Comprehension Skills Measurement",
-  "version": "1.0",
+  "title": "Comprehension Skills Measurement (PIRLS/KS2 Aligned)",
+  "version": "2.0",
   "status": "Approved",
-  "date": "2026-04-05",
+  "date": "2026-04-06",
   "domain": "comprehension",
   "specType": "SYSTEM",
   "outputType": "MEASURE",
   "profileCondition": ["comprehension-led"],
   "story": {
     "asA": "Conversational AI System",
-    "iWant": "To measure comprehension skills from each session transcript",
-    "soThat": "Learning trajectory can be tracked across sessions for comprehension-led courses"
+    "iWant": "To measure comprehension skills aligned with PIRLS international and KS2 national standards",
+    "soThat": "Learning trajectory is tracked using established reading assessment frameworks that educators recognise"
   },
   "context": {
     "applies": "Comprehension-led courses only (English, Literature, Languages)",
@@ -21,43 +21,65 @@
       "Student has been guided through a passage or text",
       "Transcript contains student responses to comprehension questions",
       "Tutor has asked open-ended questions about the text"
-    ]
+    ],
+    "frameworks": {
+      "pirls": "PIRLS 2021 Assessment Framework (IEA/Boston College) — 4 comprehension processes",
+      "ks2": "UK National Curriculum KS2 Reading Content Domains 2a-2h (STA 2016)"
+    }
   },
   "acceptanceCriteria": [
     {
       "id": "AC-COMP-001",
-      "title": "Theme understanding scored",
-      "given": "A student discussing themes from a passage",
-      "when": "The system analyses their articulation of central themes",
-      "then": "A theme understanding score between 0-1 is produced",
-      "rationale": "Theme understanding is the core comprehension skill — can they identify and express what the text is about?",
-      "measuredBy": ["COMP_THEME"]
+      "title": "Retrieval skill scored",
+      "given": "A student locating information in a passage",
+      "when": "The system analyses their ability to find and extract explicitly stated facts",
+      "then": "A retrieval skill score between 0-1 is produced",
+      "rationale": "Retrieval is the foundation of comprehension — can they locate what the text explicitly says? (PIRLS Process 1, KS2 2b)",
+      "measuredBy": ["COMP_RETRIEVAL"]
     },
     {
       "id": "AC-COMP-002",
       "title": "Inference skill scored",
       "given": "A student answering questions about implied meaning",
-      "when": "The system analyses their ability to draw conclusions beyond the literal text",
+      "when": "The system analyses their ability to draw conclusions and justify them with evidence",
       "then": "An inference skill score between 0-1 is produced",
-      "rationale": "Inference separates surface reading from deep comprehension",
+      "rationale": "Inference separates surface reading from comprehension — can they read between the lines and prove it? (PIRLS Process 2, KS2 2d)",
       "measuredBy": ["COMP_INFERENCE"]
     },
     {
       "id": "AC-COMP-003",
-      "title": "Evidence usage scored",
-      "given": "A student making claims about the text",
-      "when": "The system analyses whether claims are supported with textual references",
-      "then": "An evidence usage score between 0-1 is produced",
-      "rationale": "Evidence usage shows analytical discipline — grounding interpretation in the text",
-      "measuredBy": ["COMP_EVIDENCE"]
+      "title": "Vocabulary in context scored",
+      "given": "A student encountering unfamiliar words in a passage",
+      "when": "The system analyses their ability to determine word meaning from context",
+      "then": "A vocabulary in context score between 0-1 is produced",
+      "rationale": "Vocabulary in context shows whether a student can use the text itself to unlock meaning (KS2 2a, cross-cutting PIRLS 1+2)",
+      "measuredBy": ["COMP_VOCABULARY"]
     },
     {
       "id": "AC-COMP-004",
+      "title": "Language appreciation scored",
+      "given": "A student discussing how an author uses language",
+      "when": "The system analyses their recognition of how word and phrase choices enhance meaning",
+      "then": "A language appreciation score between 0-1 is produced",
+      "rationale": "Language appreciation shows critical awareness of authorial craft (PIRLS Process 4, KS2 2g)",
+      "measuredBy": ["COMP_LANGUAGE"]
+    },
+    {
+      "id": "AC-COMP-005",
+      "title": "Evaluation skill scored",
+      "given": "A student interpreting, comparing, or critiquing text content",
+      "when": "The system analyses their ability to integrate information and form supported judgements",
+      "then": "An evaluation skill score between 0-1 is produced",
+      "rationale": "Evaluation shows higher-order thinking — interpreting themes, integrating evidence, forming critical judgements (PIRLS Processes 3+4, KS2 2f+2h)",
+      "measuredBy": ["COMP_EVALUATION"]
+    },
+    {
+      "id": "AC-COMP-006",
       "title": "Recall accuracy scored",
       "given": "A student in session 2+",
       "when": "The system analyses their recall of content from prior sessions",
       "then": "A recall accuracy score between 0-1 is produced",
-      "rationale": "Recall shows retention and consolidation of learning across sessions",
+      "rationale": "Cross-session retention shows learning consolidation — an HF extension beyond single-sitting assessment frameworks",
       "measuredBy": ["COMP_RECALL"]
     }
   ],
@@ -80,104 +102,112 @@
   ],
   "parameters": [
     {
-      "id": "COMP_THEME",
-      "name": "theme_understanding",
-      "description": "Ability to articulate central themes in own words without parroting the text or tutor",
+      "id": "COMP_RETRIEVAL",
+      "name": "retrieval_skill",
+      "description": "Ability to locate and extract explicitly stated information from the text",
       "section": "Comprehension Skills",
       "type": "STATE",
       "targetRange": { "min": 0.0, "max": 1.0 },
-      "formula": "0.4 * articulation_clarity + 0.35 * independence + 0.25 * depth",
+      "framework": {
+        "pirls": { "process": 1, "name": "Focus on and Retrieve Explicitly Stated Information", "weight": 0.20 },
+        "ks2": { "domain": "2b", "name": "Retrieve and record information / identify key details from fiction and non-fiction" }
+      },
+      "formula": "0.4 * accuracy + 0.3 * specificity + 0.3 * completeness",
       "subMetrics": [
         {
-          "id": "articulation_clarity",
-          "name": "Articulation Clarity",
+          "id": "accuracy",
+          "name": "Accuracy",
           "weight": 0.4,
-          "description": "How clearly the student expresses the theme",
+          "description": "Whether the student locates the correct information",
           "definitions": {
-            "high": "Expresses theme in own words with clarity and confidence",
-            "low": "Vague, confused, or unable to name a theme"
+            "high": "Finds the right information quickly and accurately",
+            "low": "Cannot locate relevant information, retrieves wrong details"
           }
         },
         {
-          "id": "independence",
-          "name": "Independence",
-          "weight": 0.35,
-          "description": "Whether the student generates the theme independently vs parroting",
+          "id": "specificity",
+          "name": "Specificity",
+          "weight": 0.3,
+          "description": "How precisely the student references the text",
           "definitions": {
-            "high": "Arrives at the theme through own reasoning",
-            "low": "Repeats tutor's words or reads directly from text"
+            "high": "Quotes specific words, phrases, or identifies exact locations",
+            "low": "Vague gestures at the text ('it says somewhere...')"
           }
         },
         {
-          "id": "depth",
-          "name": "Depth of Understanding",
-          "weight": 0.25,
-          "description": "How far beyond surface meaning the student goes",
+          "id": "completeness",
+          "name": "Completeness",
+          "weight": 0.3,
+          "description": "Whether the student retrieves all relevant details, not just one",
           "definitions": {
-            "high": "Connects theme to wider ideas, symbolism, or personal insight",
-            "low": "Identifies only the literal surface plot"
+            "high": "Identifies multiple relevant details when the text offers them",
+            "low": "Finds one detail and stops, missing other relevant information"
           }
         }
       ],
       "interpretationScale": [
-        { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "Cannot identify or articulate any theme" },
-        { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Vague or parroted theme identification" },
-        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Identifies theme but struggles to articulate independently" },
-        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Articulates theme clearly in own words" },
-        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Deep thematic insight with connections beyond the text" }
+        { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "Cannot locate information in the text" },
+        { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Locates some information with heavy prompting" },
+        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Finds key details but misses some or is imprecise" },
+        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Accurately retrieves relevant information with specific references" },
+        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Rapid, precise retrieval of multiple relevant details with exact text references" }
       ],
       "scoringAnchors": [
         {
           "score": 0.15,
-          "example": "Um... it's about... a girl? And a garden?",
-          "rationale": "Cannot move beyond literal plot description, no thematic insight",
+          "example": "I don't know... something about a girl? And there was a place?",
+          "rationale": "Cannot locate any specific information from the text, only vague impressions",
           "isGold": true
         },
         {
           "score": 0.35,
-          "example": "I think it's about being lonely. The girl is lonely because her parents died.",
-          "rationale": "Identifies a valid theme (loneliness) but stays at surface level, close to plot summary",
+          "example": "It said she was sent to live with her uncle. I think it was in England somewhere.",
+          "rationale": "Retrieves a key plot point but lacks specificity — no names, no location detail",
           "isGold": true
         },
         {
           "score": 0.55,
-          "example": "The story is about transformation — Mary starts as this spoiled, neglected child and the garden kind of changes her. Like she grows as a person while the garden grows.",
-          "rationale": "Identifies transformation theme, begins to connect character growth to symbolism, uses own words",
+          "example": "Mary was sent to live with her uncle, Mr Craven, at Misselthwaite Manor in Yorkshire after her parents died of cholera in India.",
+          "rationale": "Accurate retrieval with character names and locations, but presented as a single block without distinguishing separate details",
           "isGold": true
         },
         {
           "score": 0.75,
-          "example": "I think the garden represents renewal — not just for Mary but for everyone who touches it. Colin's healing mirrors the garden's restoration. It's about how nurturing something outside yourself can heal what's broken inside.",
-          "rationale": "Multi-layered thematic insight, connects symbolism across characters, independent analysis",
+          "example": "The text tells us three things about Mary's arrival: first, that Mrs Medlock collected her from the station; second, that it was raining and dark when they arrived; and third, that the house had 'about a hundred rooms, most of them shut up and locked'.",
+          "rationale": "Retrieves multiple distinct details, numbers them, and includes a direct quote — organised and specific",
           "isGold": true
         },
         {
           "score": 0.9,
-          "example": "What strikes me is how Burnett uses the garden as a counterpoint to the colonial setting Mary comes from — the neglected English garden versus the 'managed' world of India. The theme isn't just renewal, it's about what happens when you stop trying to control nature and let things grow wild. That applies to the children too — they thrive when freed from adult control.",
-          "rationale": "Sophisticated multi-layered analysis, original insight connecting themes across contexts, critical perspective on the author's intent",
+          "example": "In the first three pages alone, Burnett gives us five key facts about Mary: she was born in India, her parents neglected her, the servants called her 'Mary Quite Contrary', she had a 'thin angry face', and 'she had never had a plaything she had not wanted'. Each of these sets up a character detail that becomes important later.",
+          "rationale": "Exhaustive retrieval across a defined section, precise references, and recognition that retrieved details serve a narrative purpose",
           "isGold": true
         }
       ],
       "promptGuidance": {
-        "whenHigh": "Student has strong thematic understanding. Push deeper — ask about authorial intent, alternative interpretations, or how themes connect to other texts.",
-        "whenLow": "Student struggles with themes. Scaffold with closed questions first: 'What is this paragraph about?' before asking 'What's the bigger idea?'",
-        "whenMedium": "Student can identify themes but needs support articulating them independently. Use prompts like 'Can you say that in your own words?' or 'What makes you think that?'"
+        "whenHigh": "Strong retrieval. Reduce locate-and-quote questions — push toward inference and evaluation: 'Now that you've found what it says, what do you think it means?'",
+        "whenLow": "Weak retrieval. Direct the student back to the text: 'Can you find the part where it tells us about X?' Use closed questions to build scanning confidence.",
+        "whenMedium": "Partial retrieval. Prompt for completeness: 'You found one detail — can you find any others?' and for specificity: 'Can you find the exact words it uses?'"
       },
       "usedBy": ["AC-COMP-001"]
     },
     {
       "id": "COMP_INFERENCE",
       "name": "inference_skill",
-      "description": "Ability to draw conclusions not explicitly stated in the text — reading between the lines",
+      "description": "Ability to draw conclusions not explicitly stated in the text and justify them with evidence",
       "section": "Comprehension Skills",
       "type": "STATE",
       "targetRange": { "min": 0.0, "max": 1.0 },
-      "formula": "0.4 * beyond_literal + 0.3 * reasoning_quality + 0.3 * textual_grounding",
+      "framework": {
+        "pirls": { "process": 2, "name": "Make Straightforward Inferences", "weight": 0.30 },
+        "ks2": { "domain": "2d", "name": "Make inferences from the text / explain and justify inferences with evidence from the text" }
+      },
+      "formula": "0.35 * beyond_literal + 0.35 * justification_quality + 0.3 * textual_grounding",
       "subMetrics": [
         {
           "id": "beyond_literal",
           "name": "Beyond Literal",
-          "weight": 0.4,
+          "weight": 0.35,
           "description": "Goes beyond what is explicitly written",
           "definitions": {
             "high": "Identifies implied meaning, subtext, tone, and mood",
@@ -185,13 +215,13 @@
           }
         },
         {
-          "id": "reasoning_quality",
-          "name": "Reasoning Quality",
-          "weight": 0.3,
-          "description": "Logical reasoning in drawing inferences",
+          "id": "justification_quality",
+          "name": "Justification Quality",
+          "weight": 0.35,
+          "description": "How well the student explains and defends their inference",
           "definitions": {
-            "high": "Inferences are logical and well-supported",
-            "low": "Inferences are guesses without reasoning"
+            "high": "Explains reasoning clearly — 'I think X because the text says Y, which suggests Z'",
+            "low": "Makes claims without explaining the reasoning behind them"
           }
         },
         {
@@ -208,9 +238,9 @@
       "interpretationScale": [
         { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "Only repeats what is explicitly written" },
         { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Attempts inference but stays close to literal text" },
-        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Draws some valid inferences but reasoning is incomplete" },
-        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Consistent inference with textual support" },
-        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Sophisticated inference connecting subtext, tone, and implication" }
+        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Draws some valid inferences but justification is incomplete" },
+        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Consistent inference with textual support and clear justification" },
+        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Sophisticated inference connecting subtext, tone, and implication with rigorous justification" }
       ],
       "scoringAnchors": [
         {
@@ -222,7 +252,7 @@
         {
           "score": 0.35,
           "example": "I think she was sad? Because it says she was alone.",
-          "rationale": "Attempts inference (sad) but stays very close to literal (alone = sad), tentative",
+          "rationale": "Attempts inference (sad) but stays very close to literal (alone = sad), tentative, minimal justification",
           "isGold": true
         },
         {
@@ -233,109 +263,293 @@
         },
         {
           "score": 0.75,
-          "example": "The writer uses the word 'contrary' repeatedly — I don't think it's just describing Mary's behaviour. It's almost like the narrator is challenging us to look past our first impression of her. By calling her contrary so often, we start questioning whether she really is.",
-          "rationale": "Infers authorial technique from word choice patterns, meta-level reading",
+          "example": "The writer uses the word 'contrary' repeatedly — I don't think it's just describing Mary's behaviour. It's almost like the narrator is challenging us to look past our first impression of her. I think this because the word appears right before moments where Mary does something surprisingly kind, which makes us question the label.",
+          "rationale": "Infers authorial technique from word choice patterns, meta-level reading, and justifies with pattern evidence",
           "isGold": true
         },
         {
           "score": 0.9,
-          "example": "The shift from passive to active voice when Mary starts working in the garden — 'things were done for her' becomes 'she dug and pulled' — mirrors her psychological transformation. Burnett is using grammar itself as a metaphor for agency.",
-          "rationale": "Linguistic inference at structural level, connects form to meaning, highly sophisticated",
+          "example": "The shift from passive to active voice when Mary starts working in the garden — 'things were done for her' becomes 'she dug and pulled' — mirrors her psychological transformation. Burnett is using grammar itself as a metaphor for agency. I can justify this because every passage set in India uses passive constructions while the garden scenes use active ones — it's too consistent to be accidental.",
+          "rationale": "Linguistic inference at structural level, connects form to meaning, and provides systematic justification across multiple text passages",
           "isGold": true
         }
       ],
       "promptGuidance": {
         "whenHigh": "Student infers well. Push toward evaluative inference: 'Why do you think the writer chose to do it this way?' or 'Could it mean something different?'",
         "whenLow": "Student stays literal. Model inference explicitly: 'When it says X, it might suggest Y. What do you think?' Use the text to scaffold.",
-        "whenMedium": "Student attempts inference but needs grounding. Ask 'Where in the text does it suggest that?' to build evidence-linking habits."
+        "whenMedium": "Student attempts inference but needs grounding. Ask 'What in the text makes you think that?' to build the justify-with-evidence habit."
       },
       "usedBy": ["AC-COMP-002"]
     },
     {
-      "id": "COMP_EVIDENCE",
-      "name": "evidence_usage",
-      "description": "Ability to support claims and interpretations with specific references to the text",
+      "id": "COMP_VOCABULARY",
+      "name": "vocabulary_in_context",
+      "description": "Ability to determine the meaning of words and phrases from context, including figurative language",
       "section": "Comprehension Skills",
       "type": "STATE",
       "targetRange": { "min": 0.0, "max": 1.0 },
-      "formula": "0.4 * specificity + 0.3 * relevance + 0.3 * integration",
+      "framework": {
+        "pirls": { "process": null, "name": "Cross-cutting (Processes 1+2)", "weight": null },
+        "ks2": { "domain": "2a", "name": "Give / explain the meaning of words in context" }
+      },
+      "formula": "0.4 * context_use + 0.3 * precision + 0.3 * figurative_awareness",
       "subMetrics": [
         {
-          "id": "specificity",
-          "name": "Specificity",
+          "id": "context_use",
+          "name": "Context Use",
           "weight": 0.4,
-          "description": "How specific the textual references are",
+          "description": "Uses surrounding text to work out meaning rather than guessing",
           "definitions": {
-            "high": "Quotes specific words, phrases, or page references",
-            "low": "Vague or no references to the text"
+            "high": "Explains how surrounding sentences or the wider passage helped determine meaning",
+            "low": "Guesses at meaning without reference to surrounding text"
           }
         },
         {
-          "id": "relevance",
-          "name": "Relevance",
+          "id": "precision",
+          "name": "Precision",
           "weight": 0.3,
-          "description": "Whether the evidence actually supports the claim",
+          "description": "How accurately the student defines or explains the word",
           "definitions": {
-            "high": "Evidence directly supports the interpretation",
-            "low": "Evidence is tangential or disconnected from the claim"
+            "high": "Gives an accurate definition or synonym that fits the specific context",
+            "low": "Gives a vague, wrong, or context-inappropriate definition"
           }
         },
         {
-          "id": "integration",
-          "name": "Integration",
+          "id": "figurative_awareness",
+          "name": "Figurative Awareness",
           "weight": 0.3,
-          "description": "How well evidence is woven into the argument",
+          "description": "Recognises when language is used non-literally",
           "definitions": {
-            "high": "Evidence is embedded naturally in the student's reasoning",
-            "low": "Evidence is quoted without connection to the argument"
+            "high": "Identifies metaphors, similes, idioms, and irony — explains both literal and figurative meaning",
+            "low": "Takes all language literally, misses figurative uses"
           }
         }
       ],
       "interpretationScale": [
-        { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "Makes no reference to the text" },
-        { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Occasional vague references ('it says somewhere...')" },
-        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "References text but not always relevant or specific" },
-        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Consistently supports claims with specific, relevant evidence" },
-        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Seamlessly integrates evidence into sophisticated argument" }
+        { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "Cannot explain word meanings, skips unfamiliar words" },
+        { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Attempts definitions but often inaccurate or context-free" },
+        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Can explain common words in context but struggles with figurative language" },
+        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Accurately explains words using context clues, recognises figurative uses" },
+        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Explains nuanced and figurative language with precision, distinguishes multiple meanings" }
       ],
       "scoringAnchors": [
         {
           "score": 0.15,
-          "example": "I just think she's mean. I dunno why.",
-          "rationale": "Assertion with zero textual support",
+          "example": "I don't know what 'contrary' means. I skipped that bit.",
+          "rationale": "No attempt to use context, avoids unfamiliar vocabulary entirely",
           "isGold": true
         },
         {
           "score": 0.35,
-          "example": "She's mean because it says so in the story somewhere.",
-          "rationale": "Acknowledges text exists but can't locate or quote it",
+          "example": "'Contrary' means... like, bad? She's a bad person?",
+          "rationale": "Vague approximation without using context clues, confuses personality trait with moral judgement",
           "isGold": true
         },
         {
           "score": 0.55,
-          "example": "The text describes her as 'sour-faced' which shows she's not very pleasant to be around.",
-          "rationale": "Specific quote, relevant to claim, but analysis is thin",
+          "example": "'Contrary' means difficult or awkward — like she does the opposite of what people want. The bit where it says nobody liked her makes me think it means she's hard to get along with.",
+          "rationale": "Accurate definition in context, references surrounding text to support meaning, but stays at surface level",
           "isGold": true
         },
         {
           "score": 0.75,
-          "example": "On page 3, the phrase 'as tyrannical and selfish a little pig as ever lived' is really harsh — it's not just saying she's difficult, it's comparing her to an animal. That suggests the author wants us to feel repelled by her at first.",
-          "rationale": "Specific quote with page reference, analyses language technique, connects to authorial intent",
+          "example": "'Contrary' here means stubbornly doing the opposite — but it's also a reference to the nursery rhyme 'Mary, Mary, Quite Contrary'. The servants actually use it as a nickname. So it works on two levels: her personality AND a literary reference that the reader would recognise.",
+          "rationale": "Precise definition, identifies the intertextual reference, explains dual meaning, uses evidence from the text",
           "isGold": true
         },
         {
           "score": 0.9,
-          "example": "Burnett builds our dislike of Mary through accumulation — 'disagreeable', 'tyrannical', 'selfish', 'pig' all in one sentence. But then notice how in chapter 4, the descriptors shift to 'curious' and 'awakened'. The evidence of her transformation isn't in what she does — it's in the words the narrator chooses to describe her.",
-          "rationale": "Tracks evidence across passages, analyses patterns in authorial language, builds cumulative argument from multiple text references",
+          "example": "'Contrary' is doing a lot of work in this text. Literally it means perverse or wilful — she resists everything. But Burnett also uses it structurally: Mary is 'contrary' to what we expect of a heroine. She's ugly, rude, and unloved. The word sets up the entire transformation arc because by the end, she's the opposite of contrary — she's nurturing. So the meaning of the word shifts as the character does.",
+          "rationale": "Multi-layered analysis: literal meaning, structural function, and semantic shift across the narrative — demonstrates how vocabulary serves authorial purpose",
           "isGold": true
         }
       ],
       "promptGuidance": {
-        "whenHigh": "Student uses evidence well. Challenge them with competing evidence: 'But what about when it says X? Does that change your view?'",
-        "whenLow": "Student doesn't reference text. Model it: 'Let's look at the exact words. Can you find where it says that?' Build the habit of going back to the text.",
-        "whenMedium": "Student quotes but doesn't analyse. Ask 'Why did you choose that quote?' or 'What specific words are doing the work in that sentence?'"
+        "whenHigh": "Strong vocabulary skills. Introduce more complex words and figurative language: 'What tone does that word create?' or 'Could the author have chosen a different word? What would change?'",
+        "whenLow": "Weak vocabulary. Pause at unfamiliar words: 'Let's look at the words around it — what clues do they give us about what it might mean?' Model the context-use strategy.",
+        "whenMedium": "Developing vocabulary. Push beyond basic definitions: 'You said it means X — but why did the author choose that particular word instead of just saying X?'"
       },
       "usedBy": ["AC-COMP-003"]
+    },
+    {
+      "id": "COMP_LANGUAGE",
+      "name": "language_appreciation",
+      "description": "Ability to identify and explain how an author's choice of words and phrases enhances meaning",
+      "section": "Comprehension Skills",
+      "type": "STATE",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "framework": {
+        "pirls": { "process": 4, "name": "Evaluate and Critique Content and Textual Elements", "weight": 0.20 },
+        "ks2": { "domain": "2g", "name": "Identify / explain how meaning is enhanced through choice of words and phrases" }
+      },
+      "formula": "0.4 * technique_identification + 0.3 * effect_explanation + 0.3 * authorial_intent",
+      "subMetrics": [
+        {
+          "id": "technique_identification",
+          "name": "Technique Identification",
+          "weight": 0.4,
+          "description": "Spots specific language techniques used by the author",
+          "definitions": {
+            "high": "Identifies simile, metaphor, personification, repetition, contrast, etc. by name or description",
+            "low": "Cannot identify any language techniques, reads text at face value"
+          }
+        },
+        {
+          "id": "effect_explanation",
+          "name": "Effect Explanation",
+          "weight": 0.3,
+          "description": "Explains what effect the technique has on the reader",
+          "definitions": {
+            "high": "Articulates the emotional, visual, or intellectual impact of the language choice",
+            "low": "Identifies a technique but cannot explain why it matters"
+          }
+        },
+        {
+          "id": "authorial_intent",
+          "name": "Authorial Intent",
+          "weight": 0.3,
+          "description": "Connects language choices to the author's purpose",
+          "definitions": {
+            "high": "Explains why the author made this specific choice — what they wanted the reader to think or feel",
+            "low": "Treats language choices as accidental or decorative"
+          }
+        }
+      ],
+      "interpretationScale": [
+        { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "No awareness of language as a deliberate choice" },
+        { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Notices some language features but cannot explain their effect" },
+        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Identifies techniques and attempts to explain effect, but analysis is thin" },
+        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Consistently identifies techniques, explains effects, and connects to authorial purpose" },
+        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Sophisticated analysis of how language creates meaning at multiple levels" }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "It just describes her. I don't know why the author wrote it like that.",
+          "rationale": "No awareness that language choices are deliberate or meaningful",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "There's a simile here — 'as tyrannical and selfish a little pig as ever lived'. It compares her to a pig.",
+          "rationale": "Identifies the technique (simile) but stops there — no explanation of effect or purpose",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "Calling her 'a little pig' is a simile that makes her sound disgusting. It's a really harsh comparison — pigs are dirty and greedy, so it makes the reader dislike her straight away.",
+          "rationale": "Identifies technique, explains the effect on the reader, but doesn't connect to the author's wider purpose",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "Burnett piles up negative language in one sentence — 'tyrannical', 'selfish', 'pig'. The accumulation is deliberate: she wants us to feel repelled by Mary at the start so that the transformation later is more powerful. If Mary started as likeable, the garden's effect wouldn't mean as much.",
+          "rationale": "Identifies accumulation technique, explains reader effect, and connects to authorial strategy across the wider narrative",
+          "isGold": true
+        },
+        {
+          "score": 0.9,
+          "example": "Notice the register shift between the India chapters and the garden chapters. In India, Burnett uses Latinate, formal vocabulary — 'tyrannical', 'imperious', 'languid'. In Yorkshire, the language becomes Anglo-Saxon and earthy — 'dig', 'soil', 'grow', 'fresh'. The language itself enacts Mary's transformation: she moves from an artificial, colonial register to something natural and rooted. Burnett is using the sound and origin of the words themselves to carry meaning.",
+          "rationale": "Analysis at the level of register and etymology — identifies a pattern across the whole text, connects linguistic form to thematic meaning, demonstrates sophisticated awareness of how language creates meaning beyond individual techniques",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Strong language appreciation. Push toward cross-text comparison: 'How does this author's language compare to the other text we read?' or 'Could a different technique achieve the same effect?'",
+        "whenLow": "No language awareness. Start with accessible techniques: 'The author could have said \"a bad girl\" but instead said \"a little pig\". Why might they have chosen those words?' Make the choice visible.",
+        "whenMedium": "Identifies techniques but analysis is thin. Push for effect: 'You spotted the simile — now tell me: what does it make you feel as a reader? Why did the author want you to feel that?'"
+      },
+      "usedBy": ["AC-COMP-004"]
+    },
+    {
+      "id": "COMP_EVALUATION",
+      "name": "evaluation_skill",
+      "description": "Ability to interpret, integrate, and evaluate information across a text — forming and supporting judgements about content, structure, and meaning",
+      "section": "Comprehension Skills",
+      "type": "STATE",
+      "targetRange": { "min": 0.0, "max": 1.0 },
+      "framework": {
+        "pirls": { "process": "3+4", "name": "Interpret and Integrate Ideas and Information / Evaluate and Critique", "weight": 0.50 },
+        "ks2": { "domain": "2f+2h", "name": "Identify / explain how information / narrative content contributes to meaning as a whole + make comparisons within the text" }
+      },
+      "formula": "0.35 * interpretation_depth + 0.35 * evidence_integration + 0.3 * critical_judgement",
+      "subMetrics": [
+        {
+          "id": "interpretation_depth",
+          "name": "Interpretation Depth",
+          "weight": 0.35,
+          "description": "How far beyond the surface the student goes in interpreting themes, messages, and meaning",
+          "definitions": {
+            "high": "Identifies and articulates themes, connects parts to the whole, sees how structure creates meaning",
+            "low": "Stays at plot summary level, cannot identify broader themes or messages"
+          }
+        },
+        {
+          "id": "evidence_integration",
+          "name": "Evidence Integration",
+          "weight": 0.35,
+          "description": "How well the student weaves textual evidence into their interpretive arguments",
+          "definitions": {
+            "high": "Evidence is embedded naturally in reasoning — 'The phrase X shows that Y because Z'",
+            "low": "Makes claims without evidence, or quotes without connecting to the argument"
+          }
+        },
+        {
+          "id": "critical_judgement",
+          "name": "Critical Judgement",
+          "weight": 0.3,
+          "description": "Forms and defends an evaluative position about the text",
+          "definitions": {
+            "high": "Makes comparisons, considers alternatives, evaluates effectiveness of authorial choices",
+            "low": "Accepts the text passively, makes no evaluative statements"
+          }
+        }
+      ],
+      "interpretationScale": [
+        { "min": 0.0, "max": 0.2, "label": "No Evidence", "implication": "Cannot move beyond plot summary or literal content" },
+        { "min": 0.2, "max": 0.4, "label": "Emerging", "implication": "Identifies a theme or message but cannot develop or support it" },
+        { "min": 0.4, "max": 0.6, "label": "Developing", "implication": "Interprets with some evidence but analysis lacks depth or critical perspective" },
+        { "min": 0.6, "max": 0.8, "label": "Secure", "implication": "Integrates evidence into coherent interpretation, makes some evaluative judgements" },
+        { "min": 0.8, "max": 1.0, "label": "Mastery", "implication": "Sophisticated multi-layered interpretation with seamless evidence integration and critical evaluation" }
+      ],
+      "scoringAnchors": [
+        {
+          "score": 0.15,
+          "example": "It's about a girl who finds a garden. She makes friends and the garden grows.",
+          "rationale": "Pure plot summary, no interpretation of meaning or theme",
+          "isGold": true
+        },
+        {
+          "score": 0.35,
+          "example": "I think it's about being lonely. The girl is lonely because her parents died.",
+          "rationale": "Identifies a valid theme (loneliness) but stays at surface level, no evidence, no development",
+          "isGold": true
+        },
+        {
+          "score": 0.55,
+          "example": "The story is about transformation — Mary starts as this spoiled, neglected child and the garden kind of changes her. Like she grows as a person while the garden grows. The bit where she first sees the robin seems important because that's when she starts caring about something.",
+          "rationale": "Identifies transformation theme, begins to connect parts (robin scene) to the whole (character arc), uses some evidence but analysis is still developing",
+          "isGold": true
+        },
+        {
+          "score": 0.75,
+          "example": "I think the garden represents renewal — not just for Mary but for everyone who touches it. Colin's healing mirrors the garden's restoration, which is evidence that Burnett is using the garden as a symbol rather than just a setting. It's about how nurturing something outside yourself can heal what's broken inside. But I wonder if the story oversimplifies this — can nature really 'cure' Colin's illness? The text seems to suggest it can, which feels like wish-fulfilment rather than realism.",
+          "rationale": "Multi-layered thematic insight, connects symbolism across characters, integrates evidence, and makes a critical judgement about the text's credibility",
+          "isGold": true
+        },
+        {
+          "score": 0.9,
+          "example": "What strikes me is how Burnett uses the garden as a counterpoint to the colonial setting Mary comes from — the neglected English garden versus the 'managed' world of India. The theme isn't just renewal, it's about what happens when you stop trying to control nature and let things grow wild. That applies to the children too — they thrive when freed from adult control. Comparing the early India chapters with the garden chapters, you can see this structurally: every India scene has adults giving orders while every garden scene has children making decisions. The text is arguing that freedom, not management, produces growth.",
+          "rationale": "Sophisticated multi-layered analysis connecting themes across the whole text structure, integrates comparative evidence from multiple sections, forms an original critical argument about what the text is 'arguing', demonstrates evaluation of authorial choices at the structural level",
+          "isGold": true
+        }
+      ],
+      "promptGuidance": {
+        "whenHigh": "Student evaluates well. Challenge with competing interpretations: 'That's one reading — but what if someone argued the opposite? What evidence would they use?' Push toward comparing within and across texts.",
+        "whenLow": "Student stays at plot level. Scaffold toward theme: 'What is this story really about — not what happens, but what it means?' Use closed questions first if needed.",
+        "whenMedium": "Student interprets but doesn't integrate evidence or evaluate. Ask: 'Where in the text do you see that?' and 'Do you think the author does this effectively? Why or why not?'"
+      },
+      "usedBy": ["AC-COMP-005"]
     },
     {
       "id": "COMP_RECALL",
@@ -344,6 +558,11 @@
       "section": "Comprehension Skills",
       "type": "STATE",
       "targetRange": { "min": 0.0, "max": 1.0 },
+      "framework": {
+        "pirls": null,
+        "ks2": null,
+        "hf": { "rationale": "Cross-session retention — neither KS2 nor PIRLS assess this as they assume single-sitting tests. HF measures retention across sessions as a learning consolidation signal." }
+      },
       "formula": "0.4 * content_accuracy + 0.3 * detail_level + 0.3 * spontaneity",
       "subMetrics": [
         {
@@ -421,7 +640,7 @@
         "whenLow": "Weak recall. Use structured retrieval: 'Last time we talked about [topic]. Can you remember anything about that?' Provide cues rather than answers.",
         "whenMedium": "Partial recall. Use spaced retrieval technique: 'What was the main theme we identified?' If they struggle, narrow it: 'Was it about loneliness or transformation?'"
       },
-      "usedBy": ["AC-COMP-004"]
+      "usedBy": ["AC-COMP-006"]
     }
   ]
 }

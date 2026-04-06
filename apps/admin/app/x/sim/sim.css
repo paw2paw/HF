@@ -53,6 +53,112 @@
   flex-shrink: 0;
 }
 
+/* Post-call progress card — compact learning summary */
+.wa-progress-card {
+  align-self: center;
+  background: var(--wa-bubble-in);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--wa-text-primary);
+  margin: 8px 16px;
+  box-shadow: 0 1px 0.5px var(--wa-shadow);
+  max-width: 320px;
+  width: 100%;
+}
+
+.wa-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.wa-progress-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.wa-progress-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  text-transform: capitalize;
+}
+.wa-progress-badge--mastery { background: color-mix(in srgb, var(--status-success-text) 15%, transparent); color: var(--status-success-text); }
+.wa-progress-badge--secure { background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); }
+.wa-progress-badge--developing { background: color-mix(in srgb, var(--status-warning-text) 15%, transparent); color: var(--status-warning-text); }
+.wa-progress-badge--emerging { background: color-mix(in srgb, var(--status-error-text) 15%, transparent); color: var(--status-error-text); }
+.wa-progress-badge--no_evidence { background: color-mix(in srgb, var(--text-muted) 15%, transparent); color: var(--text-muted); }
+
+.wa-progress-params {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wa-progress-param {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wa-progress-param-label {
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.wa-progress-param-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 20%, transparent);
+  overflow: hidden;
+}
+
+.wa-progress-param-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.wa-progress-param-pct {
+  font-size: 11px;
+  font-weight: 600;
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.wa-progress-trend { font-size: 10px; margin-left: 2px; }
+.wa-progress-trend--up { color: var(--wa-green-primary); }
+.wa-progress-trend--down { color: var(--status-error-text); }
+
+.wa-progress-checkpoints {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.wa-progress-cp {
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+}
+.wa-progress-cp--passed {
+  color: var(--wa-green-primary);
+}
+
+.wa-progress-footer {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wa-text-secondary);
+  text-align: center;
+}
+
 /* Lobby: green phone circle — primary CTA to start a practice session */
 .wa-lobby-start-btn {
   width: 72px;
@@ -1478,4 +1584,283 @@
   font-size: 10px;
   font-weight: 700;
   margin-left: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PROGRESS PANEL — slide-in overlay for learner progress
+   ═══════════════════════════════════════════════════════════════ */
+
+.wa-progress-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: var(--wa-surface);
+  display: flex;
+  flex-direction: column;
+  animation: wa-progress-slide-in 0.25s ease;
+}
+
+@keyframes wa-progress-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.wa-progress-header {
+  background: var(--wa-header-bg);
+  color: var(--wa-header-text);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wa-progress-header-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.wa-progress-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wa-progress-loading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.wa-progress-empty {
+  text-align: center;
+  color: var(--wa-text-secondary);
+  font-size: 13px;
+  padding: 32px 16px;
+}
+
+/* Sections */
+.wa-progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wa-progress-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--wa-text-secondary);
+}
+
+/* Journey bar */
+.wa-progress-journey {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wa-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 20%, transparent);
+  overflow: hidden;
+}
+
+.wa-progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--wa-green-primary);
+  transition: width 0.4s ease;
+}
+
+.wa-progress-journey-label {
+  font-size: 13px;
+  color: var(--wa-text-secondary);
+}
+
+/* Goals */
+.wa-progress-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wa-progress-goal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wa-progress-goal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wa-progress-goal-icon {
+  color: var(--wa-text-secondary);
+  flex-shrink: 0;
+}
+
+.wa-progress-goal-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--wa-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-progress-goal-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wa-text-secondary);
+  flex-shrink: 0;
+}
+
+.wa-progress-goal-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 20%, transparent);
+  overflow: hidden;
+}
+
+.wa-progress-goal-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--wa-green-primary);
+  transition: width 0.4s ease;
+}
+
+/* Stats grid */
+.wa-progress-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wa-progress-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 8%, transparent);
+}
+
+.wa-progress-stat-icon {
+  color: var(--wa-text-secondary);
+}
+
+.wa-progress-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--wa-text-primary);
+}
+
+.wa-progress-stat-label {
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Test scores */
+.wa-progress-test-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.wa-progress-test-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.wa-progress-test-label {
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+  text-transform: uppercase;
+}
+
+.wa-progress-test-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--wa-text-primary);
+}
+
+.wa-progress-test-post {
+  color: var(--wa-green-primary);
+}
+
+.wa-progress-test-arrow {
+  font-size: 20px;
+  color: var(--wa-text-secondary);
+}
+
+/* Topics */
+.wa-progress-topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wa-progress-topic-item {
+  font-size: 13px;
+  color: var(--wa-text-primary);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 8%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INLINE JOURNEY INDICATORS — lobby bar + session divider
+   ═══════════════════════════════════════════════════════════════ */
+
+.wa-lobby-journey {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 240px;
+}
+
+.wa-lobby-journey-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 20%, transparent);
+  overflow: hidden;
+}
+
+.wa-lobby-journey-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--wa-green-primary);
+  transition: width 0.4s ease;
+}
+
+.wa-lobby-journey-label {
+  font-size: 12px;
+  color: var(--wa-text-secondary);
+}
+
+.wa-session-indicator {
+  text-align: center;
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+  padding: 4px 12px;
+  margin: 2px auto 6px;
 }

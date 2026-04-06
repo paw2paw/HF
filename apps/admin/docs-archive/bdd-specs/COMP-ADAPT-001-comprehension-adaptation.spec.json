@@ -1,8 +1,8 @@
 {
   "$schema": "./feature-spec-schema.json",
   "id": "COMP-ADAPT-001",
-  "title": "Comprehension Teaching Adaptation",
-  "version": "1.0",
+  "title": "Comprehension Teaching Adaptation (PIRLS/KS2 Aligned)",
+  "version": "2.0",
   "status": "Approved",
   "date": "2026-04-06",
   "domain": "comprehension-adaptation",
@@ -12,8 +12,8 @@
   "specRole": "SYNTHESISE",
   "story": {
     "asA": "conversational AI tutor",
-    "iWant": "to adapt my teaching approach based on the learner's comprehension scores",
-    "soThat": "struggling learners get more scaffolding and strong learners get deeper challenges"
+    "iWant": "to adapt my teaching approach based on the learner's PIRLS/KS2-aligned comprehension scores",
+    "soThat": "struggling learners get more scaffolding and strong learners get deeper challenges across all reading domains"
   },
   "context": {
     "applies": "After COMP-AGG-001 has aggregated comprehension scores",
@@ -27,12 +27,44 @@
     {
       "id": "comp_scaffolding",
       "name": "Comprehension Scaffolding Adaptation",
-      "description": "Adjusts scaffolding level based on comprehension scores",
+      "description": "Adjusts scaffolding level based on PIRLS/KS2-aligned comprehension scores",
       "section": "comprehension",
       "isAdjustable": true,
       "targetRange": { "min": 0.0, "max": 1.0 },
       "config": {
         "adaptationRules": [
+          {
+            "condition": {
+              "profileKey": "COMP_RETRIEVAL",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-RESPONSE-LEN",
+                "adjustment": "decrease",
+                "delta": 0.1,
+                "rationale": "Weak retrieval (PIRLS 1 / KS2 2b) — keep tutor responses shorter, direct student back to the text with 'Can you find where it says...?'"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "COMP_RETRIEVAL",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-QUESTION-RATE",
+                "adjustment": "increase",
+                "delta": 0.1,
+                "rationale": "Strong retrieval — reduce locate-and-quote questions, push toward inference and evaluation"
+              }
+            ]
+          },
           {
             "condition": {
               "profileKey": "COMP_INFERENCE",
@@ -45,7 +77,93 @@
                 "targetParameter": "BEH-QUESTION-RATE",
                 "adjustment": "increase",
                 "delta": 0.15,
-                "rationale": "Low inference skill — increase Socratic questioning to guide discovery"
+                "rationale": "Low inference skill (PIRLS 2 / KS2 2d) — increase Socratic questioning to guide discovery"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "COMP_VOCABULARY",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-PATIENCE-LEVEL",
+                "adjustment": "increase",
+                "delta": 0.15,
+                "rationale": "Weak vocabulary in context (KS2 2a) — slow down, pause to explore word meanings before continuing comprehension questions"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "COMP_LANGUAGE",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-QUESTION-RATE",
+                "adjustment": "increase",
+                "delta": 0.1,
+                "rationale": "Weak language appreciation (PIRLS 4 / KS2 2g) — scaffold with directed questions about specific word choices: 'Why do you think the author used that word?'"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "COMP_LANGUAGE",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-QUESTION-RATE",
+                "adjustment": "set",
+                "value": 0.85,
+                "rationale": "Strong language appreciation — push toward evaluative analysis of authorial craft and cross-text comparison"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "COMP_EVALUATION",
+              "operator": "lt",
+              "threshold": 0.4,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-RESPONSE-LEN",
+                "adjustment": "decrease",
+                "delta": 0.1,
+                "rationale": "Weak evaluation (PIRLS 3+4 / KS2 2f+2h) — keep responses shorter, ask more 'How does this part connect to the whole?' questions"
+              },
+              {
+                "targetParameter": "BEH-QUESTION-RATE",
+                "adjustment": "increase",
+                "delta": 0.1,
+                "rationale": "Weak evaluation — increase interpretive and comparative questioning"
+              }
+            ]
+          },
+          {
+            "condition": {
+              "profileKey": "COMP_EVALUATION",
+              "operator": "gte",
+              "threshold": 0.7,
+              "dataSource": "parameterValues"
+            },
+            "actions": [
+              {
+                "targetParameter": "BEH-QUESTION-RATE",
+                "adjustment": "set",
+                "value": 0.8,
+                "rationale": "Strong evaluation — push toward comparative and critical questions across texts"
               }
             ]
           },
@@ -61,55 +179,7 @@
                 "targetParameter": "BEH-PATIENCE-LEVEL",
                 "adjustment": "increase",
                 "delta": 0.2,
-                "rationale": "Weak recall — slow down, add more spaced retrieval at session open"
-              }
-            ]
-          },
-          {
-            "condition": {
-              "profileKey": "COMP_THEME",
-              "operator": "lt",
-              "threshold": 0.4,
-              "dataSource": "parameterValues"
-            },
-            "actions": [
-              {
-                "targetParameter": "BEH-RESPONSE-LEN",
-                "adjustment": "decrease",
-                "delta": 0.1,
-                "rationale": "Weak theme understanding — keep responses shorter, ask more questions"
-              }
-            ]
-          },
-          {
-            "condition": {
-              "profileKey": "COMP_THEME",
-              "operator": "gte",
-              "threshold": 0.7,
-              "dataSource": "parameterValues"
-            },
-            "actions": [
-              {
-                "targetParameter": "BEH-QUESTION-RATE",
-                "adjustment": "set",
-                "value": 0.8,
-                "rationale": "Strong theme understanding — push toward evaluative and comparative questions"
-              }
-            ]
-          },
-          {
-            "condition": {
-              "profileKey": "COMP_EVIDENCE",
-              "operator": "lt",
-              "threshold": 0.4,
-              "dataSource": "parameterValues"
-            },
-            "actions": [
-              {
-                "targetParameter": "BEH-QUESTION-RATE",
-                "adjustment": "increase",
-                "delta": 0.1,
-                "rationale": "Weak evidence usage — ask 'Where in the text does it say that?' more often"
+                "rationale": "Weak recall (HF extension) — slow down, add more spaced retrieval at session open"
               }
             ]
           }
@@ -118,7 +188,7 @@
     }
   ],
   "related": [
-    { "id": "COMP-MEASURE-001", "title": "Comprehension Measurement", "relationship": "provides input scores" },
-    { "id": "COMP-AGG-001", "title": "Comprehension Aggregation", "relationship": "provides aggregated profile" }
+    { "id": "COMP-MEASURE-001", "title": "Comprehension Measurement (PIRLS/KS2)", "relationship": "provides input scores" },
+    { "id": "COMP-AGG-001", "title": "Comprehension Aggregation (PIRLS/KS2)", "relationship": "provides aggregated profile" }
   ]
 }
