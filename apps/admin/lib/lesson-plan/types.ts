@@ -15,7 +15,10 @@ export type LessonPlanModel =
   | "5e"
   | "spiral"
   | "mastery"
-  | "project";
+  | "project"
+  | "comprehension_guided"
+  | "discussion_socratic"
+  | "coaching_structured";
 
 export interface SessionMediaRef {
   mediaId: string;

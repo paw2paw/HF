@@ -291,6 +291,194 @@ const PROJECT_MODEL: LessonPlanModelDefinition = {
 };
 
 // ---------------------------------------------------------------------------
+// Profile-specific models (comprehension, discussion, coaching)
+// ---------------------------------------------------------------------------
+
+const RETENTION_CHECK: PhaseTemplate = {
+  id: "retention_check",
+  label: "Retention Check",
+  durationFraction: 0.15,
+  suitableTeachMethods: ["recall_quiz", "open_question"],
+  defaultGuidance: "Ask what they remember from last session's passage or discussion. Score unaided recall before teaching.",
+};
+
+const COMPREHENSION_CHECKPOINT: PhaseTemplate = {
+  id: "comprehension_checkpoint",
+  label: "Comprehension Checkpoint",
+  durationFraction: 0.15,
+  suitableTeachMethods: ["open_question", "close_reading"],
+  defaultGuidance: "Ask student to articulate the main theme in their own words. Note whether they use textual evidence.",
+};
+
+const POSITION_CHECK: PhaseTemplate = {
+  id: "position_check",
+  label: "Position Check",
+  durationFraction: 0.15,
+  suitableTeachMethods: ["open_question"],
+  defaultGuidance: "Before we start: 'What's your current view on [topic]?' Record their starting position for comparison at close.",
+};
+
+const REFLECTION_CHECKPOINT: PhaseTemplate = {
+  id: "reflection_checkpoint",
+  label: "Reflection Checkpoint",
+  durationFraction: 0.15,
+  suitableTeachMethods: ["guided_discussion"],
+  defaultGuidance: "Has your thinking shifted? In what way? What caused the shift?",
+};
+
+const ACCOUNTABILITY_CHECK: PhaseTemplate = {
+  id: "accountability_check",
+  label: "Accountability Check",
+  durationFraction: 0.15,
+  suitableTeachMethods: ["open_question"],
+  defaultGuidance: "Last time you committed to [X]. How did that go? What did you learn?",
+};
+
+const ACTION_CHECKPOINT: PhaseTemplate = {
+  id: "action_checkpoint",
+  label: "Action Checkpoint",
+  durationFraction: 0.15,
+  suitableTeachMethods: ["open_question"],
+  defaultGuidance: "What's one concrete thing you'll do before next session? When exactly?",
+};
+
+const GUIDED_EXPLORATION: PhaseTemplate = {
+  id: "guided_exploration",
+  label: "Guided Exploration",
+  durationFraction: 0.55,
+  suitableTeachMethods: ["close_reading", "guided_discussion", "open_question"],
+  defaultGuidance: "Conversation-led thematic discovery. Ask questions, don't explain. One question at a time.",
+};
+
+const DIALOGUE: PhaseTemplate = {
+  id: "dialogue",
+  label: "Dialogue",
+  durationFraction: 0.55,
+  suitableTeachMethods: ["guided_discussion", "open_question"],
+  defaultGuidance: "Open-ended discussion. Present competing perspectives. Probe reasoning, don't judge conclusions.",
+};
+
+const COACHING_EXPLORATION: PhaseTemplate = {
+  id: "coaching_exploration",
+  label: "Exploration",
+  durationFraction: 0.55,
+  suitableTeachMethods: ["open_question", "guided_discussion"],
+  defaultGuidance: "Start from their goals. Ask questions that sharpen thinking. Reflect, don't advise.",
+};
+
+const OPENING: PhaseTemplate = {
+  id: "opening",
+  label: "Opening",
+  durationFraction: 0.1,
+  suitableTeachMethods: [],
+  defaultGuidance: "Warm greeting. Set context for today's session.",
+};
+
+const CLOSE: PhaseTemplate = {
+  id: "close",
+  label: "Close",
+  durationFraction: 0.05,
+  suitableTeachMethods: [],
+  defaultGuidance: "Warm closing. Preview next session.",
+};
+
+const COMPREHENSION_GUIDED_MODEL: LessonPlanModelDefinition = {
+  id: "comprehension_guided",
+  label: "Comprehension-Guided",
+  description: "Read, analyse & discuss. Socratic questioning, close reading, vocabulary in context. Session structure: retention check → guided exploration → comprehension checkpoint.",
+  suitableFor: "English, Literature, Languages — passage-based comprehension courses",
+  defaults: {
+    maxTpsPerSession: 6,
+    reviewFrequency: 0,
+    assessmentStyle: "light",
+  },
+  sessionPatternRules: [
+    "Session 1: Opening → Guided Exploration → Comprehension Checkpoint → Close (skip retention check — nothing to recall yet).",
+    "Session 2+: Retention Check → Opening → Guided Exploration → Comprehension Checkpoint → Close.",
+    "Guided Exploration is the core — Socratic questioning about the passage. One question at a time. Never stack questions.",
+    "Comprehension Checkpoint: student articulates the main theme in own words. Note if they use textual evidence vs parroting.",
+    "Retention Check tests recall of prior session themes — 'What do you remember from last time?'",
+    "Build from literal (what does it say?) to inferential (what does it imply?) to evaluative (do you agree?).",
+  ].join("\n"),
+  phaseTemplates: {
+    introduce: [OPENING, GUIDED_EXPLORATION, COMPREHENSION_CHECKPOINT, CLOSE],
+    deepen: [RETENTION_CHECK, OPENING, GUIDED_EXPLORATION, COMPREHENSION_CHECKPOINT, CLOSE],
+    review: [RETENTION_CHECK, OPENING, GUIDED_EXPLORATION, COMPREHENSION_CHECKPOINT, CLOSE],
+    assess: [RETENTION_CHECK, OPENING, GUIDED_EXPLORATION, COMPREHENSION_CHECKPOINT, CLOSE],
+    consolidate: [RETENTION_CHECK, OPENING, GUIDED_EXPLORATION, COMPREHENSION_CHECKPOINT, CLOSE],
+  },
+  tpDistributionHints: [
+    "Distribute teaching points across guided exploration phases.",
+    "Each TP maps to a theme or passage section the student should discover through questioning.",
+    "Don't front-load — spread discovery across the session so the student builds understanding incrementally.",
+  ].join("\n"),
+};
+
+const DISCUSSION_SOCRATIC_MODEL: LessonPlanModelDefinition = {
+  id: "discussion_socratic",
+  label: "Discussion-Socratic",
+  description: "Explore ideas through dialogue. Open questions, multiple perspectives, meaning-making. Session structure: position check → dialogue → reflection checkpoint.",
+  suitableFor: "Philosophy, Ethics, PSHE, Religious Studies — no right answers, reasoning matters",
+  defaults: {
+    maxTpsPerSession: 4,
+    reviewFrequency: 0,
+    assessmentStyle: "none",
+  },
+  sessionPatternRules: [
+    "Every session: Position Check → Opening → Dialogue → Reflection Checkpoint → Close.",
+    "Position Check captures the student's starting view on today's topic — this is compared against their position at close.",
+    "Dialogue is the core — present competing perspectives, probe reasoning, never shut down opinions.",
+    "Reflection Checkpoint: 'Has your thinking shifted? In what way?' Track position evolution across sessions.",
+    "The value is in the reasoning process, not the conclusion. Celebrate uncertainty and nuance.",
+    "Use thought experiments and hypotheticals to test positions.",
+  ].join("\n"),
+  phaseTemplates: {
+    introduce: [POSITION_CHECK, OPENING, DIALOGUE, REFLECTION_CHECKPOINT, CLOSE],
+    deepen: [POSITION_CHECK, OPENING, DIALOGUE, REFLECTION_CHECKPOINT, CLOSE],
+    review: [POSITION_CHECK, OPENING, DIALOGUE, REFLECTION_CHECKPOINT, CLOSE],
+    assess: [POSITION_CHECK, OPENING, DIALOGUE, REFLECTION_CHECKPOINT, CLOSE],
+    consolidate: [POSITION_CHECK, OPENING, DIALOGUE, REFLECTION_CHECKPOINT, CLOSE],
+  },
+  tpDistributionHints: [
+    "Each TP is a discussion prompt or ethical scenario, not a fact to teach.",
+    "Fewer TPs per session — depth over breadth. 2-3 substantial prompts is better than 6 surface-level ones.",
+    "Order prompts from accessible to challenging — build confidence before introducing harder dilemmas.",
+  ].join("\n"),
+};
+
+const COACHING_STRUCTURED_MODEL: LessonPlanModelDefinition = {
+  id: "coaching_structured",
+  label: "Coaching-Structured",
+  description: "Goal-focused development. Reflective practice, action planning, accountability. Session structure: accountability check → exploration → action checkpoint.",
+  suitableFor: "Career, Leadership, Performance, Personal Development — goal-directed, not knowledge-based",
+  defaults: {
+    maxTpsPerSession: 3,
+    reviewFrequency: 0,
+    assessmentStyle: "none",
+  },
+  sessionPatternRules: [
+    "Session 1: Opening → Exploration → Action Checkpoint → Close (skip accountability — no prior commitments).",
+    "Session 2+: Accountability Check → Opening → Exploration → Action Checkpoint → Close.",
+    "Accountability Check: 'Last time you committed to X. How did it go?' Score follow-through honestly.",
+    "Exploration is the core — start from their goals, not your agenda. Ask questions that sharpen thinking.",
+    "Action Checkpoint: every session ends with a concrete, time-bound commitment. 'What will you do? By when?'",
+    "Never give advice directly — reflect questions back: 'What feels right to you?'",
+  ].join("\n"),
+  phaseTemplates: {
+    introduce: [OPENING, COACHING_EXPLORATION, ACTION_CHECKPOINT, CLOSE],
+    deepen: [ACCOUNTABILITY_CHECK, OPENING, COACHING_EXPLORATION, ACTION_CHECKPOINT, CLOSE],
+    review: [ACCOUNTABILITY_CHECK, OPENING, COACHING_EXPLORATION, ACTION_CHECKPOINT, CLOSE],
+    assess: [ACCOUNTABILITY_CHECK, OPENING, COACHING_EXPLORATION, ACTION_CHECKPOINT, CLOSE],
+    consolidate: [ACCOUNTABILITY_CHECK, OPENING, COACHING_EXPLORATION, ACTION_CHECKPOINT, CLOSE],
+  },
+  tpDistributionHints: [
+    "TPs are goal-related themes or skill areas, not content to teach.",
+    "Each TP should be explorable through reflective questions, not instruction.",
+    "Fewer TPs — 2-3 per session. Coaching goes deep on one theme rather than covering many.",
+  ].join("\n"),
+};
+
+// ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
@@ -300,6 +488,9 @@ export const LESSON_PLAN_MODELS: Record<LessonPlanModel, LessonPlanModelDefiniti
   spiral: SPIRAL_MODEL,
   mastery: MASTERY_MODEL,
   project: PROJECT_MODEL,
+  comprehension_guided: COMPREHENSION_GUIDED_MODEL,
+  discussion_socratic: DISCUSSION_SOCRATIC_MODEL,
+  coaching_structured: COACHING_STRUCTURED_MODEL,
 };
 
 /** Ordered array for UI rendering */
@@ -309,6 +500,9 @@ export const LESSON_PLAN_MODEL_LIST: LessonPlanModelDefinition[] = [
   SPIRAL_MODEL,
   MASTERY_MODEL,
   PROJECT_MODEL,
+  COMPREHENSION_GUIDED_MODEL,
+  DISCUSSION_SOCRATIC_MODEL,
+  COACHING_STRUCTURED_MODEL,
 ];
 
 /** Get model definition, defaulting to direct_instruction */
