@@ -232,29 +232,45 @@ export function CourseHowTab({
       const data = await res.json();
       if (data.ok) {
         setReExtractResult({ triggered: data.triggered, total: data.total });
-        // Re-fetch instructions after a delay to let extraction complete
         if (data.triggered > 0) {
-          setTimeout(() => {
-            setInstructionsLoading(true);
-            fetch(`/api/courses/${courseId}/course-instructions`)
-              .then((r) => r.json())
-              .then((d) => {
-                if (d.ok) {
-                  setInstructions({
-                    categories: d.categories || {},
-                    totals: d.totals || {},
-                    grandTotal: d.grandTotal || 0,
-                    sourceCount: d.sourceCount || 0,
-                  });
+          // Poll source status until all extractions complete
+          const sourceIds: string[] = (data.sources || [])
+            .filter((s: { jobId: string | null }) => s.jobId)
+            .map((s: { sourceId: string }) => s.sourceId);
+
+          const pollUntilDone = async () => {
+            const maxAttempts = 30; // ~2.5 min at 5s intervals
+            for (let i = 0; i < maxAttempts; i++) {
+              await new Promise((r) => setTimeout(r, 5000));
+              try {
+                const statusRes = await fetch(`/api/content-sources/status?ids=${sourceIds.join(',')}`);
+                const statusData = await statusRes.json();
+                if (statusData.sources) {
+                  const allDone = sourceIds.every(
+                    (id: string) => statusData.sources[id]?.assertionCount > 0,
+                  );
+                  if (allDone) break;
                 }
-              })
-              .catch(() => {})
-              .finally(() => {
-                setInstructionsLoading(false);
-                setReExtracting(false);
-                setTimeout(() => setReExtractResult(null), 5000);
-              });
-          }, 8000); // Give extraction time to complete
+              } catch { /* continue polling */ }
+            }
+            // Refresh instructions
+            setInstructionsLoading(true);
+            try {
+              const d = await fetch(`/api/courses/${courseId}/course-instructions`).then((r) => r.json());
+              if (d.ok) {
+                setInstructions({
+                  categories: d.categories || {},
+                  totals: d.totals || {},
+                  grandTotal: d.grandTotal || 0,
+                  sourceCount: d.sourceCount || 0,
+                });
+              }
+            } catch { /* ignore */ }
+            setInstructionsLoading(false);
+            setReExtracting(false);
+            setTimeout(() => setReExtractResult(null), 5000);
+          };
+          pollUntilDone();
         } else {
           setReExtracting(false);
         }

@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.7.66",
+  "version": "0.7.67",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -84,6 +84,7 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
     "@prisma/client": "^6.19.1",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@types/bcryptjs": "^2.4.6",
     "3d-force-graph": "^1.79.1",
     "bcryptjs": "^3.0.3",

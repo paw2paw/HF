@@ -3,11 +3,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  BookMarked, AlertTriangle, Zap,
+  BookMarked, AlertTriangle, Zap, RefreshCw,
 } from 'lucide-react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { getDocTypeInfo } from '@/lib/doc-type-icons';
 import { CONTENT_CATEGORIES, CATEGORY_ORDER } from '@/lib/content-categories';
+import { ReExtractModal } from './ReExtractModal';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -188,6 +189,7 @@ export function CourseWhatTab({
 }: CourseWhatTabProps) {
   // ── Backfill state ────────────────────────────────────
   const [backfilling, setBackfilling] = useState(false);
+  const [showReExtract, setShowReExtract] = useState(false);
 
   // ── Collect sources across all subjects ──
   const { courseGuideSources, otherSources } = useMemo(() => {
@@ -208,12 +210,29 @@ export function CourseWhatTab({
     return { courseGuideSources: guides, otherSources: others };
   }, [subjects]);
 
+  const allSources = useMemo(
+    () => [...courseGuideSources, ...otherSources],
+    [courseGuideSources, otherSources],
+  );
+
   return (
     <>
       {/* ── Course Guide ──────────────────────────────── */}
       {courseGuideSources.length > 0 && (
         <>
-          <SectionHeader title="Course Guide" icon={getDocTypeInfo('COURSE_REFERENCE').icon} />
+          <SectionHeader
+            title="Course Guide"
+            icon={getDocTypeInfo('COURSE_REFERENCE').icon}
+            actions={isOperator && otherSources.length === 0 && allSources.length > 0 ? (
+              <button
+                className="hf-btn hf-btn-xs hf-btn-secondary hf-flex hf-items-center hf-gap-xs"
+                onClick={() => setShowReExtract(true)}
+              >
+                <RefreshCw size={12} />
+                Re-extract
+              </button>
+            ) : undefined}
+          />
           <div className="hf-card-compact hf-mb-lg" style={{ borderLeft: '3px solid var(--badge-purple-text)' }}>
             {courseGuideSources.map((src) => {
               const info = getDocTypeInfo(src.documentType);
@@ -241,7 +260,19 @@ export function CourseWhatTab({
       {/* ── Other Sources ────────────────────────────── */}
       {otherSources.length > 0 && (
         <>
-          <SectionHeader title="Sources" icon={BookMarked} />
+          <SectionHeader
+            title="Sources"
+            icon={BookMarked}
+            actions={isOperator && allSources.length > 0 ? (
+              <button
+                className="hf-btn hf-btn-xs hf-btn-secondary hf-flex hf-items-center hf-gap-xs"
+                onClick={() => setShowReExtract(true)}
+              >
+                <RefreshCw size={12} />
+                Re-extract
+              </button>
+            ) : undefined}
+          />
           <div className="hf-card-compact hf-mb-lg">
             {otherSources.map((src) => {
               const info = getDocTypeInfo(src.documentType);
@@ -351,6 +382,25 @@ export function CourseWhatTab({
         );
       })()}
 
+      {/* ── Re-extract Modal ────────────────────────── */}
+      {showReExtract && (
+        <ReExtractModal
+          courseId={courseId}
+          sources={allSources}
+          onClose={() => setShowReExtract(false)}
+          onComplete={async () => {
+            // Refresh content breakdown after re-extraction
+            if (onContentRefresh) {
+              try {
+                const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());
+                if (bd.ok) {
+                  onContentRefresh(bd.methods || [], bd.total || 0, bd.instructionCount || 0);
+                }
+              } catch { /* ignore */ }
+            }
+          }}
+        />
+      )}
     </>
   );
 }

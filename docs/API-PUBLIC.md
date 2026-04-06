@@ -33,6 +33,7 @@
   - [Calls](#calls)
   - [Cohorts](#cohorts)
   - [Communities](#communities)
+  - [Composition](#composition)
   - [Content Trust](#content-trust)
   - [Courses](#courses)
   - [Curricula](#curricula)
@@ -2025,6 +2026,30 @@ Update a community topic (name or pattern)
 
 ---
 
+## Composition
+
+### `POST` /api/v1/courses/:courseId/re-extract/recompose
+
+Recompose prompts for all active callers enrolled in a course.
+
+**Auth**: OPERATOR · **Scope**: `courses:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook UUID |
+
+**Response** `200`
+```json
+{ ok, composed, failed, total }
+```
+
+**Response** `404`
+```json
+{ ok: false, error }
+```
+
+---
+
 ## Content Trust
 
 ### `GET` /api/v1/content-sources/:sourceId
@@ -2436,6 +2461,33 @@ Mark multiple vocabulary entries as reviewed in a single transaction.
 **Response** `400`
 ```json
 { ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/v1/courses/:courseId/re-extract
+
+Trigger re-extraction with replace mode for selected sources
+
+**Auth**: OPERATOR · **Scope**: `courses:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook UUID |
+
+**Response** `202`
+```json
+{ ok, sources: [{ sourceId, name, documentType, assertionCount, jobId?, error? }], triggered, total, activeCallerCount }
+```
+
+**Response** `400`
+```json
+{ ok: false, error }
+```
+
+**Response** `404`
+```json
+{ ok: false, error }
 ```
 
 ---
