@@ -65,7 +65,7 @@ export default defineConfig({
     /* Authenticated tests - run with pre-established session */
     {
       name: 'authenticated',
-      testMatch: /tests\/(?!cloud\/).+\.spec\.ts/,
+      testMatch: /tests\/(?!cloud\/|_archived\/).+\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: AUTH_FILE,
@@ -85,7 +85,7 @@ export default defineConfig({
     /* Mobile viewport tests */
     {
       name: 'mobile',
-      testMatch: /tests\/(?!cloud\/).+\.spec\.ts/,
+      testMatch: /tests\/(?!cloud\/|_archived\/).+\.spec\.ts/,
       use: {
         ...devices['Pixel 5'],
         storageState: AUTH_FILE,
