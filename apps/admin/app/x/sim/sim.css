@@ -1444,6 +1444,44 @@
   color: var(--status-error-text);
 }
 
+.wa-admin-section-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--wa-text-secondary);
+  padding: 12px 0 4px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--wa-divider);
+}
+
+.wa-admin-section-header:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.wa-admin-copy-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--wa-text-secondary);
+  background: var(--wa-surface-secondary);
+  border: 1px solid var(--wa-divider);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  margin-left: auto;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.wa-admin-copy-all-btn:hover {
+  color: var(--wa-text-primary);
+  border-color: var(--wa-text-secondary);
+}
+
 .wa-admin-copyable {
   cursor: pointer;
   transition: opacity 0.15s;

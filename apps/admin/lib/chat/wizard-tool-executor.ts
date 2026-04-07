@@ -772,45 +772,56 @@ export async function executeWizardTool(
             }
 
             // Create assertions from pedagogy data (if user filled any pedagogy nodes)
+            // Skip if pedagogy source already exists for this subject (re-run guard)
             const hasPedagogyExisting = setupData?.skillsFramework || setupData?.teachingPrinciples
               || setupData?.coursePhases || setupData?.edgeCases || setupData?.assessmentBoundaries;
             if (hasPedagogyExisting && existingPbSubject?.subjectId) {
-              try {
-                const { convertCourseRefToAssertions } = await import("@/lib/content-trust/course-ref-to-assertions");
-                const { renderCourseRefMarkdown } = await import("@/lib/content-trust/course-ref-to-markdown");
-                const refData = {
-                  skillsFramework: setupData?.skillsFramework as any,
-                  teachingApproach: setupData?.teachingPrinciples as any,
-                  coursePhases: setupData?.coursePhases as any,
-                  edgeCases: setupData?.edgeCases as any,
-                  assessmentBoundaries: setupData?.assessmentBoundaries as string[],
-                  learnerModel: setupData?.learnerModel as any,
-                  sessionOverrides: setupData?.sessionOverrides as any,
-                  contentStrategy: setupData?.contentStrategy as any,
-                  communicationRules: setupData?.communicationRules as any,
-                };
-                const assertionRows = convertCourseRefToAssertions(refData);
-                if (assertionRows.length > 0) {
-                  const refSource = await prisma.contentSource.create({
-                    data: {
-                      name: `${courseName || "Course"} — Course Reference`,
-                      documentType: "COURSE_REFERENCE",
-                      textSample: renderCourseRefMarkdown(refData),
-                      status: "COMPLETED",
-                    },
-                  });
-                  await prisma.subjectSource.create({
-                    data: { subjectId: existingPbSubject.subjectId, sourceId: refSource.id },
-                  });
-                  for (const row of assertionRows) {
-                    await prisma.contentAssertion.create({
-                      data: { ...row, sourceId: refSource.id, confidence: 1.0, depth: 0, isActive: true },
+              const existingPedSource = await prisma.contentSource.findFirst({
+                where: {
+                  documentType: "COURSE_REFERENCE",
+                  subjects: { some: { subjectId: existingPbSubject.subjectId } },
+                },
+              });
+              if (!existingPedSource) {
+                try {
+                  const { convertCourseRefToAssertions } = await import("@/lib/content-trust/course-ref-to-assertions");
+                  const { renderCourseRefMarkdown } = await import("@/lib/content-trust/course-ref-to-markdown");
+                  const refData = {
+                    skillsFramework: setupData?.skillsFramework as any,
+                    teachingApproach: setupData?.teachingPrinciples as any,
+                    coursePhases: setupData?.coursePhases as any,
+                    edgeCases: setupData?.edgeCases as any,
+                    assessmentBoundaries: setupData?.assessmentBoundaries as string[],
+                    learnerModel: setupData?.learnerModel as any,
+                    sessionOverrides: setupData?.sessionOverrides as any,
+                    contentStrategy: setupData?.contentStrategy as any,
+                    communicationRules: setupData?.communicationRules as any,
+                  };
+                  const assertionRows = convertCourseRefToAssertions(refData);
+                  if (assertionRows.length > 0) {
+                    const refSource = await prisma.contentSource.create({
+                      data: {
+                        name: `${courseName || "Course"} — Course Reference`,
+                        documentType: "COURSE_REFERENCE",
+                        textSample: renderCourseRefMarkdown(refData),
+                        status: "COMPLETED",
+                      },
                     });
+                    await prisma.subjectSource.create({
+                      data: { subjectId: existingPbSubject.subjectId, sourceId: refSource.id },
+                    });
+                    for (const row of assertionRows) {
+                      await prisma.contentAssertion.create({
+                        data: { ...row, sourceId: refSource.id, confidence: 1.0, depth: 0, isActive: true },
+                      });
+                    }
+                    console.log(`[wizard] Created ${assertionRows.length} pedagogy assertions for existing course`);
                   }
-                  console.log(`[wizard] Created ${assertionRows.length} pedagogy assertions for existing course`);
+                } catch (err) {
+                  console.error("[wizard] Pedagogy assertion creation (existing) failed (non-fatal):", (err as Error).message);
                 }
-              } catch (err) {
-                console.error("[wizard] Pedagogy assertion creation (existing) failed (non-fatal):", (err as Error).message);
+              } else {
+                console.log(`[wizard] Skipping pedagogy source creation — already exists (source ${existingPedSource.id})`);
               }
             }
 

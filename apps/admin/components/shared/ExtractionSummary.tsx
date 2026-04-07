@@ -17,6 +17,7 @@ import { FileText, AlertTriangle, Check } from 'lucide-react';
 import type { PackUploadResult } from '@/components/wizards/PackUploadStep';
 import { DocTypeBadge } from '@/app/x/content-sources/_components/shared/badges';
 import { CONTENT_CATEGORIES } from '@/lib/content-categories';
+import { INSTRUCTION_CATEGORIES } from '@/lib/content-trust/resolve-config';
 
 // ── Props ────────────────────────────────────────
 
@@ -40,11 +41,18 @@ export function ExtractionSummary({
 }: ExtractionSummaryProps) {
   const { extractionTotals, classifications, sourceCount, subjects, categoryCounts } = result;
 
-  const totalTPs = extractionTotals?.assertions ?? 0;
+  const totalAssertions = extractionTotals?.assertions ?? 0;
   const totalQs = extractionTotals?.questions ?? 0;
   const totalVocab = extractionTotals?.vocabulary ?? 0;
   const totalImages = extractionTotals?.images ?? 0;
-  const isEmpty = totalTPs === 0 && totalQs === 0 && totalVocab === 0;
+  const isEmpty = totalAssertions === 0 && totalQs === 0 && totalVocab === 0;
+
+  // Split assertions into TPs (content) and TIs (instructions) using categoryCounts
+  const instructionSet = new Set<string>(INSTRUCTION_CATEGORIES);
+  const tiCount = categoryCounts
+    ? Object.entries(categoryCounts).reduce((sum, [cat, n]) => instructionSet.has(cat) ? sum + n : sum, 0)
+    : 0;
+  const tpCount = totalAssertions - tiCount;
 
   // Build subtitle
   const parts: string[] = [];
@@ -54,7 +62,8 @@ export function ExtractionSummary({
 
   // Filter stats to only show non-zero
   const stats = [
-    { label: 'Teaching Points', value: totalTPs },
+    { label: 'Teaching Points', value: tpCount },
+    ...(tiCount > 0 ? [{ label: 'Instructions', value: tiCount }] : []),
     { label: 'Questions', value: totalQs },
     { label: 'Vocabulary', value: totalVocab },
     { label: 'Images', value: totalImages },
@@ -141,12 +150,14 @@ export function ExtractionSummary({
         </div>
       )}
 
-      {/* Category pills */}
-      {sortedCategories.length > 0 && (
-        <div className="es-section">
-          <div className="es-section-label">Teaching Points by Type</div>
+      {/* Category pills — split into content TPs and instruction TIs */}
+      {sortedCategories.length > 0 && (() => {
+        const contentCats = sortedCategories.filter(([cat]) => !instructionSet.has(cat));
+        const instructionCats = sortedCategories.filter(([cat]) => instructionSet.has(cat));
+
+        const renderPills = (cats: [string, number][]) => (
           <div className="es-categories">
-            {sortedCategories.map(([cat, count]) => {
+            {cats.map(([cat, count]) => {
               const colors = CONTENT_CATEGORIES[cat];
               return (
                 <span
@@ -163,8 +174,25 @@ export function ExtractionSummary({
               );
             })}
           </div>
-        </div>
-      )}
+        );
+
+        return (
+          <>
+            {contentCats.length > 0 && (
+              <div className="es-section">
+                <div className="es-section-label">Teaching Points by Type</div>
+                {renderPills(contentCats)}
+              </div>
+            )}
+            {instructionCats.length > 0 && (
+              <div className="es-section">
+                <div className="es-section-label">Teaching Instructions by Type</div>
+                {renderPills(instructionCats)}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Actions (full mode only) */}
       {!compact && (onReUpload || onContinue) && (

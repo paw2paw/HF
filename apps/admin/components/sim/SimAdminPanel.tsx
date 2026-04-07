@@ -9,7 +9,7 @@ import { useErrorCapture } from '@/contexts/ErrorCaptureContext';
 import { useEntityContext } from '@/contexts';
 import { buildBugContext, bugContextToMarkdown } from '@/lib/buildBugContext';
 
-type AdminTab = 'debug' | 'logs' | 'bug' | 'links';
+type AdminTab = 'info' | 'logs' | 'bug' | 'links';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV;
@@ -31,6 +31,7 @@ interface SimAdminPanelProps {
   sessionGoal?: string;
   journeyState?: string;
   activeSurveyStep?: unknown;
+  quickStart?: Record<string, unknown> | null;
 }
 
 function CopyableValue({ value, label }: { value: string; label: string }) {
@@ -63,40 +64,128 @@ function PhaseBadge({ phase }: { phase: string }) {
   );
 }
 
-// ── Debug Tab ──
+// ── Section header ──
 
-function DebugTab({ props }: { props: SimAdminPanelProps }) {
-  const rows: { label: string; value: React.ReactNode }[] = [
-    { label: 'Call ID', value: props.callId ? <CopyableValue value={props.callId} label="Call ID" /> : <span className="wa-admin-value">—</span> },
-    { label: 'Phase', value: <PhaseBadge phase={props.callPhase} /> },
-    { label: 'Messages', value: <span className="wa-admin-value">{props.messageCount}</span> },
-    { label: 'Streaming', value: <span className="wa-admin-value">{props.isStreaming ? 'yes' : 'no'}</span> },
-    { label: 'Journey', value: <span className="wa-admin-value">{props.journeyState || '—'}</span> },
-    { label: 'Survey', value: <span className="wa-admin-value">{props.activeSurveyStep ? 'active' : '—'}</span> },
-    { label: 'Prompt ID', value: props.newPromptId ? <CopyableValue value={props.newPromptId} label="Prompt ID" /> : <span className="wa-admin-value">—</span> },
-    { label: 'Playbook', value: <span className="wa-admin-value">{props.playbookName || '—'}</span> },
-    { label: 'Subject', value: <span className="wa-admin-value">{props.subjectDiscipline || '—'}</span> },
-    { label: 'Institution', value: <span className="wa-admin-value">{props.domainName || '—'}</span> },
-    { label: 'Goal', value: <span className="wa-admin-value">{props.sessionGoal || '—'}</span> },
-    { label: 'Caller', value: <span className="wa-admin-value">{props.callerName}</span> },
-    { label: 'Version', value: <span className="wa-admin-value">{APP_VERSION ? `v${APP_VERSION}` : '—'}</span> },
-    { label: 'Env', value: <span className="wa-admin-value">{APP_ENV || '—'}</span> },
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div className="wa-admin-section-header">
+      {title}
+    </div>
+  );
+}
+
+// ── Call Info Tab ──
+
+function CallInfoTab({ props }: { props: SimAdminPanelProps }) {
+  const [copied, setCopied] = useState(false);
+  const qs = props.quickStart;
+
+  const sections: { title: string; rows: { label: string; value: React.ReactNode }[] }[] = [
+    {
+      title: 'Session',
+      rows: [
+        { label: 'Phase', value: <PhaseBadge phase={props.callPhase} /> },
+        { label: 'Call #', value: <span className="wa-admin-value">{qs?.this_caller ? String(qs.this_caller) : '—'}</span> },
+        { label: 'Messages', value: <span className="wa-admin-value">{props.messageCount}</span> },
+        ...(qs?.session_pacing ? [{ label: 'Pacing', value: <span className="wa-admin-value">{String(qs.session_pacing)}</span> }] : []),
+        { label: 'Journey', value: <span className="wa-admin-value">{props.journeyState || '—'}</span> },
+        { label: 'Survey', value: <span className="wa-admin-value">{props.activeSurveyStep ? 'active' : '—'}</span> },
+        ...(qs?.this_session ? [{ label: 'Session Plan', value: <span className="wa-admin-value">{String(qs.this_session)}</span> }] : []),
+      ],
+    },
+    {
+      title: 'Teaching',
+      rows: [
+        ...(qs?.you_are ? [{ label: 'Role', value: <span className="wa-admin-value">{String(qs.you_are)}</span> }] : []),
+        ...(qs?.voice_style ? [{ label: 'Voice Style', value: <span className="wa-admin-value">{String(qs.voice_style)}</span> }] : []),
+        ...(qs?.lesson_model ? [{ label: 'Lesson Model', value: <span className="wa-admin-value">{String(qs.lesson_model)}</span> }] : []),
+        ...(qs?.teaching_emphasis ? [{ label: 'Emphasis', value: <span className="wa-admin-value">{String(qs.teaching_emphasis)}</span> }] : []),
+        ...(qs?.assessment_style ? [{ label: 'Assessment', value: <span className="wa-admin-value">{String(qs.assessment_style)}</span> }] : []),
+        ...(qs?.curriculum_progress ? [{ label: 'Progress', value: <span className="wa-admin-value">{String(qs.curriculum_progress)}</span> }] : []),
+        ...(qs?.learning_guidance ? [{ label: 'Learning', value: <span className="wa-admin-value">{String(qs.learning_guidance)}</span> }] : []),
+      ],
+    },
+    {
+      title: 'Context',
+      rows: [
+        { label: 'Caller', value: <span className="wa-admin-value">{props.callerName}</span> },
+        { label: 'Playbook', value: <span className="wa-admin-value">{props.playbookName || '—'}</span> },
+        { label: 'Subject', value: <span className="wa-admin-value">{props.subjectDiscipline || '—'}</span> },
+        { label: 'Institution', value: <span className="wa-admin-value">{props.domainName || '—'}</span> },
+        { label: 'Goal', value: <span className="wa-admin-value">{props.sessionGoal || '—'}</span> },
+        ...(qs?.cohort_context ? [{ label: 'Cohort', value: <span className="wa-admin-value">{String(qs.cohort_context)}</span> }] : []),
+      ],
+    },
+    {
+      title: 'System',
+      rows: [
+        { label: 'Call ID', value: props.callId ? <CopyableValue value={props.callId} label="Call ID" /> : <span className="wa-admin-value">—</span> },
+        { label: 'Prompt ID', value: props.newPromptId ? <CopyableValue value={props.newPromptId} label="Prompt ID" /> : <span className="wa-admin-value">—</span> },
+        { label: 'Streaming', value: <span className="wa-admin-value">{props.isStreaming ? 'yes' : 'no'}</span> },
+        { label: 'Version', value: <span className="wa-admin-value">{APP_VERSION ? `v${APP_VERSION}` : '—'}</span> },
+        { label: 'Env', value: <span className="wa-admin-value">{APP_ENV || '—'}</span> },
+        ...(props.error ? [{ label: 'Error', value: <span className="wa-admin-value wa-admin-value-error">{props.error}</span> }] : []),
+      ],
+    },
   ];
 
-  if (props.error) {
-    rows.push({ label: 'Error', value: <span className="wa-admin-value wa-admin-value-error">{props.error}</span> });
-  }
+  // Filter out sections with no rows (Teaching may be empty if no quickStart)
+  const visibleSections = sections.filter(s => s.rows.length > 0);
+
+  const handleCopyAll = useCallback(() => {
+    const lines: string[] = ['## Call Info'];
+    for (const section of visibleSections) {
+      lines.push('', `### ${section.title}`);
+      for (const row of section.rows) {
+        // Extract text from the value ReactNode
+        const val = extractText(row.value);
+        lines.push(`- **${row.label}:** ${val}`);
+      }
+    }
+    navigator.clipboard.writeText(lines.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [visibleSections]);
 
   return (
     <>
-      {rows.map((r) => (
-        <div key={r.label} className="wa-admin-row">
-          <span className="wa-admin-label">{r.label}</span>
-          {r.value}
+      <button
+        className="wa-admin-copy-all-btn"
+        onClick={handleCopyAll}
+        title="Copy all fields"
+      >
+        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy All</>}
+      </button>
+      {visibleSections.map((section) => (
+        <div key={section.title}>
+          <SectionHeader title={section.title} />
+          {section.rows.map((r) => (
+            <div key={r.label} className="wa-admin-row">
+              <span className="wa-admin-label">{r.label}</span>
+              {r.value}
+            </div>
+          ))}
         </div>
       ))}
     </>
   );
+}
+
+/** Extract plain text from a ReactNode for clipboard copy */
+function extractText(node: React.ReactNode): string {
+  if (node == null) return '—';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (typeof node === 'object' && 'props' in node) {
+    const props = (node as any).props;
+    // CopyableValue renders the full value in title attr, but we want the raw value
+    if (props.value && props.label) return props.value;
+    // PhaseBadge
+    if (props.phase) return props.phase;
+    // span with children
+    if (props.children != null) return extractText(props.children);
+    if (props.className?.includes('wa-admin-phase-badge')) return extractText(props.children);
+  }
+  return '—';
 }
 
 // ── Links Tab ──
@@ -276,7 +365,7 @@ function BugTab() {
 // ── Main Panel ──
 
 export function SimAdminPanel(props: SimAdminPanelProps) {
-  const [tab, setTab] = useState<AdminTab>('debug');
+  const [tab, setTab] = useState<AdminTab>('info');
   const { errorCount } = useErrorCapture();
 
   // Close on Escape
@@ -289,7 +378,7 @@ export function SimAdminPanel(props: SimAdminPanelProps) {
   }, [props.onClose]);
 
   const tabs: { id: AdminTab; label: string; badge?: number }[] = [
-    { id: 'debug', label: 'Debug' },
+    { id: 'info', label: 'Call Info' },
     { id: 'logs', label: 'Logs' },
     { id: 'bug', label: 'Bug', badge: errorCount || undefined },
     { id: 'links', label: 'Links' },
@@ -324,7 +413,7 @@ export function SimAdminPanel(props: SimAdminPanelProps) {
 
       {/* Body */}
       <div className={`wa-admin-body${tab === 'logs' ? ' wa-admin-body-flush' : ''}`}>
-        {tab === 'debug' && <DebugTab props={props} />}
+        {tab === 'info' && <CallInfoTab props={props} />}
         {tab === 'logs' && <LogViewer mode="fullscreen" onMinimize={props.onClose} />}
         {tab === 'bug' && <BugTab />}
         {tab === 'links' && <LinksTab props={props} />}

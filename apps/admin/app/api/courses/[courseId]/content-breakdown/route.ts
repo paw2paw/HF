@@ -23,7 +23,7 @@ import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
  * @query offset number - Drill-down pagination offset (default 0)
  * @query sortBy string - Drill-down sort field: "category" | "chapter" | "source" (default "chapter")
  * @query sortDir string - Sort direction: "asc" | "desc" (default "asc")
- * @response 200 { ok, teachingMode, methods, total, reviewedCount } (summary mode)
+ * @response 200 { ok, teachingMode, methods, total, contentCount, instructionCount, unassignedContentCount, reviewedCount, categoryCounts } (summary mode)
  * @response 200 { ok, assertions, total } (drill-down mode)
  * @response 404 { ok: false, error: "Course not found" }
  */
@@ -191,7 +191,7 @@ export async function GET(
     }
 
     // ── Summary mode: counts by teachMethod ───────────
-    const [methodGroups, totalCount, reviewedCount, instructionCount, categoryGroups] = await Promise.all([
+    const [methodGroups, totalCount, reviewedCount, instructionCount, unassignedContentCount, categoryGroups] = await Promise.all([
       prisma.contentAssertion.groupBy({
         by: ["teachMethod"],
         where: { sourceId: { in: sourceIds } },
@@ -206,6 +206,14 @@ export async function GET(
       }),
       prisma.contentAssertion.count({
         where: { sourceId: { in: sourceIds }, category: { in: [...INSTRUCTION_CATEGORIES] } },
+      }),
+      // Content-only unassigned: TPs without a method, excluding instruction categories
+      prisma.contentAssertion.count({
+        where: {
+          sourceId: { in: sourceIds },
+          teachMethod: null,
+          category: { notIn: [...INSTRUCTION_CATEGORIES] },
+        },
       }),
       prisma.contentAssertion.groupBy({
         by: ["category"],
@@ -302,6 +310,7 @@ export async function GET(
       total: totalCount,
       contentCount: totalCount - instructionCount,
       instructionCount,
+      unassignedContentCount,
       reviewedCount,
       categoryCounts,
       ...(bySubjectData ? { bySubject: bySubjectData } : {}),

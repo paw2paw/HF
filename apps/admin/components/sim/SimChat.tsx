@@ -144,6 +144,7 @@ export function SimChat({
   const [callPhase, setCallPhase] = useState<'loading' | 'lobby' | 'active' | 'ended'>('loading');
   const [callEndedAt, setCallEndedAt] = useState<Date | null>(null);
   const [newPromptId, setNewPromptId] = useState<string | null>(null);
+  const [quickStart, setQuickStart] = useState<Record<string, unknown> | null>(null);
   const [showContentPicker, setShowContentPicker] = useState(false);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [isGreeting, setIsGreeting] = useState(false);
@@ -359,10 +360,11 @@ export function SimChat({
         const composeData = await composeRes.json();
         const rawPromptId = composeData.prompt?.id;
         usedPromptId = (rawPromptId && !rawPromptId.startsWith('preview-')) ? rawPromptId : null;
-        const quickStart = (composeData.prompt?.llmPrompt as any)?._quickStart;
-        firstLine = quickStart?.first_line || null;
+        const qs = (composeData.prompt?.llmPrompt as any)?._quickStart;
+        if (qs) setQuickStart(qs);
+        firstLine = qs?.first_line || null;
         // Extract duration budget for wrap-up cue
-        const pacingMatch = quickStart?.session_pacing?.match(/(\d+)\s*min/);
+        const pacingMatch = qs?.session_pacing?.match(/(\d+)\s*min/);
         durationBudgetRef.current = pacingMatch ? parseInt(pacingMatch[1], 10) : null;
         wrapUpSentRef.current = false;
       } else {
@@ -693,6 +695,8 @@ export function SimChat({
                 if (actCount > 0) setActions(actData.actions);
                 if (promptData?.prompt?.id) {
                   setNewPromptId(promptData.prompt.id);
+                  const postQs = (promptData.prompt?.llmPrompt as any)?._quickStart;
+                  if (postQs) setQuickStart(postQs);
                   console.log('[sim] New prompt composed:', promptData.prompt.id);
                 }
                 const parts = [];
@@ -1306,6 +1310,7 @@ export function SimChat({
           sessionGoal={sessionGoal}
           journeyState={journey?.state}
           activeSurveyStep={journey?.activeSurveyStep}
+          quickStart={quickStart}
         />
       )}
     </>

@@ -48,7 +48,6 @@ export async function GET(
         createdAt: true,
         sourceId: true,
         source: { select: { id: true, name: true } },
-        reviewer: { select: { id: true, name: true, email: true } },
         _count: { select: { children: true } },
       },
     });
@@ -58,21 +57,36 @@ export async function GET(
     }
 
     // Verify assertion belongs to this course's subject graph
-    const subjects = await getSubjectsForPlaybook(courseId);
+    const playbook = await prisma.playbook.findUnique({
+      where: { id: courseId },
+      select: { domain: { select: { id: true } } },
+    });
+    if (!playbook?.domain?.id) {
+      return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+    }
+    const { subjects } = await getSubjectsForPlaybook(courseId, playbook.domain.id);
     const sourceIds = new Set(
-      (subjects || []).flatMap((s: any) =>
-        (s.sources || []).map((src: any) => src.sourceId || src.id),
-      ),
+      subjects.flatMap((s) => s.sources.map((src) => src.sourceId)),
     );
 
     if (!sourceIds.has(assertion.sourceId)) {
       return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
     }
 
-    // Strip sourceId from response (internal FK)
-    const { sourceId: _sourceId, ...rest } = assertion;
+    // Resolve reviewer if reviewedBy is set
+    let reviewer: { id: string; name: string | null; email: string } | null = null;
+    if (assertion.reviewedBy) {
+      const user = await prisma.user.findUnique({
+        where: { id: assertion.reviewedBy },
+        select: { id: true, name: true, email: true },
+      });
+      reviewer = user;
+    }
 
-    return NextResponse.json({ ok: true, assertion: rest });
+    // Strip sourceId from response (internal FK)
+    const { sourceId: _sourceId, reviewedBy: _reviewedBy, ...rest } = assertion;
+
+    return NextResponse.json({ ok: true, assertion: { ...rest, reviewer } });
   } catch (err: any) {
     console.error('[assertion-detail] Error:', err);
     return NextResponse.json(

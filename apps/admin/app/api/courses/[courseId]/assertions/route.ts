@@ -27,14 +27,23 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get("limit") || "500"), 1000);
 
-    // Get source IDs for this playbook's subjects
-    const subjects = await getSubjectsForPlaybook(courseId);
-    if (!subjects || subjects.length === 0) {
+    // Look up playbook to get domainId
+    const playbook = await prisma.playbook.findUnique({
+      where: { id: courseId },
+      select: { domain: { select: { id: true } } },
+    });
+    if (!playbook?.domain?.id) {
       return NextResponse.json({ ok: true, assertions: [], total: 0 });
     }
 
-    const sourceIds = subjects.flatMap((s: any) =>
-      (s.sources || []).map((src: any) => src.sourceId || src.id)
+    // Get source IDs for this playbook's subjects
+    const { subjects } = await getSubjectsForPlaybook(courseId, playbook.domain.id);
+    if (subjects.length === 0) {
+      return NextResponse.json({ ok: true, assertions: [], total: 0 });
+    }
+
+    const sourceIds = subjects.flatMap((s) =>
+      s.sources.map((src) => src.sourceId)
     );
 
     if (sourceIds.length === 0) {

@@ -143,6 +143,7 @@ export default function CourseDetailPage() {
   const [contentMethods, setContentMethods] = useState<MethodBreakdown[]>([]);
   const [contentTotal, setContentTotal] = useState(0);
   const [instructionTotal, setInstructionTotal] = useState(0);
+  const [unassignedContentCount, setUnassignedContentCount] = useState(0);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   // Tabs
@@ -222,6 +223,7 @@ export default function CourseDetailPage() {
           setContentMethods(breakdownData.methods || []);
           setContentTotal(breakdownData.total || 0);
           setInstructionTotal(breakdownData.instructionCount || 0);
+          setUnassignedContentCount(breakdownData.unassignedContentCount || 0);
           setCategoryCounts(breakdownData.categoryCounts || {});
         }
       })
@@ -1222,12 +1224,15 @@ export default function CourseDetailPage() {
           subjects={subjects}
           contentMethods={contentMethods}
           contentTotal={contentTotal}
+          instructionCount={instructionTotal}
+          unassignedContentCount={unassignedContentCount}
           categoryCounts={categoryCounts}
           isOperator={isOperator}
-          onContentRefresh={(methods, total, instrCount) => {
+          onContentRefresh={(methods, total, instrCount, unassignedContent) => {
             setContentMethods(methods);
             setContentTotal(total);
             if (instrCount !== undefined) setInstructionTotal(instrCount);
+            if (unassignedContent !== undefined) setUnassignedContentCount(unassignedContent);
           }}
         />
       )}
