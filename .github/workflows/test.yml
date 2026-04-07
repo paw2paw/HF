@@ -13,6 +13,9 @@ jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
     steps:
       - uses: actions/checkout@v4
 
@@ -21,34 +24,33 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run ESLint
         run: npm run lint
-        working-directory: apps/admin
 
       - name: TypeScript type check
         run: npx tsc --noEmit
-        working-directory: apps/admin
 
       - name: Validate API docs annotations
         run: npm run docs:api:validate
-        working-directory: apps/admin
 
       - name: Check API docs are up to date
         run: npm run docs:api:check
-        working-directory: apps/admin
 
       - name: Documentation health check
         run: npm run docs:health:ci
-        working-directory: apps/admin
 
   # Job 2: Unit Tests
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
     steps:
       - uses: actions/checkout@v4
 
@@ -57,13 +59,13 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run unit tests
         run: npm run test -- --coverage
-        working-directory: apps/admin
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -82,12 +84,14 @@ jobs:
             echo "❌ Coverage is below 70% threshold"
             exit 1
           fi
-        working-directory: apps/admin
 
   # Job 3: Integration Tests
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
 
     services:
       postgres:
@@ -115,21 +119,19 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run Prisma migrations
         run: npx prisma migrate deploy
-        working-directory: apps/admin
 
       - name: Seed specs (required for journey tests)
         run: npx tsx prisma/seed-from-specs.ts
-        working-directory: apps/admin
 
       - name: Run integration tests
         run: npm run test:integration
-        working-directory: apps/admin
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -143,6 +145,9 @@ jobs:
   build:
     name: Build Check
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
     steps:
       - uses: actions/checkout@v4
 
@@ -151,13 +156,13 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build application
         run: npm run build
-        working-directory: apps/admin
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hf_test
           SKIP_ENV_VALIDATION: true
@@ -166,7 +171,6 @@ jobs:
         run: |
           BUNDLE_SIZE=$(du -sh .next | cut -f1)
           echo "Bundle size: $BUNDLE_SIZE"
-        working-directory: apps/admin
 
   # Summary job - all tests must pass
   test-summary:

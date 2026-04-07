@@ -2,6 +2,17 @@
 -- Add: SUPERADMIN, SUPER_TESTER, TESTER, DEMO
 -- Keep: ADMIN, OPERATOR, VIEWER (VIEWER deprecated, alias for TESTER)
 
+-- Create UserRole enum if it doesn't exist (may have been created via db push)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserRole') THEN
+    CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'OPERATOR', 'VIEWER');
+  END IF;
+END $$;
+
+-- Add role column to User if it doesn't exist (may have been added via db push)
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "role" "UserRole" NOT NULL DEFAULT 'VIEWER';
+
 ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'SUPERADMIN';
 ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'SUPER_TESTER';
 ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'TESTER';

@@ -16,6 +16,9 @@ jobs:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/admin
 
     services:
       postgres:
@@ -44,36 +47,31 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-        working-directory: apps/admin
 
       - name: Run Prisma migrations
         run: npx prisma migrate deploy
-        working-directory: apps/admin
 
       - name: Seed test data
         run: npx tsx prisma/seed-test-comprehensive.ts
-        working-directory: apps/admin
 
       - name: Build application
         run: npm run build
-        working-directory: apps/admin
 
       - name: Start application
         run: |
           npm run start &
           # Wait for app to be ready
           npx wait-on http://localhost:3000 -t 60000
-        working-directory: apps/admin
 
       - name: Run Playwright tests
         run: npx playwright test
-        working-directory: apps/admin
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -96,6 +94,9 @@ jobs:
     name: Visual Regression Tests
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: apps/admin
 
     services:
       postgres:
@@ -125,30 +126,27 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
-        working-directory: apps/admin
 
       - name: Setup database
         run: |
           npx prisma migrate deploy
           npx tsx prisma/seed-test-comprehensive.ts
-        working-directory: apps/admin
 
       - name: Build and start app
         run: |
           npm run build
           npm run start &
           npx wait-on http://localhost:3000 -t 60000
-        working-directory: apps/admin
 
       - name: Run visual regression tests
         run: npx playwright test --grep @visual
-        working-directory: apps/admin
 
       - name: Upload visual diff
         uses: actions/upload-artifact@v4
