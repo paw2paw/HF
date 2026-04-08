@@ -459,10 +459,9 @@ export function JourneyRail({
     }
   }, []);
 
-  // Auto-poll when plan is empty — background generation may be in progress.
-  // Polls the sessions API directly (not onRetry) to avoid flashing the loading state.
+  // Auto-poll when regenerating — polls until plan data appears.
   useEffect(() => {
-    if (sessions.length > 0 || loading || !!error || !onRetry) return;
+    if (sessions.length > 0 || loading || !!error || !regenerating || !onRetry) return;
     const id = setInterval(() => {
       fetch(`/api/courses/${courseId}/sessions`)
         .then((r) => r.json())
@@ -474,7 +473,7 @@ export function JourneyRail({
         .catch(() => {}); // Silently retry on next interval
     }, 3000);
     return () => clearInterval(id);
-  }, [sessions.length, loading, error, onRetry, courseId]);
+  }, [sessions.length, loading, error, regenerating, onRetry, courseId]);
 
   // ── Loading / Error / Empty ───────────────────────
 
@@ -500,17 +499,27 @@ export function JourneyRail({
   }
 
   if (sessions.length === 0) {
-    return (
-      <div className={`jrl-empty${onRetry ? " hf-glow-active" : ""}`}>
-        <ListOrdered size={36} className="hf-text-tertiary" />
-        <div className="hf-heading-sm hf-text-secondary">
-          {onRetry ? "Generating lesson plan..." : "No lesson plan yet"}
+    if (regenerating) {
+      return (
+        <div className="jrl-empty hf-glow-active">
+          <ListOrdered size={36} className="hf-text-tertiary" />
+          <div className="hf-heading-sm hf-text-secondary">Generating lesson plan...</div>
+          <p className="hf-text-xs hf-text-muted">This usually takes a few seconds.</p>
         </div>
+      );
+    }
+    return (
+      <div className="jrl-empty">
+        <ListOrdered size={36} className="hf-text-tertiary" />
+        <div className="hf-heading-sm hf-text-secondary">No lesson plan yet</div>
         <p className="hf-text-xs hf-text-muted">
-          {onRetry
-            ? "This usually takes a few seconds."
-            : "A lesson plan is created when you set up your course content."}
+          Generate a lesson plan from your course content.
         </p>
+        {onRegenerate && (
+          <button onClick={onRegenerate} className="hf-btn hf-btn-primary hf-btn-sm">
+            <Sparkles size={14} /> Generate Lesson Plan
+          </button>
+        )}
       </div>
     );
   }

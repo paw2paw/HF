@@ -53,6 +53,16 @@ export async function GET(_request: NextRequest, { params }: Params): Promise<Ne
       });
     }
 
+    // Backfill joinToken for legacy cohorts created before this column existed
+    if (!cohort.joinToken) {
+      const newToken = crypto.randomUUID().slice(0, 12);
+      await prisma.cohortGroup.update({
+        where: { id: cohort.id },
+        data: { joinToken: newToken },
+      });
+      cohort.joinToken = newToken;
+    }
+
     // Fetch enrolled callers + pending invites in parallel
     const [members, invites] = await Promise.all([
       prisma.callerCohortMembership.findMany({

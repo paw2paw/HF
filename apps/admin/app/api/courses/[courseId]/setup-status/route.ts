@@ -90,8 +90,9 @@ export async function GET(
     });
     const promptComposable = !!composedPrompt;
 
-    // All critical = prompt composable (matches COURSE-READY-001 critical check)
-    const allCriticalPass = promptComposable;
+    // All critical = lesson plan + onboarding configured
+    // Prompt composition happens on first call — not an educator-facing readiness gate
+    const allCriticalPass = lessonPlanBuilt && onboardingConfigured;
 
     return NextResponse.json({
       ok: true,

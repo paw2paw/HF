@@ -8,7 +8,7 @@ import {
   Sparkles, AlertTriangle,
   Settings as SettingsIcon, Users2,
   Zap, Target, BarChart3,
-  PlayCircle,
+  PlayCircle, Copy, Link2,
 } from 'lucide-react';
 import { useTerminology } from '@/contexts/TerminologyContext';
 import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS } from '@/lib/content-trust/resolve-config';
@@ -138,6 +138,8 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSimModal, setShowSimModal] = useState(false);
+  const [joinToken, setJoinToken] = useState<string | null>(null);
+  const [joinCopied, setJoinCopied] = useState(false);
 
   // Content breakdown
   const [contentMethods, setContentMethods] = useState<MethodBreakdown[]>([]);
@@ -209,8 +211,9 @@ export default function CourseDetailPage() {
       fetch(`/api/playbooks/${courseId}`).then((r) => r.json()),
       fetch(`/api/courses/${courseId}/subjects`).then((r) => r.json()),
       fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then((r) => r.json()),
+      fetch(`/api/courses/${courseId}/learners`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([pbData, subData, breakdownData]) => {
+      .then(([pbData, subData, breakdownData, learnersData]) => {
         if (pbData.ok) {
           setDetail(pbData.playbook);
           pushEntity({
@@ -231,6 +234,9 @@ export default function CourseDetailPage() {
           setInstructionTotal(breakdownData.instructionCount || 0);
           setUnassignedContentCount(breakdownData.unassignedContentCount || 0);
           setCategoryCounts(breakdownData.categoryCounts || {});
+        }
+        if (learnersData?.ok && learnersData.joinToken) {
+          setJoinToken(learnersData.joinToken);
         }
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
@@ -967,7 +973,24 @@ export default function CourseDetailPage() {
         </button>
       ) : null}
 
-
+      {/* Enrol link */}
+      {joinToken && (
+        <div className="hf-banner hf-banner-success hf-mb-md hf-flex hf-items-center hf-gap-sm">
+          <Link2 size={14} />
+          <code className="hf-text-xs" style={{ flex: 1 }}>{`${typeof window !== 'undefined' ? window.location.origin : ''}/join/${joinToken}`}</code>
+          <button
+            className="hf-btn hf-btn-xs"
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/join/${joinToken}`);
+              setJoinCopied(true);
+              setTimeout(() => setJoinCopied(false), 2000);
+            }}
+          >
+            <Copy size={12} />
+            {joinCopied ? 'Copied!' : 'Copy enrol link'}
+          </button>
+        </div>
+      )}
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <DraggableTabs
@@ -1301,7 +1324,7 @@ export default function CourseDetailPage() {
       {/* LEARNERS TAB                                   */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'learners' && (
-        <CourseLearnersTab courseId={courseId!} />
+        <CourseLearnersTab courseId={courseId!} initialJoinToken={joinToken} />
       )}
 
       {/* ═══════════════════════════════════════════════ */}

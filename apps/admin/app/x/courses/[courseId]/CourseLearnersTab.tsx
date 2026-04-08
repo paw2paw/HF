@@ -40,6 +40,7 @@ type Summary = {
 
 type Props = {
   courseId: string;
+  initialJoinToken?: string | null;
 };
 
 // ── Helpers ────────────────────────────────────────────
@@ -67,10 +68,10 @@ function statusBadge(status: string): { label: string; className: string } {
 
 // ── Component ──────────────────────────────────────────
 
-export function CourseLearnersTab({ courseId }: Props): React.ReactElement {
+export function CourseLearnersTab({ courseId, initialJoinToken }: Props): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [cohortId, setCohortId] = useState<string | null>(null);
-  const [joinToken, setJoinToken] = useState<string | null>(null);
+  const [joinToken, setJoinToken] = useState<string | null>(initialJoinToken ?? null);
   const [learners, setLearners] = useState<Learner[]>([]);
   const [summary, setSummary] = useState<Summary>({ enrolled: 0, active: 0, totalCalls: 0, goalRate: 0 });
   const [emailInput, setEmailInput] = useState('');

@@ -165,7 +165,7 @@ export function CourseGoalsTab({ courseId }: CourseGoalsTabProps): React.ReactEl
     <div className="hf-mt-md">
       {/* Status summary cards */}
       {counts && (
-        <div className="hf-grid-auto hf-gap-sm hf-mb-md">
+        <div className="hf-grid-4 hf-mb-md">
           {Object.entries(GOAL_STATUS_CONFIG).map(([key, cfg]) => {
             const count = counts.byStatus[key] || 0;
             return (
