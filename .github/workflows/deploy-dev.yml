@@ -1,11 +1,7 @@
 name: Deploy to Dev
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/admin/**"
-      - ".github/workflows/deploy-dev.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-dev

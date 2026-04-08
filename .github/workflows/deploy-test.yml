@@ -1,11 +1,7 @@
 name: Deploy to Test
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "apps/admin/**"
-      - ".github/workflows/deploy-test.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-test
