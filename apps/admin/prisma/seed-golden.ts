@@ -266,29 +266,41 @@ const COURSE_CONTENT = {
     { assertion: "Estimation means rounding numbers to make a rough calculation. It helps check whether an answer is reasonable before or after solving.", category: "concept", chapter: "Problem Solving", section: "Estimation", tags: ["problem-solving", "estimation", "rounding"], learningOutcomeRef: "MATHS-LO11", topicSlug: "estimation" },
     { assertion: "When explaining mathematical reasoning, use precise vocabulary (e.g. 'I multiplied because...', 'The denominator must be the same because...') and show each step clearly.", category: "process", chapter: "Problem Solving", section: "Reasoning", tags: ["problem-solving", "reasoning", "vocabulary"], learningOutcomeRef: "MATHS-LO12", topicSlug: "mathematical-reasoning" },
   ],
-  lessonPlan: [
+  lessonPlanEntries: [
     {
       session: 1,
       type: "introduce",
       label: "Fractions Fundamentals",
+      moduleSlug: "MOD-1",
+      moduleLabel: "Fractions & Decimals",
+      estimatedDurationMins: 30,
       learningOutcomeRefs: ["MATHS-LO1", "MATHS-LO2", "MATHS-LO3"],
     },
     {
       session: 2,
       type: "introduce",
       label: "Decimals & Place Value",
+      moduleSlug: "MOD-1",
+      moduleLabel: "Fractions & Decimals",
+      estimatedDurationMins: 30,
       learningOutcomeRefs: ["MATHS-LO4", "MATHS-LO5"],
     },
     {
       session: 3,
       type: "introduce",
       label: "Shape & Space",
+      moduleSlug: "MOD-2",
+      moduleLabel: "Geometry & Measurement",
+      estimatedDurationMins: 30,
       learningOutcomeRefs: ["MATHS-LO6", "MATHS-LO7", "MATHS-LO8", "MATHS-LO9"],
     },
     {
       session: 4,
       type: "consolidate",
       label: "Problem Solving Challenge",
+      moduleSlug: "MOD-3",
+      moduleLabel: "Problem Solving",
+      estimatedDurationMins: 30,
       learningOutcomeRefs: ["MATHS-LO10", "MATHS-LO11", "MATHS-LO12"],
     },
   ],
@@ -817,13 +829,12 @@ async function seedCourseContent(
     create: { playbookId, subjectId },
   });
 
-  // Curriculum
+  // Curriculum — created with placeholder deliveryConfig, updated after assertions exist
   const curriculum = await prisma.curriculum.upsert({
     where: { slug: COURSE_CONTENT.curriculum.slug },
     update: {
       name: COURSE_CONTENT.curriculum.name,
       description: COURSE_CONTENT.curriculum.description,
-      deliveryConfig: { lessonPlan: COURSE_CONTENT.lessonPlan },
     },
     create: {
       slug: COURSE_CONTENT.curriculum.slug,
@@ -832,12 +843,13 @@ async function seedCourseContent(
       subjectId,
       primarySourceId: source.id,
       trustLevel: "EXPERT_CURATED",
-      deliveryConfig: { lessonPlan: COURSE_CONTENT.lessonPlan },
+      deliveryConfig: {},
     },
   });
 
   // Modules + LearningObjectives
   const loRefToId = new Map<string, string>();
+  const moduleSlugToId = new Map<string, string>();
 
   for (const modDef of COURSE_CONTENT.modules) {
     const mod = await prisma.curriculumModule.upsert({
@@ -851,6 +863,7 @@ async function seedCourseContent(
         sortOrder: modDef.sortOrder,
       },
     });
+    moduleSlugToId.set(modDef.slug, mod.id);
 
     for (const loDef of modDef.learningObjectives) {
       const lo = await prisma.learningObjective.upsert({
@@ -874,9 +887,12 @@ async function seedCourseContent(
     where: { sourceId: source.id },
   });
 
+  // Build ref→assertionIds map for lesson plan binding
+  const refToAssertionIds = new Map<string, string[]>();
+
   for (let i = 0; i < COURSE_CONTENT.assertions.length; i++) {
     const a = COURSE_CONTENT.assertions[i];
-    await prisma.contentAssertion.create({
+    const created = await prisma.contentAssertion.create({
       data: {
         sourceId: source.id,
         subjectSourceId: subjectSource.id,
@@ -893,10 +909,40 @@ async function seedCourseContent(
         createdBy: "golden-seed",
       },
     });
+    const existing = refToAssertionIds.get(a.learningOutcomeRef) ?? [];
+    existing.push(created.id);
+    refToAssertionIds.set(a.learningOutcomeRef, existing);
   }
 
-  console.log(`      + ${COURSE_CONTENT.assertions.length} teaching points`);
-  console.log(`      + Curriculum: ${curriculum.name} (${COURSE_CONTENT.modules.length} modules, ${COURSE_CONTENT.lessonPlan.length} sessions)`);
+  // Build deliveryConfig with proper structure + assertionIds
+  const entries = COURSE_CONTENT.lessonPlanEntries.map((entry) => ({
+    session: entry.session,
+    type: entry.type,
+    label: entry.label,
+    moduleId: moduleSlugToId.get(entry.moduleSlug) ?? null,
+    moduleLabel: entry.moduleLabel,
+    estimatedDurationMins: entry.estimatedDurationMins,
+    learningOutcomeRefs: entry.learningOutcomeRefs,
+    assertionIds: entry.learningOutcomeRefs.flatMap((ref) => refToAssertionIds.get(ref) ?? []),
+  }));
+
+  await prisma.curriculum.update({
+    where: { id: curriculum.id },
+    data: {
+      deliveryConfig: {
+        lessonPlan: {
+          estimatedSessions: entries.length,
+          generatedAt: new Date().toISOString(),
+          generatedFrom: "golden-seed",
+          entries,
+        },
+      },
+    },
+  });
+
+  const totalAssigned = entries.reduce((sum, e) => sum + e.assertionIds.length, 0);
+  console.log(`      + ${COURSE_CONTENT.assertions.length} teaching points (${totalAssigned} assigned to sessions)`);
+  console.log(`      + Curriculum: ${curriculum.name} (${COURSE_CONTENT.modules.length} modules, ${entries.length} sessions)`);
 }
 
 // ══════════════════════════════════════════════════════════
