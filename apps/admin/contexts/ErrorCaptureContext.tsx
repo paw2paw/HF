@@ -101,9 +101,15 @@ export function ErrorCaptureProvider({ children }: { children: React.ReactNode }
             } catch {
               // Clone/read failed — proceed without detail
             }
+            // Extract API path for readable error messages
+            let shortPath = reqUrl;
+            try {
+              const parsed = new URL(reqUrl, window.location.origin);
+              shortPath = parsed.pathname + parsed.search;
+            } catch { /* use raw url */ }
             const msg = errorDetail
-              ? `Fetch ${response.status}: ${errorDetail}`
-              : `Fetch failed: ${response.status} ${response.statusText}`;
+              ? `${response.status} ${shortPath}: ${errorDetail}`
+              : `${response.status} ${shortPath} (${response.statusText})`;
             pushError({
               timestamp: Date.now(),
               message: msg,

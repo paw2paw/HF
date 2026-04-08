@@ -107,7 +107,10 @@ export function bugContextToMarkdown(
   if (ctx.recentErrors.length > 0) {
     lines.push("", "### Captured JS Errors");
     for (const err of ctx.recentErrors) {
-      lines.push(`- \`${err.message}\`${err.source ? ` (${err.source})` : ""}`);
+      const parts = [`\`${err.message}\``];
+      if (err.url) parts.push(`→ \`${err.url}\``);
+      if (err.source) parts.push(`(${err.source})`);
+      lines.push(`- ${parts.join(" ")}`);
     }
   }
 

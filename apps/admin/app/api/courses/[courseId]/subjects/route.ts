@@ -98,6 +98,7 @@ export async function GET(
           name: s.name,
           description: s.description,
           defaultTrustLevel: s.defaultTrustLevel,
+          teachingProfile: s.teachingProfile,
           sourceCount: s._count.sources,
           curriculumCount: s._count.curricula,
           assertionCount,
