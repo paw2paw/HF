@@ -20,6 +20,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { categoryToTeachMethod } from "../lib/content-trust/resolve-config";
 
 const DEMO_PASSWORD = "hff2026";
 const TAG = "golden-";
@@ -559,7 +560,23 @@ export async function main(externalPrisma?: PrismaClient, opts?: { skipCleanup?:
             learnSpecCount: 0,
             adaptSpecCount: 0,
             parameterCount: 0,
-            config: { systemSpecToggles },
+            config: {
+              systemSpecToggles,
+              audience: "primary",
+              surveys: {
+                pre: { enabled: true },
+                mid: { enabled: false },
+                post: { enabled: true },
+              },
+              assessment: {
+                preTest: { enabled: true },
+                postTest: { enabled: true },
+              },
+              goals: [
+                { type: "TOPIC_MASTERED", name: "Master core topics" },
+                { type: "CONFIDENCE_GAIN", name: "Build confidence" },
+              ],
+            },
           },
         });
 
@@ -628,6 +645,7 @@ export async function main(externalPrisma?: PrismaClient, opts?: { skipCleanup?:
             institutionId: institution.id,
             maxMembers: 50,
             isActive: true,
+            joinToken: crypto.randomUUID().slice(0, 12),
           },
         });
       }
@@ -904,6 +922,7 @@ async function seedCourseContent(
         learningOutcomeRef: a.learningOutcomeRef,
         learningObjectiveId: loRefToId.get(a.learningOutcomeRef) ?? null,
         topicSlug: a.topicSlug,
+        teachMethod: categoryToTeachMethod(a.category, "recall"),
         depth: 1,
         orderIndex: i,
         createdBy: "golden-seed",
@@ -914,8 +933,8 @@ async function seedCourseContent(
     refToAssertionIds.set(a.learningOutcomeRef, existing);
   }
 
-  // Build deliveryConfig with proper structure + assertionIds
-  const entries = COURSE_CONTENT.lessonPlanEntries.map((entry) => ({
+  // Build teaching entries with assertionIds
+  const teachingEntries = COURSE_CONTENT.lessonPlanEntries.map((entry) => ({
     session: entry.session,
     type: entry.type,
     label: entry.label,
@@ -925,6 +944,18 @@ async function seedCourseContent(
     learningOutcomeRefs: entry.learningOutcomeRefs,
     assertionIds: entry.learningOutcomeRefs.flatMap((ref) => refToAssertionIds.get(ref) ?? []),
   }));
+
+  // Wrap teaching entries with structural + survey stops
+  // (Inline instead of applyAutoIncludeStops to avoid contract DB dependency at seed time)
+  const entries = [
+    { session: 1, type: "pre_survey", label: "Pre-Survey", moduleId: null, moduleLabel: "", estimatedDurationMins: 2, isOptional: true },
+    { session: 2, type: "onboarding", label: "First Call", moduleId: null, moduleLabel: "", isOptional: false },
+    ...teachingEntries,
+    { session: 0, type: "offboarding", label: "Last Call", moduleId: null, moduleLabel: "", isOptional: false },
+    { session: 0, type: "post_survey", label: "Post-Survey", moduleId: null, moduleLabel: "", estimatedDurationMins: 2, isOptional: true },
+  ];
+  // Renumber sequentially
+  entries.forEach((e, i) => { e.session = i + 1; });
 
   await prisma.curriculum.update({
     where: { id: curriculum.id },
@@ -940,9 +971,85 @@ async function seedCourseContent(
     },
   });
 
-  const totalAssigned = entries.reduce((sum, e) => sum + e.assertionIds.length, 0);
+  const totalAssigned = teachingEntries.reduce((sum, e) => sum + (e.assertionIds?.length ?? 0), 0);
   console.log(`      + ${COURSE_CONTENT.assertions.length} teaching points (${totalAssigned} assigned to sessions)`);
-  console.log(`      + Curriculum: ${curriculum.name} (${COURSE_CONTENT.modules.length} modules, ${entries.length} sessions)`);
+  console.log(`      + Curriculum: ${curriculum.name} (${COURSE_CONTENT.modules.length} modules, ${entries.length} stops incl. surveys)`);
+
+  // ── Seed MCQ questions (for pre/post-test assessments) ──
+  // Delete existing then create — idempotent
+  await prisma.contentQuestion.deleteMany({ where: { sourceId: source.id } });
+
+  const allAssertionIds = [...refToAssertionIds.values()].flat();
+  const allAssertions = await prisma.contentAssertion.findMany({
+    where: { id: { in: allAssertionIds } },
+    select: { id: true, assertion: true, category: true, learningOutcomeRef: true, topicSlug: true, chapter: true, section: true, tags: true },
+  });
+
+  let mcqCount = 0;
+  for (const a of allAssertions) {
+    // Generate one MCQ per assertion — simple but covers the course
+    const distractors = generateDistractors(a.assertion, a.category);
+    const options = shuffleOptions([
+      { label: "A", text: distractors.correct, isCorrect: true },
+      { label: "B", text: distractors.wrong1, isCorrect: false },
+      { label: "C", text: distractors.wrong2, isCorrect: false },
+      { label: "D", text: distractors.wrong3, isCorrect: false },
+    ]);
+    // Re-label after shuffle
+    options.forEach((o, i) => { o.label = String.fromCharCode(65 + i); });
+
+    await prisma.contentQuestion.create({
+      data: {
+        sourceId: source.id,
+        subjectSourceId: subjectSource.id,
+        questionText: `Which of the following is correct about: ${a.assertion.slice(0, 80)}...?`,
+        questionType: "MCQ",
+        options,
+        correctAnswer: options.find((o) => o.isCorrect)!.label,
+        answerExplanation: a.assertion,
+        assertionId: a.id,
+        learningOutcomeRef: a.learningOutcomeRef,
+        chapter: a.chapter,
+        section: a.section,
+        tags: a.tags ?? [],
+        sortOrder: mcqCount,
+        difficulty: 2,
+        assessmentUse: mcqCount % 2 === 0 ? "PRE_TEST" : "POST_TEST",
+      },
+    });
+    mcqCount++;
+  }
+  console.log(`      + ${mcqCount} MCQ questions (pre/post-test)`);
+}
+
+/** Generate plausible distractors from an assertion. Deterministic, no AI needed. */
+function generateDistractors(assertion: string, category: string): { correct: string; wrong1: string; wrong2: string; wrong3: string } {
+  const correct = assertion.length > 100 ? assertion.slice(0, 100) + "..." : assertion;
+  // Category-aware wrong answers
+  const wrongAnswers: Record<string, string[]> = {
+    process: ["Skip the first step and go directly to the answer", "Use the opposite operation instead", "Apply the rule to only one side"],
+    concept: ["The opposite is true in all cases", "This only applies to whole numbers", "This relationship is reversed"],
+    definition: ["This term means the same as its opposite", "This is only true for negative values", "The definition excludes the most common case"],
+    rule: ["The rule works in reverse order", "Exceptions are more common than the rule", "This rule was replaced by a newer method"],
+    fact: ["The value is exactly double", "This only applies in special cases", "The opposite relationship holds"],
+  };
+  const pool = wrongAnswers[category] || wrongAnswers.fact!;
+  return {
+    correct,
+    wrong1: pool[0],
+    wrong2: pool[1],
+    wrong3: pool[2],
+  };
+}
+
+/** Shuffle array in place (Fisher-Yates) */
+function shuffleOptions<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 // ══════════════════════════════════════════════════════════
