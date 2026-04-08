@@ -12,7 +12,7 @@ import { segmentDocument } from "@/lib/content-trust/segment-document";
 import { saveAssertions } from "@/lib/content-trust/save-assertions";
 import { saveQuestions } from "@/lib/content-trust/save-questions";
 import { saveVocabulary } from "@/lib/content-trust/save-vocabulary";
-import { getExtractor } from "@/lib/content-trust/extractors/registry";
+import { getExtractor, EXTRACTOR_VERSION } from "@/lib/content-trust/extractors/registry";
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 import {
   createExtractionTask,
@@ -193,6 +193,22 @@ export async function POST(
           { status: 422 },
         );
       }
+    }
+
+    // Guard: reject if extraction already in progress for this source
+    const activeTask = await prisma.userTask.findFirst({
+      where: {
+        taskType: "extraction",
+        status: "in_progress",
+        context: { path: ["sourceId"], equals: sourceId },
+      },
+      select: { id: true },
+    });
+    if (activeTask) {
+      return NextResponse.json(
+        { ok: false, error: "Extraction already in progress for this source" },
+        { status: 409 },
+      );
     }
 
     // Create extraction task and start background job
@@ -434,6 +450,12 @@ async function runBackgroundExtraction(
     duplicatesSkipped: totalDuplicatesSkipped,
     extractedCount: assertionResult.assertions.length,
     warnings: [...(assertionResult.warnings || []), ...linkingWarnings],
+  });
+
+  // Stamp extraction version + timestamp for staleness detection
+  await prisma.contentSource.update({
+    where: { id: sourceId },
+    data: { extractorVersion: EXTRACTOR_VERSION, lastExtractedAt: new Date() },
   });
 
   console.log(`[extract] Source ${sourceId}: ${totalCreated} assertions, ${totalQuestionsCreated} questions, ${totalVocabularyCreated} vocabulary items`);

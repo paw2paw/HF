@@ -17,6 +17,7 @@ type SourceDetail = {
   id: string;
   name: string;
   documentType: string;
+  extractorVersion: number | null;
   assertionCount: number;
   linkedSourceId: string | null;
   linkedSourceName: string | null;

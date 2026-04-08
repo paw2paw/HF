@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { RefreshCw, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { getDocTypeInfo } from '@/lib/doc-type-icons';
 import { useSourceStatus } from '@/hooks/useSourceStatus';
+import { EXTRACTOR_VERSION, isExtractionOutdated } from '@/lib/content-trust/extractors/registry';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ type SourceItem = {
   id: string;
   name: string;
   documentType: string;
+  extractorVersion: number | null;
   assertionCount: number;
 };
 
@@ -33,7 +35,11 @@ interface ReExtractModalProps {
 // ── Component ──────────────────────────────────────────
 
 export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExtractModalProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Pre-select sources with outdated extractor version
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const outdated = sources.filter((s) => isExtractionOutdated(s.extractorVersion));
+    return new Set(outdated.map((s) => s.id));
+  });
   const [phase, setPhase] = useState<Phase>('select');
   const [error, setError] = useState<string | null>(null);
   const [activeCallerCount, setActiveCallerCount] = useState(0);
@@ -154,6 +160,9 @@ export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExt
           <>
             <p className="hf-text-sm hf-text-muted hf-mb-md">
               Select sources to re-extract. Existing assertions will be purged and rebuilt from the original documents.
+              {sources.some((s) => isExtractionOutdated(s.extractorVersion)) && (
+                <> Sources marked <strong>Outdated</strong> were extracted with an older version and are pre-selected.</>
+              )}
             </p>
 
             {/* Select All toggle */}
@@ -172,6 +181,7 @@ export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExt
               {sources.map((src) => {
                 const info = getDocTypeInfo(src.documentType);
                 const Icon = info.icon;
+                const outdated = isExtractionOutdated(src.extractorVersion);
                 return (
                   <label
                     key={src.id}
@@ -188,6 +198,9 @@ export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExt
                     <div className="hf-flex-1">
                       <div className="hf-text-sm hf-text-secondary">{src.name}</div>
                     </div>
+                    {outdated && (
+                      <span className="hf-badge hf-badge-sm hf-badge-warning">Outdated</span>
+                    )}
                     <span className="hf-badge hf-badge-sm" style={{ color: info.color, borderColor: info.color }}>
                       {info.label}
                     </span>

@@ -204,10 +204,34 @@ export async function PATCH(
       data: updateData,
     });
 
+    // Auto-trigger re-extract when document type changes and source has content
+    let reExtractTriggered = false;
+    if (documentType !== undefined && documentType !== existing.documentType) {
+      const assertionCount = await prisma.contentAssertion.count({ where: { sourceId } });
+      if (assertionCount > 0) {
+        // Fire re-extract in background via internal fetch to the extract route
+        const origin = req.nextUrl.origin;
+        const cookie = req.headers.get("cookie") || "";
+        const subjectSource = await prisma.subjectSource.findFirst({
+          where: { sourceId },
+          select: { subjectId: true },
+        });
+        fetch(`${origin}/api/content-sources/${sourceId}/extract`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", cookie },
+          body: JSON.stringify({ subjectId: subjectSource?.subjectId, replace: true }),
+        }).catch((err) => {
+          console.error(`[content-sources/:id] Auto re-extract failed for ${sourceId}:`, err);
+        });
+        reExtractTriggered = true;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       source: updated,
       trustChanged,
+      reExtractTriggered,
     });
   } catch (error: any) {
     console.error("[content-sources/:id] PATCH error:", error);

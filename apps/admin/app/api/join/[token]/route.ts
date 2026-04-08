@@ -1,10 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { encode } from "next-auth/jwt";
+import { encode, decode } from "next-auth/jwt";
 import { validateBody, joinPostSchema } from "@/lib/validation";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
 import { enrollCaller, enrollCallerInCohortPlaybooks } from "@/lib/enrollment";
 import { applySkipOnboarding } from "@/lib/enrollment/skip-onboarding";
+import { ROLE_LEVEL } from "@/lib/roles";
+import type { UserRole } from "@prisma/client";
+
+const SESSION_COOKIE_NAMES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
+
+/** Check if the request already has a session with role above STUDENT */
+async function hasHigherRoleSession(request: NextRequest): Promise<boolean> {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+  if (!secret) return false;
+  for (const name of SESSION_COOKIE_NAMES) {
+    const cookie = request.cookies.get(name);
+    if (!cookie) continue;
+    try {
+      const token = await decode({ token: cookie.value, secret, salt: name });
+      const role = token?.role as UserRole | undefined;
+      if (role && ROLE_LEVEL[role] > ROLE_LEVEL.STUDENT) return true;
+    } catch { /* invalid token — continue */ }
+  }
+  return false;
+}
+
+/** Set session cookie on response — only if caller doesn't already have a higher-role session */
+function setSessionCookie(
+  response: NextResponse,
+  jwt: string,
+  skipCookie: boolean,
+): NextResponse {
+  if (skipCookie) return response;
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieName = isProduction
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+  response.cookies.set(cookieName, jwt, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60,
+  });
+  return response;
+}
 
 /** Separate rate-limit key for GET (token probing) vs POST (account creation) */
 const RATE_LIMIT_KEY_VERIFY = "join-verify";
@@ -102,6 +148,9 @@ export async function POST(
   if (!v.ok) return v.error;
   const { firstName, lastName, email, playbookId, skipOnboarding } = v.data;
 
+  // Don't overwrite session cookie for admins/operators testing the join flow
+  const skipCookie = await hasHigherRoleSession(request);
+
   const cohort = await prisma.cohortGroup.findUnique({
     where: { joinToken: token },
     select: {
@@ -169,27 +218,6 @@ export async function POST(
 
     if (returningCallerId) {
       // Returning learner — sign them in and redirect to their journey
-      const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-      if (!secret) {
-        return NextResponse.json(
-          { ok: false, error: "Server configuration error" },
-          { status: 500 }
-        );
-      }
-
-      const returningJwt = await encode({
-        token: {
-          sub: existingUser.id,
-          id: existingUser.id,
-          email: existingUser.email,
-          name: existingUser.name,
-          role: existingUser.role,
-        },
-        secret,
-        salt: "authjs.session-token",
-        maxAge: 30 * 24 * 60 * 60,
-      });
-
       const returningResponse = NextResponse.json({
         ok: true,
         alreadyEnrolled: true,
@@ -198,18 +226,28 @@ export async function POST(
         redirect: `/x/sim/${returningCallerId}`,
       });
 
-      const isProductionReturning = process.env.NODE_ENV === "production";
-      const cookieNameReturning = isProductionReturning
-        ? "__Secure-authjs.session-token"
-        : "authjs.session-token";
-
-      returningResponse.cookies.set(cookieNameReturning, returningJwt, {
-        httpOnly: true,
-        secure: isProductionReturning,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 30 * 24 * 60 * 60,
-      });
+      if (!skipCookie) {
+        const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+        if (!secret) {
+          return NextResponse.json(
+            { ok: false, error: "Server configuration error" },
+            { status: 500 }
+          );
+        }
+        const returningJwt = await encode({
+          token: {
+            sub: existingUser.id,
+            id: existingUser.id,
+            email: existingUser.email,
+            name: existingUser.name,
+            role: existingUser.role,
+          },
+          secret,
+          salt: "authjs.session-token",
+          maxAge: 30 * 24 * 60 * 60,
+        });
+        setSessionCookie(returningResponse, returningJwt, false);
+      }
 
       return returningResponse;
     }
@@ -246,28 +284,6 @@ export async function POST(
       await applySkipOnboarding(newCaller.id, cohort.domainId);
     }
 
-    // Auto sign-in via JWT cookie (same as new-user path)
-    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-    if (!secret) {
-      return NextResponse.json(
-        { ok: false, error: "Server configuration error" },
-        { status: 500 }
-      );
-    }
-
-    const existingJwt = await encode({
-      token: {
-        sub: existingUser.id,
-        id: existingUser.id,
-        email: existingUser.email,
-        name: existingUser.name,
-        role: existingUser.role,
-      },
-      secret,
-      salt: "authjs.session-token",
-      maxAge: 30 * 24 * 60 * 60,
-    });
-
     const existingResponse = NextResponse.json({
       ok: true,
       message: "Joined classroom",
@@ -275,18 +291,28 @@ export async function POST(
       redirect: `/x/sim/${newCaller.id}`,
     });
 
-    const isProductionExisting = process.env.NODE_ENV === "production";
-    const cookieNameExisting = isProductionExisting
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token";
-
-    existingResponse.cookies.set(cookieNameExisting, existingJwt, {
-      httpOnly: true,
-      secure: isProductionExisting,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    if (!skipCookie) {
+      const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+      if (!secret) {
+        return NextResponse.json(
+          { ok: false, error: "Server configuration error" },
+          { status: 500 }
+        );
+      }
+      const existingJwt = await encode({
+        token: {
+          sub: existingUser.id,
+          id: existingUser.id,
+          email: existingUser.email,
+          name: existingUser.name,
+          role: existingUser.role,
+        },
+        secret,
+        salt: "authjs.session-token",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      setSessionCookie(existingResponse, existingJwt, false);
+    }
 
     return existingResponse;
   }
@@ -340,28 +366,6 @@ export async function POST(
     await applySkipOnboarding(result.newCallerId, cohort.domainId);
   }
 
-  // Auto sign-in via JWT cookie
-  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-  if (!secret) {
-    return NextResponse.json(
-      { ok: false, error: "Server configuration error" },
-      { status: 500 }
-    );
-  }
-
-  const jwtToken = await encode({
-    token: {
-      sub: result.newUser.id,
-      id: result.newUser.id,
-      email: result.newUser.email,
-      name: result.newUser.name,
-      role: result.newUser.role,
-    },
-    secret,
-    salt: "authjs.session-token",
-    maxAge: 30 * 24 * 60 * 60,
-  });
-
   const response = NextResponse.json({
     ok: true,
     message: "Welcome! You've joined the classroom.",
@@ -369,18 +373,28 @@ export async function POST(
     redirect: `/x/sim/${result.newCallerId}`,
   });
 
-  const isProduction = process.env.NODE_ENV === "production";
-  const cookieName = isProduction
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
-
-  response.cookies.set(cookieName, jwtToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 30 * 24 * 60 * 60,
-  });
+  if (!skipCookie) {
+    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+    if (!secret) {
+      return NextResponse.json(
+        { ok: false, error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+    const jwtToken = await encode({
+      token: {
+        sub: result.newUser.id,
+        id: result.newUser.id,
+        email: result.newUser.email,
+        name: result.newUser.name,
+        role: result.newUser.role,
+      },
+      secret,
+      salt: "authjs.session-token",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+    setSessionCookie(response, jwtToken, false);
+  }
 
   return response;
 }

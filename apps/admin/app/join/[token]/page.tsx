@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface ClassroomInfo {
   name: string;
@@ -20,12 +21,19 @@ export default function JoinPage() {
   const { token } = useParams<{ token: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status: sessionStatus } = useSession();
 
   const [classroom, setClassroom] = useState<ClassroomInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Pre-fill from URL query params (?firstName=X&lastName=Y&email=Z)
+  // Pre-fill from URL query params, or from existing session
+  const sessionName = session?.user?.name ?? "";
+  const sessionEmail = session?.user?.email ?? "";
+  const [sessionFirstName = "", sessionLastName = ""] = sessionName.includes(" ")
+    ? [sessionName.split(" ")[0], sessionName.split(" ").slice(1).join(" ")]
+    : [sessionName, ""];
+
   const [firstName, setFirstName] = useState(searchParams.get("firstName") ?? "");
   const [lastName, setLastName] = useState(searchParams.get("lastName") ?? "");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
@@ -37,6 +45,17 @@ export default function JoinPage() {
   const autoSubmitRef = useRef(
     !!(searchParams.get("firstName")?.trim() && searchParams.get("lastName")?.trim() && searchParams.get("email")?.includes("@")),
   );
+
+  // Auto-fill + auto-submit for authenticated users (e.g. admin testing the join flow)
+  const sessionAutoSubmitRef = useRef(false);
+  useEffect(() => {
+    if (sessionStatus !== "authenticated" || !session?.user?.email || sessionAutoSubmitRef.current) return;
+    if (autoSubmitRef.current) return; // URL params take precedence
+    sessionAutoSubmitRef.current = true;
+    setFirstName(sessionFirstName);
+    setLastName(sessionLastName);
+    setEmail(sessionEmail);
+  }, [sessionStatus, session, sessionFirstName, sessionLastName, sessionEmail]);
 
   useEffect(() => {
     fetch(`/api/join/${token}`)
@@ -60,6 +79,23 @@ export default function JoinPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom]);
+
+  // Auto-submit for authenticated users once classroom + session fields are ready
+  useEffect(() => {
+    if (
+      sessionAutoSubmitRef.current &&
+      classroom &&
+      !joining &&
+      !joined &&
+      firstName.trim() &&
+      lastName.trim() &&
+      email.includes("@")
+    ) {
+      sessionAutoSubmitRef.current = false; // prevent re-trigger
+      handleJoin();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroom, firstName, lastName, email]);
 
   const handleJoin = async () => {
     setJoining(true);

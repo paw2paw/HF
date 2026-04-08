@@ -922,6 +922,15 @@ async function extractSource(
       },
     });
 
+    // Stamp extraction version + timestamp for staleness detection
+    if (totalCreated > 0) {
+      const { EXTRACTOR_VERSION } = await import("@/lib/content-trust/extractors/registry");
+      await prisma.contentSource.update({
+        where: { id: source.id },
+        data: { extractorVersion: EXTRACTOR_VERSION, lastExtractedAt: new Date() },
+      });
+    }
+
     // Post-processing: fire-and-forget (non-blocking)
     if (totalCreated > 0) {
       send({

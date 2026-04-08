@@ -13,6 +13,7 @@ import { ProgressStepper } from "@/components/shared/ProgressStepper";
 import { EditableTitle } from "@/components/shared/EditableTitle";
 import { SourceStatusDots } from "@/components/shared/SourceStatusDots";
 import { useSourceStatus } from "@/hooks/useSourceStatus";
+import { isExtractionOutdated } from "@/lib/content-trust/extractors/registry";
 import CurriculumEditor from "./CurriculumEditor";
 import {
   TrustBadge,
@@ -1194,19 +1195,25 @@ export default function SubjectDetail({ subjectId, onSubjectUpdated, isOperator,
                       </div>
                     )}
 
-                    {!awaiting && ss.source._count.assertions > 0 && !sourceActive && (
-                      <div className="hf-flex hf-gap-sm hf-mt-sm hf-items-center" style={{ paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
-                        <button
-                          onClick={() => triggerExtraction(ss.sourceId, ss.source.name, true)}
-                          disabled={isExtracting}
-                          className="hf-btn hf-btn-secondary hf-text-xs"
-                          style={{ opacity: isExtracting ? 0.6 : 1 }}
-                          title="Delete existing assertions and re-extract from source file"
-                        >
-                          {isExtracting ? "Re-extracting..." : "Re-extract"}
-                        </button>
-                      </div>
-                    )}
+                    {!awaiting && ss.source._count.assertions > 0 && !sourceActive && (() => {
+                      const outdated = isExtractionOutdated(ss.source.extractorVersion);
+                      return (
+                        <div className="hf-flex hf-gap-sm hf-mt-sm hf-items-center" style={{ paddingTop: 8, borderTop: "1px solid color-mix(in srgb, var(--border-default) 50%, transparent)" }}>
+                          {outdated && (
+                            <span className="hf-badge hf-badge-sm hf-badge-warning">Outdated</span>
+                          )}
+                          <button
+                            onClick={() => triggerExtraction(ss.sourceId, ss.source.name, true)}
+                            disabled={isExtracting}
+                            className={`hf-btn hf-text-xs ${outdated ? "hf-btn-primary" : "hf-btn-secondary"}`}
+                            style={{ opacity: isExtracting ? 0.6 : 1 }}
+                            title="Delete existing assertions and re-extract from source file"
+                          >
+                            {isExtracting ? "Re-extracting..." : "Re-extract"}
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

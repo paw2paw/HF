@@ -12,7 +12,7 @@ import type { DocumentType, TeachingMode, InteractionPattern } from "@/lib/conte
 import { resolveExtractionConfig } from "@/lib/content-trust/resolve-config";
 import { classifyDocument, fetchFewShotExamples } from "@/lib/content-trust/classify-document";
 import { segmentDocument } from "@/lib/content-trust/segment-document";
-import { getExtractor } from "@/lib/content-trust/extractors/registry";
+import { getExtractor, EXTRACTOR_VERSION } from "@/lib/content-trust/extractors/registry";
 import type { SpecialistChunkCompleteData } from "@/lib/content-trust/extractors/base-extractor";
 import { saveAssertions } from "@/lib/content-trust/save-assertions";
 import { saveQuestions } from "@/lib/content-trust/save-questions";
@@ -680,6 +680,12 @@ async function runBackgroundExtraction(
     duplicatesSkipped: totalDuplicatesSkipped,
     extractedCount: result.assertions.length,
     warnings: [...(result.warnings || []), ...linkingWarnings],
+  });
+
+  // Stamp extraction version + timestamp for staleness detection
+  await prisma.contentSource.update({
+    where: { id: source.id },
+    data: { extractorVersion: EXTRACTOR_VERSION, lastExtractedAt: new Date() },
   });
 
   console.log(`[import] Source ${source.id}: ${totalCreated} assertions, ${totalQuestionsCreated} questions, ${totalVocabularyCreated} vocabulary items`);

@@ -14,6 +14,13 @@ import { AssessmentExtractor } from "./assessment-extractor";
 import { ReadingPassageExtractor } from "./reading-passage-extractor";
 import { QuestionBankExtractor } from "./question-bank-extractor";
 
+/**
+ * Bump this when extraction logic changes materially (new categories,
+ * specialist extractors, prompt changes, post-processing steps).
+ * Sources with extractorVersion < EXTRACTOR_VERSION show as "outdated".
+ */
+export const EXTRACTOR_VERSION = 1;
+
 // Registry of specialist extractors (by document type)
 const SPECIALIST_EXTRACTORS: Partial<Record<DocumentType, new () => DocumentExtractor>> = {
   CURRICULUM: CurriculumExtractor,
@@ -35,4 +42,12 @@ export function getExtractor(documentType?: DocumentType): DocumentExtractor {
 
   // Fallback: GenericExtractor with the document type for logging
   return new GenericExtractor(documentType || "TEXTBOOK");
+}
+
+/**
+ * Check if a source's extraction is outdated relative to current extractor version.
+ * Returns true if extractorVersion is null (pre-tracking) or < EXTRACTOR_VERSION.
+ */
+export function isExtractionOutdated(extractorVersion: number | null): boolean {
+  return extractorVersion === null || extractorVersion < EXTRACTOR_VERSION;
 }

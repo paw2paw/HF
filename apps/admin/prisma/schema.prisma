@@ -3567,6 +3567,10 @@ model ContentSource {
   linkedSource   ContentSource?  @relation("SourcePairing", fields: [linkedSourceId], references: [id], onDelete: SetNull)
   linkedBy       ContentSource[] @relation("SourcePairing")
 
+  // Extraction tracking
+  extractorVersion Int? // Bumped when extraction logic changes — null = never extracted or pre-tracking
+  lastExtractedAt  DateTime? // Set on successful extraction completion
+
   // Lifecycle
   isActive       Boolean        @default(true)
   archivedAt     DateTime? // Set when archived; null = active
