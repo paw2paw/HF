@@ -477,9 +477,12 @@ Total modules: ${modules.length}`;
       });
 
       if (assertions.length > 0) {
-        const teachingSessions = entries.filter((e) => !["onboarding", "offboarding"].includes(e.type));
-        const target = teachingSessions.length > 0 ? teachingSessions : entries;
-        for (let i = 0; i < assertions.length; i++) {
+        const teachingSessions = entries.filter((e) =>
+          !["onboarding", "offboarding", "pre_survey", "post_survey", "mid_survey"].includes(e.type)
+          && e.assertionIds !== undefined
+        );
+        const target = teachingSessions.length > 0 ? teachingSessions : entries.filter((e) => e.assertionIds !== undefined);
+        for (let i = 0; i < assertions.length && target.length > 0; i++) {
           target[i % target.length].assertionIds!.push(assertions[i].id);
         }
       }
