@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
 
 type Params = { params: Promise<{ courseId: string }> };
 
@@ -167,7 +168,7 @@ export async function GET(
 
     if (allAssertionIds.length > 0) {
       const assertions = await prisma.contentAssertion.findMany({
-        where: { id: { in: allAssertionIds } },
+        where: { id: { in: allAssertionIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
         select: { id: true, assertion: true, category: true, learningOutcomeRef: true },
       });
       for (const a of assertions) {

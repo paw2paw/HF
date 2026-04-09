@@ -541,6 +541,19 @@ export function JourneyRail({
     return () => document.removeEventListener("mousedown", handler);
   }, [phaseDropdown]);
 
+  // Escape key dismisses open popovers
+  useEffect(() => {
+    if (!insertPickerAfter && !phaseDropdown) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setInsertPickerAfter(null);
+        setPhaseDropdown(null);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [insertPickerAfter, phaseDropdown]);
+
   // TP derived data
   const tpLoaded = Object.keys(sessionTPs).length > 0 || unassignedTPs.length > 0;
 

@@ -9,6 +9,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
 
 export interface RefreshResult {
   curriculaUpdated: number;
@@ -63,9 +64,10 @@ export async function refreshLessonPlanAssertions(
   const allCurricula = [...directCurricula, ...subjectSourceCurricula];
   if (allCurricula.length === 0) return { curriculaUpdated: 0, entriesCleared: 0, entriesRefilled: 0, entriesOrphaned: 0 };
 
-  // Load current assertions for this source (post-extraction)
+  // Load current CONTENT assertions for this source (post-extraction)
+  // Exclude instruction categories — same filter as generateLessonPlan()
   const currentAssertions = await prisma.contentAssertion.findMany({
-    where: { sourceId },
+    where: { sourceId, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
     select: { id: true, learningOutcomeRef: true, topicSlug: true, chapter: true, contentHash: true },
     orderBy: [{ depth: "asc" }, { orderIndex: "asc" }],
   });
