@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
@@ -39,6 +39,8 @@ import {
 import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
 import { SessionPlanViewer } from '@/components/shared/SessionPlanViewer';
 import { JourneyRail } from '@/components/shared/JourneyRail';
+import { PlanHeaderCard } from '@/components/shared/PlanHeaderCard';
+import { CollapsibleCard } from '@/components/shared/CollapsibleCard';
 import { SessionFlowPipeline, type InstructionItem } from './CourseHowTab';
 import { reorderItems } from '@/lib/sortable/reorder';
 import type { SessionEntry, SessionMediaRef as SessionMediaRefType, SessionMediaMap, StudentProgress } from '@/lib/lesson-plan/types';
@@ -117,6 +119,8 @@ type SessionTabData = {
 
 import { SectionHeader } from './SectionHeader';
 
+const VALID_TABS = ['overview', 'journey', 'content', 'audience', 'learners', 'proof', 'goals', 'settings'];
+
 const statusMap: Record<string, 'draft' | 'active' | 'archived'> = {
   draft: 'draft',
   published: 'active',
@@ -128,6 +132,7 @@ const statusMap: Record<string, 'draft' | 'active' | 'archived'> = {
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const isOperator = ['OPERATOR', 'EDUCATOR', 'ADMIN', 'SUPERADMIN'].includes((session?.user?.role as string) || '');
   const { pushEntity } = useEntityContext();
@@ -149,8 +154,11 @@ export default function CourseDetailPage() {
   const [unassignedContentCount, setUnassignedContentCount] = useState(0);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
-  // Tabs
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  // Tabs — synced to ?tab= URL param for browser back/forward
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<string>(
+    tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'overview'
+  );
 
   // Sessions tab
   const [sessions, setSessions] = useState<SessionTabData | null>(null);
@@ -295,11 +303,24 @@ export default function CourseDetailPage() {
     ...(isOperator ? [{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={14} /> }] : []),
   ], [totalSources, isOperator, sessions]);
 
+  // Sync active tab from URL on popstate (browser back/forward)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && VALID_TABS.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // ── Tab change: lazy load lesson plan data ──
   const handleTabChange = useCallback((tab: string) => {
     // URL compat: old tab names redirect to journey
     const resolvedTab = (tab === 'sessions' || tab === 'onboarding') ? 'journey' : tab;
     setActiveTab(resolvedTab);
+    // Sync tab to URL for browser back/forward
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', resolvedTab);
+    router.replace(`?${params.toString()}`, { scroll: false });
     if (resolvedTab === 'journey' && sessions === null && !sessionsLoading) {
       setSessionsLoading(true);
       setSessionsError(null);
@@ -1030,6 +1051,23 @@ export default function CourseDetailPage() {
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'journey' && (
         <>
+          {/* Plan header — "Your Lesson Plan" summary card at top */}
+          {sessions?.plan?.entries && sessions.plan.entries.length > 0 && (
+            <PlanHeaderCard
+              entries={sessions.plan.entries}
+              model={sessions.plan.model}
+              generatedAt={sessions.plan.generatedAt}
+              estimatedSessions={sessions.plan.estimatedSessions}
+              regenerating={regenerating}
+              regenSessionCount={regenSessionCount}
+              onRegenSessionCountChange={setRegenSessionCount}
+              onRegenerate={isOperator ? handleRegenerate : undefined}
+              curriculumId={sessions.curriculumId}
+            />
+          )}
+
+          {/* Collapsible session rail */}
+          <CollapsibleCard title="Sessions" variant="embedded" defaultOpen>
           <JourneyRail
             sessions={sessions?.plan?.entries ?? []}
             callers={sessions?.studentProgress}
@@ -1037,10 +1075,7 @@ export default function CourseDetailPage() {
             loading={sessionsLoading}
             error={sessionsError}
             onRetry={handleRetrySessionsLoad}
-            onRegenerate={isOperator ? handleRegenerate : undefined}
-            regenerating={regenerating}
-            regenSessionCount={regenSessionCount}
-            onRegenSessionCountChange={setRegenSessionCount}
+            hideClassOverview
             renderSessionDetail={(entry) => {
               if (entry.type === 'onboarding') {
                 return (
@@ -1224,6 +1259,7 @@ export default function CourseDetailPage() {
             midSurveyQuestionCount={3}
             postSurveyQuestionCount={5}
           />
+          </CollapsibleCard>
 
           {/* Session Plan Viewer — media assignment per session */}
           {sessions?.plan?.entries && sessions.plan.entries.length > 0 && (
@@ -1238,6 +1274,8 @@ export default function CourseDetailPage() {
                 unassignedTPs={unassignedTPs}
                 mediaMap={sessionMediaMap}
                 studentProgress={sessions.studentProgress}
+                hidePlanHeader
+                hideClassProgress
                 onReorder={isOperator ? (from, to) => {
                   if (!sessions?.curriculumId || !sessions?.plan?.entries) return;
                   const reordered = reorderItems(sessions.plan.entries, from, to);
@@ -1325,7 +1363,12 @@ export default function CourseDetailPage() {
       {/* LEARNERS TAB                                   */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === 'learners' && (
-        <CourseLearnersTab courseId={courseId!} initialJoinToken={joinToken} />
+        <CourseLearnersTab
+          courseId={courseId!}
+          initialJoinToken={joinToken}
+          sessionEntries={sessions?.plan?.entries}
+          studentProgress={sessions?.studentProgress}
+        />
       )}
 
       {/* ═══════════════════════════════════════════════ */}

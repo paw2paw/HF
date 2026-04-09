@@ -79,6 +79,10 @@ export interface SessionPlanViewerProps {
   curriculumId?: string | null;
   isOperator?: boolean;
 
+  // Hide sections (when rendered externally)
+  hidePlanHeader?: boolean;
+  hideClassProgress?: boolean;
+
   // Callbacks for tab changes (empty state "Set Up Course")
   domainId?: string;
 }
@@ -122,6 +126,8 @@ export function SessionPlanViewer({
   modules,
   curriculumId,
   isOperator = false,
+  hidePlanHeader = false,
+  hideClassProgress = false,
   domainId,
 }: SessionPlanViewerProps) {
   const router = useRouter();
@@ -289,7 +295,7 @@ export function SessionPlanViewer({
   // ── Plan Header (full variant only) ──────────────────
 
   const renderPlanHeader = () => {
-    if (variant !== "full") return null;
+    if (variant !== "full" || hidePlanHeader) return null;
     return (
       <div className="cd-plan-header hf-card hf-mb-lg">
         <div className="hf-flex hf-flex-between hf-items-center hf-mb-sm">
@@ -778,7 +784,7 @@ export function SessionPlanViewer({
   // ── Class Progress (full variant) ────────────────────
 
   const renderClassProgress = () => {
-    if (variant !== "full" || !studentProgress) return null;
+    if (variant !== "full" || hideClassProgress || !studentProgress) return null;
 
     if (studentProgress.length === 0) {
       return (

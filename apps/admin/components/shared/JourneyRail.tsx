@@ -84,6 +84,9 @@ export interface JourneyRailProps {
   sessionTypeConfig?: SessionTypeConfig;
   /** Educator type groups (for simplified type picker) */
   educatorTypes?: EducatorType[];
+
+  /** Hide the class overview (enrolled caller rows) */
+  hideClassOverview?: boolean;
 }
 
 // ── Helpers ─────────────────────────────────────────
@@ -396,6 +399,7 @@ export function JourneyRail({
   postSurveyQuestionCount,
   sessionTypeConfig,
   educatorTypes,
+  hideClassOverview = false,
 }: JourneyRailProps) {
   const router = useRouter();
   const [focusCallerId, setFocusCallerId] = useState<string | null>(initialFocusCallerId);
@@ -1012,7 +1016,7 @@ export function JourneyRail({
       </div>
 
       {/* Class overview rows */}
-      {renderClassOverview()}
+      {!hideClassOverview && renderClassOverview()}
     </div>
   );
 }
