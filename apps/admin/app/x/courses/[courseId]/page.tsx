@@ -391,6 +391,13 @@ export default function CourseDetailPage() {
     }
   }, [courseId, sessions, sessionsLoading, regenSessionCount, configDefaults, configLoading, detail]);
 
+  // ── Load session data when landing on Journey tab via URL ──
+  useEffect(() => {
+    if (!courseId || activeTab !== 'journey' || sessions !== null || sessionsLoading) return;
+    handleTabChange('journey');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId, activeTab, handleTabChange]);
+
   // ── Action Handlers ──────────────────────────────────
   const handlePublish = async () => {
     if (!detail) return;
