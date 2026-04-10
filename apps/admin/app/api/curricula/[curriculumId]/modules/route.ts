@@ -18,6 +18,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { parseLoLine } from "@/lib/content-trust/validate-lo-linkage";
+import { reconcileAssertionLOs } from "@/lib/content-trust/reconcile-lo-linkage";
 
 type Params = { params: Promise<{ curriculumId: string }> };
 
@@ -65,16 +67,12 @@ interface ModuleInput {
   learningOutcomes?: string[]; // Raw text — parsed into LearningObjective records
 }
 
-// Parse LO ref from text like "LO1: Identify..." → { ref: "LO1", description: "Identify..." }
-const LO_REF_PATTERN = /^(LO\d+|AC[\d.]+|R\d+-LO\d+(?:-AC[\d.]+)?)\s*[:\-–]\s*/i;
-
-function parseLORef(text: string, index: number): { ref: string; description: string } {
-  const match = text.match(LO_REF_PATTERN);
-  if (match) {
-    return { ref: match[1].toUpperCase(), description: text.slice(match[0].length).trim() || text };
-  }
-  return { ref: `LO-${index + 1}`, description: text };
-}
+// Note: LO ref parsing used to live here as a local parseLORef() that
+// synthesised garbage `LO-${index+1}` / `description === ref` pairs when the
+// AI returned bare "LO1" strings. That was the root cause of the 95% orphan
+// rate on PW: Secret Garden (incident #137). It now uses the shared
+// parseLoLine guard from validate-lo-linkage.ts — same guard as syncModulesToDB.
+// Malformed lines are skipped and logged, not fabricated.
 
 export async function POST(req: NextRequest, { params }: Params) {
   try {
@@ -132,19 +130,45 @@ export async function POST(req: NextRequest, { params }: Params) {
           },
         });
 
-        // Sync learning objectives if provided
+        // Sync learning objectives if provided.
+        // Epic #131 — use parseLoLine guard (same as syncModulesToDB). Malformed
+        // lines are skipped + logged rather than fabricated as garbage.
         if (mod.learningOutcomes && mod.learningOutcomes.length > 0) {
-          // Delete existing LOs for this module, re-create from array
-          await tx.learningObjective.deleteMany({ where: { moduleId: upserted.id } });
+          const parsed: { ref: string; description: string; sortOrder: number }[] = [];
+          const skipped: { raw: string; reason: string }[] = [];
+          const seenRefs = new Set<string>();
 
           for (let j = 0; j < mod.learningOutcomes.length; j++) {
-            const { ref, description } = parseLORef(mod.learningOutcomes[j], j);
+            const raw = mod.learningOutcomes[j];
+            const line = parseLoLine(raw);
+            if (!line) {
+              skipped.push({ raw, reason: "not a valid `LOn: description` pair" });
+              continue;
+            }
+            if (seenRefs.has(line.ref)) {
+              skipped.push({ raw, reason: `duplicate ref within module: ${line.ref}` });
+              continue;
+            }
+            seenRefs.add(line.ref);
+            parsed.push({ ref: line.ref, description: line.description, sortOrder: j });
+          }
+
+          if (skipped.length > 0) {
+            console.warn(
+              `[curricula/modules/POST] Module ${upserted.slug}: skipped ${skipped.length}/${mod.learningOutcomes.length} LOs — ` +
+                skipped.map((s) => `"${s.raw}" (${s.reason})`).join("; "),
+            );
+          }
+
+          await tx.learningObjective.deleteMany({ where: { moduleId: upserted.id } });
+
+          for (const lo of parsed) {
             await tx.learningObjective.create({
               data: {
                 moduleId: upserted.id,
-                ref,
-                description,
-                sortOrder: j,
+                ref: lo.ref,
+                description: lo.description,
+                sortOrder: lo.sortOrder,
               },
             });
           }
@@ -155,6 +179,15 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       return created;
     });
+
+    // Epic #131 A4 — after LOs are written, reconcile existing assertions'
+    // learningObjectiveId FK. Idempotent. Best-effort: failure here doesn't
+    // block the module save because the curriculum write itself succeeded.
+    try {
+      await reconcileAssertionLOs(curriculumId);
+    } catch (err) {
+      console.error(`[curricula/modules/POST] reconcileAssertionLOs failed for curriculum ${curriculumId}:`, err);
+    }
 
     // Re-fetch with includes for response
     const modules = await prisma.curriculumModule.findMany({

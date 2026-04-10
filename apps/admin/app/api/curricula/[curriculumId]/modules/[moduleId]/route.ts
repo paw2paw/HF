@@ -18,6 +18,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { isValidLoPair, sanitiseLORef } from "@/lib/content-trust/validate-lo-linkage";
+import { reconcileAssertionLOs } from "@/lib/content-trust/reconcile-lo-linkage";
 
 type Params = { params: Promise<{ curriculumId: string; moduleId: string }> };
 
@@ -96,6 +98,34 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const learningObjectives: LOInput[] | undefined = body.learningObjectives;
 
+    // Epic #131 — validate LO pairs before write. Reject garbage like
+    // `{ref: "LO-1", description: "LO1"}` so CurriculumEditor cannot
+    // silently re-introduce the incident #137 data corruption.
+    if (learningObjectives !== undefined) {
+      const invalid: { index: number; ref: string; reason: string }[] = [];
+      for (let i = 0; i < learningObjectives.length; i++) {
+        const lo = learningObjectives[i];
+        const sanitised = sanitiseLORef(lo.ref);
+        if (!sanitised) {
+          invalid.push({ index: i, ref: lo.ref, reason: "ref is not a valid structured LO ref (expected LO1, LO-1, AC2.3, etc.)" });
+          continue;
+        }
+        if (!isValidLoPair(sanitised, lo.description)) {
+          invalid.push({ index: i, ref: lo.ref, reason: "description is empty, too short, or equals the ref" });
+        }
+      }
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          {
+            error: "Invalid learning objectives",
+            invalid,
+            message: "Each LO must have a structured ref (LO1, LO-1, AC2.3) and a non-empty description that differs from the ref.",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     // Transaction: update module + full-replace LOs if provided
     const updated = await prisma.$transaction(async (tx) => {
       const mod = await tx.curriculumModule.update({
@@ -112,8 +142,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           await tx.learningObjective.create({
             data: {
               moduleId,
-              ref: lo.ref,
-              description: lo.description,
+              ref: sanitiseLORef(lo.ref) ?? lo.ref,
+              description: lo.description.trim(),
               sortOrder: i,
             },
           });
@@ -122,6 +152,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
       return mod;
     });
+
+    // Epic #131 A4 — reconcile assertion FKs if LOs changed. Idempotent.
+    if (learningObjectives !== undefined) {
+      try {
+        await reconcileAssertionLOs(curriculumId);
+      } catch (err) {
+        console.error(`[curricula/:id/modules/:id] reconcileAssertionLOs failed for ${curriculumId}:`, err);
+      }
+    }
 
     // Re-fetch with includes for response
     const result = await prisma.curriculumModule.findUnique({

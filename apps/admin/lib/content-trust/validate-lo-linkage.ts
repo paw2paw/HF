@@ -127,3 +127,142 @@ export function scoreCoverage(input: {
   const fkCoveragePct = input.total > 0 ? Math.round((input.withFk / input.total) * 100) : 0;
   return { ...input, orphans, coveragePct, fkCoveragePct };
 }
+
+/**
+ * Full scorecard for a course — loads from DB, computes coverage, garbage counts,
+ * question linkage, and module/LO summary.
+ *
+ * Used by:
+ *   - `GET /api/courses/[courseId]/curriculum-scorecard` (the Curriculum tab banner)
+ *   - `scripts/repair-lo-linkage.ts` (before/after delta)
+ *   - Future `B1` warning gate on lesson plan regeneration
+ *
+ * Single source of truth for LO linkage health on a course.
+ */
+export interface CourseLinkageScorecard {
+  course: { id: string; name: string };
+  scorecard: LoLinkageScorecard;
+  loRows: {
+    total: number;
+    garbageDescriptions: number;
+    orphanLos: number; // LOs with no TPs pointing at them via learningOutcomeRef
+  };
+  questions: {
+    total: number;
+    linkedToTp: number;
+    linkedPct: number;
+  };
+  modules: {
+    total: number;
+    active: number;
+  };
+  warnings: string[];
+}
+
+export async function computeCourseLinkageScorecard(courseId: string): Promise<CourseLinkageScorecard | null> {
+  // Dynamic import so this module stays safe to import from test files that
+  // mock @/lib/prisma differently.
+  const { prisma } = await import("@/lib/prisma");
+
+  const playbook = await prisma.playbook.findUnique({
+    where: { id: courseId },
+    select: { id: true, name: true },
+  });
+  if (!playbook) return null;
+
+  const ps = await prisma.playbookSubject.findMany({
+    where: { playbookId: courseId },
+    select: {
+      subjectId: true,
+      subject: { select: { sources: { select: { sourceId: true } } } },
+    },
+  });
+  const sourceIds = [...new Set(ps.flatMap((p) => p.subject.sources.map((s) => s.sourceId)))];
+  const subjectIds = [...new Set(ps.map((p) => p.subjectId))];
+
+  const warnings: string[] = [];
+
+  if (sourceIds.length === 0) {
+    warnings.push("Course has no linked content sources yet");
+  }
+  if (subjectIds.length === 0) {
+    warnings.push("Course has no subjects yet — upload content to create one");
+  }
+
+  // Assertions
+  const assertions = sourceIds.length > 0
+    ? await prisma.contentAssertion.findMany({
+        where: { sourceId: { in: sourceIds } },
+        select: { learningOutcomeRef: true, learningObjectiveId: true },
+      })
+    : [];
+  const total = assertions.length;
+  const withValidRef = assertions.filter((a) => sanitiseLORef(a.learningOutcomeRef) !== null).length;
+  const withFk = assertions.filter((a) => a.learningObjectiveId !== null).length;
+  const distinctRefs = new Set(
+    assertions.map((a) => a.learningOutcomeRef).filter((r): r is string => !!r),
+  ).size;
+
+  // LearningObjective rows
+  const curricula = subjectIds.length > 0
+    ? await prisma.curriculum.findMany({
+        where: { subjectId: { in: subjectIds } },
+        select: { id: true, modules: { select: { id: true, isActive: true, learningObjectives: { select: { ref: true, description: true } } } } },
+      })
+    : [];
+  const allModules = curricula.flatMap((c) => c.modules);
+  const activeModules = allModules.filter((m) => m.isActive);
+  const los = activeModules.flatMap((m) => m.learningObjectives);
+  const garbageDescriptions = los.filter((lo) => !isValidLoPair(lo.ref, lo.description)).length;
+
+  if (los.length > 0 && garbageDescriptions === los.length) {
+    warnings.push(
+      "All learning objectives have garbage descriptions — regenerate the curriculum to fix them",
+    );
+  } else if (garbageDescriptions > 0) {
+    warnings.push(
+      `${garbageDescriptions} of ${los.length} learning objectives have garbage descriptions`,
+    );
+  }
+
+  // Orphan LOs — LOs with zero matching assertions (cheap approximation: ref
+  // never appears in assertion.learningOutcomeRef for any assertion in this course)
+  const refCounts = new Map<string, number>();
+  for (const a of assertions) {
+    if (a.learningOutcomeRef) {
+      refCounts.set(a.learningOutcomeRef, (refCounts.get(a.learningOutcomeRef) ?? 0) + 1);
+    }
+  }
+  const orphanLos = los.filter((lo) => {
+    const canon = sanitiseLORef(lo.ref);
+    if (!canon) return true;
+    return !refCounts.has(canon) && !refCounts.has(lo.ref);
+  }).length;
+
+  // Questions
+  const totalQuestions = sourceIds.length > 0
+    ? await prisma.contentQuestion.count({ where: { sourceId: { in: sourceIds } } })
+    : 0;
+  const linkedQuestions = sourceIds.length > 0
+    ? await prisma.contentQuestion.count({ where: { sourceId: { in: sourceIds }, assertionId: { not: null } } })
+    : 0;
+
+  if (totalQuestions > 0 && linkedQuestions === 0) {
+    warnings.push(
+      `${totalQuestions} question${totalQuestions !== 1 ? "s" : ""} not linked to any teaching point`,
+    );
+  }
+
+  return {
+    course: { id: playbook.id, name: playbook.name },
+    scorecard: scoreCoverage({ total, withValidRef, withFk, distinctRefs, garbageDescriptions }),
+    loRows: { total: los.length, garbageDescriptions, orphanLos },
+    questions: {
+      total: totalQuestions,
+      linkedToTp: linkedQuestions,
+      linkedPct: totalQuestions > 0 ? Math.round((linkedQuestions / totalQuestions) * 100) : 0,
+    },
+    modules: { total: allModules.length, active: activeModules.length },
+    warnings,
+  };
+}

@@ -1,0 +1,92 @@
+/* ═══════════════════════════════════════════════════════
+   Course Curriculum tab — scorecard banner + editor
+   Epic #131 #138
+   ═══════════════════════════════════════════════════════ */
+
+.hf-stack-md {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.curriculum-scorecard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.curriculum-scorecard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.curriculum-scorecard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.curriculum-scorecard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
+  border-radius: 6px;
+}
+
+.curriculum-scorecard-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.curriculum-scorecard-metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.curriculum-scorecard-metric-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.curriculum-scorecard-metric-pct {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.curriculum-scorecard-metric-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--status-warning-text);
+}
+
+.curriculum-scorecard-warnings {
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  background: color-mix(in srgb, var(--status-warning-text) 8%, transparent);
+  border-left: 3px solid var(--status-warning-text);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.curriculum-scorecard-warnings li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+}
