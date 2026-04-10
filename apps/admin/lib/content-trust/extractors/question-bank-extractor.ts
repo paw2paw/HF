@@ -17,6 +17,7 @@
 
 import type { ExtractionConfig } from "../resolve-config";
 import type { ExtractedAssertion } from "../extract-assertions";
+import { sanitiseLORef } from "../validate-lo-linkage";
 import {
   DocumentExtractor,
   callAI,
@@ -229,7 +230,8 @@ export class QuestionBankExtractor extends DocumentExtractor {
       chapter: item.chapter || undefined,
       section: item.section || undefined,
       tags: Array.isArray(item.tags) ? item.tags : [],
-      learningOutcomeRef: item.learningOutcomeRef || undefined,
+      // Guard per epic #131 A2.
+      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
       contentHash: hashContent(item.assertion || ""),
     }));
 

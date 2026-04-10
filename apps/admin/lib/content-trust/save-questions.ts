@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { ExtractedQuestion } from "./extractors/base-extractor";
+import { sanitiseLORef } from "./validate-lo-linkage";
 
 export interface SaveQuestionsResult {
   created: number;
@@ -53,7 +54,9 @@ export async function saveQuestions(
       correctAnswer: q.correctAnswer || null,
       answerExplanation: q.answerExplanation || null,
       markScheme: q.markScheme || null,
-      learningOutcomeRef: q.learningOutcomeRef || null,
+      // Defence-in-depth: even if an extractor slips a free-text ref through,
+      // sanitise at write time per epic #131 A2.
+      learningOutcomeRef: sanitiseLORef(q.learningOutcomeRef),
       skillRef: q.skillRef || null,
       metadata: q.metadata || undefined,
       difficulty: q.difficulty || null,

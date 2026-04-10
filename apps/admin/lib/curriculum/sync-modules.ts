@@ -12,20 +12,8 @@
 
 import { prisma } from "@/lib/prisma";
 import type { LegacyCurriculumModuleJSON } from "@/lib/types/json-fields";
-
-// ---------------------------------------------------------------------------
-// LO ref parsing — extract short ref from text like "LO1: Identify..."
-// ---------------------------------------------------------------------------
-
-const LO_REF_PATTERN = /^(LO\d+|AC[\d.]+|R\d+-LO\d+(?:-AC[\d.]+)?)\s*[:\-–]\s*/i;
-
-function parseLORef(text: string, index: number): { ref: string; description: string } {
-  const match = text.match(LO_REF_PATTERN);
-  if (match) {
-    return { ref: match[1].toUpperCase(), description: text.slice(match[0].length).trim() || text };
-  }
-  return { ref: `LO-${index + 1}`, description: text };
-}
+import { parseLoLine } from "@/lib/content-trust/validate-lo-linkage";
+import { reconcileAssertionLOs } from "@/lib/content-trust/reconcile-lo-linkage";
 
 // ---------------------------------------------------------------------------
 // syncModulesToDB — upserts CurriculumModule + LO records from JSON modules
@@ -74,18 +62,49 @@ export async function syncModulesToDB(
         },
       });
 
-      // Sync learning objectives if provided
+      // Sync learning objectives if provided.
+      //
+      // GUARD (epic #131 A1): reject malformed lines rather than fabricating
+      // synthetic `LO-${index+1}` refs with garbage descriptions. parseLoLine
+      // returns null when the AI failed to produce a `LOn: description` pair,
+      // and we skip + log so the caller can surface a data-quality warning.
+      // This is the structural fix per .claude/rules/ai-to-db-guard.md.
       if (mod.learningOutcomes && mod.learningOutcomes.length > 0) {
-        await tx.learningObjective.deleteMany({ where: { moduleId: upserted.id } });
+        const parsed: { ref: string; description: string; sortOrder: number }[] = [];
+        const skipped: { raw: string; reason: string }[] = [];
+        const seenRefs = new Set<string>();
 
         for (let j = 0; j < mod.learningOutcomes.length; j++) {
-          const { ref, description } = parseLORef(mod.learningOutcomes[j], j);
+          const raw = mod.learningOutcomes[j];
+          const line = parseLoLine(raw);
+          if (!line) {
+            skipped.push({ raw, reason: "not a valid `LOn: description` pair" });
+            continue;
+          }
+          if (seenRefs.has(line.ref)) {
+            skipped.push({ raw, reason: `duplicate ref within module: ${line.ref}` });
+            continue;
+          }
+          seenRefs.add(line.ref);
+          parsed.push({ ref: line.ref, description: line.description, sortOrder: j });
+        }
+
+        if (skipped.length > 0) {
+          console.warn(
+            `[sync-modules] Module ${upserted.slug}: skipped ${skipped.length}/${mod.learningOutcomes.length} LOs — ` +
+              skipped.map((s) => `"${s.raw}" (${s.reason})`).join("; "),
+          );
+        }
+
+        await tx.learningObjective.deleteMany({ where: { moduleId: upserted.id } });
+
+        for (const lo of parsed) {
           await tx.learningObjective.create({
             data: {
               moduleId: upserted.id,
-              ref,
-              description,
-              sortOrder: j,
+              ref: lo.ref,
+              description: lo.description,
+              sortOrder: lo.sortOrder,
             },
           });
         }
@@ -107,6 +126,20 @@ export async function syncModulesToDB(
 
     return synced;
   });
+
+  // Epic #131 A4 — after LOs are written, reconcile existing assertions'
+  // learningObjectiveId FK by matching learningOutcomeRef strings against the
+  // newly-persisted LO rows. This closes the temporal dependency: assertions
+  // extracted before the curriculum existed (and tagged with string refs by
+  // the curriculum-aware extractor A2) now get their FK populated without a
+  // manual backfill. Idempotent — already-linked assertions are skipped.
+  try {
+    await reconcileAssertionLOs(curriculumId);
+  } catch (err) {
+    console.error(`[sync-modules] reconcileAssertionLOs failed for curriculum ${curriculumId}:`, err);
+    // Non-fatal — curriculum save itself succeeded. The repair script (B2)
+    // can re-run the reconciler manually.
+  }
 
   return { count: result.length };
 }

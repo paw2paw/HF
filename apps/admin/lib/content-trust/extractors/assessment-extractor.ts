@@ -14,6 +14,7 @@
 
 import type { ExtractionConfig } from "../resolve-config";
 import type { ExtractedAssertion } from "../extract-assertions";
+import { sanitiseLORef } from "../validate-lo-linkage";
 import {
   DocumentExtractor,
   callAI,
@@ -156,7 +157,8 @@ export class AssessmentExtractor extends DocumentExtractor {
       section: item.section || undefined,
       tags: Array.isArray(item.tags) ? item.tags : [],
       examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : 1.0,
-      learningOutcomeRef: item.learningOutcomeRef || undefined,
+      // Guard per epic #131 A2.
+      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
       contentHash: hashContent(item.assertion || ""),
     }));
 
@@ -178,7 +180,7 @@ export class AssessmentExtractor extends DocumentExtractor {
           correctAnswer: q.correctAnswer ? String(q.correctAnswer) : undefined,
           answerExplanation: q.answerExplanation ? String(q.answerExplanation) : undefined,
           markScheme: q.markScheme ? String(q.markScheme) : undefined,
-          learningOutcomeRef: q.learningOutcomeRef || undefined,
+          learningOutcomeRef: sanitiseLORef(q.learningOutcomeRef) ?? undefined,
           difficulty,
           bloomLevel: normalizeBloomLevel(q.bloomLevel) ?? inferBloomFromDifficulty(difficulty),
           assessmentUse: "BOTH" as const,

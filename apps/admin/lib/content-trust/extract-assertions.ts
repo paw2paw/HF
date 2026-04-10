@@ -17,6 +17,7 @@ import { logAssistantCall } from "@/lib/ai/assistant-wrapper";
 import { logAI } from "@/lib/logger";
 import { resolveExtractionConfig, type ExtractionConfig, type DocumentType, categoryToTeachMethod, INSTRUCTION_CATEGORIES } from "./resolve-config";
 import { parseJsonResponse } from "./extractors/base-extractor";
+import { sanitiseLORef } from "./validate-lo-linkage";
 import type { DocumentSection } from "./segment-document";
 import { filterSections, detectFigureRefs } from "./filter-sections";
 import crypto from "crypto";
@@ -71,6 +72,15 @@ export interface ExtractionOptions {
   maxAssertions?: number;
   /** Teaching mode for auto-assigning teachMethod to extracted assertions */
   teachingMode?: import("./resolve-config").TeachingMode;
+  /**
+   * Curriculum-aware extraction: list of LO refs the AI may tag assertions with.
+   * When provided, the prompt constrains `learningOutcomeRef` to this enum and
+   * `sanitiseLORef` rejects any free-text value the AI returns. Populated by the
+   * extract route when the subject already has a curriculum with LOs — gives the
+   * extractor visibility into the curriculum structure it should align to.
+   * Epic #131 Story A2.
+   */
+  curriculumLoRefs?: { ref: string; description: string }[];
   /** Called after each chunk completes (for progress tracking) */
   onChunkDone?: (chunkIndex: number, totalChunks: number, extractedSoFar: number) => void;
   /** Called after each chunk completes with the chunk's extracted data (for progressive DB saves) */
@@ -342,11 +352,27 @@ async function extractFromChunk(
     ? `Extract all tutor instructions, teaching rules, and pedagogical techniques from this ${qualRef}teacher guide.`
     : `Extract all teaching points from this ${qualRef}${docTypeLabel} material.`;
 
+  // Curriculum-aware LO constraint (epic #131 A2). When a curriculum already
+  // exists for this subject, we pass its LO list as a constrained enum so the
+  // AI tags assertions with structured refs (LO1, LO2) instead of free-text
+  // topic names like "Character analysis". If empty, the AI is told to omit
+  // the field entirely — better null than garbage.
+  const loRefHint = options.curriculumLoRefs && options.curriculumLoRefs.length > 0
+    ? [
+        `\nLEARNING OUTCOME REFS — STRICT ENUM`,
+        `Tag each teaching point with exactly one of these LO refs in the "learningOutcomeRef" field, or null if the point doesn't map to any listed LO.`,
+        `Do NOT invent ref strings. Do NOT use free-text topic names (e.g. "Character analysis"). ONLY these refs are valid:`,
+        ...options.curriculumLoRefs.map((lo) => `  - ${lo.ref}: ${lo.description}`),
+        `If a teaching point doesn't clearly match any LO above, set "learningOutcomeRef": null.`,
+      ].join("\n")
+    : `\nFor "learningOutcomeRef": only populate this field if the source text explicitly labels a point with a structured ref like "LO1" or "AC2.3". Otherwise set it to null. Never use free-text topic names.`;
+
   const userPrompt = [
     openingLine,
     `\nValid categories: ${extraction.categories.map((c) => c.id).join(", ")}`,
     instructionHint,
     courseRefHint,
+    loRefHint,
     options.focusChapters?.length
       ? `Focus on: ${options.focusChapters.join(", ")}`
       : "",
@@ -393,10 +419,23 @@ async function extractFromChunk(
 
       if (!Array.isArray(raw)) return [];
 
+      // Optional curriculum-ref whitelist (epic #131 A2). If provided, anything
+      // outside the set is rejected even if it passes the structured-format regex.
+      const curriculumRefSet = options.curriculumLoRefs && options.curriculumLoRefs.length > 0
+        ? new Set(options.curriculumLoRefs.map((lo) => lo.ref.toUpperCase()))
+        : null;
+
       return raw
         .filter((item: any) => item.assertion && String(item.assertion).trim())
         .map((item: any) => {
         const category = validCategoryIds.has(item.category) ? item.category : "fact";
+        // Sanitise learningOutcomeRef: free-text topic names ("Character analysis")
+        // become null, only structured refs (LO1, AC2.3) survive. If the curriculum
+        // has a whitelist, also enforce that the ref is in the allowed set.
+        let loRef = sanitiseLORef(item.learningOutcomeRef) ?? undefined;
+        if (loRef && curriculumRefSet && !curriculumRefSet.has(loRef)) {
+          loRef = undefined;
+        }
         return {
           assertion: String(item.assertion).trim(),
           category,
@@ -404,7 +443,7 @@ async function extractFromChunk(
           section: item.section || undefined,
           tags: Array.isArray(item.tags) ? item.tags : [],
           examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
-          learningOutcomeRef: item.learningOutcomeRef || undefined,
+          learningOutcomeRef: loRef,
           validUntil: item.validUntil || undefined,
           taxYear: item.taxYear || undefined,
           contentHash: hashAssertion(item.assertion || ""),

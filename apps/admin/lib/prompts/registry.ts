@@ -247,9 +247,19 @@ Rules:
 1. Group related assertions into logical modules
 2. Each module should have 3-8 learning outcomes
 3. Order modules from foundational to advanced
-4. Use clear, measurable learning outcome language ("Identify...", "Explain...", "Apply...")
-5. Preserve the source material's own structure if it has chapters/sections
-6. Generate practical module IDs (MOD-1, MOD-2, etc.)
+4. Preserve the source material's own structure if it has chapters/sections
+5. Generate practical module IDs (MOD-1, MOD-2, etc.)
+
+LEARNING OUTCOMES — STRICT FORMAT
+Each learning outcome MUST be a single string in the EXACT format: "LOn: full descriptive sentence"
+  - "LOn" is the structured ref (LO1, LO2, LO3, ... — sequential within the module)
+  - Followed by ": " (colon + space)
+  - Followed by a COMPLETE descriptive sentence using measurable verbs (Identify, Explain, Analyse, Apply, Evaluate, Compare)
+  - The descriptive sentence must be a REAL learning outcome about the subject matter — NEVER the word "Identify..." or "LO1" or a placeholder
+  - Minimum 5 words after the colon
+  - Wrong: "LO1" | "LO1:" | "LO1: Identify..." | "Character analysis"
+  - Right: "LO1: Identify the main themes and recurring motifs in a literary passage"
+  - Right: "LO2: Explain how sentence structure affects the reader's interpretation"
 
 Return valid JSON only with this structure:
 {
@@ -260,7 +270,10 @@ Return valid JSON only with this structure:
       "id": "MOD-1",
       "title": "Module title",
       "description": "What this module covers",
-      "learningOutcomes": ["LO1: Identify...", "LO2: Explain..."],
+      "learningOutcomes": [
+        "LO1: Identify the main themes and recurring motifs in a literary passage",
+        "LO2: Explain how sentence structure affects the reader's interpretation"
+      ],
       "assessmentCriteria": ["Can define X", "Can list Y"],
       "keyTerms": ["term1", "term2"],
       "estimatedDurationMinutes": 30,
@@ -278,12 +291,23 @@ Return valid JSON only with this structure:
 
 Rules:
 1. Generate 4-8 modules progressing from foundational to advanced
-2. Each module should have 3-8 clear, measurable learning outcomes ("Identify...", "Explain...", "Apply...")
+2. Each module should have 3-8 learning outcomes (format below)
 3. Include practical assessment criteria for each module
 4. Adapt the pedagogical approach to the teaching style (e.g. tutor = structured, coach = goal-oriented, mentor = reflective)
 5. If learning goals are provided, ensure the curriculum covers them
 6. If no learning goals are provided, infer sensible goals for the subject
 7. Generate practical module IDs (MOD-1, MOD-2, etc.)
+
+LEARNING OUTCOMES — STRICT FORMAT
+Each learning outcome MUST be a single string in the EXACT format: "LOn: full descriptive sentence"
+  - "LOn" is the structured ref (LO1, LO2, LO3, ... — sequential within the module)
+  - Followed by ": " (colon + space)
+  - Followed by a COMPLETE descriptive sentence using measurable verbs (Identify, Explain, Analyse, Apply, Evaluate, Compare)
+  - The descriptive sentence must be a REAL learning outcome about the subject matter — NEVER the word "Identify..." or "LO1" or a placeholder
+  - Minimum 5 words after the colon
+  - Wrong: "LO1" | "LO1:" | "LO1: Identify..." | "Foundational concepts"
+  - Right: "LO1: Identify the key components of a balanced investment portfolio"
+  - Right: "LO2: Apply compound interest calculations to real-world savings scenarios"
 
 Return valid JSON only with this structure:
 {
@@ -294,7 +318,10 @@ Return valid JSON only with this structure:
       "id": "MOD-1",
       "title": "Module title",
       "description": "What this module covers",
-      "learningOutcomes": ["LO1: Identify...", "LO2: Explain..."],
+      "learningOutcomes": [
+        "LO1: Identify the key components of a balanced investment portfolio",
+        "LO2: Apply compound interest calculations to real-world savings scenarios"
+      ],
       "assessmentCriteria": ["Can define X", "Can list Y"],
       "keyTerms": ["term1", "term2"],
       "estimatedDurationMinutes": 30,

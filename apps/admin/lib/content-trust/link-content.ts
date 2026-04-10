@@ -21,6 +21,7 @@ import {
   type ContentLinkingSettings,
   CONTENT_LINKING_DEFAULTS,
 } from "@/lib/system-settings";
+import { loRefsMatch } from "@/lib/lesson-plan/lo-ref-match";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -109,12 +110,10 @@ function scoreCandidate(
 ): number {
   let score = 0;
 
-  // 1. LO reference exact match (strongest signal)
-  if (
-    item.learningOutcomeRef &&
-    candidate.learningOutcomeRef &&
-    item.learningOutcomeRef === candidate.learningOutcomeRef
-  ) {
+  // 1. LO reference match (strongest signal).
+  // Epic #131 A5 — use word-boundary matcher from Part A so hierarchical refs
+  // (R04-LO2-AC2.3) bind to LO2, and "LO1" never collides with "LO10".
+  if (loRefsMatch(item.learningOutcomeRef, candidate.learningOutcomeRef)) {
     score += settings.loRefMatchBoost;
   }
 
@@ -175,7 +174,7 @@ export async function linkContentForSource(sourceId: string, subjectSourceId?: s
   const { Prisma } = await import("@prisma/client");
 
   // 1. Load assertions for this source
-  const rawAssertions = await prisma.$queryRaw<
+  let rawAssertions = await prisma.$queryRaw<
     Array<{
       id: string;
       assertion: string;
@@ -201,8 +200,44 @@ export async function linkContentForSource(sourceId: string, subjectSourceId?: s
         `,
   );
 
+  // Epic #131 A5 — cross-source fallback. Questions often come from a separate
+  // document (e.g. a QuestionBank PDF) than the teaching points (a CourseReference).
+  // When the source that produced the questions has no assertions of its own,
+  // fall back to assertions from sibling sources in the same subject so questions
+  // can still link to their target TPs. Without this, all questions in Secret
+  // Garden stay orphaned because its QuestionBank extractor produces zero
+  // assertions.
   if (rawAssertions.length === 0) {
-    return { questionsLinked: 0, questionsOrphaned: 0, vocabularyLinked: 0, vocabularyOrphaned: 0, warnings: ["No assertions found for source"] };
+    const siblingSources = await prisma.subjectSource.findMany({
+      where: {
+        subject: { sources: { some: { sourceId } } },
+      },
+      select: { sourceId: true },
+    });
+    const siblingIds = [...new Set(siblingSources.map((s) => s.sourceId))].filter((id) => id !== sourceId);
+    if (siblingIds.length === 0) {
+      return { questionsLinked: 0, questionsOrphaned: 0, vocabularyLinked: 0, vocabularyOrphaned: 0, warnings: ["No assertions found for source or its siblings"] };
+    }
+    rawAssertions = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        assertion: string;
+        chapter: string | null;
+        section: string | null;
+        learningOutcomeRef: string | null;
+        tags: string[];
+        hasEmbedding: boolean;
+      }>
+    >(Prisma.sql`
+          SELECT id, assertion, chapter, section, "learningOutcomeRef", tags,
+                 (embedding IS NOT NULL) as "hasEmbedding"
+          FROM "ContentAssertion"
+          WHERE "sourceId" = ANY(${siblingIds}::text[])
+        `);
+    console.log(`[link-content] source ${sourceId} has no assertions — falling back to ${rawAssertions.length} sibling assertions from ${siblingIds.length} other sources`);
+    if (rawAssertions.length === 0) {
+      return { questionsLinked: 0, questionsOrphaned: 0, vocabularyLinked: 0, vocabularyOrphaned: 0, warnings: ["No assertions found for source or siblings"] };
+    }
   }
 
   const assertions: AssertionCandidate[] = rawAssertions.map((a) => ({

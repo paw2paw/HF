@@ -10,6 +10,7 @@
 
 import type { ExtractionConfig, DocumentType } from "../resolve-config";
 import type { ExtractedAssertion } from "../extract-assertions";
+import { sanitiseLORef } from "../validate-lo-linkage";
 import {
   DocumentExtractor,
   callAI,
@@ -94,7 +95,8 @@ export class GenericExtractor extends DocumentExtractor {
       section: item.section || undefined,
       tags: Array.isArray(item.tags) ? item.tags : [],
       examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
-      learningOutcomeRef: item.learningOutcomeRef || undefined,
+      // Guard per epic #131 A2: free-text refs like "Character analysis" become null.
+      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
       validUntil: item.validUntil || undefined,
       taxYear: item.taxYear || undefined,
       contentHash: hashContent(item.assertion || ""),

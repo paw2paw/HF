@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     $queryRaw: vi.fn(),
     contentQuestion: { findMany: vi.fn(), update: vi.fn() },
     contentVocabulary: { findMany: vi.fn(), update: vi.fn() },
+    subjectSource: { findMany: vi.fn() },
   },
   getContentLinkingSettings: vi.fn(),
 }));
@@ -56,8 +57,9 @@ describe("linkContentForSource", () => {
     });
   });
 
-  it("returns zeros when no assertions exist", async () => {
+  it("returns zeros when no assertions exist and no sibling sources either", async () => {
     mocks.prisma.$queryRaw.mockResolvedValueOnce([]);
+    mocks.prisma.subjectSource.findMany.mockResolvedValueOnce([]); // no siblings
 
     const result = await linkContentForSource("source-1");
 
@@ -65,7 +67,7 @@ describe("linkContentForSource", () => {
     expect(result.questionsOrphaned).toBe(0);
     expect(result.vocabularyLinked).toBe(0);
     expect(result.vocabularyOrphaned).toBe(0);
-    expect(result.warnings).toContain("No assertions found for source");
+    expect(result.warnings).toContain("No assertions found for source or its siblings");
   });
 
   it("returns zeros when no unlinked questions or vocabulary", async () => {

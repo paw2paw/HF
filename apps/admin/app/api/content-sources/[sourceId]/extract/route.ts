@@ -217,6 +217,14 @@ export async function POST(
     const job = await createExtractionTask(userId, sourceId, source.name, subjectId, subjectName, subjectSourceId);
     await updateJob(job.id, { status: "extracting", totalChunks: chunks.length });
 
+    // Epic #131 A2 — curriculum-aware extraction. When the subject already has
+    // a curriculum with Learning Objectives, pass the LO list into the extractor
+    // prompt as a constrained enum so assertions get tagged with structured refs
+    // (LO1, LO2) instead of free-text topic names. If no curriculum yet exists
+    // (first extraction creates it), curriculumLoRefs is empty and the reconciler
+    // backfills the FK in a second pass after curriculum save (A4).
+    const curriculumLoRefs = await fetchCurriculumLoRefs(subjectId).catch(() => []);
+
     // Fire-and-forget background extraction with document type
     const replace = body.replace === true;
     const fileName = source.mediaAssets[0]?.fileName || source.name;
@@ -241,6 +249,7 @@ export async function POST(
         teachingMode,
         subjectDiscipline,
         subjectName,
+        curriculumLoRefs,
       },
     ).catch(async (err) => {
       console.error(`[content-sources/:id/extract] Background job ${job.id} error:`, err);
@@ -287,6 +296,7 @@ async function runBackgroundExtraction(
     teachingMode?: TeachingMode;
     subjectDiscipline?: string;
     subjectName?: string;
+    curriculumLoRefs?: { ref: string; description: string }[];
   },
 ) {
   // Replace mode: snapshot old IDs then purge existing content before re-extracting
@@ -657,4 +667,32 @@ async function runImageExtraction(
   if (linkResult.warnings.length > 0) {
     console.warn(`[extract] Figure linking warnings:`, linkResult.warnings.join("; "));
   }
+}
+
+/**
+ * Epic #131 A2 — fetch existing LearningObjective rows for the subject's
+ * curricula so the extractor prompt can constrain `learningOutcomeRef` output
+ * to a known enum instead of accepting free-text topic names. Returns an empty
+ * array when no curriculum exists yet (first extraction), in which case refs
+ * will be null and the A4 reconciler populates the FK after curriculum save.
+ */
+async function fetchCurriculumLoRefs(
+  subjectId: string | undefined,
+): Promise<{ ref: string; description: string }[]> {
+  if (!subjectId) return [];
+  const los = await prisma.learningObjective.findMany({
+    where: { module: { curriculum: { subjectId }, isActive: true } },
+    select: { ref: true, description: true },
+    orderBy: [{ module: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+  });
+  // Dedup by ref — if the same ref appears across modules, take the first
+  // description. (Defect #5 — module duplication — is tracked separately.)
+  const seen = new Set<string>();
+  const deduped: { ref: string; description: string }[] = [];
+  for (const lo of los) {
+    if (seen.has(lo.ref)) continue;
+    seen.add(lo.ref);
+    deduped.push({ ref: lo.ref, description: lo.description });
+  }
+  return deduped;
 }
