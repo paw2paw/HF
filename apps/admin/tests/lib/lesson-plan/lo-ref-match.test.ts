@@ -75,6 +75,25 @@ describe("lo-ref-match", () => {
       expect(loRefsMatch("LO1", undefined)).toBe(false);
       expect(loRefsMatch(null, null)).toBe(false);
     });
+
+    it("matches hyphenated legacy form to un-hyphenated form", () => {
+      // Legacy parseLORef synthesised "LO-1" style refs; AI extraction
+      // returns "LO1" style. Both must compare equal.
+      expect(loRefsMatch("LO-1", "LO1")).toBe(true);
+      expect(loRefsMatch("LO1", "LO-1")).toBe(true);
+      expect(loRefsMatch("LO-10", "LO10")).toBe(true);
+      expect(loRefsMatch("lo-1", "LO1")).toBe(true);
+    });
+
+    it("hyphen equivalence does NOT cause LO-1 / LO-10 collision", () => {
+      expect(loRefsMatch("LO-1", "LO10")).toBe(false);
+      expect(loRefsMatch("LO-1", "LO-10")).toBe(false);
+      expect(loRefsMatch("LO1", "LO-10")).toBe(false);
+    });
+
+    it("matches hyphenated ref to hierarchical parent", () => {
+      expect(loRefsMatch("R04-LO2-AC2.3", "LO-2")).toBe(true);
+    });
   });
 
   describe("assertionMatchesAnyLoRef", () => {

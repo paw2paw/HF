@@ -23,10 +23,13 @@
  */
 
 /**
- * Matches structured LO refs: LO1, LO12, AC2.3, R04-LO2-AC2.3, etc.
- * Case-insensitive. Rejects free-text values like "Character analysis".
+ * Matches structured LO refs: LO1, LO-1, LO12, AC2.3, R04-LO2-AC2.3, etc.
+ * Case-insensitive. Hyphen between LO and the number is optional — both "LO1"
+ * and "LO-1" are accepted because the legacy `parseLORef` synthesiser wrote
+ * the hyphenated form into the DB. Rejects free-text values like
+ * "Character analysis".
  */
-export const STRUCTURED_LO_REF_PATTERN = /^(LO\d+|AC[\d.]+|R\d+-LO\d+(?:-AC[\d.]+)?)$/i;
+export const STRUCTURED_LO_REF_PATTERN = /^(LO-?\d+|AC[\d.]+|R\d+-LO-?\d+(?:-AC[\d.]+)?)$/i;
 
 /**
  * Normalise a raw LO ref string to its canonical form, or return null if it
@@ -34,10 +37,15 @@ export const STRUCTURED_LO_REF_PATTERN = /^(LO\d+|AC[\d.]+|R\d+-LO\d+(?:-AC[\d.]
  *
  *   sanitiseLORef("  LO1  ")        → "LO1"
  *   sanitiseLORef("lo2")            → "LO2"
+ *   sanitiseLORef("LO-1")           → "LO-1"   (hyphen form preserved)
  *   sanitiseLORef("R04-LO2-AC2.3")  → "R04-LO2-AC2.3"
  *   sanitiseLORef("Character analysis") → null  (free text — reject)
  *   sanitiseLORef(null)             → null
  *   sanitiseLORef("")               → null
+ *
+ * The hyphen form `LO-1` is preserved rather than normalised to `LO1` because
+ * the legacy DB has both forms and `loRefsMatch` (word-boundary matcher) will
+ * bind them bidirectionally.
  */
 export function sanitiseLORef(raw: string | null | undefined): string | null {
   if (!raw) return null;

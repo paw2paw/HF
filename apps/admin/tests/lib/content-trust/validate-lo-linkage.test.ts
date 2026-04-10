@@ -45,6 +45,11 @@ describe("validate-lo-linkage", () => {
       expect(sanitiseLORef("r04-lo2-ac2.3")).toBe("R04-LO2-AC2.3");
     });
 
+    it("preserves hyphenated legacy form", () => {
+      expect(sanitiseLORef("LO-1")).toBe("LO-1");
+      expect(sanitiseLORef("lo-2")).toBe("LO-2");
+    });
+
     it("returns null for free text (the Secret Garden case)", () => {
       expect(sanitiseLORef("Character analysis")).toBe(null);
       expect(sanitiseLORef("Literary devices")).toBe(null);
