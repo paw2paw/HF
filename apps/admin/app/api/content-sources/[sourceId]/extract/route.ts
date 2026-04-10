@@ -675,6 +675,14 @@ async function runImageExtraction(
  * to a known enum instead of accepting free-text topic names. Returns an empty
  * array when no curriculum exists yet (first extraction), in which case refs
  * will be null and the A4 reconciler populates the FK after curriculum save.
+ *
+ * Also returns an empty array when every LO row has a garbage description
+ * (where `description` is just the ref string or shorter than 4 chars). The
+ * extraction prompt would otherwise see meaningless "LO-1: LO1" entries and
+ * the AI — unable to decide which category maps to which — would safely omit
+ * the ref field entirely. Returning [] falls back to the un-constrained
+ * extraction prompt, which is better than asking the AI to match on garbage.
+ * The fix is to regenerate the curriculum via the Curriculum tab (#138).
  */
 async function fetchCurriculumLoRefs(
   subjectId: string | undefined,
@@ -693,6 +701,19 @@ async function fetchCurriculumLoRefs(
     if (seen.has(lo.ref)) continue;
     seen.add(lo.ref);
     deduped.push({ ref: lo.ref, description: lo.description });
+  }
+
+  // Garbage guard: if every description is invalid (equals ref, empty, or < 4
+  // chars), return [] so the extractor doesn't prompt the AI with a useless
+  // enum. The un-constrained prompt ("only populate if explicitly labelled")
+  // produces honest nulls instead of silently-rejected free text.
+  const { isValidLoPair } = await import("@/lib/content-trust/validate-lo-linkage");
+  const validCount = deduped.filter((lo) => isValidLoPair(lo.ref, lo.description)).length;
+  if (validCount === 0) {
+    console.warn(
+      `[extract] fetchCurriculumLoRefs: all ${deduped.length} LO rows for subject ${subjectId} have garbage descriptions — falling back to un-constrained prompt. Regenerate the curriculum via the Curriculum tab to fix this.`,
+    );
+    return [];
   }
   return deduped;
 }

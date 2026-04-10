@@ -307,56 +307,12 @@
   outline-offset: -1px;
 }
 
-/* ── Assertion list popover ── */
-
-.genome-popover-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 49;
-}
-
-.genome-popover {
-  position: absolute;
-  z-index: 50;
-  background: var(--surface-primary);
-  border: 1px solid var(--border-default);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-primary) 15%, transparent);
-  width: 320px;
-  max-height: 360px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.genome-popover-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-default);
-}
-
-.genome-popover-close {
-  background: none;
-  border: none;
-  font-size: 16px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-}
-
-.genome-popover-close:hover {
-  color: var(--text-primary);
-}
+/* ── Assertion list (rendered inside HFDrawer) ── */
 
 .genome-popover-list {
-  overflow-y: auto;
-  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .genome-popover-item {
@@ -431,4 +387,45 @@
 .genome-header-stats {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* ── Category legend ─────────────────────────────────── */
+
+.genome-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.genome-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.genome-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.genome-legend-label {
+  font-weight: 500;
+}
+
+.genome-legend-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }

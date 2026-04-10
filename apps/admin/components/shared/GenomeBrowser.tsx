@@ -12,6 +12,8 @@
 import { useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
 import type { GenomeData, GenomeJourneyStop, GenomeAssertion } from "@/app/api/courses/[courseId]/genome/route";
 import { getSessionTypeColor, getSessionTypeShortLabel, isFormStop } from "@/lib/lesson-plan/session-ui";
+import { getCategoryStyle } from "@/lib/content-categories";
+import { HFDrawer } from "./HFDrawer";
 import "./genome-browser.css";
 
 // ---------------------------------------------------------------------------
@@ -78,8 +80,6 @@ interface TooltipState {
 // ---------------------------------------------------------------------------
 
 interface PopoverState {
-  x: number;
-  y: number;
   assertions: GenomeAssertion[];
   category: string;
   sessionLabel: string;
@@ -123,17 +123,9 @@ export function GenomeBrowser({ data, onSessionClick, onCategoryClick, onAsserti
 
   const hideTooltip = useCallback(() => setTooltip(null), []);
 
-  const openPopover = useCallback((e: React.MouseEvent, assertions: GenomeAssertion[], category: string, sessionLabel: string) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+  const openPopover = useCallback((_e: React.MouseEvent, assertions: GenomeAssertion[], category: string, sessionLabel: string) => {
     setTooltip(null);
-    setPopover({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top + 8,
-      assertions,
-      category,
-      sessionLabel,
-    });
+    setPopover({ assertions, category, sessionLabel });
   }, []);
 
   const closePopover = useCallback(() => setPopover(null), []);
@@ -198,6 +190,26 @@ export function GenomeBrowser({ data, onSessionClick, onCategoryClick, onAsserti
           {sessionCount} sessions · {data.modules.length} modules · {data.totalAssertions} teaching points
         </span>
       </div>
+
+      {/* Category legend — shows one chip per category present in the grid */}
+      {sortedCategories.length > 0 && (
+        <div className="genome-legend">
+          {sortedCategories.map((cat) => {
+            const style = getCategoryStyle(cat);
+            const total = data.sessions.reduce((sum, s) => sum + (s.categories[cat] || 0), 0);
+            return (
+              <span key={cat} className="genome-legend-chip" title={cat}>
+                <span
+                  className="genome-legend-swatch"
+                  style={{ background: getCategoryColor(cat) }}
+                />
+                <span className="genome-legend-label">{style.label}</span>
+                <span className="genome-legend-count">{total}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       <div className="genome-container">
         {/* ═══ AXIS: Session headers ═══ */}
@@ -268,7 +280,7 @@ export function GenomeBrowser({ data, onSessionClick, onCategoryClick, onAsserti
                   `${s.totalAssertions} teaching points`,
                   ...Object.entries(s.categories)
                     .sort(([, a], [, b]) => b - a)
-                    .map(([cat, count]) => `${cat}: ${count}`),
+                    .map(([cat, count]) => `${getCategoryStyle(cat).label}: ${count}`),
                   ...(s.loRefs.length > 0 ? [`LOs: ${s.loRefs.join(", ")}`] : []),
                 ])
               }
@@ -300,7 +312,7 @@ export function GenomeBrowser({ data, onSessionClick, onCategoryClick, onAsserti
                       }
                     }}
                   >
-                    <span>{cat}</span>
+                    <span>{getCategoryStyle(cat).label}</span>
                     <span>{count}</span>
                   </div>
                 );
@@ -384,32 +396,27 @@ export function GenomeBrowser({ data, onSessionClick, onCategoryClick, onAsserti
         </div>
       )}
 
-      {/* Assertion list popover */}
-      {popover && (
-        <>
-          <div className="genome-popover-backdrop" onClick={closePopover} />
-          <div className="genome-popover" style={{ left: popover.x, top: popover.y }}>
-            <div className="genome-popover-header">
-              <span>{popover.sessionLabel} — {popover.category}</span>
-              <button className="genome-popover-close" onClick={closePopover} aria-label="Close">×</button>
-            </div>
-            <div className="genome-popover-list">
-              {popover.assertions.map((a) => (
-                <button
-                  key={a.id}
-                  className={`genome-popover-item${a.id === activeAssertionId ? " genome-popover-item--active" : ""}`}
-                  onClick={() => {
-                    onAssertionClick?.(a.id);
-                    closePopover();
-                  }}
-                >
-                  <span className="genome-popover-item-text">{a.assertion}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+      {/* Assertion list drawer */}
+      <HFDrawer
+        open={popover !== null}
+        onClose={closePopover}
+        title={popover ? `${popover.sessionLabel} — ${popover.category}` : ''}
+      >
+        <div className="genome-popover-list">
+          {popover?.assertions.map((a) => (
+            <button
+              key={a.id}
+              className={`genome-popover-item${a.id === activeAssertionId ? " genome-popover-item--active" : ""}`}
+              onClick={() => {
+                onAssertionClick?.(a.id);
+                closePopover();
+              }}
+            >
+              <span className="genome-popover-item-text">{a.assertion}</span>
+            </button>
+          ))}
+        </div>
+      </HFDrawer>
     </div>
   );
 }
