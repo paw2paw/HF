@@ -130,41 +130,79 @@ export function scoreCoverage(input: {
 
 /**
  * Full scorecard for a course — loads from DB, computes coverage, garbage counts,
- * question linkage, and module/LO summary.
+ * question linkage, and module/LO summary. Splits student-facing content from
+ * tutor instructions so the UI can surface two honest numbers instead of a
+ * muddled total.
  *
  * Used by:
  *   - `GET /api/courses/[courseId]/curriculum-scorecard` (the Curriculum tab banner)
  *   - `scripts/repair-lo-linkage.ts` (before/after delta)
  *   - Future `B1` warning gate on lesson plan regeneration
  *
- * Single source of truth for LO linkage health on a course.
+ * Single source of truth for curriculum health on a course.
  */
+export type CurriculumHealth = "ready" | "nearly_there" | "needs_attention" | "not_started";
+
 export interface CourseLinkageScorecard {
   course: { id: string; name: string };
   /** Primary curriculum for this course, or null if the course has no curriculum yet */
   curriculumId: string | null;
-  scorecard: LoLinkageScorecard;
-  loRows: {
+
+  /** Overall health signal, for the pill at the top of the banner */
+  health: CurriculumHealth;
+
+  /** Student-facing content — what the student will actually learn */
+  studentContent: {
     total: number;
-    garbageDescriptions: number;
-    orphanLos: number; // LOs with no TPs pointing at them via learningOutcomeRef
+    linkedToOutcome: number;
+    linkedPct: number;
   };
+
+  /** Tutor instructions — what shapes how the AI tutor behaves */
+  tutorInstructions: {
+    total: number;
+    linkedToOutcome: number;
+    linkedPct: number;
+  };
+
+  /** Questions & MCQs linked to teaching points */
   questions: {
     total: number;
     linkedToTp: number;
     linkedPct: number;
   };
-  modules: {
-    total: number;
-    active: number;
+
+  /** Curriculum structure — modules + learning outcomes */
+  structure: {
+    activeModules: number;
+    totalModules: number;
+    learningOutcomes: number;
+    outcomesWithContent: number;
+    outcomesWithoutContent: number; // "5 outcomes have no teaching content yet"
+    garbageDescriptions: number;    // "1 outcome has a placeholder description"
   };
+
+  /** Plain-English warnings. Educator-facing copy, not engineering. */
   warnings: string[];
+
+  /**
+   * Legacy scorecard numbers, kept for the repair script + tests. UI should
+   * prefer the educator-facing fields above.
+   * @deprecated
+   */
+  scorecard: LoLinkageScorecard;
+  /** @deprecated — use `structure.learningOutcomes` instead */
+  loRows: { total: number; garbageDescriptions: number; orphanLos: number };
+  /** @deprecated — use `structure.activeModules` / `structure.totalModules` instead */
+  modules: { total: number; active: number };
 }
 
 export async function computeCourseLinkageScorecard(courseId: string): Promise<CourseLinkageScorecard | null> {
   // Dynamic import so this module stays safe to import from test files that
   // mock @/lib/prisma differently.
   const { prisma } = await import("@/lib/prisma");
+  const { INSTRUCTION_CATEGORIES } = await import("@/lib/content-trust/resolve-config");
+  const instructionSet = new Set<string>(INSTRUCTION_CATEGORIES);
 
   const playbook = await prisma.playbook.findUnique({
     where: { id: courseId },
@@ -184,90 +222,219 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
 
   const warnings: string[] = [];
 
-  if (sourceIds.length === 0) {
-    warnings.push("Course has no linked content sources yet");
-  }
+  // Early exit — no subjects/sources means "not started"
   if (subjectIds.length === 0) {
-    warnings.push("Course has no subjects yet — upload content to create one");
+    return makeEmptyScorecard(playbook, null, "not_started", [
+      "No curriculum yet. Upload content on the Content tab to build one.",
+    ]);
+  }
+  if (sourceIds.length === 0) {
+    warnings.push("No content uploaded yet. Add documents on the Content tab so there's something to teach.");
   }
 
-  // Assertions
+  // ── Assertions (split by layer) ─────────────────────────
   const assertions = sourceIds.length > 0
     ? await prisma.contentAssertion.findMany({
         where: { sourceId: { in: sourceIds } },
-        select: { learningOutcomeRef: true, learningObjectiveId: true },
+        select: { category: true, learningOutcomeRef: true, learningObjectiveId: true },
       })
     : [];
-  const total = assertions.length;
-  const withValidRef = assertions.filter((a) => sanitiseLORef(a.learningOutcomeRef) !== null).length;
-  const withFk = assertions.filter((a) => a.learningObjectiveId !== null).length;
-  const distinctRefs = new Set(
-    assertions.map((a) => a.learningOutcomeRef).filter((r): r is string => !!r),
-  ).size;
 
-  // LearningObjective rows
-  const curricula = subjectIds.length > 0
-    ? await prisma.curriculum.findMany({
-        where: { subjectId: { in: subjectIds } },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, modules: { select: { id: true, isActive: true, learningObjectives: { select: { ref: true, description: true } } } } },
-      })
-    : [];
+  let studentTotal = 0;
+  let studentLinked = 0;
+  let tutorTotal = 0;
+  let tutorLinked = 0;
+
+  // Legacy totals (for the deprecated scorecard block)
+  let legacyWithRef = 0;
+  let legacyWithFk = 0;
+  const refCounts = new Map<string, number>();
+
+  for (const a of assertions) {
+    const isTutor = instructionSet.has(a.category);
+    const hasRef = sanitiseLORef(a.learningOutcomeRef) !== null;
+    const hasFk = a.learningObjectiveId !== null;
+
+    if (isTutor) {
+      tutorTotal++;
+      if (hasRef) tutorLinked++;
+    } else {
+      studentTotal++;
+      if (hasRef) studentLinked++;
+    }
+
+    if (hasRef) {
+      legacyWithRef++;
+      if (a.learningOutcomeRef) {
+        refCounts.set(a.learningOutcomeRef, (refCounts.get(a.learningOutcomeRef) ?? 0) + 1);
+      }
+    }
+    if (hasFk) legacyWithFk++;
+  }
+
+  const studentLinkedPct = studentTotal > 0 ? Math.round((studentLinked / studentTotal) * 100) : 0;
+  const tutorLinkedPct = tutorTotal > 0 ? Math.round((tutorLinked / tutorTotal) * 100) : 0;
+
+  // ── Curriculum structure ───────────────────────────────
+  const curricula = await prisma.curriculum.findMany({
+    where: { subjectId: { in: subjectIds } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, modules: { select: { id: true, isActive: true, learningObjectives: { select: { ref: true, description: true } } } } },
+  });
   const primaryCurriculumId = curricula[0]?.id ?? null;
   const allModules = curricula.flatMap((c) => c.modules);
   const activeModules = allModules.filter((m) => m.isActive);
   const los = activeModules.flatMap((m) => m.learningObjectives);
   const garbageDescriptions = los.filter((lo) => !isValidLoPair(lo.ref, lo.description)).length;
 
-  if (los.length > 0 && garbageDescriptions === los.length) {
-    warnings.push(
-      "All learning objectives have garbage descriptions — regenerate the curriculum to fix them",
-    );
-  } else if (garbageDescriptions > 0) {
-    warnings.push(
-      `${garbageDescriptions} of ${los.length} learning objectives have garbage descriptions`,
-    );
-  }
-
-  // Orphan LOs — LOs with zero matching assertions (cheap approximation: ref
-  // never appears in assertion.learningOutcomeRef for any assertion in this course)
-  const refCounts = new Map<string, number>();
-  for (const a of assertions) {
-    if (a.learningOutcomeRef) {
-      refCounts.set(a.learningOutcomeRef, (refCounts.get(a.learningOutcomeRef) ?? 0) + 1);
-    }
-  }
-  const orphanLos = los.filter((lo) => {
+  // LOs with at least one student TP assigned to them
+  const outcomesWithoutContent = los.filter((lo) => {
     const canon = sanitiseLORef(lo.ref);
     if (!canon) return true;
     return !refCounts.has(canon) && !refCounts.has(lo.ref);
   }).length;
+  const outcomesWithContent = los.length - outcomesWithoutContent;
 
-  // Questions
+  // ── Questions ──────────────────────────────────────────
   const totalQuestions = sourceIds.length > 0
     ? await prisma.contentQuestion.count({ where: { sourceId: { in: sourceIds } } })
     : 0;
   const linkedQuestions = sourceIds.length > 0
     ? await prisma.contentQuestion.count({ where: { sourceId: { in: sourceIds }, assertionId: { not: null } } })
     : 0;
+  const questionsLinkedPct = totalQuestions > 0 ? Math.round((linkedQuestions / totalQuestions) * 100) : 0;
+
+  // ── Educator-facing warnings ───────────────────────────
+  if (los.length === 0 && primaryCurriculumId) {
+    warnings.push("Your curriculum has no learning outcomes yet. Click Regenerate to build them from your content.");
+  } else if (los.length > 0 && garbageDescriptions === los.length) {
+    warnings.push("Your learning outcomes are placeholders. Click Regenerate to have the AI write proper descriptions from your content.");
+  } else if (garbageDescriptions > 0) {
+    warnings.push(
+      `${garbageDescriptions} learning outcome${garbageDescriptions !== 1 ? "s need" : " needs"} a real description — regenerate the curriculum to fix.`,
+    );
+  }
+
+  if (outcomesWithoutContent > 0 && los.length > 0) {
+    warnings.push(
+      `${outcomesWithoutContent} learning outcome${outcomesWithoutContent !== 1 ? "s have" : " has"} no teaching content yet — the student will be tested on them with nothing to fall back on.`,
+    );
+  }
 
   if (totalQuestions > 0 && linkedQuestions === 0) {
     warnings.push(
-      `${totalQuestions} question${totalQuestions !== 1 ? "s" : ""} not linked to any teaching point`,
+      `${totalQuestions} question${totalQuestions !== 1 ? "s" : ""} couldn't be matched to a teaching point — they'll still run, but won't track progress against outcomes.`,
     );
   }
+
+  if (studentTotal === 0 && tutorTotal > 0) {
+    warnings.push("All of your uploaded content looks like tutor instructions, not student teaching points. Check that you've uploaded the right documents on the Content tab.");
+  }
+
+  // ── Health pill computation ────────────────────────────
+  const health = computeHealth({
+    curriculumExists: primaryCurriculumId !== null,
+    studentTotal,
+    studentLinkedPct,
+    garbageDescriptions,
+    outcomesWithoutContent,
+    totalLos: los.length,
+    questionsLinkedPct,
+    totalQuestions,
+  });
 
   return {
     course: { id: playbook.id, name: playbook.name },
     curriculumId: primaryCurriculumId,
-    scorecard: scoreCoverage({ total, withValidRef, withFk, distinctRefs, garbageDescriptions }),
-    loRows: { total: los.length, garbageDescriptions, orphanLos },
+    health,
+    studentContent: {
+      total: studentTotal,
+      linkedToOutcome: studentLinked,
+      linkedPct: studentLinkedPct,
+    },
+    tutorInstructions: {
+      total: tutorTotal,
+      linkedToOutcome: tutorLinked,
+      linkedPct: tutorLinkedPct,
+    },
     questions: {
       total: totalQuestions,
       linkedToTp: linkedQuestions,
-      linkedPct: totalQuestions > 0 ? Math.round((linkedQuestions / totalQuestions) * 100) : 0,
+      linkedPct: questionsLinkedPct,
     },
-    modules: { total: allModules.length, active: activeModules.length },
+    structure: {
+      activeModules: activeModules.length,
+      totalModules: allModules.length,
+      learningOutcomes: los.length,
+      outcomesWithContent,
+      outcomesWithoutContent,
+      garbageDescriptions,
+    },
     warnings,
+    // Deprecated legacy block
+    scorecard: scoreCoverage({
+      total: assertions.length,
+      withValidRef: legacyWithRef,
+      withFk: legacyWithFk,
+      distinctRefs: refCounts.size,
+      garbageDescriptions,
+    }),
+    loRows: { total: los.length, garbageDescriptions, orphanLos: outcomesWithoutContent },
+    modules: { total: allModules.length, active: activeModules.length },
+  };
+}
+
+// ── Health pill ─────────────────────────────────────────────
+
+function computeHealth(input: {
+  curriculumExists: boolean;
+  studentTotal: number;
+  studentLinkedPct: number;
+  garbageDescriptions: number;
+  outcomesWithoutContent: number;
+  totalLos: number;
+  questionsLinkedPct: number;
+  totalQuestions: number;
+}): CurriculumHealth {
+  if (!input.curriculumExists || input.totalLos === 0) return "not_started";
+  if (input.garbageDescriptions > 0) return "needs_attention";
+  if (input.studentTotal === 0) return "needs_attention";
+  if (input.studentLinkedPct < 20) return "needs_attention";
+
+  const allOutcomesCovered = input.outcomesWithoutContent === 0;
+  const strongCoverage = input.studentLinkedPct >= 60;
+  const questionsHealthy = input.totalQuestions === 0 || input.questionsLinkedPct >= 50;
+
+  if (allOutcomesCovered && strongCoverage && questionsHealthy) return "ready";
+  return "nearly_there";
+}
+
+// ── Empty/early-exit helper ─────────────────────────────────
+
+function makeEmptyScorecard(
+  playbook: { id: string; name: string },
+  curriculumId: string | null,
+  health: CurriculumHealth,
+  warnings: string[],
+): CourseLinkageScorecard {
+  return {
+    course: { id: playbook.id, name: playbook.name },
+    curriculumId,
+    health,
+    studentContent: { total: 0, linkedToOutcome: 0, linkedPct: 0 },
+    tutorInstructions: { total: 0, linkedToOutcome: 0, linkedPct: 0 },
+    questions: { total: 0, linkedToTp: 0, linkedPct: 0 },
+    structure: {
+      activeModules: 0,
+      totalModules: 0,
+      learningOutcomes: 0,
+      outcomesWithContent: 0,
+      outcomesWithoutContent: 0,
+      garbageDescriptions: 0,
+    },
+    warnings,
+    scorecard: scoreCoverage({ total: 0, withValidRef: 0, withFk: 0, distinctRefs: 0, garbageDescriptions: 0 }),
+    loRows: { total: 0, garbageDescriptions: 0, orphanLos: 0 },
+    modules: { total: 0, active: 0 },
   };
 }

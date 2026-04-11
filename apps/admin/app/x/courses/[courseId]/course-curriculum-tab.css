@@ -30,46 +30,132 @@
 
 .curriculum-scorecard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
-  padding: 12px;
-  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
-  border-radius: 6px;
 }
 
-.curriculum-scorecard-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+/* ── Health pill ──────────────────────────────────────────── */
 
-.curriculum-scorecard-metric-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 500;
-}
-
-.curriculum-scorecard-metric-value {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.curriculum-scorecard-metric-pct {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.curriculum-scorecard-metric-warning {
+.curriculum-health-pill {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
   font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.curriculum-health-pill--ready {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.curriculum-health-pill--nearly {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.curriculum-health-pill--attention {
+  background: color-mix(in srgb, var(--status-warning-text) 14%, transparent);
   color: var(--status-warning-text);
+}
+
+.curriculum-health-pill--notstarted {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+}
+
+/* ── Metric card ──────────────────────────────────────────── */
+
+.curriculum-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  border-left-width: 3px;
+}
+
+.curriculum-metric-card--primary {
+  border-left-color: var(--accent-primary);
+}
+
+.curriculum-metric-card--success {
+  border-left-color: var(--status-success-text);
+}
+
+.curriculum-metric-card--info {
+  border-left-color: var(--login-blue, var(--accent-primary));
+}
+
+.curriculum-metric-card--gold {
+  border-left-color: var(--login-gold, var(--status-warning-text));
+}
+
+.curriculum-metric-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.curriculum-metric-card-icon {
+  display: inline-flex;
+}
+
+.curriculum-metric-card--primary .curriculum-metric-card-icon { color: var(--accent-primary); }
+.curriculum-metric-card--success .curriculum-metric-card-icon { color: var(--status-success-text); }
+.curriculum-metric-card--info .curriculum-metric-card-icon { color: var(--login-blue, var(--accent-primary)); }
+.curriculum-metric-card--gold .curriculum-metric-card-icon { color: var(--login-gold, var(--status-warning-text)); }
+
+.curriculum-metric-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.curriculum-metric-card-headline {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.curriculum-metric-card-subline {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.curriculum-metric-card-bar {
+  height: 4px;
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.curriculum-metric-card-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.curriculum-metric-card--primary .curriculum-metric-card-bar-fill { background: var(--accent-primary); }
+.curriculum-metric-card--success .curriculum-metric-card-bar-fill { background: var(--status-success-text); }
+.curriculum-metric-card--info .curriculum-metric-card-bar-fill { background: var(--login-blue, var(--accent-primary)); }
+.curriculum-metric-card--gold .curriculum-metric-card-bar-fill { background: var(--login-gold, var(--status-warning-text)); }
+
+.curriculum-metric-card-helper {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .curriculum-scorecard-warnings {

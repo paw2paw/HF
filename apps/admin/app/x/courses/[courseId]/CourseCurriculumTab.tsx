@@ -16,10 +16,22 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, RefreshCw, CheckCircle2, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  RefreshCw,
+  CheckCircle2,
+  Sparkles,
+  BookOpen,
+  Wrench,
+  HelpCircle,
+  Layers,
+  CircleDashed,
+  CircleDot,
+  Clock,
+} from "lucide-react";
 import Link from "next/link";
 import CurriculumEditor from "@/app/x/subjects/_components/CurriculumEditor";
-import type { CourseLinkageScorecard } from "@/lib/content-trust/validate-lo-linkage";
+import type { CourseLinkageScorecard, CurriculumHealth } from "@/lib/content-trust/validate-lo-linkage";
 import "./course-curriculum-tab.css";
 
 interface CourseCurriculumTabProps {
@@ -171,20 +183,16 @@ function ScorecardBanner({
   regenerating: boolean;
 }) {
   const hasWarnings = scorecard.warnings.length > 0;
-  const healthy =
-    scorecard.scorecard.coveragePct >= 60 &&
-    scorecard.scorecard.fkCoveragePct >= 60 &&
-    scorecard.loRows.garbageDescriptions === 0;
+  const structure = scorecard.structure;
+  const structureLine = structure.learningOutcomes > 0
+    ? `${structure.activeModules} module${structure.activeModules !== 1 ? "s" : ""} · ${structure.learningOutcomes} learning outcome${structure.learningOutcomes !== 1 ? "s" : ""}`
+    : "No modules yet";
 
   return (
-    <div className={`hf-card ${hasWarnings ? "hf-banner-warning" : ""} curriculum-scorecard`}>
+    <div className="hf-card curriculum-scorecard">
       <div className="curriculum-scorecard-header">
         <div className="curriculum-scorecard-title">
-          {healthy ? (
-            <CheckCircle2 size={16} className="hf-text-success" />
-          ) : (
-            <AlertTriangle size={16} className="hf-text-warning" />
-          )}
+          <HealthPill health={scorecard.health} />
           <span className="hf-section-title">Curriculum health</span>
         </div>
         {onRegenerate && (
@@ -193,7 +201,7 @@ function ScorecardBanner({
             className="hf-btn hf-btn-primary hf-btn-sm"
             onClick={onRegenerate}
             disabled={regenerating}
-            title="Regenerate curriculum from extracted content"
+            title="Rebuild the curriculum from your uploaded content"
           >
             {regenerating ? (
               <>
@@ -209,29 +217,64 @@ function ScorecardBanner({
       </div>
 
       <div className="curriculum-scorecard-grid">
-        <Metric label="Teaching points" value={scorecard.scorecard.total} />
-        <Metric
-          label="With LO ref"
-          value={`${scorecard.scorecard.withValidRef} / ${scorecard.scorecard.total}`}
-          pct={scorecard.scorecard.coveragePct}
+        <MetricCard
+          icon={<BookOpen size={16} />}
+          accent="primary"
+          label="Student teaching points"
+          headline={
+            scorecard.studentContent.total === 0
+              ? "No student content yet"
+              : `${scorecard.studentContent.linkedToOutcome} of ${scorecard.studentContent.total} connected to a learning outcome`
+          }
+          pct={scorecard.studentContent.total > 0 ? scorecard.studentContent.linkedPct : null}
+          helper="What your learners will actually study"
         />
-        <Metric
-          label="FK linked"
-          value={`${scorecard.scorecard.withFk} / ${scorecard.scorecard.total}`}
-          pct={scorecard.scorecard.fkCoveragePct}
+
+        <MetricCard
+          icon={<Wrench size={16} />}
+          accent="info"
+          label="Tutor instructions"
+          headline={
+            scorecard.tutorInstructions.total === 0
+              ? "No tutor instructions yet"
+              : `${scorecard.tutorInstructions.total} rule${scorecard.tutorInstructions.total !== 1 ? "s" : ""} guide the AI tutor`
+          }
+          subline={
+            scorecard.tutorInstructions.total > 0
+              ? `${scorecard.tutorInstructions.linkedToOutcome} tied to specific outcomes`
+              : undefined
+          }
+          helper="How the AI tutor behaves during sessions"
         />
-        <Metric label="Modules" value={`${scorecard.modules.active} / ${scorecard.modules.total}`} />
-        <Metric
-          label="Learning objectives"
-          value={scorecard.loRows.total}
-          warning={scorecard.loRows.garbageDescriptions > 0
-            ? `${scorecard.loRows.garbageDescriptions} garbage`
-            : undefined}
+
+        <MetricCard
+          icon={<HelpCircle size={16} />}
+          accent="success"
+          label="Questions & MCQs"
+          headline={
+            scorecard.questions.total === 0
+              ? "No questions yet"
+              : `${scorecard.questions.linkedToTp} of ${scorecard.questions.total} linked to a teaching point`
+          }
+          pct={scorecard.questions.total > 0 ? scorecard.questions.linkedPct : null}
+          helper="How learners are assessed"
         />
-        <Metric
-          label="Questions linked"
-          value={`${scorecard.questions.linkedToTp} / ${scorecard.questions.total}`}
-          pct={scorecard.questions.linkedPct}
+
+        <MetricCard
+          icon={<Layers size={16} />}
+          accent="gold"
+          label="Curriculum structure"
+          headline={structureLine}
+          subline={
+            structure.learningOutcomes > 0
+              ? structure.garbageDescriptions === 0 && structure.outcomesWithoutContent === 0
+                ? "All outcomes have real descriptions and teaching content"
+                : structure.garbageDescriptions > 0
+                  ? `${structure.garbageDescriptions} outcome${structure.garbageDescriptions !== 1 ? "s need" : " needs"} a real description`
+                  : `${structure.outcomesWithoutContent} outcome${structure.outcomesWithoutContent !== 1 ? "s have" : " has"} no teaching content yet`
+              : undefined
+          }
+          helper="The shape of your course"
         />
       </div>
 
@@ -248,29 +291,76 @@ function ScorecardBanner({
   );
 }
 
-function Metric({
+// ── Health pill ───────────────────────────────────────────────
+
+function HealthPill({ health }: { health: CurriculumHealth }) {
+  const config: Record<CurriculumHealth, { label: string; icon: React.ReactNode; className: string }> = {
+    ready: {
+      label: "Ready",
+      icon: <CheckCircle2 size={13} />,
+      className: "curriculum-health-pill--ready",
+    },
+    nearly_there: {
+      label: "Nearly there",
+      icon: <CircleDot size={13} />,
+      className: "curriculum-health-pill--nearly",
+    },
+    needs_attention: {
+      label: "Needs attention",
+      icon: <AlertTriangle size={13} />,
+      className: "curriculum-health-pill--attention",
+    },
+    not_started: {
+      label: "Not started",
+      icon: <Clock size={13} />,
+      className: "curriculum-health-pill--notstarted",
+    },
+  };
+  const c = config[health];
+  return (
+    <span className={`curriculum-health-pill ${c.className}`}>
+      {c.icon}
+      {c.label}
+    </span>
+  );
+}
+
+// ── Metric card ──────────────────────────────────────────────
+
+function MetricCard({
+  icon,
+  accent,
   label,
-  value,
+  headline,
+  subline,
   pct,
-  warning,
+  helper,
 }: {
+  icon: React.ReactNode;
+  accent: "primary" | "success" | "info" | "gold";
   label: string;
-  value: string | number;
-  pct?: number;
-  warning?: string;
+  headline: string;
+  subline?: string;
+  pct?: number | null;
+  helper?: string;
 }) {
   return (
-    <div className="curriculum-scorecard-metric">
-      <div className="curriculum-scorecard-metric-label">{label}</div>
-      <div className="curriculum-scorecard-metric-value">
-        {value}
-        {pct !== undefined && <span className="curriculum-scorecard-metric-pct"> ({pct}%)</span>}
+    <div className={`curriculum-metric-card curriculum-metric-card--${accent}`}>
+      <div className="curriculum-metric-card-head">
+        <span className="curriculum-metric-card-icon">{icon}</span>
+        <span className="curriculum-metric-card-label">{label}</span>
       </div>
-      {warning && (
-        <div className="curriculum-scorecard-metric-warning">
-          <AlertTriangle size={10} /> {warning}
+      <div className="curriculum-metric-card-headline">{headline}</div>
+      {subline && <div className="curriculum-metric-card-subline">{subline}</div>}
+      {typeof pct === "number" && (
+        <div className="curriculum-metric-card-bar">
+          <div
+            className="curriculum-metric-card-bar-fill"
+            style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+          />
         </div>
       )}
+      {helper && <div className="curriculum-metric-card-helper">{helper}</div>}
     </div>
   );
 }
@@ -292,13 +382,17 @@ function RegenerateResult({
     );
   }
 
+  const moduleWord = result.moduleCount === 1 ? "module" : "modules";
+  const linkCount = result.reconcile?.fkWritten ?? 0;
+  const linkLine = linkCount > 0
+    ? ` Connected ${linkCount} teaching point${linkCount !== 1 ? "s" : ""} to learning outcomes.`
+    : "";
   return (
     <div className="hf-banner hf-banner-success">
       <div>
         <CheckCircle2 size={14} />
         <strong> Curriculum regenerated.</strong>{" "}
-        {result.moduleCount} modules, {result.reconcile?.fkWritten ?? 0} FK links written
-        across {result.reconcile?.assertionsScanned ?? 0} assertions.
+        {result.moduleCount} {moduleWord} created.{linkLine}
       </div>
 
       {result.warnings && result.warnings.length > 0 && (
@@ -311,19 +405,19 @@ function RegenerateResult({
 
       {result.lessonPlanStaleWarning && (
         <div className="hf-text-xs hf-mt-sm">
-          <AlertTriangle size={11} className="hf-text-warning" /> Module structure changed.
-          The lesson plan may reference stale LO refs.{" "}
+          <AlertTriangle size={11} className="hf-text-warning" /> Your module structure
+          changed — the lesson plan may need regenerating too.{" "}
           {onSwitchTab ? (
             <button
               type="button"
               className="hf-link"
               onClick={() => onSwitchTab("journey")}
             >
-              Review the Journey tab →
+              Go to the Journey tab →
             </button>
           ) : (
             <Link href="?tab=journey" className="hf-link">
-              Review the Journey tab →
+              Go to the Journey tab →
             </Link>
           )}
         </div>
