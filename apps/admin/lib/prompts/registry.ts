@@ -252,7 +252,7 @@ Rules:
 
 LEARNING OUTCOMES — STRICT FORMAT
 Each learning outcome MUST be a single string in the EXACT format: "LOn: full descriptive sentence"
-  - "LOn" is the structured ref (LO1, LO2, LO3, ... — sequential within the module)
+  - "LOn" is the structured ref (LO1, LO2, LO3, ...)
   - Followed by ": " (colon + space)
   - Followed by a COMPLETE descriptive sentence using measurable verbs (Identify, Explain, Analyse, Apply, Evaluate, Compare)
   - The descriptive sentence must be a REAL learning outcome about the subject matter — NEVER the word "Identify..." or "LO1" or a placeholder
@@ -260,6 +260,14 @@ Each learning outcome MUST be a single string in the EXACT format: "LOn: full de
   - Wrong: "LO1" | "LO1:" | "LO1: Identify..." | "Character analysis"
   - Right: "LO1: Identify the main themes and recurring motifs in a literary passage"
   - Right: "LO2: Explain how sentence structure affects the reader's interpretation"
+
+LO NUMBERING — GLOBAL UNIQUENESS (CRITICAL)
+Number learning outcomes sequentially across the ENTIRE curriculum, NOT per module.
+  - MOD-1's first LO is "LO1", MOD-1's last LO is the next integer (e.g. "LO3")
+  - MOD-2's first LO continues from where MOD-1 left off (e.g. "LO4")
+  - The ref namespace is globally unique — each "LOn" appears exactly once in the whole curriculum
+  - Wrong: MOD-1 has LO1/LO2/LO3, MOD-2 has LO1/LO2/LO3 (ref collision)
+  - Right: MOD-1 has LO1/LO2/LO3, MOD-2 has LO4/LO5/LO6 (continuous numbering)
 
 Return valid JSON only with this structure:
 {
@@ -272,12 +280,26 @@ Return valid JSON only with this structure:
       "description": "What this module covers",
       "learningOutcomes": [
         "LO1: Identify the main themes and recurring motifs in a literary passage",
-        "LO2: Explain how sentence structure affects the reader's interpretation"
+        "LO2: Explain how sentence structure affects the reader's interpretation",
+        "LO3: Apply close-reading techniques to a chosen passage"
       ],
       "assessmentCriteria": ["Can define X", "Can list Y"],
       "keyTerms": ["term1", "term2"],
       "estimatedDurationMinutes": 30,
       "sortOrder": 1
+    },
+    {
+      "id": "MOD-2",
+      "title": "Second module",
+      "description": "What this module covers",
+      "learningOutcomes": [
+        "LO4: Analyse how figurative language shapes tone",
+        "LO5: Compare multiple interpretations of the same passage"
+      ],
+      "assessmentCriteria": ["Can define X", "Can list Y"],
+      "keyTerms": ["term1", "term2"],
+      "estimatedDurationMinutes": 30,
+      "sortOrder": 2
     }
   ],
   "deliveryConfig": {
@@ -300,7 +322,7 @@ Rules:
 
 LEARNING OUTCOMES — STRICT FORMAT
 Each learning outcome MUST be a single string in the EXACT format: "LOn: full descriptive sentence"
-  - "LOn" is the structured ref (LO1, LO2, LO3, ... — sequential within the module)
+  - "LOn" is the structured ref (LO1, LO2, LO3, ...)
   - Followed by ": " (colon + space)
   - Followed by a COMPLETE descriptive sentence using measurable verbs (Identify, Explain, Analyse, Apply, Evaluate, Compare)
   - The descriptive sentence must be a REAL learning outcome about the subject matter — NEVER the word "Identify..." or "LO1" or a placeholder
@@ -308,6 +330,14 @@ Each learning outcome MUST be a single string in the EXACT format: "LOn: full de
   - Wrong: "LO1" | "LO1:" | "LO1: Identify..." | "Foundational concepts"
   - Right: "LO1: Identify the key components of a balanced investment portfolio"
   - Right: "LO2: Apply compound interest calculations to real-world savings scenarios"
+
+LO NUMBERING — GLOBAL UNIQUENESS (CRITICAL)
+Number learning outcomes sequentially across the ENTIRE curriculum, NOT per module.
+  - MOD-1's first LO is "LO1", MOD-1's last LO is the next integer (e.g. "LO3")
+  - MOD-2's first LO continues from where MOD-1 left off (e.g. "LO4")
+  - The ref namespace is globally unique — each "LOn" appears exactly once in the whole curriculum
+  - Wrong: MOD-1 has LO1/LO2/LO3, MOD-2 has LO1/LO2/LO3 (ref collision)
+  - Right: MOD-1 has LO1/LO2/LO3, MOD-2 has LO4/LO5/LO6 (continuous numbering)
 
 Return valid JSON only with this structure:
 {
