@@ -141,6 +141,8 @@ export function scoreCoverage(input: {
  */
 export interface CourseLinkageScorecard {
   course: { id: string; name: string };
+  /** Primary curriculum for this course, or null if the course has no curriculum yet */
+  curriculumId: string | null;
   scorecard: LoLinkageScorecard;
   loRows: {
     total: number;
@@ -207,9 +209,11 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
   const curricula = subjectIds.length > 0
     ? await prisma.curriculum.findMany({
         where: { subjectId: { in: subjectIds } },
+        orderBy: { createdAt: "desc" },
         select: { id: true, modules: { select: { id: true, isActive: true, learningObjectives: { select: { ref: true, description: true } } } } },
       })
     : [];
+  const primaryCurriculumId = curricula[0]?.id ?? null;
   const allModules = curricula.flatMap((c) => c.modules);
   const activeModules = allModules.filter((m) => m.isActive);
   const los = activeModules.flatMap((m) => m.learningObjectives);
@@ -255,6 +259,7 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
 
   return {
     course: { id: playbook.id, name: playbook.name },
+    curriculumId: primaryCurriculumId,
     scorecard: scoreCoverage({ total, withValidRef, withFk, distinctRefs, garbageDescriptions }),
     loRows: { total: los.length, garbageDescriptions, orphanLos },
     questions: {

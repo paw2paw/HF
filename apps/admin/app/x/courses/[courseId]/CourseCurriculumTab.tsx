@@ -24,7 +24,13 @@ import "./course-curriculum-tab.css";
 
 interface CourseCurriculumTabProps {
   courseId: string;
-  curriculumId: string | null;
+  /**
+   * Optional curriculumId hint from the course page's sessions fetch. The
+   * scorecard endpoint resolves its own curriculum-id authoritatively, so
+   * this prop is only used as a fallback for the CurriculumEditor while the
+   * scorecard is still loading.
+   */
+  curriculumId?: string | null;
   isOperator: boolean;
   onSwitchTab?: (tab: string) => void;
 }
@@ -42,7 +48,7 @@ interface RegenerateResponse {
 
 export function CourseCurriculumTab({
   courseId,
-  curriculumId,
+  curriculumId: curriculumIdProp,
   isOperator,
   onSwitchTab,
 }: CourseCurriculumTabProps) {
@@ -52,6 +58,10 @@ export function CourseCurriculumTab({
 
   const [regenerating, setRegenerating] = useState(false);
   const [regenResult, setRegenResult] = useState<RegenerateResponse | null>(null);
+
+  // Authoritative curriculum id comes from the scorecard response. Until that
+  // loads, fall back to the hint passed in by the course page.
+  const curriculumId = scorecard?.curriculumId ?? curriculumIdProp ?? null;
 
   // ── Load scorecard ────────────────────────────────────────
   const loadScorecard = useCallback(async () => {
@@ -105,6 +115,17 @@ export function CourseCurriculumTab({
   }, [courseId, regenerating, loadScorecard]);
 
   // ── Render ─────────────────────────────────────────────────
+  // Wait for the scorecard fetch before deciding whether a curriculum exists —
+  // the scorecard response is the authoritative source. If the scorecard
+  // returns and curriculumId is still null, surface the empty state.
+  if (loading && !scorecard) {
+    return (
+      <div className="hf-stack-md">
+        <div className="hf-spinner" />
+      </div>
+    );
+  }
+
   if (!curriculumId) {
     return (
       <div className="hf-empty">
@@ -117,9 +138,6 @@ export function CourseCurriculumTab({
 
   return (
     <div className="hf-stack-md">
-      {/* Scorecard banner */}
-      {loading && <div className="hf-spinner" />}
-
       {error && <div className="hf-banner hf-banner-error">{error}</div>}
 
       {scorecard && (
