@@ -13,7 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import type { LegacyCurriculumModuleJSON } from "@/lib/types/json-fields";
 import { parseLoLine } from "@/lib/content-trust/validate-lo-linkage";
-import { reconcileAssertionLOs } from "@/lib/content-trust/reconcile-lo-linkage";
+import { reconcileAssertionLOs, type ReconcileResult } from "@/lib/content-trust/reconcile-lo-linkage";
 
 // ---------------------------------------------------------------------------
 // syncModulesToDB — upserts CurriculumModule + LO records from JSON modules
@@ -30,8 +30,8 @@ import { reconcileAssertionLOs } from "@/lib/content-trust/reconcile-lo-linkage"
 export async function syncModulesToDB(
   curriculumId: string,
   modules: LegacyCurriculumModuleJSON[],
-): Promise<{ count: number }> {
-  if (!modules || modules.length === 0) return { count: 0 };
+): Promise<{ count: number; reconcile: ReconcileResult | null }> {
+  if (!modules || modules.length === 0) return { count: 0, reconcile: null };
 
   const result = await prisma.$transaction(async (tx) => {
     const synced: string[] = [];
@@ -133,13 +133,13 @@ export async function syncModulesToDB(
   // extracted before the curriculum existed (and tagged with string refs by
   // the curriculum-aware extractor A2) now get their FK populated without a
   // manual backfill. Idempotent — already-linked assertions are skipped.
+  let reconcile: ReconcileResult | null = null;
   try {
-    await reconcileAssertionLOs(curriculumId);
+    reconcile = await reconcileAssertionLOs(curriculumId);
   } catch (err) {
     console.error(`[sync-modules] reconcileAssertionLOs failed for curriculum ${curriculumId}:`, err);
-    // Non-fatal — curriculum save itself succeeded. The repair script (B2)
-    // can re-run the reconciler manually.
+    // Non-fatal — curriculum save itself succeeded.
   }
 
-  return { count: result.length };
+  return { count: result.length, reconcile };
 }

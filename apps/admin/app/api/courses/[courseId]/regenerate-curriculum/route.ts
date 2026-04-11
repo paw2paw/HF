@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { extractCurriculumFromAssertions } from "@/lib/content-trust/extract-curriculum";
 import { syncModulesToDB } from "@/lib/curriculum/sync-modules";
-import { reconcileAssertionLOs } from "@/lib/content-trust/reconcile-lo-linkage";
 import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
 import type { LegacyCurriculumModuleJSON } from "@/lib/types/json-fields";
 
@@ -200,20 +199,20 @@ export async function POST(
       [...priorSlugSet].some((s) => !newSlugSet.has(s));
     const lessonPlanStaleWarning = hasLessonPlan && slugsChanged;
 
-    // 9. Re-run reconciler explicitly (syncModulesToDB already fired it, but
-    // a second pass is cheap and guarantees FKs are fresh even if the first
-    // call logged an error)
-    const reconcileResult = await reconcileAssertionLOs(existingCurriculum.id);
+    // 9. The reconciler already ran inside syncModulesToDB — we surface its
+    // stats from syncResult rather than firing a second call.
 
     return NextResponse.json({
       ok: true,
       curriculumId: existingCurriculum.id,
       moduleCount: syncResult.count,
       warnings: extracted.warnings,
-      reconcile: {
-        assertionsScanned: reconcileResult.assertionsScanned,
-        fkWritten: reconcileResult.fkWritten,
-      },
+      reconcile: syncResult.reconcile
+        ? {
+            assertionsScanned: syncResult.reconcile.assertionsScanned,
+            fkWritten: syncResult.reconcile.fkWritten,
+          }
+        : { assertionsScanned: 0, fkWritten: 0 },
       lessonPlanStaleWarning,
       orphanedProgressSlugs,
     });
