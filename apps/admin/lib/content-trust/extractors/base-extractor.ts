@@ -83,6 +83,14 @@ export interface ExtractionContext {
   focusChapters?: string[];
   /** Interaction pattern from the playbook — shapes extraction emphasis */
   interactionPattern?: string;
+  /**
+   * Curriculum-aware extraction: LO refs the AI may tag assertions with.
+   * When populated, specialist extractors inject this as a constrained enum
+   * into their prompt so assertions get structured refs (LO1, LO2) instead
+   * of free text. Epic #131 A2. Empty when the curriculum has no valid LOs
+   * yet — in that case the extractor uses the un-constrained fallback prompt.
+   */
+  curriculumLoRefs?: { ref: string; description: string }[];
 }
 
 /** Data emitted per-chunk for specialist extractors (includes questions + vocabulary) */
@@ -98,6 +106,33 @@ export interface SpecialistChunkCompleteData extends ChunkCompleteData {
 const MAX_CHUNK_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 2000;
 const CHUNK_CONCURRENCY = 3;
+
+// ------------------------------------------------------------------
+// Curriculum-aware LO hint (epic #131 A2)
+// ------------------------------------------------------------------
+
+/**
+ * Build a prompt fragment that constrains the AI's `learningOutcomeRef`
+ * output to a known LO enum. Shared across all specialist extractors and
+ * the legacy extract-assertions.ts path so the curriculum-aware behaviour
+ * is identical everywhere.
+ *
+ * When the curriculum has no LOs yet (first extraction) this returns an
+ * un-constrained fallback that tells the AI to produce null unless the
+ * source text explicitly labels a point — better than accepting free text.
+ */
+export function buildLoRefHint(curriculumLoRefs?: { ref: string; description: string }[]): string {
+  if (curriculumLoRefs && curriculumLoRefs.length > 0) {
+    return [
+      `\nLEARNING OUTCOME REFS — STRICT ENUM`,
+      `Tag each teaching point with exactly one of these LO refs in the "learningOutcomeRef" field, or null if the point doesn't map to any listed LO.`,
+      `Do NOT invent ref strings. Do NOT use free-text topic names (e.g. "Character analysis"). ONLY these refs are valid:`,
+      ...curriculumLoRefs.map((lo) => `  - ${lo.ref}: ${lo.description}`),
+      `If a teaching point doesn't clearly match any LO above, set "learningOutcomeRef": null.`,
+    ].join("\n");
+  }
+  return `\nFor "learningOutcomeRef": only populate this field if the source text explicitly labels a point with a structured ref like "LO1" or "AC2.3". Otherwise set it to null. Never use free-text topic names.`;
+}
 
 // ------------------------------------------------------------------
 // Base class
@@ -210,6 +245,7 @@ export abstract class DocumentExtractor {
         sourceSlug: options.sourceSlug,
         qualificationRef: options.qualificationRef,
         focusChapters: options.focusChapters,
+        curriculumLoRefs: options.curriculumLoRefs,
       };
 
       return concurrency(async () => {

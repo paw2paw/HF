@@ -19,6 +19,7 @@ import {
   DocumentExtractor,
   callAI,
   parseJsonResponse,
+  buildLoRefHint,
   hashContent,
   type ChunkResult,
   type ExtractionContext,
@@ -126,8 +127,19 @@ export class AssessmentExtractor extends DocumentExtractor {
     const userPrompt = [
       `Extract all questions and teaching points from this assessment document.`,
       context.qualificationRef ? `Qualification: ${context.qualificationRef}` : "",
+      buildLoRefHint(context.curriculumLoRefs),
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
+
+    const curriculumRefSet = context.curriculumLoRefs && context.curriculumLoRefs.length > 0
+      ? new Set(context.curriculumLoRefs.map((lo) => lo.ref.toUpperCase()))
+      : null;
+    const enforceWhitelist = (raw: string | null | undefined): string | undefined => {
+      const sanitised = sanitiseLORef(raw);
+      if (!sanitised) return undefined;
+      if (curriculumRefSet && !curriculumRefSet.has(sanitised)) return undefined;
+      return sanitised;
+    };
 
     // @ai-call content-trust.extract-assessment — Extract assertions and questions with rubrics from assessment docs | config: /x/ai-config
     const aiResult = await callAI(
@@ -158,7 +170,7 @@ export class AssessmentExtractor extends DocumentExtractor {
       tags: Array.isArray(item.tags) ? item.tags : [],
       examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : 1.0,
       // Guard per epic #131 A2.
-      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
+      learningOutcomeRef: enforceWhitelist(item.learningOutcomeRef),
       contentHash: hashContent(item.assertion || ""),
     }));
 
@@ -180,7 +192,7 @@ export class AssessmentExtractor extends DocumentExtractor {
           correctAnswer: q.correctAnswer ? String(q.correctAnswer) : undefined,
           answerExplanation: q.answerExplanation ? String(q.answerExplanation) : undefined,
           markScheme: q.markScheme ? String(q.markScheme) : undefined,
-          learningOutcomeRef: sanitiseLORef(q.learningOutcomeRef) ?? undefined,
+          learningOutcomeRef: enforceWhitelist(q.learningOutcomeRef),
           difficulty,
           bloomLevel: normalizeBloomLevel(q.bloomLevel) ?? inferBloomFromDifficulty(difficulty),
           assessmentUse: "BOTH" as const,

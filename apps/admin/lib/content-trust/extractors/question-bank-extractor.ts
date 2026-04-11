@@ -23,6 +23,7 @@ import {
   callAI,
   parseJsonResponse,
   hashContent,
+  buildLoRefHint,
   type ChunkResult,
   type ExtractionContext,
   type ExtractedQuestion,
@@ -200,8 +201,19 @@ export class QuestionBankExtractor extends DocumentExtractor {
     const userPrompt = [
       `Extract all questions and teaching content from this tutor question bank.`,
       context.qualificationRef ? `Context: ${context.qualificationRef}` : "",
+      buildLoRefHint(context.curriculumLoRefs),
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
+
+    const curriculumRefSet = context.curriculumLoRefs && context.curriculumLoRefs.length > 0
+      ? new Set(context.curriculumLoRefs.map((lo) => lo.ref.toUpperCase()))
+      : null;
+    const enforceWhitelist = (raw: string | null | undefined): string | undefined => {
+      const sanitised = sanitiseLORef(raw);
+      if (!sanitised) return undefined;
+      if (curriculumRefSet && !curriculumRefSet.has(sanitised)) return undefined;
+      return sanitised;
+    };
 
     // @ai-call content-trust.extract-question-bank — Extract questions with tiered model responses from question banks | config: /x/ai-config
     const aiResult = await callAI(
@@ -231,7 +243,7 @@ export class QuestionBankExtractor extends DocumentExtractor {
       section: item.section || undefined,
       tags: Array.isArray(item.tags) ? item.tags : [],
       // Guard per epic #131 A2.
-      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
+      learningOutcomeRef: enforceWhitelist(item.learningOutcomeRef),
       contentHash: hashContent(item.assertion || ""),
     }));
 

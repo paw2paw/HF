@@ -16,6 +16,7 @@ import {
   callAI,
   parseJsonResponse,
   hashContent,
+  buildLoRefHint,
   type ChunkResult,
   type ExtractionContext,
 } from "./base-extractor";
@@ -56,6 +57,7 @@ export class GenericExtractor extends DocumentExtractor {
       openingLine,
       `\nValid categories: ${extraction.categories.map((c) => c.id).join(", ")}`,
       courseRefHint,
+      buildLoRefHint(context.curriculumLoRefs),
       context.focusChapters?.length
         ? `Focus on: ${context.focusChapters.join(", ")}`
         : "",
@@ -88,19 +90,30 @@ export class GenericExtractor extends DocumentExtractor {
 
     console.log(`[GenericExtractor] Chunk ${context.chunkIndex}: parsed ${raw.length} assertions`);
 
-    const assertions: ExtractedAssertion[] = raw.map((item: any) => ({
-      assertion: String(item.assertion || ""),
-      category: validCategoryIds.has(item.category) ? item.category : "fact",
-      chapter: item.chapter || undefined,
-      section: item.section || undefined,
-      tags: Array.isArray(item.tags) ? item.tags : [],
-      examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
-      // Guard per epic #131 A2: free-text refs like "Character analysis" become null.
-      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
-      validUntil: item.validUntil || undefined,
-      taxYear: item.taxYear || undefined,
-      contentHash: hashContent(item.assertion || ""),
-    }));
+    // If we're in curriculum-aware mode, also reject refs outside the whitelist
+    const curriculumRefSet = context.curriculumLoRefs && context.curriculumLoRefs.length > 0
+      ? new Set(context.curriculumLoRefs.map((lo) => lo.ref.toUpperCase()))
+      : null;
+
+    const assertions: ExtractedAssertion[] = raw.map((item: any) => {
+      let loRef = sanitiseLORef(item.learningOutcomeRef) ?? undefined;
+      if (loRef && curriculumRefSet && !curriculumRefSet.has(loRef)) {
+        loRef = undefined;
+      }
+      return {
+        assertion: String(item.assertion || ""),
+        category: validCategoryIds.has(item.category) ? item.category : "fact",
+        chapter: item.chapter || undefined,
+        section: item.section || undefined,
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
+        // Guard per epic #131 A2: free-text refs become null; whitelist enforced.
+        learningOutcomeRef: loRef,
+        validUntil: item.validUntil || undefined,
+        taxYear: item.taxYear || undefined,
+        contentHash: hashContent(item.assertion || ""),
+      };
+    });
 
     return { assertions, questions: [], vocabulary: [], warnings: [] };
   }

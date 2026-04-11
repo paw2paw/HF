@@ -19,6 +19,7 @@ import {
   DocumentExtractor,
   callAI,
   parseJsonResponse,
+  buildLoRefHint,
   hashContent,
   type ChunkResult,
   type ExtractionContext,
@@ -91,8 +92,19 @@ export class ReadingPassageExtractor extends DocumentExtractor {
     const userPrompt = [
       `Extract all teaching content from this reading passage.`,
       context.qualificationRef ? `Context: ${context.qualificationRef}` : "",
+      buildLoRefHint(context.curriculumLoRefs),
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
+
+    const curriculumRefSet = context.curriculumLoRefs && context.curriculumLoRefs.length > 0
+      ? new Set(context.curriculumLoRefs.map((lo) => lo.ref.toUpperCase()))
+      : null;
+    const enforceWhitelist = (raw: string | null | undefined): string | undefined => {
+      const sanitised = sanitiseLORef(raw);
+      if (!sanitised) return undefined;
+      if (curriculumRefSet && !curriculumRefSet.has(sanitised)) return undefined;
+      return sanitised;
+    };
 
     // @ai-call content-trust.extract-reading-passage — Extract assertions and vocabulary from standalone reading passages | config: /x/ai-config
     const aiResult = await callAI(
@@ -122,7 +134,7 @@ export class ReadingPassageExtractor extends DocumentExtractor {
       tags: Array.isArray(item.tags) ? item.tags : [],
       examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
       // Guard per epic #131 A2.
-      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
+      learningOutcomeRef: enforceWhitelist(item.learningOutcomeRef),
       contentHash: hashContent(item.assertion || ""),
     }));
 

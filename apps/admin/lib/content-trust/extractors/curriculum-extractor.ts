@@ -20,6 +20,7 @@ import {
   callAI,
   parseJsonResponse,
   hashContent,
+  buildLoRefHint,
   type ChunkResult,
   type ExtractionContext,
   type ExtractedQuestion,
@@ -133,11 +134,22 @@ export class CurriculumExtractor extends DocumentExtractor {
       `Extract all teaching points from this ${context.qualificationRef ? `${context.qualificationRef} ` : ""}curriculum document.`,
       structureHint,
       `\nValid categories: ${extraction.categories.map((c) => c.id).join(", ")}`,
+      buildLoRefHint(context.curriculumLoRefs),
       context.focusChapters?.length
         ? `Focus on: ${context.focusChapters.join(", ")}`
         : "",
       `\n---\n${chunk}\n---`,
     ].filter(Boolean).join("\n");
+
+    const curriculumRefSet = context.curriculumLoRefs && context.curriculumLoRefs.length > 0
+      ? new Set(context.curriculumLoRefs.map((lo) => lo.ref.toUpperCase()))
+      : null;
+    const enforceWhitelist = (raw: string | null | undefined): string | undefined => {
+      const sanitised = sanitiseLORef(raw);
+      if (!sanitised) return undefined;
+      if (curriculumRefSet && !curriculumRefSet.has(sanitised)) return undefined;
+      return sanitised;
+    };
 
     const aiResult = await callAI(
       extraction.systemPrompt,
@@ -166,7 +178,7 @@ export class CurriculumExtractor extends DocumentExtractor {
       tags: Array.isArray(item.tags) ? item.tags : [],
       examRelevance: typeof item.examRelevance === "number" ? item.examRelevance : undefined,
       // Guard per epic #131 A2.
-      learningOutcomeRef: sanitiseLORef(item.learningOutcomeRef) ?? undefined,
+      learningOutcomeRef: enforceWhitelist(item.learningOutcomeRef),
       validUntil: item.validUntil || undefined,
       taxYear: item.taxYear || undefined,
       contentHash: hashContent(item.assertion || ""),
