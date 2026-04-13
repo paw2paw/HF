@@ -29,7 +29,7 @@ export async function POST(
     const { courseId } = await params;
 
     // Find all active callers enrolled in this course
-    const enrollments = await prisma.callerEnrollment.findMany({
+    const enrollments = await prisma.callerPlaybook.findMany({
       where: {
         playbookId: courseId,
         caller: { archivedAt: null },
