@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp } from "lucide-react";
+import { diffLines as jsDiffLines } from "diff";
 import type { ComposedPrompt } from "./types";
 import { CATEGORY_COLORS } from "./constants";
 import "./prompts-section.css";
@@ -62,31 +63,19 @@ function triggerBadge(p: ComposedPrompt): string {
   return p.triggerType || "—";
 }
 
-/** Compute a simple line-level diff between two prompt texts */
+/** Compute a proper line-level diff (Myers algorithm) between two prompt texts */
 function computeDiff(
   prev: string,
   curr: string,
 ): { type: "same" | "added" | "removed"; text: string }[] {
-  const prevLines = prev.split("\n");
-  const currLines = curr.split("\n");
-  const prevSet = new Set(prevLines);
-  const currSet = new Set(currLines);
-
+  const changes = jsDiffLines(prev, curr);
   const result: { type: "same" | "added" | "removed"; text: string }[] = [];
 
-  // Removed lines (in prev but not in curr)
-  for (const line of prevLines) {
-    if (!currSet.has(line)) {
-      result.push({ type: "removed", text: line });
-    }
-  }
-
-  // Current lines — mark as same or added
-  for (const line of currLines) {
-    if (prevSet.has(line)) {
-      result.push({ type: "same", text: line });
-    } else {
-      result.push({ type: "added", text: line });
+  for (const change of changes) {
+    const lines = change.value.replace(/\n$/, "").split("\n");
+    const type = change.added ? "added" : change.removed ? "removed" : "same";
+    for (const text of lines) {
+      result.push({ type, text });
     }
   }
 
@@ -134,11 +123,16 @@ export function UnifiedPromptSection({
     setTimeout(() => setCopiedButton(null), 1500);
   };
 
-  // Clear eval when navigating to a different prompt
+  // Load persisted eval when navigating to a different prompt
   useEffect(() => {
-    setEvalResult(null);
     setEvalError(null);
-  }, [idx]);
+    const current = indexed[idx];
+    if (current?.evalResult) {
+      setEvalResult(current.evalResult as EvalResult);
+    } else {
+      setEvalResult(null);
+    }
+  }, [idx, indexed]);
 
   const runEval = useCallback(async () => {
     const selected = indexed[idx];

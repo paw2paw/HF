@@ -7,6 +7,10 @@ export interface JourneyPosition {
   completedStops: number;
   currentPosition: number;
   nextStopType: string;
+  /** Continuous mode: progress as percentage (0-100) */
+  progressPercentage?: number;
+  /** Whether this is a continuous learning course */
+  isContinuous: boolean;
 }
 
 interface UseJourneyPositionResult {
@@ -33,11 +37,14 @@ export function useJourneyPosition(callerId: string): UseJourneyPositionResult {
         setPosition(null);
         return;
       }
+      const isContinuous = json.nextStop?.type === 'continuous' || json.journey.progressPercentage != null;
       setPosition({
         totalStops: json.journey.totalStops,
         completedStops: json.journey.completedStops,
         currentPosition: json.journey.currentPosition,
         nextStopType: json.nextStop?.type ?? 'unknown',
+        progressPercentage: json.journey.progressPercentage,
+        isContinuous,
       });
     } catch {
       setPosition(null);

@@ -19,7 +19,10 @@
       "lastAccessed": "last_accessed",
       "currentSession": "current_session",
       "startedAt": "started_at",
-      "completedAt": "completed_at"
+      "completedAt": "completed_at",
+      "tpStatus": "tp_status:{assertionId}",
+      "tpMastery": "tp_mastery:{assertionId}",
+      "carryForwardTps": "carry_forward_tps"
     }
   },
 
@@ -61,6 +64,24 @@
       "description": "ISO8601 timestamp when curriculum was completed",
       "required": false,
       "pattern": "ISO8601"
+    },
+    "tpStatus": {
+      "type": "string",
+      "description": "Per-teaching-point status: not_started, in_progress, or mastered. Used by continuous learning mode.",
+      "required": false,
+      "enum": ["not_started", "in_progress", "mastered"]
+    },
+    "tpMastery": {
+      "type": "number",
+      "description": "Per-teaching-point mastery score (0.0-1.0). Used by continuous learning mode.",
+      "required": false,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "carryForwardTps": {
+      "type": "string",
+      "description": "JSON array of assertion IDs to carry forward to next session (weak-LO review).",
+      "required": false
     }
   },
 

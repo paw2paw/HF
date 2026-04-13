@@ -397,21 +397,28 @@ const STOP_LABELS: Record<string, string> = {
   offboarding: "Final",
   post_survey: "Feedback",
   complete: "Done",
+  continuous: "Learn",
 };
 
 function JourneyBar({ journey }: { journey: JourneyData }) {
-  const { completedStops, totalStops } = journey.journey;
-  const pct = totalStops > 0 ? Math.round((completedStops / totalStops) * 100) : 0;
+  const jd = journey.journey as Record<string, unknown>;
+  const isContinuous = journey.nextStop.type === "continuous" || jd.progressPercentage != null;
+  const pct = isContinuous
+    ? (jd.progressPercentage as number) ?? 0
+    : (jd.totalStops as number) > 0 ? Math.round(((jd.completedStops as number) / (jd.totalStops as number)) * 100) : 0;
   const nextLabel = STOP_LABELS[journey.nextStop.type] ?? journey.nextStop.type;
 
   return (
     <section className="mb-8">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-          Your Journey
+          {isContinuous ? "Your Progress" : "Your Journey"}
         </h2>
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {completedStops}/{totalStops} steps
+          {isContinuous
+            ? `${pct}% mastered`
+            : `${jd.completedStops}/${jd.totalStops} steps`
+          }
         </span>
       </div>
       <div
@@ -430,7 +437,7 @@ function JourneyBar({ journey }: { journey: JourneyData }) {
             className="flex items-center gap-2 text-sm font-medium"
             style={{ color: "var(--accent-primary)" }}
           >
-            Next: {nextLabel} (session {journey.nextStop.session})
+            {isContinuous ? "Continue learning" : `Next: ${nextLabel} (session ${journey.nextStop.session})`}
             <ArrowUpRight size={14} />
           </Link>
         ) : (

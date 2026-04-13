@@ -54,16 +54,25 @@ export function SimProgressPanel({ onClose, callerId }: SimProgressPanelProps): 
             {/* Journey progress */}
             {position && position.totalStops > 0 && (
               <div className="wa-progress-section">
-                <div className="wa-progress-section-title">Journey</div>
+                <div className="wa-progress-section-title">
+                  {position.isContinuous ? 'Progress' : 'Journey'}
+                </div>
                 <div className="wa-progress-journey">
                   <div className="wa-progress-bar">
                     <div
                       className="wa-progress-bar-fill"
-                      style={{ width: `${(position.completedStops / position.totalStops) * 100}%` }}
+                      style={{
+                        width: position.isContinuous
+                          ? `${position.progressPercentage ?? 0}%`
+                          : `${position.totalStops > 0 ? (position.completedStops / position.totalStops) * 100 : 0}%`,
+                      }}
                     />
                   </div>
                   <span className="wa-progress-journey-label">
-                    {position.completedStops} of {position.totalStops} sessions complete
+                    {position.isContinuous
+                      ? `${position.progressPercentage ?? 0}% mastered`
+                      : `${position.completedStops} of ${position.totalStops} sessions complete`
+                    }
                   </span>
                 </div>
               </div>

@@ -89,6 +89,17 @@
         "sortOrder": 14
       },
       {
+        "value": "continuous",
+        "label": "Learning Programme",
+        "educatorLabel": "Continuous",
+        "category": "teaching",
+        "color": "var(--accent-primary)",
+        "icon": "Layers",
+        "autoInclude": null,
+        "canSkip": false,
+        "sortOrder": 15
+      },
+      {
         "value": "mid_survey",
         "label": "Mid-Survey",
         "educatorLabel": "Mid-Survey",

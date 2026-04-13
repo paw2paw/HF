@@ -873,7 +873,10 @@ export function SimChat({
             </div>
             {gi === historyGroups.length - 1 && journeyPosition.position && journeyPosition.position.totalStops > 0 && (
               <div className="wa-session-indicator">
-                Session {journeyPosition.position.currentPosition} of {journeyPosition.position.totalStops}
+                {journeyPosition.position.isContinuous
+                  ? `${journeyPosition.position.progressPercentage ?? 0}% mastered`
+                  : `Session ${journeyPosition.position.currentPosition} of ${journeyPosition.position.totalStops}`
+                }
                 {studentProgress.data && studentProgress.data.goals.length > 0 && ` · ${studentProgress.data.goals.length} goal${studentProgress.data.goals.length !== 1 ? 's' : ''}`}
                 {studentProgress.data && studentProgress.data.topicCount > 0 && ` · ${studentProgress.data.topicCount} topic${studentProgress.data.topicCount !== 1 ? 's' : ''}`}
               </div>
@@ -907,19 +910,28 @@ export function SimChat({
             margin: '32px auto 8px',
             padding: '24px',
           }}>
-            {journeyPosition.position && journeyPosition.position.totalStops > 0 && (
+            {journeyPosition.position && journeyPosition.position.totalStops > 0 && (() => {
+              const pos = journeyPosition.position;
+              const pct = pos.isContinuous
+                ? (pos.progressPercentage ?? 0)
+                : (pos.totalStops > 0 ? (pos.completedStops / pos.totalStops) * 100 : 0);
+              return (
               <div className="wa-lobby-journey">
                 <div className="wa-lobby-journey-bar">
                   <div
                     className="wa-lobby-journey-fill"
-                    style={{ width: `${(journeyPosition.position.completedStops / journeyPosition.position.totalStops) * 100}%` }}
+                    style={{ width: `${pct}%` }}
                   />
                 </div>
                 <span className="wa-lobby-journey-label">
-                  Session {journeyPosition.position.currentPosition} of {journeyPosition.position.totalStops}
+                  {pos.isContinuous
+                    ? `${pos.progressPercentage ?? 0}% mastered`
+                    : `Session ${pos.currentPosition} of ${pos.totalStops}`
+                  }
                 </span>
               </div>
-            )}
+              );
+            })()}
             <p style={{
               fontSize: 14,
               color: 'var(--wa-text-secondary)',

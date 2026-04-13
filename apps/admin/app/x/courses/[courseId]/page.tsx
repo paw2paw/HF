@@ -40,6 +40,7 @@ import { SimLaunchModal } from '@/components/shared/SimLaunchModal';
 import { CourseGenomeTab } from './CourseGenomeTab';
 import { CourseCurriculumTab } from './CourseCurriculumTab';
 import { JourneyRail } from '@/components/shared/JourneyRail';
+import { ContinuousProgrammeView } from '@/components/shared/ContinuousProgrammeView';
 import { PlanHeaderCard } from '@/components/shared/PlanHeaderCard';
 import { CollapsibleCard } from '@/components/shared/CollapsibleCard';
 import { SessionFlowPipeline, type InstructionItem } from './CourseHowTab';
@@ -1059,7 +1060,20 @@ export default function CourseDetailPage() {
       {/* ═══════════════════════════════════════════════ */}
       {/* JOURNEY TAB — unified rail: surveys + calls    */}
       {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'journey' && (
+      {activeTab === 'journey' && (() => {
+        const isContinuousMode = sessions?.plan?.entries?.length === 1 && sessions.plan.entries[0]?.type === 'continuous';
+
+        if (isContinuousMode) {
+          return (
+            <ContinuousProgrammeView
+              courseId={courseId!}
+              curriculumId={sessions?.curriculumId ?? null}
+              loading={sessionsLoading}
+            />
+          );
+        }
+
+        return (
         <>
           {/* Plan header — "Your Lesson Plan" summary card at top */}
           {sessions?.plan?.entries && sessions.plan.entries.length > 0 && (
@@ -1298,7 +1312,8 @@ export default function CourseDetailPage() {
             </div>
           )}
         </>
-      )}
+        );
+      })()}
 
       {/* ═══════════════════════════════════════════════ */}
       {/* CURRICULUM TAB — modules, LOs, scorecard, regen */}

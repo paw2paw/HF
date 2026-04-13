@@ -2915,6 +2915,10 @@ model ComposedPrompt {
   // Status tracking
   status String @default("active") // "active" | "superseded" | "expired"
 
+  // Prompt quality evaluation (persisted from AI eval)
+  evalResult Json?      // { overall, dimensions, topImprovements }
+  evalAt     DateTime?  // When the eval was last run
+
   // Timestamps
   composedAt DateTime  @default(now())
   expiresAt  DateTime? // Optional expiration

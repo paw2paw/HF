@@ -168,18 +168,23 @@ ${JSON.stringify(llmPrompt, null, 2)}`;
       };
     });
 
-    return NextResponse.json({
-      ok: true,
-      eval: {
-        overall: {
-          score: typeof parsed.overall?.score === "number" ? parsed.overall.score : 0,
-          verdict: parsed.overall?.verdict || "weak",
-          summary: parsed.overall?.summary || "Evaluation complete.",
-        },
-        dimensions,
-        topImprovements,
+    const evalPayload = {
+      overall: {
+        score: typeof parsed.overall?.score === "number" ? parsed.overall.score : 0,
+        verdict: parsed.overall?.verdict || "weak",
+        summary: parsed.overall?.summary || "Evaluation complete.",
       },
+      dimensions,
+      topImprovements,
+    };
+
+    // Persist eval result on the composed prompt
+    await prisma.composedPrompt.update({
+      where: { id: composedPromptId },
+      data: { evalResult: evalPayload, evalAt: new Date() },
     });
+
+    return NextResponse.json({ ok: true, eval: evalPayload });
   } catch (error: any) {
     console.error("[prompt-eval] Evaluation error:", error);
     return NextResponse.json(

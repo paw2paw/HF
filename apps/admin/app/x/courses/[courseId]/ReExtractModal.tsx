@@ -326,6 +326,23 @@ export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExt
                   {extractResults.filter((r) => r.error).length} source{extractResults.filter((r) => r.error).length === 1 ? '' : 's'} failed
                 </div>
               )}
+            </div>
+
+            {/* Show per-source error details when failures occurred */}
+            {extractResults.some((r) => r.error) && (
+              <div className="hf-card-compact hf-mb-md" style={{ maxHeight: 200, overflowY: 'auto' }}>
+                {extractResults.filter((r) => r.error).map((r) => {
+                  const src = sources.find((s) => s.id === r.sourceId);
+                  const info = src ? getDocTypeInfo(src.documentType) : null;
+                  const Icon = info?.icon;
+                  return (
+                    <div key={r.sourceId} className="hf-flex hf-items-center hf-gap-sm" style={{ padding: '8px 12px' }}>
+                      {Icon && <Icon size={16} style={{ color: info!.color, flexShrink: 0 }} />}
+                      <span className="hf-flex-1 hf-text-sm hf-text-secondary">{r.name}</span>
+                      <span className="hf-text-xs hf-text-error">{r.error}</span>
+                    </div>
+                  );
+                })}
               {recomposeResult && recomposeResult.failed > 0 && (
                 <div className="hf-text-xs hf-text-muted hf-mt-xs">
                   {recomposeResult.failed} caller{recomposeResult.failed === 1 ? '' : 's'} failed to recompose

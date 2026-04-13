@@ -591,6 +591,181 @@ export async function extractModuleTrustLevels(
  * Store trust-weighted progress in CallerAttributes.
  * Uses CONTENT_TRUST_V1 contract key pattern: trust_progress:{specSlug}:{key}
  */
+// =============================================================================
+// PER-TP MASTERY (Continuous Learning Mode)
+// =============================================================================
+
+export interface TpProgress {
+  mastery: number;
+  status: "not_started" | "in_progress" | "mastered";
+}
+
+export interface TpProgressSummary {
+  totalTps: number;
+  mastered: number;
+  inProgress: number;
+  notStarted: number;
+}
+
+/**
+ * Batch-read TP mastery for a set of assertion IDs.
+ * Returns a map of assertionId → TpProgress.
+ * Missing entries default to not_started / 0.
+ */
+export async function getTpProgressBatch(
+  callerId: string,
+  specSlug: string,
+  assertionIds: string[],
+): Promise<Record<string, TpProgress>> {
+  if (assertionIds.length === 0) return {};
+
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  if (!keyPattern) throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded');
+
+  const prefix = keyPattern
+    .replace('{specSlug}', specSlug)
+    .replace(':{key}', ':');
+
+  // Fetch all tp_status and tp_mastery attributes in one query
+  const attributes = await prisma.callerAttribute.findMany({
+    where: {
+      callerId,
+      scope: 'CURRICULUM',
+      OR: [
+        { key: { startsWith: `${prefix}tp_status:` } },
+        { key: { startsWith: `${prefix}tp_mastery:` } },
+      ],
+    },
+  });
+
+  // Parse into map
+  const result: Record<string, TpProgress> = {};
+  for (const id of assertionIds) {
+    result[id] = { mastery: 0, status: "not_started" };
+  }
+
+  for (const attr of attributes) {
+    const key = attr.key.replace(prefix, '');
+    if (key.startsWith('tp_status:')) {
+      const assertionId = key.replace('tp_status:', '');
+      if (result[assertionId]) {
+        result[assertionId].status = (attr.stringValue as TpProgress["status"]) || "not_started";
+      }
+    } else if (key.startsWith('tp_mastery:')) {
+      const assertionId = key.replace('tp_mastery:', '');
+      if (result[assertionId]) {
+        result[assertionId].mastery = attr.numberValue || 0;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Get summary counts of TP progress for a curriculum (continuous mode).
+ * Counts all tp_status attributes for the spec.
+ */
+export async function getTpProgressSummary(
+  callerId: string,
+  specSlug: string,
+): Promise<TpProgressSummary> {
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  if (!keyPattern) throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded');
+
+  const prefix = keyPattern
+    .replace('{specSlug}', specSlug)
+    .replace(':{key}', ':');
+
+  const attributes = await prisma.callerAttribute.findMany({
+    where: {
+      callerId,
+      scope: 'CURRICULUM',
+      key: { startsWith: `${prefix}tp_status:` },
+    },
+    select: { stringValue: true },
+  });
+
+  let mastered = 0;
+  let inProgress = 0;
+  let notStarted = 0;
+
+  for (const attr of attributes) {
+    switch (attr.stringValue) {
+      case 'mastered': mastered++; break;
+      case 'in_progress': inProgress++; break;
+      default: notStarted++; break;
+    }
+  }
+
+  return { totalTps: attributes.length, mastered, inProgress, notStarted };
+}
+
+/**
+ * Batch-write TP mastery for multiple assertions.
+ * Used by pipeline after continuous-mode assessment.
+ */
+export async function updateTpMasteryBatch(
+  callerId: string,
+  specSlug: string,
+  updates: Record<string, TpProgress>,
+): Promise<void> {
+  const keyPattern = await ContractRegistry.getKeyPattern('CURRICULUM_PROGRESS_V1');
+  if (!keyPattern) throw new Error('CURRICULUM_PROGRESS_V1 contract not loaded');
+
+  const prefix = keyPattern
+    .replace('{specSlug}', specSlug)
+    .replace(':{key}', ':');
+
+  const writes: Promise<unknown>[] = [];
+
+  for (const [assertionId, progress] of Object.entries(updates)) {
+    const statusKey = `${prefix}tp_status:${assertionId}`;
+    const masteryKey = `${prefix}tp_mastery:${assertionId}`;
+
+    writes.push(
+      prisma.callerAttribute.upsert({
+        where: { callerId_key_scope: { callerId, key: statusKey, scope: 'CURRICULUM' } },
+        create: { callerId, key: statusKey, scope: 'CURRICULUM', valueType: 'STRING', stringValue: progress.status },
+        update: { stringValue: progress.status },
+      }),
+      prisma.callerAttribute.upsert({
+        where: { callerId_key_scope: { callerId, key: masteryKey, scope: 'CURRICULUM' } },
+        create: { callerId, key: masteryKey, scope: 'CURRICULUM', valueType: 'NUMBER', numberValue: progress.mastery },
+        update: { numberValue: progress.mastery },
+      }),
+    );
+  }
+
+  await Promise.all(writes);
+}
+
+/**
+ * Initialize TP tracking for all assertions in a continuous-mode curriculum.
+ * Creates tp_status = "not_started" for each assertion that doesn't already have a status.
+ * Called once when a learner first enters a continuous-mode course.
+ */
+export async function initializeTpTracking(
+  callerId: string,
+  specSlug: string,
+  assertionIds: string[],
+): Promise<void> {
+  if (assertionIds.length === 0) return;
+
+  const existing = await getTpProgressBatch(callerId, specSlug, assertionIds);
+  const toInit: Record<string, TpProgress> = {};
+
+  for (const id of assertionIds) {
+    if (!existing[id] || existing[id].status === "not_started") {
+      toInit[id] = { mastery: 0, status: "not_started" };
+    }
+  }
+
+  if (Object.keys(toInit).length > 0) {
+    await updateTpMasteryBatch(callerId, specSlug, toInit);
+  }
+}
+
 export async function storeTrustWeightedProgress(
   callerId: string,
   specSlug: string,

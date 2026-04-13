@@ -54,8 +54,35 @@ export function ProgressStackCard({ insights, enrollmentJourneys, terms }: Progr
             </span>
           </div>
 
-          {/* Journey DotRail per enrollment */}
+          {/* Journey DotRail per enrollment (or progress bar for continuous mode) */}
           {enrollmentJourneys?.filter((ej) => ej.sessions.length > 0).map((ej) => {
+            const isContinuous = ej.sessions.length === 1 && ej.sessions[0]?.type === "continuous";
+
+            if (isContinuous) {
+              // Continuous mode: single progress bar instead of dots
+              const mastery = Math.round(courses.overallMastery * 100);
+              return (
+                <div key={ej.enrollmentId} className="hf-ps-journey-strip">
+                  <div className="hf-flex hf-items-center hf-gap-sm" style={{ width: "100%" }}>
+                    <span className="hf-text-xs hf-text-muted">Continuous</span>
+                    <div style={{
+                      flex: 1, height: 8, borderRadius: 4,
+                      background: "var(--surface-secondary)", overflow: "hidden",
+                    }}>
+                      <div style={{
+                        width: `${mastery}%`, height: "100%", borderRadius: 4,
+                        background: "var(--accent-primary)", transition: "width 0.3s ease",
+                      }} />
+                    </div>
+                    <span className="hf-text-xs hf-text-muted">{mastery}%</span>
+                  </div>
+                  {enrollmentJourneys.length > 1 && (
+                    <span className="hf-ps-journey-course">{ej.playbookName}</span>
+                  )}
+                </div>
+              );
+            }
+
             const steps: DotRailStep[] = ej.sessions.map((s) => ({
               session: s.session,
               type: s.type,

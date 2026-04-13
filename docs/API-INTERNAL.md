@@ -5720,6 +5720,24 @@ Returns content assertions grouped by lesson plan session.
 
 ---
 
+### `GET` /api/curricula/:curriculumId/continuous-programme
+
+Returns the full module → LO → TP hierarchy for a continuous-mode course.
+
+**Auth**: session (OPERATOR+) · **Scope**: `educator:read`
+
+**Response** `200`
+```json
+{ ok, modules[], instructions[] }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "..." }
+```
+
+---
+
 ## Dashboard
 
 ### `GET` /api/dashboard
@@ -13913,8 +13931,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 424 |
-| Files with annotations | 423 |
+| Route files found | 425 |
+| Files with annotations | 424 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 

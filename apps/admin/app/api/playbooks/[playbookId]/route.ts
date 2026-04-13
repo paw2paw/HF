@@ -190,14 +190,17 @@ export async function PATCH(
       );
     }
 
-    // sortOrder and domainId can always be updated (even for published playbooks)
-    // These are domain-level organization, not playbook content
-    if (sortOrder !== undefined || domainId !== undefined) {
+    // sortOrder, domainId, name, description can always be updated (even for published playbooks)
+    // These are organizational/cosmetic, not playbook content
+    if ((sortOrder !== undefined || domainId !== undefined || name !== undefined || description !== undefined) &&
+        items === undefined && specs === undefined && agentId === undefined && toggleSpec === undefined && config === undefined && configSettings === undefined && audience === undefined) {
       const updated = await prisma.playbook.update({
         where: { id: playbookId },
         data: {
           ...(sortOrder !== undefined && { sortOrder }),
           ...(domainId !== undefined && { domainId }),
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
         },
         include: {
           domain: { select: { id: true, slug: true, name: true } },

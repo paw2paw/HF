@@ -27,6 +27,8 @@ function redirectForStop(type: string): string {
       return "/x/student/survey/mid";
     case "post_survey":
       return "/x/student/survey/post";
+    case "continuous":
+      return "/x/sim";
     default:
       return "/x/sim";
   }
@@ -105,6 +107,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const deliveryConfig = curriculum?.deliveryConfig as Record<string, unknown> | null;
     const lessonPlan = deliveryConfig?.lessonPlan as { entries: SessionEntry[] } | undefined;
     const entries = lessonPlan?.entries ?? [];
+
+    // ── Continuous mode: collapse journey to single stop with progress % ──
+    const lessonPlanMode = deliveryConfig?.lessonPlanMode as string | undefined;
+    if (lessonPlanMode === 'continuous' && curriculum?.slug) {
+      const { getTpProgressSummary } = await import("@/lib/curriculum/track-progress");
+      const summary = await getTpProgressSummary(callerId, curriculum.slug);
+      const pct = summary.totalTps > 0
+        ? Math.round((summary.mastered / summary.totalTps) * 100)
+        : 0;
+      const isComplete = pct >= 100;
+
+      return NextResponse.json({
+        ok: true,
+        nextStop: isComplete
+          ? { type: "complete", session: 1, redirect: "/x/student/progress" }
+          : { type: "continuous", session: 1, redirect: "/x/sim" },
+        journey: {
+          totalStops: 1,
+          completedStops: isComplete ? 1 : 0,
+          currentPosition: 1,
+          progressPercentage: pct,
+          mastered: summary.mastered,
+          inProgress: summary.inProgress,
+          notStarted: summary.notStarted,
+          totalTps: summary.totalTps,
+        },
+      });
+    }
 
     // If no lesson plan, go straight to sim
     if (entries.length === 0) {

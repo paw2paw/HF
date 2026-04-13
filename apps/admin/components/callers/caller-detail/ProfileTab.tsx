@@ -1046,6 +1046,28 @@ function enrollmentDotState(session: number, currentSession: number | null): Dot
 }
 
 function EnrollmentDotRail({ journey }: { journey: EnrollmentJourneyItem }) {
+  const isContinuous = journey.sessions.length === 1 && journey.sessions[0]?.type === "continuous";
+
+  // Continuous mode: show progress bar instead of dots
+  if (isContinuous) {
+    return (
+      <div style={{ marginTop: 6 }}>
+        <div className="hf-flex hf-items-center hf-gap-sm">
+          <span className="hf-text-xs hf-text-muted">Continuous</span>
+          <div style={{
+            flex: 1, height: 6, borderRadius: 3,
+            background: "var(--surface-secondary)", overflow: "hidden",
+          }}>
+            <div style={{
+              width: "0%", height: "100%", borderRadius: 3,
+              background: "var(--accent-primary)", transition: "width 0.3s ease",
+            }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const steps: DotRailStep[] = journey.sessions.map((s) => ({
     session: s.session,
     type: s.type,

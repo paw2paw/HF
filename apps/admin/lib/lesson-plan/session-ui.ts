@@ -53,6 +53,7 @@ export const SESSION_TYPES = [
   { value: 'mid_survey', label: 'Mid-Survey', color: 'var(--login-blue)' },
   { value: 'offboarding', label: 'Last Call', color: 'var(--login-gold)' },
   { value: 'post_survey', label: 'Post-Survey', color: 'var(--login-blue)' },
+  { value: 'continuous', label: 'Learning Programme', color: 'var(--accent-primary)' },
 ] as const;
 
 /** Teaching session type entries with labels/colors — for educator type dropdowns */
@@ -71,6 +72,7 @@ export const SESSION_TYPE_ICONS: Record<string, React.ComponentType<{ size?: num
   mid_survey: ClipboardList,
   offboarding: Flag,
   post_survey: ClipboardList,
+  continuous: Layers,
 };
 
 // ── Contract-backed loader (async — API routes, server code) ──
@@ -148,6 +150,7 @@ const SHORT_LABELS: Record<string, string> = {
   mid_survey: "MS",
   offboarding: "OF",
   post_survey: "PO",
+  continuous: "CL",
 };
 
 /** 2-letter abbreviation for session type (for compact visualizations like genome browser). */
@@ -168,7 +171,7 @@ export function isVoiceStop(type: string): boolean {
 // ── Teaching session helpers ──
 
 /** Session types that directly teach content (excludes structural + survey) */
-export const TEACHING_SESSION_TYPES = ['introduce', 'deepen', 'review', 'assess'] as const;
+export const TEACHING_SESSION_TYPES = ['introduce', 'deepen', 'review', 'assess', 'continuous'] as const;
 
 export function isTeachingSession(type: string): boolean {
   return (TEACHING_SESSION_TYPES as readonly string[]).includes(type);

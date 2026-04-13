@@ -209,6 +209,8 @@ export type ComposedPrompt = {
   status: string;
   composedAt: string;
   inputs: Record<string, any> | null;
+  evalResult: Record<string, any> | null;  // Persisted AI quality evaluation
+  evalAt: string | null;
   triggerCall?: { id: string; createdAt: string; source: string } | null;
 };
 

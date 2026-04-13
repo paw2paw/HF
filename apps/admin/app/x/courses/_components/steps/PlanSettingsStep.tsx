@@ -21,6 +21,7 @@ import type { StepProps } from "../CourseSetupWizard";
 
 export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps) {
   // ── State ──────────────────────────────────────────
+  const [lessonPlanMode, setLessonPlanMode] = useState<"structured" | "continuous">("structured");
   const [sessionCount, setSessionCount] = useState<number | null>(null);
   const [durationMins, setDurationMins] = useState<number>(15);
   const [emphasis, setEmphasis] = useState<typeof EMPHASIS_OPTIONS[number]>("balanced");
@@ -29,6 +30,8 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const isContinuous = lessonPlanMode === "continuous";
 
   const contentMode = getData<string>("contentMode");
 
@@ -56,6 +59,7 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
       emphasis: string;
       assessments: string;
       lessonPlanModel?: string;
+      lessonPlanMode?: string;
     }>("planIntents");
     if (saved) {
       if (saved.sessionCount) setSessionCount(saved.sessionCount);
@@ -63,6 +67,7 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
       if (saved.emphasis) setEmphasis(saved.emphasis as typeof emphasis);
       if (saved.assessments) setAssessments(saved.assessments as typeof assessments);
       if (saved.lessonPlanModel) setLessonPlanModel(saved.lessonPlanModel as LessonPlanModel);
+      if (saved.lessonPlanMode === "continuous") setLessonPlanMode("continuous");
     }
 
     // Also restore model from IntentStep's direct key
@@ -74,17 +79,19 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
 
   function savePlanIntents() {
     const intents = {
-      sessionCount: sessionCount || 6,
+      sessionCount: isContinuous ? 1 : (sessionCount || 6),
       durationMins,
       emphasis,
       assessments,
       lessonPlanModel,
+      lessonPlanMode,
     };
     setData("planIntents", intents);
     setData("sessionCount", intents.sessionCount);
     setData("durationMins", durationMins);
     setData("emphasis", emphasis);
     setData("lessonPlanModel", lessonPlanModel);
+    setData("lessonPlanMode", lessonPlanMode);
   }
 
   async function handleGenerate() {
@@ -96,8 +103,27 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
     // Clear any existing plan data (e.g. from eager generation or previous attempt)
     setData("lessonPlan", null);
     setData("planReasoning", null);
-    setData("lessonPlanMode", "reviewed");
+    setData("lessonPlanMode", isContinuous ? "continuous" : "reviewed");
 
+    // ── Continuous mode: skip AI generation, create single entry directly ──
+    if (isContinuous) {
+      const continuousEntry = {
+        session: 1,
+        type: "continuous",
+        moduleId: null,
+        moduleLabel: "",
+        label: "Learning Programme",
+        learningOutcomeRefs: null,
+        assertionIds: null,
+      };
+      setData("lessonPlan", { estimatedSessions: 1, entries: [continuousEntry] });
+      setData("planReasoning", "Continuous learning mode — the system will adaptively select teaching points per call based on learner mastery.");
+      setGenerating(false);
+      onNext();
+      return;
+    }
+
+    // ── Structured mode: generate lesson plan via AI ──
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -175,6 +201,36 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
         )}
 
         <div className="hf-flex-col hf-gap-lg">
+          {/* Learning structure */}
+          <div>
+            <div className="hf-mb-xs">
+              <FieldHint
+                label="Learning structure"
+                hint="Structured sessions divide material into a fixed sequence. Continuous learning puts all material in one programme and adapts each call to the learner's progress."
+                labelClass="hf-label"
+              />
+            </div>
+            <div className="hf-chip-row">
+              <button
+                onClick={() => setLessonPlanMode("structured")}
+                className={"hf-chip" + (!isContinuous ? " hf-chip-selected" : "")}
+              >
+                Structured Sessions
+              </button>
+              <button
+                onClick={() => setLessonPlanMode("continuous")}
+                className={"hf-chip" + (isContinuous ? " hf-chip-selected" : "")}
+              >
+                Continuous Learning
+              </button>
+            </div>
+            {isContinuous && (
+              <div className="hf-hint">
+                All material in one programme. The system selects learning outcomes each call based on mastery.
+              </div>
+            )}
+          </div>
+
           {/* Teaching model */}
           <div>
             <div className="hf-mb-xs">
@@ -183,13 +239,15 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
             <LessonPlanModelPicker value={lessonPlanModel} onChange={setLessonPlanModel} />
           </div>
 
-          {/* Session count */}
+          {/* Session count — hidden in continuous mode */}
+          {!isContinuous && (
           <div>
             <div className="hf-mb-xs">
               <FieldHint label="Suggested number of sessions" hint={WIZARD_HINTS["course.sessions"] ?? "Starting target — the system adjusts based on your content once extracted."} labelClass="hf-label" />
             </div>
             <SessionCountPicker value={sessionCount} onChange={setSessionCount} hideLabel />
           </div>
+          )}
 
           {/* Duration */}
           <div>
@@ -209,7 +267,8 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
             </div>
           </div>
 
-          {/* Emphasis */}
+          {/* Emphasis — hidden in continuous mode (system adapts per-call) */}
+          {!isContinuous && (
           <div>
             <div className="hf-mb-xs">
               <FieldHint label="Teaching emphasis" hint={WIZARD_HINTS["course.emphasis"]} labelClass="hf-label" />
@@ -233,6 +292,7 @@ export function PlanSettingsStep({ setData, getData, onNext, onPrev }: StepProps
                   : "Mix of breadth and depth — the AI decides per module."}
             </div>
           </div>
+          )}
 
           {/* Assessments */}
           <div>

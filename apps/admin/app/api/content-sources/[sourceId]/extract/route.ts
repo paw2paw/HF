@@ -197,6 +197,21 @@ export async function POST(
     }
 
     // Guard: reject if extraction already in progress for this source
+    // First, clean up stale tasks stuck in_progress for over 10 minutes (server restart, timeout, etc.)
+    const staleThreshold = new Date(Date.now() - 10 * 60 * 1000);
+    const { count: staleCleaned } = await prisma.userTask.updateMany({
+      where: {
+        taskType: "extraction",
+        status: "in_progress",
+        context: { path: ["sourceId"], equals: sourceId },
+        updatedAt: { lt: staleThreshold },
+      },
+      data: { status: "failed", result: { error: "Stale task auto-cleaned" } },
+    });
+    if (staleCleaned > 0) {
+      console.log(`[extract] Cleaned ${staleCleaned} stale extraction task(s) for source ${sourceId}`);
+    }
+
     const activeTask = await prisma.userTask.findFirst({
       where: {
         taskType: "extraction",
