@@ -34,6 +34,9 @@ import { GuideLens } from "./caller-detail/lenses/GuideLens";
 // Shared types
 import type { CallerData, CallerProfile, CallerRole, Domain, ComposedPrompt, SectionId, ParamConfig } from "./caller-detail/types";
 
+// Journey progress hook
+import { useEnrollmentJourney } from "@/hooks/useEnrollmentJourney";
+
 
 export default function CallerDetailPage() {
   const params = useParams();
@@ -76,6 +79,9 @@ export default function CallerDetailPage() {
   const { activeLens, setActiveLens, visibleLenses } = useCallerLens();
   const insights = useCallerInsights(data);
   const isLensView = activeLens === "guide";
+
+  // Journey progress (shared by ProgressStackCard + CallerEnrollmentsSection)
+  const { enrollments: enrollmentJourneys } = useEnrollmentJourney(callerId);
 
   // Section visibility for consolidated tabs (persisted to localStorage)
   const [profileVis, toggleProfileVis] = useSectionVisibility("caller-profile", {
@@ -876,6 +882,7 @@ export default function CallerDetailPage() {
             data={data}
             insights={insights}
             paramConfig={paramConfig}
+            enrollmentJourneys={enrollmentJourneys}
             onNavigateToCall={(callId) => {
               setActiveLens("explore");
               setActiveSection("journey");
@@ -1041,7 +1048,7 @@ export default function CallerDetailPage() {
             <CallerSlugsSection callerId={callerId} />
           )}
           {profileVis.enrollments !== false && (
-            <CallerEnrollmentsSection callerId={callerId} domainId={data.caller?.domainId} onCountChange={setEnrollmentCount} />
+            <CallerEnrollmentsSection callerId={callerId} domainId={data.caller?.domainId} onCountChange={setEnrollmentCount} enrollmentJourneys={enrollmentJourneys} />
           )}
           <SurveySection callerId={callerId} />
         </>

@@ -2,6 +2,7 @@
 
 import type { CallerInsights } from "../hooks/useCallerInsights";
 import type { CallerData, ParamConfig, SectionId } from "../types";
+import type { EnrollmentJourney } from "@/hooks/useEnrollmentJourney";
 import { AtAGlanceCard } from "../cards/AtAGlanceCard";
 import { ProgressStackCard } from "../cards/ProgressStackCard";
 import { FocusCard } from "../cards/FocusCard";
@@ -13,6 +14,7 @@ type GuideLensProps = {
   data: CallerData;
   insights: CallerInsights;
   paramConfig: ParamConfig;
+  enrollmentJourneys?: EnrollmentJourney[];
   onNavigateToCall?: (callId: string) => void;
   onNavigateToTab?: (tab: SectionId) => void;
   onStartSim?: () => void;
@@ -22,6 +24,7 @@ export function GuideLens({
   data,
   insights,
   paramConfig,
+  enrollmentJourneys,
   onNavigateToCall,
   onNavigateToTab,
   onStartSim,
@@ -52,7 +55,7 @@ export function GuideLens({
       <AtAGlanceCard insights={insights} />
 
       {/* Progress Stack — the core innovation */}
-      <ProgressStackCard insights={insights} />
+      <ProgressStackCard insights={insights} enrollmentJourneys={enrollmentJourneys} />
 
       {/* Focus Areas — diagnostic chains */}
       <FocusCard focusAreas={insights.focusAreas} />

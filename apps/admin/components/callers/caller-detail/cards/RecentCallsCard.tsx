@@ -48,6 +48,9 @@ export function RecentCallsCard({ calls, onCallClick, onViewAll, sessionLabel = 
               onClick={() => onCallClick?.(call.id)}
             >
               <span className="hf-rc-date">{dateLabel}</span>
+              {call.callSequence != null && (
+                <span className="hf-rc-session">S{call.callSequence}</span>
+              )}
               <span className="hf-rc-module">{moduleLabel || "General"}</span>
               <span className="hf-rc-duration">{durationMin}m</span>
               <span className={`hf-rc-sentiment hf-rc-${sentiment}`}>

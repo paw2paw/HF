@@ -11,6 +11,8 @@ import type { Memory, MemorySummary, PersonalityProfile, PersonalityObservation,
 import { CATEGORY_COLORS } from "./constants";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { useTerminology } from "@/contexts/TerminologyContext";
+import { DotRail, type DotRailStep, type DotState } from "@/components/shared/DotRail";
+import type { EnrollmentJourney as EnrollmentJourneyItem } from "@/hooks/useEnrollmentJourney";
 
 export function MemoriesSection({
   memories,
@@ -796,10 +798,12 @@ export function CallerEnrollmentsSection({
   callerId,
   domainId,
   onCountChange,
+  enrollmentJourneys,
 }: {
   callerId: string;
   domainId: string | null | undefined;
   onCountChange: (count: number) => void;
+  enrollmentJourneys?: EnrollmentJourneyItem[];
 }) {
   const { terms, plural } = useTerminology();
   const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
@@ -973,57 +977,94 @@ export function CallerEnrollmentsSection({
         {enrollments.map((enr) => {
           const colors = ENROLLMENT_STATUS_COLORS[enr.status] || ENROLLMENT_STATUS_COLORS.ACTIVE;
           const isUpdating = updating === enr.id;
+          const journey = enrollmentJourneys?.find((ej) => ej.playbookId === enr.playbook.id);
           return (
             <div
               key={enr.id}
-              className="hf-flex hf-gap-sm hf-text-sm"
               style={{
-                padding: "8px 12px",
                 background: "var(--surface-primary)",
                 border: "1px solid var(--border-default)",
                 borderRadius: 8,
+                padding: "8px 12px",
               }}
             >
-              <Link href={`/x/playbooks/${enr.playbook.id}`} className="hf-flex-1 hf-text-500" style={{ textDecoration: "none", color: "var(--text-primary)" }}>
-                {enr.playbook.name}
-                <span className="hf-text-xs hf-text-muted" style={{ marginLeft: 4 }}>v{enr.playbook.version}</span>
-              </Link>
-              <span
-                className="hf-text-xxs hf-text-bold"
-                style={{
-                  padding: "2px 8px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  borderRadius: 10,
-                  background: colors.bg,
-                  color: colors.text,
-                }}
-              >
-                {enr.status}
-              </span>
-              {enr.enrolledBy && (
-                <span className="hf-text-placeholder hf-text-xxs">{enr.enrolledBy}</span>
-              )}
-              {/* Status actions */}
-              {!isUpdating && enr.status === "ACTIVE" && (
-                <>
-                  <button onClick={() => handleStatusChange(enr.id, "PAUSED")} title="Pause" className="hf-btn-inline hf-text-muted">Pause</button>
-                  <button onClick={() => handleStatusChange(enr.id, "COMPLETED")} title="Complete" className="hf-btn-inline" style={{ color: "var(--badge-green-text)" }}>Complete</button>
-                </>
-              )}
-              {!isUpdating && enr.status === "PAUSED" && (
-                <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Resume" className="hf-btn-inline" style={{ color: "var(--button-primary-bg)" }}>Resume</button>
-              )}
-              {!isUpdating && enr.status === "DROPPED" && (
-                <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Re-enroll" className="hf-btn-inline" style={{ color: "var(--button-primary-bg)" }}>Re-enroll</button>
-              )}
-              {isUpdating && (
-                <span className="hf-text-xs hf-text-muted">...</span>
+              <div className="hf-flex hf-gap-sm hf-text-sm">
+                <Link href={`/x/playbooks/${enr.playbook.id}`} className="hf-flex-1 hf-text-500" style={{ textDecoration: "none", color: "var(--text-primary)" }}>
+                  {enr.playbook.name}
+                  <span className="hf-text-xs hf-text-muted" style={{ marginLeft: 4 }}>v{enr.playbook.version}</span>
+                </Link>
+                <span
+                  className="hf-text-xxs hf-text-bold"
+                  style={{
+                    padding: "2px 8px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    borderRadius: 10,
+                    background: colors.bg,
+                    color: colors.text,
+                  }}
+                >
+                  {enr.status}
+                </span>
+                {enr.enrolledBy && (
+                  <span className="hf-text-placeholder hf-text-xxs">{enr.enrolledBy}</span>
+                )}
+                {/* Status actions */}
+                {!isUpdating && enr.status === "ACTIVE" && (
+                  <>
+                    <button onClick={() => handleStatusChange(enr.id, "PAUSED")} title="Pause" className="hf-btn-inline hf-text-muted">Pause</button>
+                    <button onClick={() => handleStatusChange(enr.id, "COMPLETED")} title="Complete" className="hf-btn-inline" style={{ color: "var(--badge-green-text)" }}>Complete</button>
+                  </>
+                )}
+                {!isUpdating && enr.status === "PAUSED" && (
+                  <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Resume" className="hf-btn-inline" style={{ color: "var(--button-primary-bg)" }}>Resume</button>
+                )}
+                {!isUpdating && enr.status === "DROPPED" && (
+                  <button onClick={() => handleStatusChange(enr.id, "ACTIVE")} title="Re-enroll" className="hf-btn-inline" style={{ color: "var(--button-primary-bg)" }}>Re-enroll</button>
+                )}
+                {isUpdating && (
+                  <span className="hf-text-xs hf-text-muted">...</span>
+                )}
+              </div>
+              {/* Journey DotRail */}
+              {journey && journey.sessions.length > 0 && (
+                <EnrollmentDotRail journey={journey} />
               )}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function enrollmentDotState(session: number, currentSession: number | null): DotState {
+  if (currentSession === null) return "upcoming";
+  if (session < currentSession) return "completed";
+  if (session === currentSession) return "active";
+  return "upcoming";
+}
+
+function EnrollmentDotRail({ journey }: { journey: EnrollmentJourneyItem }) {
+  const steps: DotRailStep[] = journey.sessions.map((s) => ({
+    session: s.session,
+    type: s.type,
+    label: s.label,
+  }));
+  const activeSession = journey.sessions.find((s) => s.session === journey.currentSession);
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <DotRail
+        steps={steps}
+        getState={(session) => enrollmentDotState(session, journey.currentSession)}
+      />
+      {journey.currentSession != null && (
+        <div className="hf-text-xs hf-text-muted" style={{ marginTop: 2 }}>
+          Session {journey.currentSession} of {journey.totalSessions}
+          {activeSession && <> · {activeSession.label}</>}
+        </div>
+      )}
     </div>
   );
 }

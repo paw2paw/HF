@@ -2,9 +2,13 @@
 
 import type { CallerInsights } from "../hooks/useCallerInsights";
 import type { Goal } from "../types";
+import { DotRail, type DotRailStep, type DotState } from "@/components/shared/DotRail";
+import type { EnrollmentJourney } from "@/hooks/useEnrollmentJourney";
 
 type ProgressStackCardProps = {
   insights: CallerInsights;
+  /** Per-enrollment journey progress (sessions + current position) */
+  enrollmentJourneys?: EnrollmentJourney[];
   /** Term overrides from terminology system */
   terms?: {
     goal?: string;
@@ -14,7 +18,14 @@ type ProgressStackCardProps = {
   };
 };
 
-export function ProgressStackCard({ insights, terms }: ProgressStackCardProps) {
+function journeyDotState(session: number, currentSession: number | null): DotState {
+  if (currentSession === null) return "upcoming";
+  if (session < currentSession) return "completed";
+  if (session === currentSession) return "active";
+  return "upcoming";
+}
+
+export function ProgressStackCard({ insights, enrollmentJourneys, terms }: ProgressStackCardProps) {
   const { goals, courses, learnings, targets } = insights;
 
   return (
@@ -42,6 +53,36 @@ export function ProgressStackCard({ insights, terms }: ProgressStackCardProps) {
               {courses.completedModules}/{courses.totalModules} modules · {Math.round(courses.overallMastery * 100)}%
             </span>
           </div>
+
+          {/* Journey DotRail per enrollment */}
+          {enrollmentJourneys?.filter((ej) => ej.sessions.length > 0).map((ej) => {
+            const steps: DotRailStep[] = ej.sessions.map((s) => ({
+              session: s.session,
+              type: s.type,
+              label: s.label,
+            }));
+            const activeSession = ej.sessions.find((s) => s.session === ej.currentSession);
+            return (
+              <div key={ej.enrollmentId} className="hf-ps-journey-strip">
+                <DotRail
+                  steps={steps}
+                  getState={(session) => journeyDotState(session, ej.currentSession)}
+                />
+                <div className="hf-ps-journey-info">
+                  {ej.currentSession != null && (
+                    <span className="hf-ps-journey-position">
+                      Session {ej.currentSession} of {ej.totalSessions}
+                      {activeSession && <> · {activeSession.label}</>}
+                    </span>
+                  )}
+                  {enrollmentJourneys.length > 1 && (
+                    <span className="hf-ps-journey-course">{ej.playbookName}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
           {courses.modules.map((mod) => (
             <div key={mod.id} className="hf-ps-module-row">
               <span className="hf-ps-module-name">{mod.name}</span>
