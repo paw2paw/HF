@@ -125,9 +125,10 @@ async function fetchQuestions(
   return prisma.contentQuestion.findMany({
     where: {
       sourceId: { in: sourceIds },
-      questionType: { in: questionTypes as any },
-      // Exclude POST_TEST-only questions (e.g. comprehension-led MCQs)
-      assessmentUse: { notIn: ["POST_TEST"] },
+      // Filter to requested types, excluding TUTOR_QUESTION (never student-facing)
+      questionType: { in: questionTypes.filter((t) => t !== "TUTOR_QUESTION") as any },
+      // Exclude POST_TEST-only and TUTOR_ONLY questions from student pre-tests
+      assessmentUse: { notIn: ["POST_TEST", "TUTOR_ONLY"] },
     },
     select: {
       id: true,

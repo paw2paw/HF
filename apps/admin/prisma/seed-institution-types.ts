@@ -47,7 +47,7 @@ const TYPES: InstitutionTypeSeed[] = [
     description: "Primary/secondary schools and educational institutions",
     terminology: {
       domain: "School",
-      playbook: "Subject",
+      playbook: "Course",
       spec: "Content",
       caller: "Student",
       cohort: "Class",
@@ -60,7 +60,7 @@ const TYPES: InstitutionTypeSeed[] = [
       teach_action: "Teach",
       learning_noun: "Learning",
       group: "Department",
-      knowledge_area: "Subject Area",
+      knowledge_area: "Subject",
       teaching_unit: "Topic",
     },
     setupSpecSlug: "COURSE-SETUP-001",

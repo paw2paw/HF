@@ -25,7 +25,7 @@ function escapeRegex(s: string): string {
  * while AI extraction returns the un-hyphenated form from the standard
  * curriculum-extraction prompt.
  */
-function canonicaliseRef(s: string): string {
+export function canonicaliseRef(s: string): string {
   return s.toUpperCase().replace(/\b(LO|AC)-(\d)/g, "$1$2");
 }
 

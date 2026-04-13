@@ -10,7 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
-import { assertionMatchesAnyLoRef } from "@/lib/lesson-plan/lo-ref-match";
+import { assertionMatchesAnyLoRef, canonicaliseRef } from "@/lib/lesson-plan/lo-ref-match";
 import { STRUCTURAL_SESSION_TYPES } from "@/lib/lesson-plan/session-ui";
 
 export interface RefreshResult {
@@ -123,7 +123,11 @@ export async function refreshLessonPlanAssertions(
         where: { module: { curriculumId: curriculum.id, isActive: true } },
         select: { id: true, ref: true },
       });
-      const loMap = new Map(loRows.map((lo) => [lo.ref, lo.id]));
+      const loMap = new Map<string, string>();
+      for (const lo of loRows) {
+        loMap.set(canonicaliseRef(lo.ref), lo.id);
+        loMap.set(lo.ref, lo.id);
+      }
 
       // Re-distribute current assertions across cleared entries using module-aware logic
       const result = distributeAssertionsByModule(entries, currentAssertions, curriculum.id, loMap);
@@ -204,7 +208,7 @@ export function distributeAssertionsByModule(
 
     // FK path
     if (loRefToIdMap && loRefToIdMap.size > 0) {
-      const loIdSet = new Set(loRefs.map((ref) => loRefToIdMap.get(ref)).filter(Boolean));
+      const loIdSet = new Set(loRefs.map((ref) => loRefToIdMap.get(canonicaliseRef(ref)) ?? loRefToIdMap.get(ref)).filter(Boolean));
       if (loIdSet.size > 0) {
         matched = assertions.filter((a) => {
           if (assigned.has(a.id)) return false;

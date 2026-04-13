@@ -348,7 +348,8 @@ export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExt
                   {recomposeResult.failed} caller{recomposeResult.failed === 1 ? '' : 's'} failed to recompose
                 </div>
               )}
-            </div>
+              </div>
+            )}
 
             <div className="hf-modal-actions">
               <button

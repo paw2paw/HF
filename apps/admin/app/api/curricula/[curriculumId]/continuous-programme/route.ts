@@ -33,7 +33,7 @@ export async function GET(
           id: true,
           teachingProfile: true,
           sources: {
-            where: { extractorVersion: { not: null } },
+            where: { source: { extractorVersion: { not: null } } },
             select: {
               id: true,
               assertions: {

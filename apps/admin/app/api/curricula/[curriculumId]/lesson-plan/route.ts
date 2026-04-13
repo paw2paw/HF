@@ -4,6 +4,8 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
 import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
+import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
+import { canonicaliseRef } from "@/lib/lesson-plan/lo-ref-match";
 import {
   startTaskTracking,
   updateTaskProgress,
@@ -531,8 +533,8 @@ Total modules: ${modules.length}`;
 
     if (sourceIds.length > 0) {
       const assertions = await prisma.contentAssertion.findMany({
-        where: { sourceId: { in: sourceIds } },
-        select: { id: true, learningOutcomeRef: true, topicSlug: true, chapter: true, contentHash: true },
+        where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
+        select: { id: true, learningOutcomeRef: true, learningObjectiveId: true, topicSlug: true, chapter: true, contentHash: true },
         orderBy: [{ depth: "asc" }, { orderIndex: "asc" }],
       });
 
@@ -557,8 +559,18 @@ Total modules: ${modules.length}`;
         }
 
         // Use shared module-aware distribution
+        // Build LO ref→id map for FK-based matching
+        const loRows = await prisma.learningObjective.findMany({
+          where: { module: { curriculumId, isActive: true } },
+          select: { id: true, ref: true },
+        });
+        const loMap = new Map<string, string>();
+        for (const lo of loRows) {
+          loMap.set(canonicaliseRef(lo.ref), lo.id);
+          loMap.set(lo.ref, lo.id);
+        }
         const { distributeAssertionsByModule } = await import("@/lib/lesson-plan/refresh-assertion-ids");
-        const distResult = distributeAssertionsByModule(entries, deduped, curriculumId);
+        const distResult = distributeAssertionsByModule(entries, deduped, curriculumId, loMap);
         console.log(`[lesson-plan] Distributed assertions: ${distResult.refilled} entries filled, ${distResult.orphaned} orphaned`);
       }
     }

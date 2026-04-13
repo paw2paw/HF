@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
-import { assertionMatchesAnyLoRef } from "@/lib/lesson-plan/lo-ref-match";
+import { assertionMatchesAnyLoRef, canonicaliseRef } from "@/lib/lesson-plan/lo-ref-match";
+import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
 
 type Params = { params: Promise<{ curriculumId: string }> };
 
@@ -104,7 +105,7 @@ export async function GET(
     }
 
     const assertions = await prisma.contentAssertion.findMany({
-      where: { sourceId: { in: sourceIds } },
+      where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
       select: {
         id: true,
         assertion: true,
@@ -139,7 +140,11 @@ export async function GET(
       where: { module: { curriculumId, isActive: true } },
       select: { id: true, ref: true },
     });
-    const loRefToIdMap = new Map(loRows.map((lo) => [lo.ref, lo.id]));
+    const loRefToIdMap = new Map<string, string>();
+    for (const lo of loRows) {
+      loRefToIdMap.set(canonicaliseRef(lo.ref), lo.id);
+      loRefToIdMap.set(lo.ref, lo.id);
+    }
 
     // Build assertion lookup
     const assertionMap = new Map(assertions.map((a) => [a.id, a]));
@@ -168,7 +173,7 @@ export async function GET(
       else if (Array.isArray(entry.learningOutcomeRefs) && entry.learningOutcomeRefs.length > 0) {
         const loRefs = entry.learningOutcomeRefs as string[];
         // #142: Resolve refs → LO IDs for FK-based matching
-        const loIdSet = new Set(loRefs.map((ref: string) => loRefToIdMap.get(ref)).filter(Boolean));
+        const loIdSet = new Set(loRefs.map((ref: string) => loRefToIdMap.get(canonicaliseRef(ref)) ?? loRefToIdMap.get(ref)).filter(Boolean));
         let matched = false;
         if (loIdSet.size > 0) {
           for (const a of assertions) {

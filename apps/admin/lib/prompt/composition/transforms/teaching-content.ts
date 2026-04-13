@@ -22,7 +22,7 @@
 
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext, CurriculumAssertionData } from "../types";
-import { assertionMatchesAnyLoRef } from "@/lib/lesson-plan/lo-ref-match";
+import { assertionMatchesAnyLoRef, canonicaliseRef } from "@/lib/lesson-plan/lo-ref-match";
 
 // ------------------------------------------------------------------
 // Flat rendering (legacy backward compat)
@@ -512,7 +512,7 @@ registerTransform("renderTeachingContent", (
       // Try FK path: resolve refs to LO IDs from curriculum LO map
       const loRefToId = context.sharedState?.loRefToIdMap as Map<string, string> | undefined;
       const sessionLoIds = loRefToId
-        ? sessionLORefs.map((ref: string) => loRefToId.get(ref)).filter(Boolean) as string[]
+        ? sessionLORefs.map((ref: string) => loRefToId.get(canonicaliseRef(ref)) ?? loRefToId.get(ref)).filter(Boolean) as string[]
         : [];
 
       if (sessionLoIds.length > 0) {
@@ -549,7 +549,7 @@ registerTransform("renderTeachingContent", (
         .map((lo) => {
           const match = lo.match(/^(LO\d+|AC[\d.]+)/i);
           const ref = match ? match[1] : lo;
-          return loRefToId.get(ref);
+          return loRefToId.get(canonicaliseRef(ref)) ?? loRefToId.get(ref);
         })
         .filter(Boolean) as string[];
 

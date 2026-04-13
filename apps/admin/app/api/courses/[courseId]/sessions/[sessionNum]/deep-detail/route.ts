@@ -5,8 +5,10 @@ import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
 import {
   assertionMatchesAnyLoRef,
   loRefsMatch,
+  canonicaliseRef,
 } from "@/lib/lesson-plan/lo-ref-match";
 import { isContentBearingSession } from "@/lib/lesson-plan/session-ui";
+import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
 
 type Params = { params: Promise<{ courseId: string; sessionNum: string }> };
 
@@ -219,7 +221,7 @@ export async function GET(
     }
 
     const allAssertions = await prisma.contentAssertion.findMany({
-      where: { sourceId: { in: sourceIds } },
+      where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
       select: {
         id: true,
         assertion: true,
@@ -240,6 +242,8 @@ export async function GET(
     const loRefToId = new Map<string, string>();
     for (const [, mod] of moduleMap) {
       for (const lo of mod.learningObjectives) {
+        const canon = canonicaliseRef(lo.ref);
+        if (!loRefToId.has(canon)) loRefToId.set(canon, lo.id);
         if (!loRefToId.has(lo.ref)) loRefToId.set(lo.ref, lo.id);
       }
     }
@@ -250,7 +254,7 @@ export async function GET(
       sessionAssertions = allAssertions.filter((a) => idSet.has(a.id));
     } else if (sessionLoRefs.length > 0) {
       // #142: Prefer FK matching
-      const sessionLoIds = new Set(sessionLoRefs.map((ref) => loRefToId.get(ref)).filter(Boolean));
+      const sessionLoIds = new Set(sessionLoRefs.map((ref) => loRefToId.get(canonicaliseRef(ref)) ?? loRefToId.get(ref)).filter(Boolean));
       if (sessionLoIds.size > 0) {
         sessionAssertions = allAssertions.filter((a) =>
           a.learningObjectiveId && sessionLoIds.has(a.learningObjectiveId),

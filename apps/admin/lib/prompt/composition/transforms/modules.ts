@@ -38,12 +38,14 @@ async function loadModulesFromDB(curriculumId: string): Promise<{ modules: Modul
     });
     if (dbModules.length === 0) return null;
     // #142: Build LO ref → id map for FK-based filtering in teaching-content
+    // Keys canonicalized (uppercase, hyphen-stripped) so "LO1" and "LO-1" both resolve
+    const { canonicaliseRef } = await import("@/lib/lesson-plan/lo-ref-match");
     const loRefToIdMap = new Map<string, string>();
     for (const m of dbModules) {
       for (const lo of m.learningObjectives) {
-        if (!loRefToIdMap.has(lo.ref)) {
-          loRefToIdMap.set(lo.ref, lo.id);
-        }
+        const canon = canonicaliseRef(lo.ref);
+        if (!loRefToIdMap.has(canon)) loRefToIdMap.set(canon, lo.id);
+        if (!loRefToIdMap.has(lo.ref)) loRefToIdMap.set(lo.ref, lo.id);
       }
     }
     const modules = dbModules.map((m) => ({

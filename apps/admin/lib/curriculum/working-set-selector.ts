@@ -266,6 +266,25 @@ export function selectWorkingSet(input: WorkingSetInput): WorkingSetResult {
 
   const newTpIds = newLOs.flatMap((lo) => lo.childTps.map((tp) => tp.id));
 
+  // Include orphan TPs (null learningObjectiveId) up to maxTps budget.
+  // These are assertions the semantic reconciler couldn't match to any LO.
+  // Without this, orphans are silently excluded from continuous mode.
+  const orphanTpIds: string[] = [];
+  if (orphanTps.length > 0) {
+    const currentCount = reviewTpIds.length + newTpIds.length;
+    const orphanBudget = maxTps - currentCount;
+    if (orphanBudget > 0) {
+      const included = orphanTps.slice(0, orphanBudget);
+      orphanTpIds.push(...included.map((tp) => tp.id));
+    }
+    if (orphanTps.length > orphanTpIds.length) {
+      console.warn(
+        `[working-set-selector] ${orphanTps.length - orphanTpIds.length} orphan TPs excluded (null learningObjectiveId, budget exhausted). ` +
+        `Run curriculum regeneration to improve LO linkage.`,
+      );
+    }
+  }
+
   const selectedLOs: SelectedLO[] = [];
   if (reviewLO) {
     selectedLOs.push({
@@ -290,9 +309,9 @@ export function selectWorkingSet(input: WorkingSetInput): WorkingSetResult {
   const totalMastered = loGraph.filter((lo) => lo.status === "mastered").length;
 
   return {
-    assertionIds: [...reviewTpIds, ...newTpIds],
+    assertionIds: [...reviewTpIds, ...newTpIds, ...orphanTpIds],
     reviewIds: reviewTpIds,
-    newIds: newTpIds,
+    newIds: [...newTpIds, ...orphanTpIds],
     selectedLOs,
     frontierModuleId,
     totalMastered,

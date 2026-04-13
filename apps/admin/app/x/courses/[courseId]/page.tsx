@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   BookMarked, FileText, ExternalLink, Plus, Pencil, Trash2,
-  Sparkles, AlertTriangle,
+  Sparkles, AlertTriangle, RefreshCw,
   Settings as SettingsIcon, Users2,
   Zap, Target, BarChart3,
   PlayCircle, Copy, Link2, Dna, GraduationCap,
@@ -44,6 +44,7 @@ import { ContinuousProgrammeView } from '@/components/shared/ContinuousProgramme
 import { PlanHeaderCard } from '@/components/shared/PlanHeaderCard';
 import { CollapsibleCard } from '@/components/shared/CollapsibleCard';
 import { SessionFlowPipeline, type InstructionItem } from './CourseHowTab';
+import { FullRegenerateModal } from './FullRegenerateModal';
 import { reorderItems } from '@/lib/sortable/reorder';
 import type { SessionEntry, SessionMediaRef as SessionMediaRefType, SessionMediaMap, StudentProgress } from '@/lib/lesson-plan/types';
 import './course-detail.css';
@@ -146,6 +147,7 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSimModal, setShowSimModal] = useState(false);
+  const [showFullRegen, setShowFullRegen] = useState(false);
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [joinCopied, setJoinCopied] = useState(false);
 
@@ -958,6 +960,15 @@ export default function CourseDetailPage() {
           </div>
         </div>
         <div className="hf-flex hf-gap-sm">
+          {isOperator && (
+            <button
+              className="hf-btn hf-btn-destructive hf-nowrap"
+              onClick={() => setShowFullRegen(true)}
+            >
+              <RefreshCw size={14} />
+              Fully Regenerate
+            </button>
+          )}
           <button
             className="hf-btn hf-btn-secondary hf-nowrap"
             onClick={() => setShowSimModal(true)}
@@ -1588,6 +1599,24 @@ export default function CourseDetailPage() {
           domainId={detail.domain.id}
           domainName={detail.domain.name}
           onClose={() => setShowSimModal(false)}
+        />
+      )}
+
+      {showFullRegen && detail && (
+        <FullRegenerateModal
+          courseId={courseId}
+          sources={subjects.flatMap((s) => (s.sources || []).map((src) => ({
+            id: src.id,
+            name: src.name,
+            documentType: src.documentType,
+            extractorVersion: src.extractorVersion,
+            assertionCount: src.assertionCount,
+          })))}
+          onClose={() => setShowFullRegen(false)}
+          onComplete={() => {
+            // Force full page data refresh
+            window.location.reload();
+          }}
         />
       )}
     </div>

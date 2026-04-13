@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { getSubjectsForPlaybook } from "@/lib/knowledge/domain-sources";
+import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
 
 /**
  * @api GET /api/courses/:courseId/assertions
@@ -53,7 +54,7 @@ export async function GET(
     // Fetch assertions with source name
     const [assertions, total] = await Promise.all([
       prisma.contentAssertion.findMany({
-        where: { sourceId: { in: sourceIds } },
+        where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
         select: {
           id: true,
           assertion: true,
@@ -66,7 +67,7 @@ export async function GET(
         take: limit,
       }),
       prisma.contentAssertion.count({
-        where: { sourceId: { in: sourceIds } },
+        where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
       }),
     ]);
 
