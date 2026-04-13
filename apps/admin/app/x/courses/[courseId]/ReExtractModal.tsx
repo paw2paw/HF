@@ -20,6 +20,8 @@ type ReExtractResult = {
   sourceId: string;
   name: string;
   jobId: string | null;
+  skipped?: boolean;
+  skipReason?: string;
   error?: string;
 };
 
@@ -284,6 +286,8 @@ export function ReExtractModal({ courseId, sources, onClose, onComplete }: ReExt
                     <span className="hf-flex-1 hf-text-sm hf-text-secondary">{r.name}</span>
                     {r.error ? (
                       <span className="hf-text-xs hf-text-error">{r.error}</span>
+                    ) : r.skipped ? (
+                      <span className="hf-text-xs hf-text-muted">Skipped &mdash; no file</span>
                     ) : isDone ? (
                       <CheckCircle size={14} className="hf-text-success" />
                     ) : (

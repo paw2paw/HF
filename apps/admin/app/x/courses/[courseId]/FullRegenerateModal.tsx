@@ -32,6 +32,8 @@ type ReExtractResult = {
   sourceId: string;
   name: string;
   jobId: string | null;
+  skipped?: boolean;
+  skipReason?: string;
   error?: string;
 };
 
@@ -439,7 +441,13 @@ export function FullRegenerateModal({
               </div>
               <div className="hf-text-sm hf-mt-xs">
                 {statuses['extracting'] === 'done' && (
-                  <>{extractResults.filter((r) => r.jobId).length} source{extractResults.filter((r) => r.jobId).length === 1 ? '' : 's'} re-extracted. </>
+                  <>
+                    {extractResults.filter((r) => r.jobId).length} source{extractResults.filter((r) => r.jobId).length === 1 ? '' : 's'} re-extracted.
+                    {extractResults.filter((r) => r.skipped).length > 0 && (
+                      <> {extractResults.filter((r) => r.skipped).length} skipped (no file). </>
+                    )}
+                    {' '}
+                  </>
                 )}
                 {curriculumResult && (
                   <>{curriculumResult.moduleCount} module{curriculumResult.moduleCount === 1 ? '' : 's'} generated. </>

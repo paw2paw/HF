@@ -149,6 +149,8 @@ export async function POST(
               documentType: src.documentType,
               assertionCount: src.assertionCount,
               jobId: data.ok ? data.jobId : null,
+              skipped: data.ok && data.skipped === true,
+              skipReason: data.ok && data.skipped ? (data.reason as string) : undefined,
               error: data.ok ? undefined : (data.error as string),
             };
           } catch (err: any) {
@@ -170,6 +172,8 @@ export async function POST(
         ok: true,
         sources: results,
         triggered: results.filter((r) => r.jobId).length,
+        skipped: results.filter((r) => r.skipped).length,
+        failed: results.filter((r) => r.error).length,
         total: toExtract.length,
         activeCallerCount,
       },

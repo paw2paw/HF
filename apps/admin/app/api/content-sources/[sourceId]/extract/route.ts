@@ -177,6 +177,23 @@ export async function POST(
       // Download from linked media asset
       const media = source.mediaAssets[0];
       if (!media) {
+        // Source has no backing file (e.g. URL-type, seed, or legacy source).
+        // Re-extract is idempotent: if the source already has extracted content,
+        // treat this as a no-op "skipped" so batch re-extraction doesn't surface
+        // scary errors. If it has NO content at all, that IS a real error.
+        const assertionCount = await prisma.contentAssertion.count({
+          where: { sourceId },
+        });
+        if (assertionCount > 0) {
+          return NextResponse.json({
+            ok: true,
+            skipped: true,
+            reason: "no-media-asset",
+            message: "Source has no re-extractable file. Existing content preserved.",
+            sourceId,
+            existingAssertions: assertionCount,
+          });
+        }
         return NextResponse.json(
           { ok: false, error: "No linked media asset found. Upload a file first." },
           { status: 400 },
