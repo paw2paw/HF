@@ -84,7 +84,7 @@ export async function GET(
 
     // Build assertion-to-session map
     const assertionSessionMap = new Map<string, number>();
-    if (lessonPlan) {
+    if (Array.isArray(lessonPlan)) {
       for (const entry of lessonPlan) {
         // Direct assertion ID assignment
         if (entry.assertionIds) {
