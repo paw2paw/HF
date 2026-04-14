@@ -41,6 +41,9 @@ const SEMANTIC_LO_THRESHOLD = parseFloat(
 export interface ReconcileResult {
   curriculumId: string;
   assertionsScanned: number;
+  /** Pre-pass cleanup: stale refs/FKs cleared before matching */
+  staleRefsCleared: number;
+  staleFksCleared: number;
   /** Pass 1: FKs set via structured ref matching */
   fkWritten: number;
   fkAlreadySet: number;
@@ -154,6 +157,8 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
   const empty: ReconcileResult = {
     curriculumId,
     assertionsScanned: 0,
+    staleRefsCleared: 0,
+    staleFksCleared: 0,
     fkWritten: 0,
     fkAlreadySet: 0,
     noRefOnAssertion: 0,
@@ -188,6 +193,43 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
   const sourceIds = [...new Set(subjectSources.map((s) => s.sourceId))];
   if (sourceIds.length === 0) return empty;
 
+  // ── Pre-pass: clear stale state ──────────────────────────
+  // Two failure modes accumulate refs/FKs that point to nothing:
+  //
+  //   1. Per-source AI extractor wrote `learningOutcomeRef = "LO13"` using the
+  //      OLD curriculum's LO list; a subsequent regenerate produced a smaller
+  //      curriculum (LO1-LO12) and "LO13" no longer exists.
+  //
+  //   2. A previous reconcile run set `learningObjectiveId` to an LO that has
+  //      since been deactivated (mode: "replace" in syncModulesToDB), so the
+  //      FK now points at an inactive row. The current reconciler treats any
+  //      non-null FK as "already set" and skips it — so stale FKs persist
+  //      forever and block re-binding to the new active LO.
+  //
+  // Both cases: null out the stale field before pass 1 so the assertion
+  // re-enters the matching pipeline cleanly. Idempotent — assertions with
+  // valid refs/FKs are not touched.
+  const validRefs = new Set(loArray.map((lo) => lo.ref));
+  const validLoIds = new Set(loArray.map((lo) => lo.id));
+
+  const staleRefs = await prisma.contentAssertion.updateMany({
+    where: {
+      sourceId: { in: sourceIds },
+      learningOutcomeRef: { not: null },
+      NOT: { learningOutcomeRef: { in: [...validRefs] } },
+    },
+    data: { learningOutcomeRef: null },
+  });
+
+  const staleFks = await prisma.contentAssertion.updateMany({
+    where: {
+      sourceId: { in: sourceIds },
+      learningObjectiveId: { not: null },
+      NOT: { learningObjectiveId: { in: [...validLoIds] } },
+    },
+    data: { learningObjectiveId: null },
+  });
+
   const assertions = await prisma.contentAssertion.findMany({
     where: { sourceId: { in: sourceIds } },
     select: {
@@ -199,7 +241,12 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     },
   });
 
-  const result: ReconcileResult = { ...empty, assertionsScanned: assertions.length };
+  const result: ReconcileResult = {
+    ...empty,
+    assertionsScanned: assertions.length,
+    staleRefsCleared: staleRefs.count,
+    staleFksCleared: staleFks.count,
+  };
 
   // ── Pass 1: Structured ref matching ─────────────────────
   // Collect assertions that need pass 2 (no FK after pass 1)
@@ -299,6 +346,7 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
 
   console.log(
     `[reconcile-lo-linkage] curriculum=${curriculumId}: scanned=${result.assertionsScanned} ` +
+      `cleared-stale-refs=${result.staleRefsCleared} cleared-stale-fks=${result.staleFksCleared} ` +
       `pass1=${result.fkWritten} pass2-semantic=${result.semanticFkWritten} ` +
       `alreadySet=${result.fkAlreadySet} noRef=${result.noRefOnAssertion} ` +
       `unmatched-ref=${result.refDidNotMatchAnyLo} below-threshold=${result.semanticBelowThreshold} ` +
