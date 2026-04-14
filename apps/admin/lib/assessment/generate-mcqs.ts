@@ -146,10 +146,13 @@ interface AudienceContext {
 /**
  * Load audience descriptors from the COURSE_REFERENCE linked to a subject.
  *
- * Resolution order:
- * 1. structuredContent.courseOverview (wizard-built course references)
- * 2. ContentAssertion rows with `co:*` tags (PDF-extracted course references,
- *    converted by course-ref-to-assertions.ts)
+ * Reads ContentAssertion rows tagged with `co:*` — the PDF-extracted
+ * course-reference path via course-ref-to-assertions.ts. An earlier draft
+ * of this function also supported a "structuredContent.courseOverview"
+ * path for wizard-built references, but that field was never added to
+ * the ContentSource schema and produced a Prisma validation error at
+ * runtime. The wizard now writes course overview fields into playbook
+ * config and/or assertions instead.
  *
  * Returns null when no COURSE_REFERENCE exists for the subject.
  */
@@ -159,39 +162,12 @@ async function getAudienceContext(subjectId: string): Promise<AudienceContext | 
       subjectId,
       source: { documentType: "COURSE_REFERENCE" },
     },
-    select: {
-      sourceId: true,
-      source: { select: { structuredContent: true } },
-    },
+    select: { sourceId: true },
   });
 
   if (!refSource) return null;
 
-  // Path 1: wizard-built — structuredContent has courseOverview
-  if (refSource.source?.structuredContent) {
-    const content = refSource.source.structuredContent as {
-      courseOverview?: {
-        subject?: string;
-        studentAge?: string;
-        prerequisite?: string;
-        delivery?: string;
-        qualificationLevel?: string;
-      };
-    };
-
-    const ov = content.courseOverview;
-    if (ov) {
-      return {
-        studentAge: ov.studentAge || undefined,
-        prerequisite: ov.prerequisite || undefined,
-        subject: ov.subject || undefined,
-        delivery: ov.delivery || undefined,
-        qualificationLevel: ov.qualificationLevel || undefined,
-      };
-    }
-  }
-
-  // Path 2: PDF-extracted — query assertions with co:* tags
+  // Query assertions with co:* tags (PDF-extracted course reference)
   const audienceAssertions = await prisma.contentAssertion.findMany({
     where: {
       sourceId: refSource.sourceId,
