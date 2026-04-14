@@ -13,6 +13,7 @@ import {
   computeSharedState,
   findCurriculumInfo,
   resolveLessonPlanMode,
+  filterTeachableAssertions,
 } from "@/lib/prompt/composition/transforms/modules";
 import { getTransform } from "@/lib/prompt/composition/TransformRegistry";
 import type {
@@ -575,6 +576,62 @@ describe("resolveLessonPlanMode", () => {
     // delivery was not set, comprehension still forces continuous. This is
     // intentional — see ADR 2026-04-14-outcome-graph-pacing.md.
     expect(resolveLessonPlanMode({ lessonPlanMode: "structured" }, { teachingMode: "comprehension" })).toBe("continuous");
+  });
+});
+
+describe("filterTeachableAssertions", () => {
+  // Regression for diagnosis 2026-04-14: COURSE_REFERENCE assertions are
+  // tutor rules ("Do NOT summarise the passage", "Use silence", etc.),
+  // not student teaching content. They legitimately have null
+  // learningOutcomeRef and should never enter the working-set selector
+  // — they're rendered separately via the course-instructions transform.
+
+  it("excludes COURSE_REFERENCE assertions", () => {
+    const input = [
+      { id: "a1", sourceDocumentType: "READING_PASSAGE" },
+      { id: "a2", sourceDocumentType: "COURSE_REFERENCE" },
+      { id: "a3", sourceDocumentType: "QUESTION_BANK" },
+      { id: "a4", sourceDocumentType: "COURSE_REFERENCE" },
+    ];
+    const result = filterTeachableAssertions(input);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.id)).toEqual(["a1", "a3"]);
+  });
+
+  it("keeps assertions with null sourceDocumentType (defensive)", () => {
+    // Legacy assertions might lack sourceDocumentType — keep them so we
+    // don't silently drop teaching content with missing metadata.
+    const input = [
+      { id: "a1", sourceDocumentType: null },
+      { id: "a2", sourceDocumentType: undefined },
+      { id: "a3" } as any,
+    ];
+    expect(filterTeachableAssertions(input)).toHaveLength(3);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(filterTeachableAssertions([])).toEqual([]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [
+      { id: "a1", sourceDocumentType: "READING_PASSAGE" },
+      { id: "a2", sourceDocumentType: "COURSE_REFERENCE" },
+    ];
+    const result = filterTeachableAssertions(input);
+    expect(input).toHaveLength(2);
+    expect(result).not.toBe(input);
+  });
+
+  it("keeps QUESTION_BANK and READING_PASSAGE and ASSESSMENT", () => {
+    const input = [
+      { id: "a1", sourceDocumentType: "READING_PASSAGE" },
+      { id: "a2", sourceDocumentType: "QUESTION_BANK" },
+      { id: "a3", sourceDocumentType: "ASSESSMENT" },
+      { id: "a4", sourceDocumentType: "GENERIC" },
+      { id: "a5", sourceDocumentType: "CURRICULUM" },
+    ];
+    expect(filterTeachableAssertions(input)).toHaveLength(5);
   });
 });
 

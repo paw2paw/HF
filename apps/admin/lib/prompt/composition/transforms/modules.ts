@@ -88,6 +88,21 @@ export function findCurriculumInfo(data: LoadedDataContext): { id: string; name:
 }
 
 /**
+ * Filter curriculum assertions down to those that are eligible to enter the
+ * working-set selector. Excludes COURSE_REFERENCE assertions, which are tutor
+ * rules / operator instructions (e.g. "Do NOT summarise the passage") rather
+ * than student-facing teaching points. Tutor rules are surfaced via the
+ * separate course-instructions transform.
+ *
+ * Exported for regression tests — see tests/lib/composition/modules.test.ts.
+ */
+export function filterTeachableAssertions<T extends { sourceDocumentType?: string | null }>(
+  assertions: T[],
+): T[] {
+  return assertions.filter((a) => a.sourceDocumentType !== "COURSE_REFERENCE");
+}
+
+/**
  * Resolve the effective `lessonPlanMode` for a course given its curriculum
  * delivery config and playbook config.
  *
@@ -524,8 +539,17 @@ export async function computeSharedState(
       const { selectWorkingSet } = await import("@/lib/curriculum/working-set-selector");
       const { getTpProgressBatch } = await import("@/lib/curriculum/track-progress");
 
-      // Load all assertions for this curriculum (from loaded data)
-      const allAssertions = data.curriculumAssertions || [];
+      // Load all assertions for this curriculum (from loaded data) and
+      // filter out non-teachable types (COURSE_REFERENCE = tutor rules).
+      // See filterTeachableAssertions docstring + diagnosis 2026-04-14.
+      const allAssertionsRaw = data.curriculumAssertions || [];
+      const allAssertions = filterTeachableAssertions(allAssertionsRaw);
+      const excludedCourseRefCount = allAssertionsRaw.length - allAssertions.length;
+      if (excludedCourseRefCount > 0) {
+        console.log(
+          `[modules] Continuous mode: excluded ${excludedCourseRefCount} COURSE_REFERENCE assertions from working-set candidates (rendered separately by course-instructions transform)`
+        );
+      }
 
       // Load LOs from DB (real records with id, ref, moduleId)
       const dbLOs = await prisma.learningObjective.findMany({
