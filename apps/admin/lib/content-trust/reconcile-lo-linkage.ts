@@ -257,7 +257,12 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     loTokensCache.set(lo.id, tokenise(lo.description));
   }
 
-  const pass2ByLoId = new Map<string, string[]>();
+  // Group by (loId, ref) so we can also write the ref string back.
+  // Historically pass 2 only wrote the FK — leaving `learningOutcomeRef` null
+  // even when we'd semantically bound the assertion to a specific LO. Now we
+  // write both so downstream code that displays or filters by ref string
+  // (e.g. course scorecard) shows the full linkage.
+  const pass2Groups = new Map<string, { loId: string; ref: string; assertionIds: string[] }>();
 
   for (const a of needsSemantic) {
     let bestScore = 0;
@@ -272,9 +277,10 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     }
 
     if (bestLo && bestScore >= SEMANTIC_LO_THRESHOLD) {
-      const list = pass2ByLoId.get(bestLo.id) || [];
-      list.push(a.id);
-      pass2ByLoId.set(bestLo.id, list);
+      const key = bestLo.id;
+      const group = pass2Groups.get(key) || { loId: bestLo.id, ref: bestLo.ref, assertionIds: [] };
+      group.assertionIds.push(a.id);
+      pass2Groups.set(key, group);
       result.semanticFkWritten++;
       result.assertionsByLoRef[bestLo.ref] = (result.assertionsByLoRef[bestLo.ref] ?? 0) + 1;
     } else {
@@ -282,11 +288,12 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     }
   }
 
-  // Batch update pass 2 results
-  for (const [loId, assertionIds] of pass2ByLoId) {
+  // Batch update pass 2 results — set BOTH learningObjectiveId AND
+  // learningOutcomeRef so pass 1 on subsequent runs can short-circuit.
+  for (const { loId, ref, assertionIds } of pass2Groups.values()) {
     await prisma.contentAssertion.updateMany({
       where: { id: { in: assertionIds } },
-      data: { learningObjectiveId: loId },
+      data: { learningObjectiveId: loId, learningOutcomeRef: ref },
     });
   }
 

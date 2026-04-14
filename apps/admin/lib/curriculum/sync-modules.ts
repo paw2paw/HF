@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import type { LegacyCurriculumModuleJSON } from "@/lib/types/json-fields";
 import { parseLoLine } from "@/lib/content-trust/validate-lo-linkage";
 import { reconcileAssertionLOs, type ReconcileResult } from "@/lib/content-trust/reconcile-lo-linkage";
+import { retagAssertionsWithLOs } from "@/lib/content-trust/retag-assertions-with-los";
 import { sanitizeModuleTitle } from "@/lib/content-trust/sanitize-module";
 
 export type SyncModulesMode = "merge" | "replace";
@@ -194,12 +195,24 @@ export async function syncModulesToDB(
     return synced;
   });
 
-  // Epic #131 A4 — after LOs are written, reconcile existing assertions'
-  // learningObjectiveId FK by matching learningOutcomeRef strings against the
-  // newly-persisted LO rows. This closes the temporal dependency: assertions
-  // extracted before the curriculum existed (and tagged with string refs by
-  // the curriculum-aware extractor A2) now get their FK populated without a
-  // manual backfill. Idempotent — already-linked assertions are skipped.
+  // Step 1 (NEW): retag assertions that have no learningOutcomeRef. The
+  // original extractor ran BEFORE the curriculum existed, so most assertions
+  // landed with ref=null. We now ask the AI to map each null-ref assertion to
+  // the best-matching LO ref (whitelist-validated). This produces string refs
+  // that the next step can bind to FKs via the fast string-match path.
+  // Non-fatal on error — reconcile's Pass 2 semantic matching will still run
+  // and catch whatever it can.
+  try {
+    await retagAssertionsWithLOs(curriculumId);
+  } catch (err) {
+    console.error(`[sync-modules] retagAssertionsWithLOs failed for curriculum ${curriculumId}:`, err);
+  }
+
+  // Step 2: reconcile FKs. Pass 1 string-matches the refs (including the
+  // ones just written by retag above). Pass 2 semantic-matches the remaining
+  // null-ref assertions and writes BOTH the FK and the ref string.
+  // Epic #131 A4 — closes the temporal dependency between assertion
+  // extraction and curriculum creation. Idempotent.
   let reconcile: ReconcileResult | null = null;
   try {
     reconcile = await reconcileAssertionLOs(curriculumId);
