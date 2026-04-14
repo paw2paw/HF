@@ -17,7 +17,6 @@ import './caller-detail/prompt-tuner.css';
 import { useAssistant, useAssistantKeyboardShortcut } from "@/hooks/useAssistant";
 
 // Extracted sub-components
-import { OverviewSection } from "./caller-detail/OverviewSection";
 import { CallsSection, ProcessingNotice } from "./caller-detail/CallsTab";
 import { MemoriesSection, PersonalitySection, CallerSlugsSection, CallerEnrollmentsSection } from "./caller-detail/ProfileTab";
 import { SurveySection } from "./caller-detail/SurveySection";
@@ -27,10 +26,8 @@ import { ArtifactsSection } from "./caller-detail/ArtifactsTab";
 import { UnifiedPromptSection } from "./caller-detail/PromptsSection";
 import { PromptTunerSidebar } from "./caller-detail/PromptTunerSidebar";
 
-// Lens system
-import { useCallerLens } from "./caller-detail/hooks/useCallerLens";
+// Overview lens (now rendered as the first section tab)
 import { useCallerInsights } from "./caller-detail/hooks/useCallerInsights";
-import { LensBar } from "./caller-detail/lenses/LensBar";
 import { GuideLens } from "./caller-detail/lenses/GuideLens";
 
 // Shared types
@@ -62,14 +59,14 @@ export default function CallerDetailPage() {
     transcripts: "journey", prompt: "journey",
   };
   const rawTab = searchParams.get("tab");
-  const validTabs: SectionId[] = ["journey", "how", "what", "artifacts", "ai-call"];
+  const validTabs: SectionId[] = ["overview", "journey", "how", "what", "artifacts", "ai-call"];
   const mappedTab = rawTab ? (tabRedirects[rawTab] || rawTab) as SectionId : null;
-  const initialTab = mappedTab && validTabs.includes(mappedTab) ? mappedTab : null;
+  const initialTab: SectionId = mappedTab && validTabs.includes(mappedTab) ? mappedTab : "overview";
 
   const [data, setData] = useState<CallerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<SectionId | null>(initialTab);
+  const [activeSection, setActiveSection] = useState<SectionId>(initialTab);
   const [simChatMounted, setSimChatMounted] = useState(initialTab === "ai-call");
   const [callSession, setCallSession] = useState(0);
   if (activeSection === "ai-call" && !simChatMounted) setSimChatMounted(true);
@@ -77,10 +74,7 @@ export default function CallerDetailPage() {
   // Dynamic parameter display configuration (fetched from database)
   const [paramConfig, setParamConfig] = useState<ParamConfig>(null);
 
-  // Lens system
-  const { activeLens, setActiveLens, visibleLenses } = useCallerLens();
   const insights = useCallerInsights(data);
-  const isLensView = activeLens === "guide";
 
   // Journey progress (shared by ProgressStackCard + CallerEnrollmentsSection)
   const { enrollments: enrollmentJourneys } = useEnrollmentJourney(callerId);
@@ -525,6 +519,7 @@ export default function CallerDetailPage() {
   const processingTabs = new Set<SectionId>(["journey", "how", "what", "artifacts"]);
 
   const sections: { id: SectionId; label: string; icon: React.ReactNode; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "action" }[] = [
+    { id: "overview", label: "Overview", icon: <span aria-hidden>🧭</span>, group: "shared" },
     { id: "journey", label: "Journey", icon: <Smartphone size={13} />, count: data.counts.calls, group: "history" },
     { id: "how", label: "How", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
     { id: "what", label: "What", icon: <Gauge size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.callerTargets || 0) + (data.counts.measurements || 0), group: "shared" },
@@ -573,7 +568,7 @@ export default function CallerDetailPage() {
               {/* Domain Badge (click to expand domain section) */}
               <div
                 onClick={() => {
-                  setActiveSection(null); // Navigate to Overview
+                  setActiveSection("overview"); // Navigate to Overview
                   setShowDomainSection(!showDomainSection);
                 }}
                 className="cdp-domain-badge"
@@ -888,42 +883,6 @@ export default function CallerDetailPage() {
         </div>
       )}
 
-      {/* Lens Bar */}
-      <LensBar
-        lenses={visibleLenses}
-        activeLens={activeLens}
-        onLensChange={setActiveLens}
-      />
-
-      {/* Guide Lens — replaces tabs with card layout */}
-      {isLensView && data && insights && (
-        <div className="cdp-content">
-          <GuideLens
-            data={data}
-            insights={insights}
-            paramConfig={paramConfig}
-            enrollmentJourneys={enrollmentJourneys}
-            onNavigateToCall={(callId) => {
-              setActiveLens("explore");
-              setActiveSection("journey");
-              setExpandedCall(callId);
-            }}
-            onNavigateToTab={(tab) => {
-              setActiveLens("explore");
-              setActiveSection(tab);
-            }}
-            onStartSim={() => {
-              setActiveLens("explore");
-              setActiveSection("ai-call");
-              setSimChatMounted(true);
-            }}
-          />
-        </div>
-      )}
-
-      {/* Explore Lens — existing tab layout */}
-      {!isLensView && (
-      <>
       {/* Section Tabs */}
       <div className="cdp-tab-bar">
         {sections.map((section) => {
@@ -961,7 +920,7 @@ export default function CallerDetailPage() {
       {/* Section Content + Tuner Sidebar */}
       <div className="cdp-body">
       <div className="cdp-content">
-      {activeSection === null && (
+      {activeSection === "overview" && (
         <>
           {/* Domain & Onboarding Section - Collapsible */}
           {showDomainSection && (
@@ -970,20 +929,51 @@ export default function CallerDetailPage() {
                 id: data.caller.id,
                 domainId: data.caller.domainId,
                 domain: data.caller.domain,
-                domainSwitchCount: 0, // TODO: add to data type
-                previousDomainId: null, // TODO: add to data type
+                domainSwitchCount: 0,
+                previousDomainId: null,
               }}
-              onboardingSession={null} // TODO: fetch from API
+              onboardingSession={null}
               availableDomains={domains}
               onDomainSwitched={() => {
-                // Refresh the page data
                 fetchData();
-                setShowDomainSection(false); // Collapse after successful switch
+                setShowDomainSection(false);
               }}
             />
           )}
 
-          <OverviewSection data={data} onNavigate={setActiveSection} paramConfig={paramConfig} />
+          {insights ? (
+            <GuideLens
+              data={data}
+              insights={insights}
+              paramConfig={paramConfig}
+              enrollmentJourneys={enrollmentJourneys}
+              onNavigateToCall={(callId) => {
+                setActiveSection("journey");
+                setExpandedCall(callId);
+              }}
+              onNavigateToTab={(tab) => {
+                setActiveSection(tab);
+              }}
+              onStartSim={() => {
+                setActiveSection("ai-call");
+                setSimChatMounted(true);
+              }}
+            />
+          ) : (
+            <div className="hf-empty">
+              <h3>No activity yet</h3>
+              <p>Start a practice call to see this learner&rsquo;s overview — progress, memory, and goals will appear here after the first session.</p>
+              <button
+                className="hf-btn hf-btn-primary"
+                onClick={() => {
+                  setActiveSection("ai-call");
+                  setSimChatMounted(true);
+                }}
+              >
+                Start practice call
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -1163,8 +1153,6 @@ export default function CallerDetailPage() {
         />
       )}
       </div>{/* cdp-body */}
-      </>
-      )}
     </div>
   );
 }
