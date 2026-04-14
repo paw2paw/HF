@@ -935,22 +935,40 @@ registerLoader("courseInstructions", async (_callerId, loaderConfig) => {
   const scope: ContentScope = loaderConfig?.contentScope ?? null;
   if (!scope) return [];
 
-  // Get ALL source IDs (not filtered by documentType — filter by category instead)
-  const allSourceIds = scope.subjects.flatMap((s) =>
-    s.sources.map((ss) => ss.sourceId)
-  );
-  if (allSourceIds.length === 0) return [];
+  // Two paths into this loader:
+  //   1. ANY source: assertions whose category is in INSTRUCTION_CATEGORIES
+  //      (e.g. a teaching_rule extracted from a curriculum doc).
+  //   2. COURSE_REFERENCE source: ALL assertions, regardless of category.
+  //      COURSE_REFERENCE documents are tutor-config-only by definition;
+  //      categories like `threshold`, `summary`, `overview`, `fact` carry
+  //      operational tutor-facing data (success criteria, target metrics,
+  //      learner profile) that must reach the tutor prompt. See diagnosis
+  //      2026-04-14 for the gap that motivated this widening.
+  const sourceIds: string[] = [];
+  const courseRefSourceIds: string[] = [];
+  for (const s of scope.subjects) {
+    for (const ss of s.sources) {
+      sourceIds.push(ss.sourceId);
+      if (ss.documentType === "COURSE_REFERENCE") courseRefSourceIds.push(ss.sourceId);
+    }
+  }
+  if (sourceIds.length === 0) return [];
 
   const assertions = await prisma.contentAssertion.findMany({
     where: {
-      sourceId: { in: [...new Set(allSourceIds)] },
-      category: { in: [...INSTRUCTION_CATEGORIES] },
+      sourceId: { in: [...new Set(sourceIds)] },
+      OR: [
+        { category: { in: [...INSTRUCTION_CATEGORIES] } },
+        ...(courseRefSourceIds.length > 0
+          ? [{ sourceId: { in: [...new Set(courseRefSourceIds)] } }]
+          : []),
+      ],
     },
     orderBy: [
       { depth: "asc" },
       { orderIndex: "asc" },
     ],
-    take: 200,
+    take: 300,
     select: {
       id: true,
       assertion: true,
