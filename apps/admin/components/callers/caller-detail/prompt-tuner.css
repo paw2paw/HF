@@ -108,6 +108,83 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ps-tuner-section--locked {
+  opacity: 0.55;
+}
+
+.ps-tuner-section--locked .ps-tuner-select:disabled {
+  cursor: not-allowed;
+  background: var(--surface-secondary);
+}
+
+.ps-tuner-locked-hint {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Scope picker (step 1, always first) ── */
+.ps-tuner-scope-section {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: 4px;
+}
+
+.ps-tuner-scope-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ps-tuner-scope-card {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  transition: border-color 120ms, background 120ms;
+}
+
+.ps-tuner-scope-card:hover {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.ps-tuner-scope-card--active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.ps-tuner-scope-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ps-tuner-scope-card-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ps-tuner-empty-scope {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* ── Collapsible group header ── */

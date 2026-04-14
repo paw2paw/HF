@@ -189,10 +189,35 @@ export function PromptTunerSidebar({
   const [draftStyle, setDraftStyle] = useState(currentStyle);
   const [draftAudience, setDraftAudience] = useState(currentAudience);
   const [draftMode, setDraftMode] = useState(currentMode);
-  const [scope, setScope] = useState<"course" | "learner">("course");
+  const [scope, setScope] = useState<"course" | "learner" | null>(null);
+  const approachLocked = scope === "learner";
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [applyResult, setApplyResult] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [activeLearnerCount, setActiveLearnerCount] = useState<number | null>(null);
+
+  // Fetch ACTIVE enrollment count so the Apply button can show consequence up front.
+  useEffect(() => {
+    if (!playbookId || !open) return;
+    let cancelled = false;
+    fetch(`/api/playbooks/${playbookId}/enrollments?status=ACTIVE`)
+      .then((r) => r.json())
+      .then((result) => {
+        if (cancelled) return;
+        const count =
+          result?.count ??
+          (Array.isArray(result?.enrollments) ? result.enrollments.length : null);
+        if (typeof count === "number") setActiveLearnerCount(count);
+      })
+      .catch(() => { /* non-fatal */ });
+    return () => { cancelled = true; };
+  }, [playbookId, open]);
+
+  // Reset scope when panel is closed so next open forces a fresh choice.
+  useEffect(() => {
+    if (!open) setScope(null);
+  }, [open]);
 
   // Sync draft targets from API data (only when params first load, not on every render)
   useEffect(() => {
@@ -220,6 +245,22 @@ export function PromptTunerSidebar({
   useEffect(() => {
     setDraftMode(currentMode);
   }, [currentMode]);
+
+  // Flipping to learner scope snaps pending Approach changes back to current —
+  // those fields are course-level only and can't be saved per-learner.
+  useEffect(() => {
+    if (scope === "learner") {
+      setDraftStyle(currentStyle);
+      setDraftAudience(currentAudience);
+      setDraftMode(currentMode);
+    }
+  }, [scope, currentStyle, currentAudience, currentMode]);
+
+  // Clear stale result/error banner when user starts a new round of changes.
+  useEffect(() => {
+    if (applyResult) setApplyResult(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope]);
 
   // --- Group parameters ---
   const grouped = useMemo(() => groupParameters(parameters), [parameters]);
@@ -285,15 +326,22 @@ export function PromptTunerSidebar({
 
   // --- Apply changes ---
   const handleApply = useCallback(async () => {
-    if (!playbookId || pendingChanges.length === 0) return;
+    if (!playbookId || !scope || pendingChanges.length === 0) return;
     setApplying(true);
     setApplyError(null);
+    setApplyResult(null);
 
     try {
-      // 1. Write target changes
       const targetChanges = pendingChanges.filter((c) => c.type === "target");
+      const configChanges = pendingChanges.filter((c) => c.type === "config");
+
+      // 1. Write target changes — route depends on scope
       if (targetChanges.length > 0) {
-        const res = await fetch(`/api/playbooks/${playbookId}/targets`, {
+        const url =
+          scope === "learner"
+            ? `/api/callers/${callerId}/behavior-targets`
+            : `/api/playbooks/${playbookId}/targets`;
+        const res = await fetch(url, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -307,9 +355,16 @@ export function PromptTunerSidebar({
         if (!result.ok) throw new Error(result.error || "Failed to update targets");
       }
 
-      // 2. Write config changes
-      const configChanges = pendingChanges.filter((c) => c.type === "config");
+      // 2. Write config changes — playbook config is course-scoped only.
+      //    Learner-scoped Approach overrides would need a caller-config concept
+      //    which doesn't exist yet — block the save with a clear error.
       if (configChanges.length > 0) {
+        if (scope === "learner") {
+          throw new Error(
+            "Teaching Style / Audience / Mode can only be changed at the course level. " +
+              "Switch scope to 'This course' to apply, or discard these changes.",
+          );
+        }
         const configUpdate: Record<string, string> = {};
         for (const c of configChanges) {
           if (c.configKey && c.configValue) {
@@ -325,14 +380,32 @@ export function PromptTunerSidebar({
         if (!result.ok) throw new Error(result.error || "Failed to update config");
       }
 
-      // 3. Recompose prompt
-      const res = await fetch(`/api/callers/${callerId}/compose-prompt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ triggerType: "TUNER" }),
-      });
-      const result = await res.json();
-      if (!result.ok) throw new Error(result.error || "Failed to recompose");
+      // 3. Recompose — single caller on learner scope, fan-out on course scope.
+      if (scope === "learner") {
+        const res = await fetch(`/api/callers/${callerId}/compose-prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ triggerType: "TUNER" }),
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || "Failed to recompose");
+        setApplyResult(`Applied to ${callerName || "this learner"}. Next prompt updated.`);
+      } else {
+        const res = await fetch(`/api/playbooks/${playbookId}/recompose-all`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ triggerType: "TUNER_FANOUT" }),
+        });
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.error || "Failed to recompose course");
+        const { total = 0, succeeded = 0, failed = 0 } = result;
+        if (failed > 0) {
+          console.warn(`[tuner] Fan-out recompose: ${succeeded}/${total} succeeded`, result.errors);
+          setApplyResult(`Applied. Recomposed ${succeeded} of ${total} learners — ${failed} failed (see console).`);
+        } else {
+          setApplyResult(`Applied course-wide. Recomposed ${succeeded} learner${succeeded === 1 ? "" : "s"}.`);
+        }
+      }
 
       // 4. Notify parent
       onApplied(pendingChanges);
@@ -341,7 +414,7 @@ export function PromptTunerSidebar({
     } finally {
       setApplying(false);
     }
-  }, [playbookId, callerId, pendingChanges, onApplied]);
+  }, [playbookId, callerId, callerName, pendingChanges, onApplied, scope]);
 
   // --- Toggle group collapse ---
   const toggleGroup = useCallback((group: string) => {
@@ -362,7 +435,11 @@ export function PromptTunerSidebar({
         <div className="ps-tuner-header-text">
           <span className="ps-tuner-title">Prompt Tuner</span>
           <span className="ps-tuner-subtitle">
-            {scope === "course" ? "All learners" : callerName || "This learner"}
+            {scope === null
+              ? "Choose who these changes apply to"
+              : scope === "course"
+              ? `All learners${activeLearnerCount !== null ? ` (${activeLearnerCount})` : ""}`
+              : callerName || "This learner"}
             {hasChanges && (
               <span className="ps-tuner-badge">{pendingChanges.length} change{pendingChanges.length !== 1 ? "s" : ""}</span>
             )}
@@ -375,6 +452,39 @@ export function PromptTunerSidebar({
 
       {/* Scrollable body */}
       <div className="ps-tuner-body">
+        {/* Step 1: Scope picker — always shown first, required before tuning */}
+        <div className="ps-tuner-section ps-tuner-scope-section">
+          <div className="ps-tuner-section-title">Apply changes to</div>
+          <div className="ps-tuner-scope-cards">
+            <button
+              type="button"
+              className={`ps-tuner-scope-card${scope === "course" ? " ps-tuner-scope-card--active" : ""}`}
+              onClick={() => setScope("course")}
+            >
+              <span className="ps-tuner-scope-card-title">This course</span>
+              <span className="ps-tuner-scope-card-desc">
+                {activeLearnerCount !== null
+                  ? `All ${activeLearnerCount} active learner${activeLearnerCount === 1 ? "" : "s"}`
+                  : "All active learners"}
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`ps-tuner-scope-card${scope === "learner" ? " ps-tuner-scope-card--active" : ""}`}
+              onClick={() => setScope("learner")}
+            >
+              <span className="ps-tuner-scope-card-title">{callerName || "This learner"}</span>
+              <span className="ps-tuner-scope-card-desc">Only this learner</span>
+            </button>
+          </div>
+        </div>
+
+        {scope === null ? (
+          <div className="ps-tuner-empty-scope">
+            Pick a scope above to start tuning.
+          </div>
+        ) : (
+          <>
         {/* Loading / Error */}
         {paramsLoading && (
           <div className="ps-tuner-loading">
@@ -387,14 +497,20 @@ export function PromptTunerSidebar({
         )}
 
         {/* Approach selectors (always shown first — most intuitive) */}
-        <div className="ps-tuner-section">
-          <div className="ps-tuner-section-title">Approach</div>
+        <div className={`ps-tuner-section${approachLocked ? " ps-tuner-section--locked" : ""}`}>
+          <div className="ps-tuner-section-title">
+            Approach
+            {approachLocked && (
+              <span className="ps-tuner-locked-hint">Course-level only</span>
+            )}
+          </div>
           <div className="ps-tuner-selectors">
             <label className="ps-tuner-select-row">
               <span className="ps-tuner-select-label">Style</span>
               <select
                 value={draftStyle}
                 onChange={(e) => setDraftStyle(e.target.value)}
+                disabled={approachLocked}
                 className={`ps-tuner-select${draftStyle !== currentStyle ? " ps-tuner-select--changed" : ""}`}
               >
                 {STYLE_OPTIONS.map((opt) => (
@@ -407,6 +523,7 @@ export function PromptTunerSidebar({
               <select
                 value={draftAudience}
                 onChange={(e) => setDraftAudience(e.target.value)}
+                disabled={approachLocked}
                 className={`ps-tuner-select${draftAudience !== currentAudience ? " ps-tuner-select--changed" : ""}`}
               >
                 {AUDIENCE_OPTIONS.map((opt) => (
@@ -419,6 +536,7 @@ export function PromptTunerSidebar({
               <select
                 value={draftMode}
                 onChange={(e) => setDraftMode(e.target.value)}
+                disabled={approachLocked}
                 className={`ps-tuner-select${draftMode !== currentMode ? " ps-tuner-select--changed" : ""}`}
               >
                 {MODE_OPTIONS.map((opt) => (
@@ -505,31 +623,6 @@ export function PromptTunerSidebar({
           );
         })}
 
-        {/* Scope toggle */}
-        <div className="ps-tuner-section">
-          <div className="ps-tuner-section-title">Scope</div>
-          <div className="ps-tuner-scope">
-            <label className="ps-tuner-scope-option">
-              <input
-                type="radio"
-                name="tuner-scope"
-                checked={scope === "course"}
-                onChange={() => setScope("course")}
-              />
-              <span>This course (all learners)</span>
-            </label>
-            <label className="ps-tuner-scope-option">
-              <input
-                type="radio"
-                name="tuner-scope"
-                checked={scope === "learner"}
-                onChange={() => setScope("learner")}
-              />
-              <span>{callerName || "This learner"} only</span>
-            </label>
-          </div>
-        </div>
-
         {/* Pending changes */}
         {hasChanges && (
           <div className="ps-tuner-section">
@@ -551,17 +644,28 @@ export function PromptTunerSidebar({
           </div>
         )}
 
-        {/* Error */}
+        {/* Feedback banners */}
         {applyError && (
           <div className="hf-banner hf-banner-error ps-tuner-error">
             {applyError}
           </div>
         )}
+        {applyResult && !applyError && (
+          <div className="hf-banner hf-banner-success ps-tuner-error">
+            {applyResult}
+          </div>
+        )}
+          </>
+        )}
       </div>
 
       {/* Sticky footer */}
       <div className="ps-tuner-footer">
-        {hasChanges ? (
+        {scope === null ? (
+          <div className="ps-tuner-no-changes">
+            Pick a scope to start tuning
+          </div>
+        ) : hasChanges ? (
           <>
             <button
               className="hf-btn hf-btn-primary ps-tuner-apply"
@@ -573,8 +677,10 @@ export function PromptTunerSidebar({
                   <span className="hf-spinner hf-spinner-sm" />
                   Applying...
                 </>
+              ) : scope === "course" ? (
+                `Apply to course${activeLearnerCount !== null ? ` (${activeLearnerCount} learner${activeLearnerCount === 1 ? "" : "s"})` : ""}`
               ) : (
-                "Apply & Recompose"
+                `Apply to ${callerName || "this learner"} only`
               )}
             </button>
             <button
