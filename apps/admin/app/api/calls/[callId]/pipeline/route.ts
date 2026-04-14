@@ -48,6 +48,7 @@ import { logAI } from "@/lib/logger";
 import { createLogger, type PipelineLogger } from "@/lib/pipeline/logger";
 import { mapToMemoryCategory } from "@/lib/pipeline/memory";
 import { loadGuardrails, type GuardrailsConfig } from "@/lib/pipeline/guardrails";
+import { shouldRunCallerAnalysis } from "@/lib/pipeline/event-gate";
 import { getTranscriptLimit, getSystemSpecs, getSpecsByOutputType, getPlaybookSpecs, batchLoadParameters, resolveCallerTeachingProfile, filterByTeachingProfile } from "@/lib/pipeline/specs-loader";
 import type { SpecConfig } from "@/lib/types/json-fields";
 
@@ -1863,7 +1864,28 @@ const stageExecutors: Record<string, StageExecutor> = {
       }
     }
 
-    const callerResult = await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log, ctx.userName);
+    // Scheduler v1 Slice 1 (#154) — event-gate caller scoring on prior mode.
+    // Reads the SchedulerDecision written by the previous call's COMPOSE and
+    // skips caller-skill scoring when there was no assessment evidence
+    // (fixes Boaz S1–S4: COMP_VOCABULARY/RECALL/EVALUATION scored in teach
+    // sessions where no question was asked). Structured-mode lessons preserve
+    // legacy behaviour because no decision is ever written for them.
+    // The gate only blocks caller analysis — memories, artifacts, and actions
+    // still run below so continuous-mode teach sessions aren't silently lost.
+    const gate = await shouldRunCallerAnalysis(ctx.callerId);
+
+    const callerResult = gate.allow
+      ? await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log, ctx.userName)
+      : {
+          scoresCreated: 0,
+          memoriesCreated: 0,
+          playbookUsed: null as string | null,
+          learningAssessment: null as Awaited<ReturnType<typeof runBatchedCallerAnalysis>>["learningAssessment"],
+        };
+
+    if (!gate.allow) {
+      ctx.log.info(`EXTRACT caller-scoring gated: ${gate.reason}`);
+    }
     const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
 
     // Run all 5 non-blocking post-analysis ops in parallel
@@ -1938,6 +1960,8 @@ const stageExecutors: Record<string, StageExecutor> = {
       scoresCreated: callerResult.scoresCreated,
       memoriesCreated: callerResult.memoriesCreated,
       deltasComputed: deltaResult.deltasComputed,
+      callerAnalysisGated: !gate.allow,
+      gate: { allow: gate.allow, mode: gate.mode, reason: gate.reason },
       curriculumUpdated,
       onboardingCompleted,
       sessionAdvanced,

@@ -109,6 +109,11 @@ const mockPrisma = {
   curriculum: {
     findFirst: vi.fn(),
   },
+  callerAttribute: {
+    findUnique: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
+    upsert: vi.fn().mockResolvedValue(undefined),
+  },
   $disconnect: vi.fn(),
 };
 

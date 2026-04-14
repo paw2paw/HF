@@ -544,6 +544,36 @@ export const config = {
   },
 
   // ---------------------------------------------------------------------------
+  // Scheduler (#154 Phase 1 — Slice 1 Micro-MVP; expanded in Slices 2 + 3)
+  // ---------------------------------------------------------------------------
+  scheduler: {
+    /**
+     * Slice 1 placeholder mode written by COMPOSE in continuous mode.
+     * Default "teach" → EXTRACT event-gate skips caller-skill scoring next call
+     * (fixes #154 S1–S4: no scoring without assessment evidence). Operators can
+     * flip to "assess" via env to re-enable scoring without a redeploy, which
+     * is the escape hatch if Slice 2 is delayed.
+     * Override: SCHEDULER_SLICE1_PLACEHOLDER_MODE=teach|review|assess|practice
+     */
+    get placeholderMode(): string {
+      return optional("SCHEDULER_SLICE1_PLACEHOLDER_MODE", "teach");
+    },
+
+    /**
+     * Comma-separated list of SchedulerDecision modes that allow caller-skill
+     * scoring in EXTRACT. Default "assess,practice" — only score when the prior
+     * decision explicitly requested assessment or retrieval practice.
+     * Override: SCHEDULER_ASSESSMENT_MODES=assess,practice,review
+     */
+    get assessmentModes(): string[] {
+      return optional("SCHEDULER_ASSESSMENT_MODES", "assess,practice")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    },
+  },
+
+  // ---------------------------------------------------------------------------
   // VAPI Integration
   // ---------------------------------------------------------------------------
   vapi: {

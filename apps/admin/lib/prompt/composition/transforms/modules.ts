@@ -20,6 +20,7 @@ import type {
   CallerAttributeData,
 } from "../types";
 import { prisma } from "@/lib/prisma";
+import { config } from "@/lib/config";
 
 // =============================================================================
 // DB-FIRST MODULE LOADING (CurriculumModule model)
@@ -637,6 +638,27 @@ export async function computeSharedState(
           `${wsResult.assertionIds.length} TPs (${wsResult.reviewIds.length} review, ${wsResult.newIds.length} new). ` +
           `Progress: ${wsResult.totalMastered}/${wsResult.totalLOs} LOs mastered.`
         );
+
+        // Scheduler v1 Slice 1 (#154) — persist a placeholder decision so the
+        // next call's EXTRACT can event-gate caller-skill scoring. Slice 1 has
+        // no mode selection yet — the placeholder mode comes from
+        // config.scheduler.placeholderMode (env-overridable so operators can
+        // flip scoring back on if Slice 2 is delayed). Slices 2+3 replace
+        // this with the real selectNextExchange output.
+        try {
+          const { persistSchedulerDecision } = await import("@/lib/pipeline/scheduler-decision");
+          const placeholderMode = config.scheduler.placeholderMode as
+            | "teach" | "review" | "assess" | "practice";
+          await persistSchedulerDecision(callerId, {
+            mode: placeholderMode,
+            outcomeId: wsResult.selectedLOs[0]?.id ?? null,
+            contentSourceId: null,
+            workingSetAssertionIds: wsResult.assertionIds,
+            reason: `slice-1 placeholder: mode=${placeholderMode} from config.scheduler.placeholderMode`,
+          });
+        } catch (persistErr) {
+          console.warn('[modules] Failed to persist placeholder SchedulerDecision (non-blocking):', persistErr);
+        }
       }
     } catch (err) {
       console.error('[modules] Continuous mode selector failed, falling back to structured:', err);
