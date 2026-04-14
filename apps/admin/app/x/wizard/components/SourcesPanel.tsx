@@ -13,7 +13,7 @@
  */
 
 import { useState, useRef, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Upload, FileText, Check, AlertCircle, Loader2, RefreshCw, X, Eye, EyeOff } from "lucide-react";
+import { Upload, FileText, Check, AlertCircle, Loader2, RefreshCw, X, Eye } from "lucide-react";
 import { useSourceStatus } from "@/hooks/useSourceStatus";
 import { SourceStatusDots } from "@/components/shared/SourceStatusDots";
 import { getDocTypeInfo, isStudentVisibleDefault } from "@/lib/doc-type-icons";
@@ -464,7 +464,7 @@ export const SourcesPanel = forwardRef<SourcesPanelHandle, SourcesPanelProps>(fu
                     : "Teacher-only reference — students can't access this file, but the AI tutor still learns from it. Click to share with students."
                   }
                 >
-                  {isVisible ? <><Eye size={11} /> Student</> : <><EyeOff size={11} /> Teacher</>}
+                  <Eye size={11} /> {isVisible ? "Student" : "Teacher"}
                 </button>
                 <button
                   className="cv4-sources-remove"

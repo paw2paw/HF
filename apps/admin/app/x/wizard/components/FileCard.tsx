@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { FileText, CheckCircle2, AlertCircle, Eye } from "lucide-react";
 import { getDocTypeInfo } from "@/lib/doc-type-icons";
 
 export interface FileCardData {
@@ -60,7 +60,7 @@ export function FileCard({ file }: FileCardProps) {
               : "Teacher-only — AI still learns from it"
             }
           >
-            {file.isStudentVisible ? <><Eye size={10} /> Student</> : <><EyeOff size={10} /> Teacher</>}
+            <Eye size={10} /> {file.isStudentVisible ? "Student" : "Teacher"}
           </span>
         )}
         {file.subject && (
