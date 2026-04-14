@@ -2033,9 +2033,11 @@ async function resolveCourseByName(name: string, domainId: string): Promise<Cour
 
     const selectClause = { id: true, name: true, config: true } as const;
 
-    // 1. Try exact match
+    // 1. Try exact match. Ordered by createdAt so collisions resolve to the
+    //    oldest match deterministically (rare — names are ~unique per domain).
     const exact = await prisma.playbook.findFirst({
       where: { domainId, name: { equals: name, mode: "insensitive" } },
+      orderBy: { createdAt: "asc" },
       select: selectClause,
     });
     if (exact) {

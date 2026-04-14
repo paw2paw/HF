@@ -90,7 +90,12 @@ export async function composeContentSection(
     },
   };
 
-  // Check CallerPlaybook enrollments first
+  // Resolve the caller's playbook via their ACTIVE CallerPlaybook enrolments.
+  // Historically we fell back to `findFirst({ domainId, PUBLISHED })` when the
+  // caller had no matching enrolment — that silently bound the content section
+  // to a random playbook in multi-course domains. Removed: if the caller has
+  // no enrolment, bail to the subject-curriculum fallback below rather than
+  // picking a wrong playbook.
   let playbook = null;
   const enrollments = await prisma.callerPlaybook.findMany({
     where: { callerId, status: "ACTIVE" },
@@ -101,17 +106,6 @@ export async function composeContentSection(
     playbook = await prisma.playbook.findFirst({
       where: {
         id: { in: enrollments.map(e => e.playbookId) },
-        status: 'PUBLISHED',
-      },
-      include: playbookInclude,
-    });
-  }
-
-  // Domain fallback
-  if (!playbook) {
-    playbook = await prisma.playbook.findFirst({
-      where: {
-        domainId,
         status: 'PUBLISHED',
       },
       include: playbookInclude,

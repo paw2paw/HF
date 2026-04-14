@@ -35,6 +35,7 @@ import { extractActions } from "@/lib/actions/extract-actions";
 import { config as appConfig } from "@/lib/config";
 import { updateCurriculumProgress, getCurriculumProgress, completeModule, updateTpMasteryBatch } from "@/lib/curriculum/track-progress";
 import { initializeLessonPlanSession } from "@/lib/enrollment/init-lesson-plan";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
 
@@ -69,15 +70,15 @@ async function loadCurrentModuleContext(
   masteryThreshold: number;
   allModuleIds: string[];
 } | null> {
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
-  if (!caller?.domainId) return null;
+  // Resolve the caller's actual enrolment (CallerPlaybook) instead of picking
+  // a random playbook in the domain. Prior findFirst-by-domain was silently
+  // binding to the wrong course in any multi-course domain.
+  const resolvedPlaybookId = await resolvePlaybookId(callerId);
+  if (!resolvedPlaybookId) return null;
 
-  // Path 1: CONTENT spec via published playbook
-  const playbook = await prisma.playbook.findFirst({
-    where: { domainId: caller.domainId, status: "PUBLISHED" },
+  // Path 1: CONTENT spec via the caller's enrolled playbook
+  const playbook = await prisma.playbook.findUnique({
+    where: { id: resolvedPlaybookId },
     select: {
       items: {
         where: {
@@ -1469,16 +1470,15 @@ async function trackCurriculumAfterCall(
     }
   }
 
-  // Fallback: no learning assessment — still assign first module if needed
-  const caller = await prisma.caller.findUnique({
-    where: { id: callerId },
-    select: { domainId: true },
-  });
-  if (!caller?.domainId) return false;
+  // Fallback: no learning assessment — still assign first module if needed.
+  // Resolve the caller's actual enrolment rather than picking a random
+  // playbook in the domain.
+  const resolvedPlaybookId = await resolvePlaybookId(callerId);
+  if (!resolvedPlaybookId) return false;
 
-  // Try CONTENT spec path
-  const playbook = await prisma.playbook.findFirst({
-    where: { domainId: caller.domainId, status: "PUBLISHED" },
+  // Try CONTENT spec path on the caller's enrolled playbook
+  const playbook = await prisma.playbook.findUnique({
+    where: { id: resolvedPlaybookId },
     select: {
       items: {
         where: {

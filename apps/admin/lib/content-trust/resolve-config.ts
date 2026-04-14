@@ -871,13 +871,30 @@ async function findDomainOverrideConfig(sourceId: string): Promise<Record<string
  * Find a domain-level EXTRACT spec override for a specific domain.
  */
 async function findDomainExtractSpec(domainId: string): Promise<Record<string, any> | null> {
-  // Look for domain-scoped EXTRACT specs in the domain's published playbook
-  const playbook = await prisma.playbook.findFirst({
+  // Find a domain-scoped EXTRACT override across all published playbooks in
+  // the domain. When multiple playbooks have a matching spec, picks the first
+  // deterministically (oldest by createdAt) and warns so config drift between
+  // courses is visible in logs rather than silently masked.
+  const candidates = await prisma.playbook.findMany({
     where: {
       domainId,
       status: "PUBLISHED",
+      items: {
+        some: {
+          itemType: "SPEC",
+          spec: {
+            specRole: "EXTRACT",
+            scope: "DOMAIN",
+            domain: "content-trust",
+            isActive: true,
+          },
+        },
+      },
     },
+    orderBy: { createdAt: "asc" },
     select: {
+      id: true,
+      name: true,
       items: {
         where: {
           itemType: "SPEC",
@@ -898,7 +915,14 @@ async function findDomainExtractSpec(domainId: string): Promise<Record<string, a
     },
   });
 
-  const specConfig = playbook?.items?.[0]?.spec?.config as Record<string, any> | null;
+  if (candidates.length === 0) return null;
+  if (candidates.length > 1) {
+    console.warn(
+      `[resolve-config] Domain ${domainId} has ${candidates.length} published playbooks with content-trust EXTRACT overrides — using oldest ("${candidates[0].name}"). If they differ, extraction may be inconsistent across courses.`,
+    );
+  }
+
+  const specConfig = candidates[0]?.items?.[0]?.spec?.config as Record<string, any> | null;
   return specConfig || null;
 }
 

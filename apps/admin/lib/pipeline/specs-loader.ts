@@ -192,84 +192,38 @@ export async function getPlaybookSpecs(
     }
   }
 
-  // 2. Domain-based fallback (no enrollments or no published enrolled playbooks)
+  // 2. Fallback — caller has no ACTIVE enrolment in a PUBLISHED playbook.
+  //
+  // Historically we picked "a" published playbook from the caller's domain via
+  // findFirst. That was non-deterministic in multi-course domains and silently
+  // ran pipeline analysis against the wrong course's specs. See #domain-lookup
+  // audit — the fix is to NEVER bind to a random playbook. Instead we return
+  // the universal set of active DOMAIN-scoped specs (same as the no-domain
+  // path) and surface a loud warning so the bug cannot hide.
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: { domainId: true, domain: { select: { slug: true, name: true } } },
   });
 
-  if (!caller?.domainId) {
-    log.warn("Caller has no domain assigned, using fallback (all active DOMAIN specs)");
-    const allSpecs = await prisma.analysisSpec.findMany({
-      where: {
-        scope: "DOMAIN",
-        outputType: { in: outputTypes as AnalysisOutputType[] },
-        isActive: true,
-        isDirty: false,
-      },
-      select: { id: true, slug: true, outputType: true },
-    });
-    return { specs: allSpecs, playbookId: null, playbookName: null, fallback: true };
-  }
+  log.warn(
+    `[specs-loader] Caller ${callerId} has no ACTIVE enrolment in a PUBLISHED playbook — loading universal DOMAIN specs as safe fallback (domain=${caller?.domain?.slug ?? "none"})`,
+  );
 
-  const playbook = await prisma.playbook.findFirst({
+  const allSpecs = await prisma.analysisSpec.findMany({
     where: {
-      domainId: caller.domainId,
-      status: "PUBLISHED",
+      scope: "DOMAIN",
+      outputType: { in: outputTypes as AnalysisOutputType[] },
+      isActive: true,
+      isDirty: false,
     },
-    select: {
-      id: true,
-      name: true,
-      items: {
-        where: {
-          itemType: "SPEC",
-          isEnabled: true,
-          spec: {
-            scope: "DOMAIN",
-            outputType: { in: outputTypes as AnalysisOutputType[] },
-            isActive: true,
-            isDirty: false,
-          },
-        },
-        select: {
-          spec: {
-            select: { id: true, slug: true, outputType: true },
-          },
-        },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
-
-  if (!playbook) {
-    log.warn(`No published playbook for domain "${caller.domain?.slug}", using fallback (all active DOMAIN specs)`);
-    const allSpecs = await prisma.analysisSpec.findMany({
-      where: {
-        scope: "DOMAIN",
-        outputType: { in: outputTypes as AnalysisOutputType[] },
-        isActive: true,
-        isDirty: false,
-      },
-      select: { id: true, slug: true, outputType: true },
-    });
-    return { specs: allSpecs, playbookId: null, playbookName: null, fallback: true };
-  }
-
-  const specs = playbook.items
-    .filter((item) => item.spec)
-    .map((item) => item.spec!);
-
-  log.info(`Using playbook "${playbook.name}" for domain "${caller.domain?.slug}" (domain fallback)`, {
-    playbookId: playbook.id,
-    specCount: specs.length,
-    outputTypes,
+    select: { id: true, slug: true, outputType: true },
   });
 
   return {
-    specs,
-    playbookId: playbook.id,
-    playbookName: playbook.name,
-    fallback: false,
+    specs: allSpecs,
+    playbookId: null,
+    playbookName: null,
+    fallback: true,
   };
 }
 

@@ -127,24 +127,30 @@ type CheckExecutor = (
  * Each executor evaluates a specific condition and returns pass/fail + detail.
  */
 const checkExecutors: Record<string, CheckExecutor> = {
-  // Domain has a PUBLISHED playbook
+  // Domain has a PUBLISHED playbook. Intentionally domain-level: ANY published
+  // playbook satisfies the readiness gate. Ordered so the detail line is stable.
   playbook: async (domainId) => {
-    const playbook = await prisma.playbook.findFirst({
+    const count = await prisma.playbook.count({ where: { domainId, status: "PUBLISHED" } });
+    if (count === 0) return { passed: false, detail: "No learning programme has been published yet" };
+    const first = await prisma.playbook.findFirst({
       where: { domainId, status: "PUBLISHED" },
       select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
     });
-    return playbook
-      ? { passed: true, detail: `Active: "${playbook.name}"` }
-      : { passed: false, detail: "No learning programme has been published yet" };
+    const detail = count > 1 ? `${count} active courses, oldest: "${first?.name}"` : `Active: "${first?.name}"`;
+    return { passed: true, detail };
   },
 
-  // Playbook contains a spec with the given specRole (domain items + system spec toggles)
+  // Playbook contains a spec with the given specRole. Domain-level check: uses
+  // orderBy for determinism so the error/detail message is stable when the
+  // domain has multiple published playbooks.
   playbook_spec_role: async (domainId, check) => {
     const specRole = check.queryArgs?.specRole;
     if (!specRole) return { passed: false, detail: "Missing queryArgs.specRole" };
 
     const playbook = await prisma.playbook.findFirst({
       where: { domainId, status: "PUBLISHED" },
+      orderBy: { createdAt: "asc" },
       select: {
         config: true,
         items: {

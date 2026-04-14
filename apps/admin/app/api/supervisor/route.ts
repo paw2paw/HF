@@ -93,12 +93,15 @@ export async function GET(request: NextRequest) {
       if (domain) {
         domainInfo = domain;
 
-        // Find published playbook for this domain
+        // Find published playbook for this domain. Admin supervisor UI is
+        // legitimately domain-scoped; ordered for stable output when the
+        // domain has multiple published playbooks.
         const playbook = await prisma.playbook.findFirst({
           where: {
             domainId: domainId,
             status: "PUBLISHED",
           },
+          orderBy: { createdAt: "asc" },
           select: {
             id: true,
             name: true,
