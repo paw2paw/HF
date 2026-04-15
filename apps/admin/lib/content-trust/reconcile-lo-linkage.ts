@@ -142,7 +142,11 @@ export async function reconcileAssertionLOs(
   curriculumId: string,
   options: ReconcileOptions = {},
 ): Promise<ReconcileResult> {
-  const runAiRetagPass = options.runAiRetagPass !== false;
+  // Default OFF. Pass 1 (exact ref match) is free and runs always.
+  // Pass 2 (AI retag) is an AI call — only fire when the caller explicitly
+  // opts in, to avoid duplicate AI calls when multiple surfaces save curriculum
+  // in rapid succession (#162 follow-up).
+  const runAiRetagPass = options.runAiRetagPass === true;
   const curriculum = await prisma.curriculum.findUnique({
     where: { id: curriculumId },
     select: {
@@ -478,13 +482,15 @@ Return the JSON mapping now.`;
         unmatched++;
         continue;
       }
-      // Write — AI-verified but not ground-truth: linkConfidence 0.85
+      // Write — AI-verified but not ground-truth: linkConfidence 0.80.
+      // Lands in the 🟡 "ok" (blue) chip band, visually distinct from 🟢
+      // "strong" rows (1.0: exact ref match or teacher-verified picker).
       await prisma.contentAssertion.update({
         where: { id: a.id },
         data: {
           learningObjectiveId: lo.id,
           learningOutcomeRef: lo.ref,
-          linkConfidence: 0.85,
+          linkConfidence: 0.8,
         },
       });
       matched++;

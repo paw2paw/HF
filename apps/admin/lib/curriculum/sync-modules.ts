@@ -42,6 +42,12 @@ export interface SyncModulesOptions {
    * prompt. Used together with assertionTags.
    */
   assertionIdByIndex?: Map<number, string>;
+  /**
+   * Run the AI retag pass inside reconcileAssertionLOs. Default false — only
+   * the /regenerate-curriculum route and the /reconcile-orphans route should
+   * set this, to avoid duplicate AI calls across rapid curriculum saves.
+   */
+  runAiRetagPass?: boolean;
 }
 
 /**
@@ -281,7 +287,9 @@ export async function syncModulesToDB(
   // emits them alongside modules — no separate retag pass needed.
   let reconcile: ReconcileResult | null = null;
   try {
-    reconcile = await reconcileAssertionLOs(curriculumId);
+    reconcile = await reconcileAssertionLOs(curriculumId, {
+      runAiRetagPass: options?.runAiRetagPass === true,
+    });
   } catch (err) {
     console.error(`[sync-modules] reconcileAssertionLOs failed for curriculum ${curriculumId}:`, err);
     // Non-fatal — curriculum save itself succeeded.

@@ -197,6 +197,10 @@ export async function POST(
       mode: "replace",
       assertionTags: extracted.assertionTags,
       assertionIdByIndex,
+      // User-triggered regeneration → explicit opt-in for the AI retag pass.
+      // Curriculum saves from other routes (module rename, LO edit, etc.)
+      // skip this to avoid duplicate AI calls.
+      runAiRetagPass: true,
     });
 
     // 7. Detect orphan-progress risk — modules that had progress but are no

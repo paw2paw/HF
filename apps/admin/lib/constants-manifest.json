@@ -1,6 +1,6 @@
 {
-  "generated": "2026-03-05T17:59:01.096Z",
-  "count": 18,
+  "generated": "2026-04-15T11:00:20.190Z",
+  "count": 19,
   "constants": [
     {
       "name": "MAX_STATUS_BATCH",
@@ -72,7 +72,7 @@
       "group": "content-processing",
       "description": "Max characters extracted per file for AI analysis",
       "file": "app/api/course-pack/analyze/route.ts",
-      "line": 49
+      "line": 54
     },
     {
       "name": "LAUNCH_TIMEOUT_MS",
@@ -88,7 +88,7 @@
       "group": "course-setup",
       "description": "Launch API timeout in ms (2 minutes)",
       "file": "app/x/courses/_components/steps/CourseDoneStep.tsx",
-      "line": 17
+      "line": 18
     },
     {
       "name": "SAVE_TIMEOUT_MS",
@@ -104,7 +104,7 @@
       "group": "log-viewer",
       "description": "Duration threshold (ms) for \"slow\" status",
       "file": "lib/log-types.ts",
-      "line": 103
+      "line": 105
     },
     {
       "name": "POLL_INTERVAL_MS",
@@ -129,6 +129,14 @@
       "description": "Default source status poll interval for content sources",
       "file": "hooks/useSourceStatus.ts",
       "line": 10
+    },
+    {
+      "name": "STALE_TASK_MS",
+      "value": "5 * 60 * 1000",
+      "group": "polling",
+      "description": "Extraction tasks stuck in_progress longer than this are treated as failed",
+      "file": "app/api/content-sources/status/route.ts",
+      "line": 24
     },
     {
       "name": "TEACH_PLAN_POLL_MS",
