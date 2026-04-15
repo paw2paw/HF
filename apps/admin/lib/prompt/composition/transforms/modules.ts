@@ -107,11 +107,16 @@ export function filterTeachableAssertions<T extends { sourceDocumentType?: strin
  * Resolve the effective `lessonPlanMode` for a course given its curriculum
  * delivery config and playbook config.
  *
- * Explicit `deliveryConfig.lessonPlanMode === 'continuous'` wins. Otherwise,
- * `playbookConfig.teachingMode === 'comprehension'` also routes to continuous,
- * because comprehension courses are inherently linear reading courses that
- * interleave skills over a shared passage rather than sequencing through
- * discrete sessions. Everything else defaults to 'structured'.
+ * Priority (highest wins):
+ *   1. `deliveryConfig.lessonPlanMode === 'continuous'` — set by the prompt
+ *      composer pipeline directly on the curriculum.
+ *   2. `playbookConfig.lessonPlanMode === 'continuous'` — set by the V5
+ *      conversational wizard when the uploaded COURSE_REFERENCE declared a
+ *      continuous/adaptive teaching cadence (#167).
+ *   3. `playbookConfig.teachingMode === 'comprehension'` — comprehension
+ *      courses are inherently linear reading courses that interleave skills
+ *      over a shared passage rather than sequencing through discrete sessions.
+ *   4. Everything else defaults to 'structured'.
  *
  * Exported for regression tests — see tests/lib/composition/modules.test.ts.
  */
@@ -120,6 +125,7 @@ export function resolveLessonPlanMode(
   playbookConfig: Record<string, unknown> | null | undefined,
 ): 'continuous' | 'structured' {
   if ((deliveryConfig?.lessonPlanMode as string) === 'continuous') return 'continuous';
+  if ((playbookConfig?.lessonPlanMode as string) === 'continuous') return 'continuous';
   if ((playbookConfig?.teachingMode as string) === 'comprehension') return 'continuous';
   return 'structured';
 }

@@ -550,6 +550,14 @@ describe("resolveLessonPlanMode", () => {
     expect(resolveLessonPlanMode({ lessonPlanMode: "continuous" }, { teachingMode: "recall" })).toBe("continuous");
   });
 
+  it("returns 'continuous' when playbookConfig.lessonPlanMode is explicitly continuous (#167 — wizard override from course ref)", () => {
+    // V5 conversational wizard writes lessonPlanMode to Playbook.config when
+    // an uploaded COURSE_REFERENCE declares continuous teaching cadence.
+    expect(resolveLessonPlanMode(null, { lessonPlanMode: "continuous" })).toBe("continuous");
+    expect(resolveLessonPlanMode({}, { lessonPlanMode: "continuous", teachingMode: "recall" })).toBe("continuous");
+    expect(resolveLessonPlanMode(undefined, { lessonPlanMode: "continuous" })).toBe("continuous");
+  });
+
   it("returns 'continuous' when playbook.teachingMode is comprehension (Phase 0 routing fix)", () => {
     // Regression for Boaz 2026-04-13 B2: Secret Garden served wrong passage because
     // comprehension courses never set deliveryConfig.lessonPlanMode=continuous, so
