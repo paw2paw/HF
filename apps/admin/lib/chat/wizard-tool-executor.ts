@@ -634,6 +634,27 @@ export async function executeWizardTool(
             const constraints = (input.constraints as string[]) || (setupData?.constraints as string[]);
             if (constraints) configUpdate.constraints = constraints;
 
+            // #167 — Carry through pedagogy detected from an uploaded course
+            // reference. These values override the system defaults:
+            //   - lessonPlanMode: "continuous" means the scheduler decides
+            //     per call and we skip carving fixed sessions.
+            //   - cadenceMinutesPerCall: overrides durationMins.
+            //   - suggestedSessionCount: overrides sessionCount when set.
+            const pedagogy = setupData?.coursePedagogy as {
+              lessonPlanMode?: "structured" | "continuous" | null;
+              cadenceMinutesPerCall?: number | null;
+              suggestedSessionCount?: number | null;
+            } | undefined;
+            if (pedagogy?.lessonPlanMode) {
+              configUpdate.lessonPlanMode = pedagogy.lessonPlanMode;
+            }
+            if (pedagogy?.cadenceMinutesPerCall && !durationMins) {
+              configUpdate.durationMins = pedagogy.cadenceMinutesPerCall;
+            }
+            if (pedagogy?.suggestedSessionCount && !sessionCount) {
+              configUpdate.sessionCount = pedagogy.suggestedSessionCount;
+            }
+
             // Enable pre-survey by default (mandatory per product decision)
             if (!configUpdate.surveys) {
               configUpdate.surveys = { pre: { enabled: true }, mid: { enabled: false }, post: { enabled: true } };
@@ -944,6 +965,23 @@ export async function executeWizardTool(
         if (newCourseContext) configUpdate.courseContext = newCourseContext;
         const newConstraints = (input.constraints as string[]) || (setupData?.constraints as string[]);
         if (newConstraints) configUpdate.constraints = newConstraints;
+        // #167 — Carry through pedagogy detected from an uploaded course
+        // reference. Mirrors the existing-playbook path above.
+        const newPedagogy = setupData?.coursePedagogy as {
+          lessonPlanMode?: "structured" | "continuous" | null;
+          cadenceMinutesPerCall?: number | null;
+          suggestedSessionCount?: number | null;
+        } | undefined;
+        if (newPedagogy?.lessonPlanMode) {
+          configUpdate.lessonPlanMode = newPedagogy.lessonPlanMode;
+        }
+        if (newPedagogy?.cadenceMinutesPerCall && !newDurationMins) {
+          configUpdate.durationMins = newPedagogy.cadenceMinutesPerCall;
+        }
+        if (newPedagogy?.suggestedSessionCount && !newSessionCount) {
+          configUpdate.sessionCount = newPedagogy.suggestedSessionCount;
+        }
+
         // Map assessment targets into goal templates
         if (input.assessmentTargets) {
           const existingGoals = (configUpdate.goals as any[]) || [];
@@ -2182,6 +2220,24 @@ async function generateLessonPlanPreview(
   durationMins?: number,
   playbookId?: string,
 ): Promise<Array<{ session: number; label: string; type: string }>> {
+  // #167 — Continuous-mode courses have no fixed session plan. The scheduler
+  // decides call-by-call which outcome to cover, so carving modules into N
+  // pre-defined sessions is wrong for them. Return an empty plan; downstream
+  // code that expects entries should handle the empty case.
+  if (playbookId) {
+    const pb = await prisma.playbook.findUnique({
+      where: { id: playbookId },
+      select: { config: true },
+    });
+    const mode = (pb?.config as Record<string, unknown> | null)?.lessonPlanMode;
+    if (mode === "continuous") {
+      console.log(
+        `[wizard-tools] generateLessonPlanPreview: playbook ${playbookId} is continuous — skipping structured plan generation`,
+      );
+      return [];
+    }
+  }
+
   const fallbackCount = sessionCount || 6;
   const fallback = Array.from({ length: fallbackCount }, (_, i) => ({
     session: i + 1,

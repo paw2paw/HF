@@ -199,8 +199,13 @@ export function isContentBearingSession(type: string): boolean {
  * Estimate teaching session count from a total session target.
  * Before a lesson plan exists, assumes 1 onboarding + 1 offboarding
  * for courses with >2 sessions (per generation rules).
+ *
+ * Null/undefined input (e.g. continuous-mode courses with no fixed session
+ * count) returns 0 — the caller should special-case continuous mode rather
+ * than relying on this arithmetic.
  */
-export function estimateTeachingSessions(sessionCount: number): number {
+export function estimateTeachingSessions(sessionCount: number | null | undefined): number {
+  if (sessionCount == null || sessionCount <= 0) return 0;
   if (sessionCount <= 2) return sessionCount;
   if (sessionCount <= 4) return sessionCount - 1;
   return sessionCount - 2;

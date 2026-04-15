@@ -493,6 +493,60 @@ export async function buildV5SystemPrompt(
   const proposal = specs[config.specs.wizProposal];
   const content = specs[config.specs.wizContent];
 
+  // ── Course-pedagogy overlay (#167) ───────────────────────
+  // If a COURSE_REFERENCE upload detected explicit cadence or continuous-
+  // mode intent, inject an overlay that OVERRIDES the hardcoded "5 × 30"
+  // defaults below. The AI must propose what the educator's guide says,
+  // not the system defaults.
+  type DetectedPedagogy = {
+    lessonPlanMode?: "structured" | "continuous" | null;
+    cadenceMinutesPerCall?: number | null;
+    suggestedSessionCount?: number | null;
+    pedagogicalPreset?: string | null;
+    detectedFrom?: string[];
+  };
+  const pedagogy = (setupData.coursePedagogy as DetectedPedagogy | undefined) ?? null;
+  let pedagogyOverlay = "";
+  if (pedagogy && (pedagogy.lessonPlanMode || pedagogy.cadenceMinutesPerCall || pedagogy.suggestedSessionCount)) {
+    const lines: string[] = [
+      "",
+      "### ⚠️ PEDAGOGY OVERRIDE — the uploaded course reference takes precedence over the defaults below",
+      "",
+      "The educator has uploaded a course reference that specifies their teaching cadence. Your configuration proposal MUST reflect these values, NOT the generic defaults.",
+    ];
+    if (pedagogy.lessonPlanMode === "continuous") {
+      lines.push(
+        `- **lessonPlanMode: continuous** — this course does NOT pre-plan sessions. The scheduler decides call-by-call which outcome to cover next. Propose "Continuous — scheduler decides per call" instead of "N × M minutes". Do NOT ask the user to pick a session count.`,
+      );
+    }
+    if (pedagogy.cadenceMinutesPerCall) {
+      lines.push(
+        `- **durationMins: ${pedagogy.cadenceMinutesPerCall}** — the course reference specifies ${pedagogy.cadenceMinutesPerCall}-minute calls. Use this as the proposed call duration. Do NOT default to 30.`,
+      );
+    }
+    if (pedagogy.suggestedSessionCount) {
+      lines.push(
+        `- **sessionCount: ${pedagogy.suggestedSessionCount}** — the course reference suggests a soft budget of ${pedagogy.suggestedSessionCount} calls. Use this as the proposed session count.`,
+      );
+    }
+    if (pedagogy.pedagogicalPreset) {
+      lines.push(
+        `- **pedagogicalPreset: ${pedagogy.pedagogicalPreset}** — the educator selected this preset in the course reference.`,
+      );
+    }
+    if (pedagogy.detectedFrom && pedagogy.detectedFrom.length > 0) {
+      lines.push("");
+      lines.push(
+        "Detection evidence (quote any of these back to the educator to show you read their guide):",
+      );
+      for (const snippet of pedagogy.detectedFrom) {
+        lines.push(`  - ${snippet}`);
+      }
+    }
+    lines.push("");
+    pedagogyOverlay = lines.join("\n");
+  }
+
   const nonCommunityValues = !isCommunity
     ? `### Teaching emphasis (teachingMode)
 - recall, comprehension (default), practice, syllabus
@@ -503,7 +557,8 @@ export async function buildV5SystemPrompt(
 - Coverage: breadth, balanced (default), depth
 
 ### Lesson plan model (lessonPlanModel)
-- direct, 5e, spiral, mastery, project`
+- direct, 5e, spiral, mastery, project
+${pedagogyOverlay}`
     : "";
 
   const values = interpolateTemplate(specs[config.specs.wizValues], {

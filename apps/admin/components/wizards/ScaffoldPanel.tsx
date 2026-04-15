@@ -278,6 +278,12 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
   const welcomeMsg = getData<string>("welcomeMessage");
   const sessionCount = getData<number>("sessionCount");
   const durationMins = getData<string>("durationMins");
+  // #167 — continuous-mode pedagogy detected from course reference
+  const coursePedagogy = getData<{
+    lessonPlanMode?: "structured" | "continuous" | null;
+    cadenceMinutesPerCall?: number | null;
+  }>("coursePedagogy");
+  const isContinuous = coursePedagogy?.lessonPlanMode === "continuous";
   const planEmphasis = getData<string>("planEmphasis");
   const assessments = getData<string>("assessments");
   const lessonPlanModel = getData<string>("lessonPlanModel");
@@ -616,7 +622,7 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
           )}
 
           {/* Session structure */}
-          {!isCommunity && (sessionCount || durationMins || planEmphasis || assessments || lessonPlanModel) && (
+          {!isCommunity && (isContinuous || sessionCount || durationMins || planEmphasis || assessments || lessonPlanModel) && (
             <BlueprintSection
               visible
               active={isPhaseActive("lessons")}
@@ -625,12 +631,19 @@ export function ScaffoldPanel({ getData, currentStepIndex = -1, currentPhaseId, 
               sectionKey="lessons"
             >
               <div className="gs-bp-sessions">
-                {sessionCount && (
-                  <span className="gs-bp-sessions-count">{sessionCount} sessions</span>
+                {isContinuous ? (
+                  <span className="gs-bp-sessions-count">
+                    Continuous · scheduler decides per call
+                  </span>
+                ) : (
+                  sessionCount && (
+                    <span className="gs-bp-sessions-count">{sessionCount} sessions</span>
+                  )
                 )}
-                {durationMins && (
+                {(coursePedagogy?.cadenceMinutesPerCall || durationMins) && (
                   <span className="gs-bp-meta-item">
-                    {durationMins} min{isDefault("durationMins") && <DefaultTag />}
+                    {coursePedagogy?.cadenceMinutesPerCall ?? durationMins} min
+                    {!isContinuous && isDefault("durationMins") && <DefaultTag />}
                   </span>
                 )}
               </div>

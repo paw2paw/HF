@@ -909,6 +909,22 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         const digest = { categoryBreakdown: catCounts, sampleAssertions: samples, totalCount: allAssertions.length };
         setData("courseRefDigest", digest);
 
+        // #167 — detect pedagogy signals (cadence, continuous mode, preset)
+        // from the extracted assertions so the wizard's proposal builder
+        // overrides its hardcoded "5 × 30" defaults with what the
+        // course reference actually said.
+        try {
+          const { detectPedagogy, hasPedagogy } = await import("@/lib/wizard/detect-pedagogy");
+          const joinedText = allAssertions.map((a) => a.assertion).join("\n");
+          const pedagogy = detectPedagogy(joinedText);
+          if (hasPedagogy(pedagogy)) {
+            setData("coursePedagogy", pedagogy);
+            console.log("[wizard] detected pedagogy from course ref:", pedagogy);
+          }
+        } catch (err) {
+          console.warn("[wizard] pedagogy detection failed:", err);
+        }
+
         // Pre-populate pedagogy blackboard keys from extracted assertions.
         // This lets the AI confirm what was found rather than re-interviewing.
         const skillAssertions = allAssertions.filter((a) => a.category === "skill_framework");
