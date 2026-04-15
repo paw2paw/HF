@@ -932,7 +932,7 @@ export function UserContextMenu({
               )}
               {contentResetState === "done" && (
                 <div className="px-3 py-2.5 text-[13px]" style={{ color: "var(--status-success-text)" }}>
-                  Cleared {contentResetCount} source{contentResetCount !== 1 ? "s" : ""} from {contentResetDomain?.name} — next upload will re-extract
+                  Cleared {contentResetCount} source{contentResetCount !== 1 ? "s" : ""} and curriculum from {contentResetDomain?.name} — next upload rebuilds everything
                 </div>
               )}
               {contentResetState === "error" && (
