@@ -236,6 +236,7 @@ async function runBatchedCallerAnalysis(
   engine: AIEngine,
   log: PipelineLogger,
   userName?: string,
+  opts?: { skipMeasure?: boolean },
 ): Promise<{
   scoresCreated: number;
   memoriesCreated: number;
@@ -250,6 +251,15 @@ async function runBatchedCallerAnalysis(
   } | null;
 }> {
   const transcript = call.transcript || "";
+  // #155 (follow-up fix) — when the event-gate blocks scoring, we still run the
+  // batched call for LEARN specs (memories + artifacts) so Bella the dog still
+  // ends up on the caller page. Previously the entire function was skipped when
+  // the gate blocked, silently dropping memory extraction on every teach-mode
+  // call — a latent bug from Slice 1 that only became visible when #155 started
+  // firing real scheduler decisions. `skipMeasure` forces the LLM to see an
+  // empty MEASURE workload and a null moduleContext, so it only returns
+  // memories in its JSON response.
+  const skipMeasure = opts?.skipMeasure === true;
 
   // Get DOMAIN specs from caller's domain playbook (or fallback to all active DOMAIN specs)
   // Need playbookId first to filter system specs
@@ -307,7 +317,9 @@ async function runBatchedCallerAnalysis(
   }
 
   // Collect unique parameters to score (batched lookup - O(1) instead of O(N))
-  const paramMap = await batchLoadParameters(measureSpecs);
+  // When skipMeasure is true, we still load the specs but zero out the params
+  // below so the LLM prompt has nothing to score. LEARN actions run normally.
+  const paramMap = skipMeasure ? new Map() : await batchLoadParameters(measureSpecs);
 
   // Collect LEARN actions
   const learnActions: Array<{ category: string; keyPrefix: string; keyHint: string; description: string }> = [];
@@ -328,10 +340,12 @@ async function runBatchedCallerAnalysis(
 
   const measureParams = Array.from(paramMap.values());
 
-  // Check if LEARN-ASSESS-001 (or any spec with assessmentMode) is active
-  const assessmentSpec = learnSpecs.find(
-    (s) => (s.config as SpecConfig)?.assessmentMode === "curriculum_mastery"
-  );
+  // Check if LEARN-ASSESS-001 (or any spec with assessmentMode) is active.
+  // Learning-assessment is a skill-scoring path (curriculum mastery), so it is
+  // also gated by skipMeasure — event-gated calls must NOT write mastery scores.
+  const assessmentSpec = skipMeasure
+    ? null
+    : learnSpecs.find((s) => (s.config as SpecConfig)?.assessmentMode === "curriculum_mastery");
   let moduleContext: Awaited<ReturnType<typeof loadCurrentModuleContext>> = null;
 
   if (assessmentSpec) {
@@ -358,6 +372,7 @@ async function runBatchedCallerAnalysis(
     learnActions: learnActions.length,
     assessmentSpec: assessmentSpec?.slug || null,
     hasModuleContext: !!moduleContext,
+    skipMeasure,
   });
 
   if (measureParams.length === 0 && learnActions.length === 0 && !moduleContext) {
@@ -1864,27 +1879,34 @@ const stageExecutors: Record<string, StageExecutor> = {
       }
     }
 
-    // Scheduler v1 Slice 1 (#154) — event-gate caller scoring on prior mode.
-    // Reads the SchedulerDecision written by the previous call's COMPOSE and
-    // skips caller-skill scoring when there was no assessment evidence
-    // (fixes Boaz S1–S4: COMP_VOCABULARY/RECALL/EVALUATION scored in teach
-    // sessions where no question was asked). Structured-mode lessons preserve
-    // legacy behaviour because no decision is ever written for them.
-    // The gate only blocks caller analysis — memories, artifacts, and actions
-    // still run below so continuous-mode teach sessions aren't silently lost.
+    // Scheduler v1 Slice 1 (#154) + follow-up (#155 smoke test) — event-gate
+    // caller SCORING on prior mode, but always run memory/LEARN extraction.
+    //
+    // The gate reads the SchedulerDecision written by the previous call's
+    // COMPOSE and decides whether this call's transcript counts as assessment
+    // evidence. When it doesn't, caller-skill scoring is suppressed (fixes
+    // Boaz S1–S4: COMP_VOCABULARY/RECALL/EVALUATION scored in teach sessions
+    // where no question was asked). Memories, artifacts, and actions always
+    // run — a caller volunteering "my dog is Bella" in a teach-mode call must
+    // still land on the caller page. That's what `skipMeasure` on the batched
+    // caller analysis enables: same function, zero params to score, full LEARN
+    // path intact. Previously the whole call was skipped and memories were
+    // silently dropped on every teach-mode call.
     const gate = await shouldRunCallerAnalysis(ctx.callerId);
 
-    const callerResult = gate.allow
-      ? await runBatchedCallerAnalysis(ctx.call, ctx.callerId, ctx.engine, ctx.log, ctx.userName)
-      : {
-          scoresCreated: 0,
-          memoriesCreated: 0,
-          playbookUsed: null as string | null,
-          learningAssessment: null as Awaited<ReturnType<typeof runBatchedCallerAnalysis>>["learningAssessment"],
-        };
+    const callerResult = await runBatchedCallerAnalysis(
+      ctx.call,
+      ctx.callerId,
+      ctx.engine,
+      ctx.log,
+      ctx.userName,
+      { skipMeasure: !gate.allow },
+    );
 
     if (!gate.allow) {
-      ctx.log.info(`EXTRACT caller-scoring gated: ${gate.reason}`);
+      ctx.log.info(
+        `EXTRACT caller-scoring gated: ${gate.reason} (kept ${callerResult.memoriesCreated} memories, dropped scoring)`,
+      );
     }
     const deltaResult = await computeAdapt(ctx.callId, ctx.callerId, ctx.log);
 
