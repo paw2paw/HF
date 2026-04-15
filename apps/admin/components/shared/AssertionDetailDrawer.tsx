@@ -8,9 +8,9 @@
  * page owns editing.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { ExternalLink, ChevronDown, ChevronRight, Check, Pencil } from 'lucide-react';
 import { HFDrawer } from './HFDrawer';
 import { getCategoryStyle, getTrustLevel } from '@/lib/content-categories';
 
@@ -46,6 +46,8 @@ type AssertionDetail = {
   taxYear: string | null;
   examRelevance: number | null;
   learningOutcomeRef: string | null;
+  learningObjectiveId: string | null;
+  linkConfidence: number | null;
   topicSlug: string | null;
   depth: number | null;
   trustLevel: string | null;
@@ -61,25 +63,38 @@ type AssertionDetail = {
   vocabulary: AssertionVocab[];
 };
 
+type LoOption = {
+  id: string;
+  ref: string;
+  description: string;
+  moduleTitle: string;
+};
+
 // ── Component ──────────────────────────────────────
 
 export function AssertionDetailDrawer({
   courseId,
   assertionId,
+  curriculumId,
   onClose,
   onNavigate,
+  onSaved,
 }: {
   courseId: string;
   assertionId: string | null;
+  /** When provided, enables the manual LO picker (issue #162). */
+  curriculumId?: string | null;
   onClose: () => void;
   /** Navigate to a different assertion (e.g. child drill-down) */
   onNavigate?: (assertionId: string) => void;
+  /** Called after a successful PATCH so the parent can refetch its list. */
+  onSaved?: (assertionId: string) => void;
 }): React.ReactElement {
   const [detail, setDetail] = useState<AssertionDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadDetail = useCallback(() => {
     if (!assertionId) {
       setDetail(null);
       return;
@@ -95,6 +110,10 @@ export function AssertionDetailDrawer({
       .catch((e) => setError(e instanceof Error ? e.message : 'Network error'))
       .finally(() => setLoading(false));
   }, [assertionId, courseId]);
+
+  useEffect(() => {
+    loadDetail();
+  }, [loadDetail]);
 
   const catStyle = detail ? getCategoryStyle(detail.category) : null;
   const trustLevel = detail?.trustLevel ? getTrustLevel(detail.trustLevel) : null;
@@ -172,12 +191,20 @@ export function AssertionDetailDrawer({
               </>
             )}
 
-            {detail.learningOutcomeRef && (
-              <>
-                <span className="hf-drawer-field-label">Learning Outcome</span>
-                <span className="hf-drawer-field-value">{detail.learningOutcomeRef}</span>
-              </>
-            )}
+            <span className="hf-drawer-field-label">Learning Outcome</span>
+            <span className="hf-drawer-field-value">
+              <LoPicker
+                curriculumId={curriculumId ?? null}
+                assertionId={detail.id}
+                currentLoId={detail.learningObjectiveId}
+                currentLoRef={detail.learningOutcomeRef}
+                linkConfidence={detail.linkConfidence}
+                onSaved={() => {
+                  loadDetail();
+                  onSaved?.(detail.id);
+                }}
+              />
+            </span>
 
             {detail.teachMethod && (
               <>
@@ -246,6 +273,184 @@ export function AssertionDetailDrawer({
       )}
     </HFDrawer>
   );
+}
+
+// ---------------------------------------------------------------------------
+// LO picker — manual re-assign an assertion to a different learning outcome
+// (issue #162). Fetches modules + LOs from the curriculum endpoint and
+// PATCHes the assertion when the teacher picks a new option.
+// ---------------------------------------------------------------------------
+
+function LoPicker({
+  curriculumId,
+  assertionId,
+  currentLoId,
+  currentLoRef,
+  linkConfidence,
+  onSaved,
+}: {
+  curriculumId: string | null;
+  assertionId: string;
+  currentLoId: string | null;
+  currentLoRef: string | null;
+  linkConfidence: number | null;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [options, setOptions] = useState<LoOption[]>([]);
+  const [selected, setSelected] = useState<string>(currentLoId ?? '');
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setSelected(currentLoId ?? '');
+  }, [currentLoId]);
+
+  // Read-only display if no curriculumId (drawer used from a context without one)
+  if (!curriculumId) {
+    if (currentLoRef) {
+      return (
+        <span>
+          {currentLoRef}
+          <ConfidenceChip linkConfidence={linkConfidence} />
+        </span>
+      );
+    }
+    return <span className="hf-text-muted">Unassigned</span>;
+  }
+
+  const loadOptions = async () => {
+    if (options.length > 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculumId}/modules`);
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.modules)) {
+        const opts: LoOption[] = [];
+        for (const m of data.modules) {
+          for (const lo of m.learningObjectives ?? []) {
+            opts.push({
+              id: lo.id,
+              ref: lo.ref,
+              description: lo.description ?? '',
+              moduleTitle: m.title ?? 'Module',
+            });
+          }
+        }
+        setOptions(opts);
+      }
+    } catch {
+      /* swallow — picker stays empty */
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = () => {
+    setEditing(true);
+    loadOptions();
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const body = { learningObjectiveId: selected || null };
+      const res = await fetch(`/api/assertions/${assertionId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setEditing(false);
+        onSaved();
+      }
+    } catch {
+      /* swallow */
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <span className="hf-flex hf-items-center hf-gap-xs">
+        {currentLoRef ? (
+          <span>{currentLoRef}</span>
+        ) : (
+          <span className="hf-text-muted">Unassigned</span>
+        )}
+        <ConfidenceChip linkConfidence={linkConfidence} />
+        <button
+          type="button"
+          className="hf-btn hf-btn-xs hf-btn-secondary"
+          onClick={handleEdit}
+          title="Change learning outcome"
+        >
+          <Pencil size={11} /> Change
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="hf-flex hf-items-center hf-gap-xs hf-flex-wrap">
+      <select
+        className="hf-input hf-input-sm"
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        disabled={loading || saving}
+      >
+        <option value="">— Unassigned —</option>
+        {options.map((opt) => (
+          <option key={opt.id} value={opt.id}>
+            {opt.ref} — {truncate(opt.description, 60)} ({opt.moduleTitle})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="hf-btn hf-btn-xs hf-btn-primary"
+        onClick={handleSave}
+        disabled={saving || loading}
+      >
+        <Check size={11} /> {saving ? 'Saving…' : 'Save'}
+      </button>
+      <button
+        type="button"
+        className="hf-btn hf-btn-xs hf-btn-secondary"
+        onClick={() => setEditing(false)}
+        disabled={saving}
+      >
+        Cancel
+      </button>
+    </span>
+  );
+}
+
+function ConfidenceChip({ linkConfidence }: { linkConfidence: number | null }) {
+  if (linkConfidence == null) {
+    return (
+      <span className="hf-badge hf-badge-sm hf-badge-neutral" title="No confidence recorded">
+        unknown
+      </span>
+    );
+  }
+  const pct = Math.round(linkConfidence * 100);
+  const tone =
+    linkConfidence >= 0.85 ? 'success' : linkConfidence >= 0.6 ? 'info' : 'warning';
+  return (
+    <span
+      className={`hf-badge hf-badge-sm hf-badge-${tone}`}
+      title={`Link confidence: ${pct}%`}
+    >
+      {pct}%
+    </span>
+  );
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
 
 // ---------------------------------------------------------------------------

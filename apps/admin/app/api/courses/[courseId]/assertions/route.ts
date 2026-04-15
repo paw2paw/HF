@@ -15,7 +15,7 @@ import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
  * @pathParam courseId string - Playbook UUID
  * @query limit number - Max assertions to return (default 500, max 1000)
  * @query scope string - "content" (default, TPs only), "instructions" (TIs only), or "all" (both)
- * @response 200 { ok, assertions: Array<{ id, assertion, category, teachMethod, learningOutcomeRef, sourceName, session, trustLevel }>, total }
+ * @response 200 { ok, assertions: Array<{ id, assertion, category, teachMethod, learningOutcomeRef, sourceName, session, trustLevel, linkConfidence }>, total }
  */
 export async function GET(
   req: NextRequest,
@@ -71,6 +71,7 @@ export async function GET(
           teachMethod: true,
           learningOutcomeRef: true,
           trustLevel: true,
+          linkConfidence: true,
           source: { select: { name: true } },
         },
         orderBy: [{ learningOutcomeRef: "asc" }, { orderIndex: "asc" }],
@@ -112,6 +113,7 @@ export async function GET(
         teachMethod: a.teachMethod,
         learningOutcomeRef: a.learningOutcomeRef,
         trustLevel: a.trustLevel,
+        linkConfidence: a.linkConfidence,
         sourceName: a.source?.name ?? null,
         session: assertionSessionMap.get(a.id) ?? null,
       })),

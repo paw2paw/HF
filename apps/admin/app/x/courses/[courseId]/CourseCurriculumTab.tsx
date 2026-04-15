@@ -148,6 +148,7 @@ export function CourseCurriculumTab({
           isOperator={isOperator}
           onRegenerate={isOperator ? handleRegenerate : undefined}
           regenerating={regenerating}
+          onScorecardRefresh={loadScorecard}
         />
       )}
 

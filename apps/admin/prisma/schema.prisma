@@ -3657,6 +3657,13 @@ model ContentAssertion {
   learningObjectiveId String?
   learningObjective   LearningObjective? @relation(fields: [learningObjectiveId], references: [id], onDelete: SetNull)
 
+  // How confident the linkage to learningObjectiveId is (issue #162):
+  //   1.0   = exact ref match (Pass 1) or teacher-verified via drawer
+  //   0.6+  = Pass 2 Jaccard keyword overlap OR Pass 3 cosine similarity
+  //   null  = legacy row — linkage predates this column, or unlinked
+  // Idempotency rule: never overwrite a higher value with a lower one.
+  linkConfidence Float?
+
   // Vector embedding for semantic search (pgvector)
   embedding Unsupported("vector(1536)")?
 

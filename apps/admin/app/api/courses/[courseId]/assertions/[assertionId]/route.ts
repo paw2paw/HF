@@ -39,6 +39,8 @@ export async function GET(
         taxYear: true,
         examRelevance: true,
         learningOutcomeRef: true,
+        learningObjectiveId: true,
+        linkConfidence: true,
         topicSlug: true,
         depth: true,
         trustLevel: true,

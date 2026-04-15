@@ -49,6 +49,7 @@ type Assertion = {
   teachMethod: string | null;
   learningOutcomeRef: string | null;
   trustLevel: string | null;
+  linkConfidence: number | null;
   sourceName: string | null;
   session: number | null;
 };
@@ -69,6 +70,11 @@ interface Props {
   isOperator: boolean;
   onRegenerate?: () => void;
   regenerating: boolean;
+  /**
+   * Called after a reconcile (manual or silent background). Parent should
+   * re-fetch the scorecard so coverage dots update.
+   */
+  onScorecardRefresh?: () => void;
 }
 
 // ── Main component ───────────────────────────────────────
@@ -80,9 +86,79 @@ export function CurriculumHealthTabs({
   isOperator,
   onRegenerate,
   regenerating,
+  onScorecardRefresh,
 }: Props) {
   const defaultTab = pickDefaultTab(scorecard);
   const [activeTab, setActiveTab] = useState<TabKey>(defaultTab);
+
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileBanner, setReconcileBanner] = useState<string | null>(null);
+
+  const orphans = scorecard.studentContent.total - scorecard.studentContent.linkedToOutcome;
+
+  // Silent auto-run on mount when there are orphaned outcomes and we haven't
+  // already reconciled this curriculum within the 5-minute client window.
+  // Fires once per curriculumId per 5 minutes via localStorage.
+  useEffect(() => {
+    if (!curriculumId || scorecard.structure.outcomesWithoutContent === 0) return;
+    const key = `reconcile:${curriculumId}:lastRunAt`;
+    const lastRun = Number(localStorage.getItem(key) || "0");
+    if (Date.now() - lastRun < 5 * 60 * 1000) return;
+    localStorage.setItem(key, String(Date.now()));
+    // Fire-and-forget — failures swallowed silently (60s server cooldown
+    // may 429 if multiple tabs race; that's fine).
+    fetch(`/api/curricula/${curriculumId}/reconcile-orphans`, { method: "POST" })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.ok && res.vectorFkWritten > 0) {
+          onScorecardRefresh?.();
+        }
+      })
+      .catch(() => {});
+  }, [curriculumId, scorecard.structure.outcomesWithoutContent, onScorecardRefresh]);
+
+  const handleReconcile = async () => {
+    if (!curriculumId || reconciling) return;
+    const confirmMsg =
+      `This will try to match ${orphans} orphan teaching point${orphans !== 1 ? "s" : ""} ` +
+      `to learning outcomes using AI similarity. It makes 1 embedding API call (~$0.001).`;
+    if (!window.confirm(confirmMsg)) return;
+    setReconciling(true);
+    setReconcileBanner(null);
+    try {
+      const res = await fetch(`/api/curricula/${curriculumId}/reconcile-orphans`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        if (res.status === 429) {
+          setReconcileBanner(
+            `Reconcile just ran. Try again in ${data.retryAfter || 60} seconds.`,
+          );
+        } else {
+          setReconcileBanner(`Reconcile failed: ${data.error || "unknown error"}`);
+        }
+      } else {
+        const matched = data.vectorFkWritten ?? 0;
+        const avgPct = Math.round((data.avgVectorConfidence ?? 0) * 100);
+        if (matched === 0) {
+          setReconcileBanner(
+            `No additional matches found. Orphans may need manual linkage or new source content.`,
+          );
+        } else {
+          setReconcileBanner(
+            `Matched ${matched} additional teaching point${matched !== 1 ? "s" : ""} ` +
+              `(avg confidence ${avgPct}%).`,
+          );
+        }
+        onScorecardRefresh?.();
+      }
+    } catch (e: any) {
+      setReconcileBanner(`Reconcile failed: ${e?.message || "network error"}`);
+    } finally {
+      setReconciling(false);
+    }
+  };
 
   const tabs: { key: TabKey; icon: ReactNode; label: string; badge: string; tone: TabTone }[] = [
     {
@@ -123,26 +199,62 @@ export function CurriculumHealthTabs({
           <HealthPill health={scorecard.health} />
           <span className="hf-section-title">Curriculum health</span>
         </div>
-        {onRegenerate && (
+        <div className="hf-flex hf-items-center hf-gap-sm">
+          {isOperator && orphans > 0 && curriculumId && (
+            <button
+              type="button"
+              className="hf-btn hf-btn-secondary hf-btn-sm"
+              onClick={handleReconcile}
+              disabled={reconciling}
+              title="Run semantic similarity to match orphan teaching points to learning outcomes"
+            >
+              {reconciling ? (
+                <>
+                  <RefreshCw size={13} className="hf-glow-active" /> Reconciling…
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={13} /> Reconcile TPs
+                </>
+              )}
+            </button>
+          )}
+          {onRegenerate && (
+            <button
+              type="button"
+              className="hf-btn hf-btn-primary hf-btn-sm"
+              onClick={onRegenerate}
+              disabled={regenerating}
+              title="Rebuild the curriculum from your uploaded content"
+            >
+              {regenerating ? (
+                <>
+                  <RefreshCw size={13} className="hf-glow-active" /> Regenerating…
+                </>
+              ) : (
+                <>
+                  <Sparkles size={13} /> Regenerate
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Reconcile result banner (transient) */}
+      {reconcileBanner && (
+        <div className="hf-banner hf-banner-info hf-text-xs">
+          <Sparkles size={12} /> {reconcileBanner}
           <button
             type="button"
-            className="hf-btn hf-btn-primary hf-btn-sm"
-            onClick={onRegenerate}
-            disabled={regenerating}
-            title="Rebuild the curriculum from your uploaded content"
+            className="hf-btn-reset hf-ml-auto hf-text-placeholder"
+            onClick={() => setReconcileBanner(null)}
+            aria-label="Dismiss"
           >
-            {regenerating ? (
-              <>
-                <RefreshCw size={13} className="hf-glow-active" /> Regenerating…
-              </>
-            ) : (
-              <>
-                <Sparkles size={13} /> Regenerate
-              </>
-            )}
+            ×
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Sources header strip — upstream context, not a tab */}
       <SourcesStrip scorecard={scorecard} />
@@ -498,6 +610,7 @@ function AssertionsPanel({
                     assertion={a}
                     active={drawerId === a.id}
                     onSelect={() => setDrawerId(a.id)}
+                    showLinkConfidence={showLoCoverage}
                   />
                 ))
               )}
@@ -507,8 +620,23 @@ function AssertionsPanel({
       </div>
       <AssertionDetailDrawer
         courseId={courseId}
+        curriculumId={curriculumId}
         assertionId={drawerId}
         onClose={() => setDrawerId(null)}
+        onSaved={() => {
+          // Re-fetch the assertions list so the row moves into its new group
+          // and its chip updates with the new confidence.
+          setLoading(true);
+          fetch(`/api/courses/${courseId}/assertions?scope=${scope}&limit=500`)
+            .then((r) => r.json())
+            .then((res) => {
+              if (res.ok && Array.isArray(res.assertions)) {
+                setItems(res.assertions);
+              }
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+        }}
       />
     </>
   );
@@ -518,10 +646,12 @@ function AssertionRow({
   assertion,
   active,
   onSelect,
+  showLinkConfidence,
 }: {
   assertion: Assertion;
   active: boolean;
   onSelect: () => void;
+  showLinkConfidence: boolean;
 }) {
   const cs = getCategoryStyle(assertion.category);
   const categoryMeta = CONTENT_CATEGORIES[assertion.category];
@@ -540,7 +670,11 @@ function AssertionRow({
       onClick={onSelect}
       title={assertion.assertion}
     >
-      <TrustBadge level={assertion.trustLevel} />
+      {showLinkConfidence ? (
+        <LinkConfidenceChip linkConfidence={assertion.linkConfidence} />
+      ) : (
+        <TrustBadge level={assertion.trustLevel} />
+      )}
       <span
         className="hf-micro-badge-sm curriculum-assertion-category"
         style={{ background: cs.color }}
@@ -580,6 +714,30 @@ function CoverageDot({ count }: { count: number }) {
             : "No teaching points"
       }
     />
+  );
+}
+
+function LinkConfidenceChip({ linkConfidence }: { linkConfidence: number | null }) {
+  if (linkConfidence == null) {
+    return (
+      <span
+        className="curriculum-confidence-chip curriculum-confidence-chip--unknown"
+        title="Link confidence not recorded (legacy row)"
+      >
+        ?
+      </span>
+    );
+  }
+  const pct = Math.round(linkConfidence * 100);
+  const tone =
+    linkConfidence >= 0.85 ? "strong" : linkConfidence >= 0.6 ? "ok" : "weak";
+  return (
+    <span
+      className={`curriculum-confidence-chip curriculum-confidence-chip--${tone}`}
+      title={`Link confidence: ${pct}%`}
+    >
+      {pct}%
+    </span>
   );
 }
 

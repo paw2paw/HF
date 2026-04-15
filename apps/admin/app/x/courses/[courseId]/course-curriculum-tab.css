@@ -407,6 +407,42 @@
   background: var(--status-error-text);
 }
 
+/* ── Link confidence chip (on every TP row) ──────────── */
+
+.curriculum-confidence-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.curriculum-confidence-chip--strong {
+  background: color-mix(in srgb, var(--status-success-text) 14%, transparent);
+  color: var(--status-success-text);
+}
+
+.curriculum-confidence-chip--ok {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary);
+}
+
+.curriculum-confidence-chip--weak {
+  background: color-mix(in srgb, var(--status-warning-text) 14%, transparent);
+  color: var(--status-warning-text);
+}
+
+.curriculum-confidence-chip--unknown {
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  color: var(--text-muted);
+}
+
 /* ── MCQ list ────────────────────────────────────────── */
 
 .curriculum-mcq-list {

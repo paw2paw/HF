@@ -28,12 +28,19 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { loRefsMatch } from "@/lib/lesson-plan/lo-ref-match";
+import { openAiEmbed, toVectorLiteral } from "@/lib/embeddings";
 
 // ── Configuration ─────────────────────────────────────────
 
 const SEMANTIC_LO_THRESHOLD = parseFloat(
   process.env.SEMANTIC_LO_THRESHOLD || "0.3",
+);
+
+// Pass 3 (vector / cosine similarity) threshold (issue #162).
+const VECTOR_LO_THRESHOLD = parseFloat(
+  process.env.VECTOR_LO_THRESHOLD || "0.6",
 );
 
 // ── Result types ──────────────────────────────────────────
@@ -44,15 +51,25 @@ export interface ReconcileResult {
   /** Pre-pass cleanup: stale refs/FKs cleared before matching */
   staleRefsCleared: number;
   staleFksCleared: number;
-  /** Pass 1: FKs set via structured ref matching */
+  /** Pass 1: FKs set via structured ref matching (linkConfidence = 1.0) */
   fkWritten: number;
   fkAlreadySet: number;
   noRefOnAssertion: number;
   refDidNotMatchAnyLo: number;
-  /** Pass 2: FKs set via semantic keyword matching */
+  /** Pass 2: FKs set via semantic keyword matching (linkConfidence = Jaccard score) */
   semanticFkWritten: number;
   semanticBelowThreshold: number;
+  /** Pass 3: FKs set via vector cosine similarity (linkConfidence = cosine) — issue #162 */
+  vectorFkWritten: number;
+  vectorBelowThreshold: number;
+  vectorNearMiss: number;
+  avgVectorConfidence: number;
   assertionsByLoRef: Record<string, number>;
+}
+
+export interface ReconcileOptions {
+  /** Set false to skip Pass 3. Default true. */
+  runVectorPass?: boolean;
 }
 
 // ── Semantic scoring ──────────────────────────────────────
@@ -136,7 +153,11 @@ export function scoreMatch(
  * Idempotent — assertions that already have the FK set are left alone.
  * Safe to call on every curriculum save.
  */
-export async function reconcileAssertionLOs(curriculumId: string): Promise<ReconcileResult> {
+export async function reconcileAssertionLOs(
+  curriculumId: string,
+  options: ReconcileOptions = {},
+): Promise<ReconcileResult> {
+  const runVectorPass = options.runVectorPass !== false;
   const curriculum = await prisma.curriculum.findUnique({
     where: { id: curriculumId },
     select: {
@@ -165,6 +186,10 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     refDidNotMatchAnyLo: 0,
     semanticFkWritten: 0,
     semanticBelowThreshold: 0,
+    vectorFkWritten: 0,
+    vectorBelowThreshold: 0,
+    vectorNearMiss: 0,
+    avgVectorConfidence: 0,
     assertionsByLoRef: {},
   };
 
@@ -291,9 +316,12 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     }
   }
   for (const [loId, assertionIds] of pass1ByLoId) {
+    // Pass 1 writes linkConfidence = 1.0 (exact ref match is ground truth).
+    // Idempotency rule: we only touch rows that had no FK at the start of
+    // this run, so we cannot overwrite a higher-confidence manual edit.
     await prisma.contentAssertion.updateMany({
       where: { id: { in: assertionIds } },
-      data: { learningObjectiveId: loId },
+      data: { learningObjectiveId: loId, linkConfidence: 1.0 },
     });
   }
 
@@ -304,13 +332,14 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     loTokensCache.set(lo.id, tokenise(lo.description));
   }
 
-  // Group by (loId, ref) so we can also write the ref string back.
-  // Historically pass 2 only wrote the FK — leaving `learningOutcomeRef` null
-  // even when we'd semantically bound the assertion to a specific LO. Now we
-  // write both so downstream code that displays or filters by ref string
-  // (e.g. course scorecard) shows the full linkage.
-  const pass2Groups = new Map<string, { loId: string; ref: string; assertionIds: string[] }>();
+  // Track which assertions Pass 2 matched so Pass 3 can skip them. Pass 3
+  // runs per-row (score is the confidence), so we update one row at a time
+  // rather than batching — still cheap, ~100 rows per course.
+  const pass2Matched = new Set<string>();
 
+  // Pass 2 writes per-row so we can persist the individual Jaccard score as
+  // linkConfidence. Each write also sets `learningOutcomeRef` (back-filled)
+  // so the next reconcile run can short-circuit in Pass 1.
   for (const a of needsSemantic) {
     let bestScore = 0;
     let bestLo: { id: string; ref: string } | null = null;
@@ -324,10 +353,15 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     }
 
     if (bestLo && bestScore >= SEMANTIC_LO_THRESHOLD) {
-      const key = bestLo.id;
-      const group = pass2Groups.get(key) || { loId: bestLo.id, ref: bestLo.ref, assertionIds: [] };
-      group.assertionIds.push(a.id);
-      pass2Groups.set(key, group);
+      await prisma.contentAssertion.update({
+        where: { id: a.id },
+        data: {
+          learningObjectiveId: bestLo.id,
+          learningOutcomeRef: bestLo.ref,
+          linkConfidence: bestScore,
+        },
+      });
+      pass2Matched.add(a.id);
       result.semanticFkWritten++;
       result.assertionsByLoRef[bestLo.ref] = (result.assertionsByLoRef[bestLo.ref] ?? 0) + 1;
     } else {
@@ -335,23 +369,171 @@ export async function reconcileAssertionLOs(curriculumId: string): Promise<Recon
     }
   }
 
-  // Batch update pass 2 results — set BOTH learningObjectiveId AND
-  // learningOutcomeRef so pass 1 on subsequent runs can short-circuit.
-  for (const { loId, ref, assertionIds } of pass2Groups.values()) {
-    await prisma.contentAssertion.updateMany({
-      where: { id: { in: assertionIds } },
-      data: { learningObjectiveId: loId, learningOutcomeRef: ref },
-    });
+  // ── Pass 3: Vector cosine similarity ────────────────────
+  // Issue #162. For assertions still orphaned after Pass 2, embed their text
+  // (reusing the pgvector column when already populated) and the LO
+  // descriptions, compute cosine similarity, and link when score >=
+  // VECTOR_LO_THRESHOLD. In-memory only — LOs do not persist embeddings.
+  if (runVectorPass) {
+    const stillOrphan = needsSemantic.filter((a) => !pass2Matched.has(a.id));
+    if (stillOrphan.length > 0) {
+      const { matched, nearMiss, belowThreshold, avgConfidence } =
+        await runVectorReconcile(stillOrphan, loArray);
+      result.vectorFkWritten = matched;
+      result.vectorBelowThreshold = belowThreshold;
+      result.vectorNearMiss = nearMiss;
+      result.avgVectorConfidence = avgConfidence;
+    }
   }
 
   console.log(
     `[reconcile-lo-linkage] curriculum=${curriculumId}: scanned=${result.assertionsScanned} ` +
       `cleared-stale-refs=${result.staleRefsCleared} cleared-stale-fks=${result.staleFksCleared} ` +
-      `pass1=${result.fkWritten} pass2-semantic=${result.semanticFkWritten} ` +
+      `pass1=${result.fkWritten} pass2-jaccard=${result.semanticFkWritten} ` +
+      `pass3-vector=${result.vectorFkWritten} (avg=${result.avgVectorConfidence.toFixed(2)} ` +
+      `near-miss=${result.vectorNearMiss} below=${result.vectorBelowThreshold}) ` +
       `alreadySet=${result.fkAlreadySet} noRef=${result.noRefOnAssertion} ` +
-      `unmatched-ref=${result.refDidNotMatchAnyLo} below-threshold=${result.semanticBelowThreshold} ` +
-      `(threshold=${SEMANTIC_LO_THRESHOLD})`,
+      `unmatched-ref=${result.refDidNotMatchAnyLo} jaccard-below=${result.semanticBelowThreshold} ` +
+      `(jaccardThreshold=${SEMANTIC_LO_THRESHOLD} vectorThreshold=${VECTOR_LO_THRESHOLD})`,
   );
 
   return result;
+}
+
+// ── Pass 3: Vector cosine similarity ──────────────────────────
+
+type OrphanAssertion = {
+  id: string;
+  assertion: string;
+  category: string;
+  learningOutcomeRef: string | null;
+  learningObjectiveId: string | null;
+};
+
+type LoRow = { id: string; ref: string; description: string };
+
+/**
+ * Reconcile orphan assertions against LO descriptions via pgvector cosine
+ * similarity. Reuses the existing `ContentAssertion.embedding` column when
+ * populated; embeds missing rows on-demand via `openAiEmbed`. LO descriptions
+ * are embedded in-memory per call — no schema change for LearningObjective.
+ */
+async function runVectorReconcile(
+  orphans: OrphanAssertion[],
+  los: LoRow[],
+): Promise<{
+  matched: number;
+  nearMiss: number;
+  belowThreshold: number;
+  avgConfidence: number;
+}> {
+  // 1. Fetch existing embeddings for these orphan IDs (may be null)
+  const orphanIds = orphans.map((o) => o.id);
+  const existingRows = await prisma.$queryRaw<
+    Array<{ id: string; embedding: number[] | null }>
+  >(
+    Prisma.sql`SELECT id, embedding::real[] AS embedding FROM "ContentAssertion" WHERE id = ANY(${orphanIds})`,
+  );
+  const existingMap = new Map<string, number[] | null>();
+  for (const row of existingRows) {
+    existingMap.set(row.id, row.embedding ?? null);
+  }
+
+  // 2. Embed the assertions that don't yet have one
+  const needsEmbedding = orphans.filter((o) => {
+    const emb = existingMap.get(o.id);
+    return !emb || emb.length === 0;
+  });
+  if (needsEmbedding.length > 0) {
+    const freshEmbeddings = await openAiEmbed(needsEmbedding.map((o) => o.assertion));
+    for (let i = 0; i < needsEmbedding.length; i++) {
+      const o = needsEmbedding[i];
+      const emb = freshEmbeddings[i];
+      if (!emb || emb.length === 0) continue;
+      existingMap.set(o.id, emb);
+      // Persist so future runs skip this (cheap write, amortises)
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE "ContentAssertion" SET embedding = ${toVectorLiteral(emb)}::vector WHERE id = ${o.id}`,
+      );
+    }
+  }
+
+  // 3. Embed all LO descriptions in one batch (in-memory only)
+  const loTexts = los.map((lo) => lo.description).filter((d) => d && d.trim().length > 0);
+  if (loTexts.length === 0) {
+    return { matched: 0, nearMiss: 0, belowThreshold: orphans.length, avgConfidence: 0 };
+  }
+  const loEmbeddings = await openAiEmbed(los.map((lo) => lo.description || " "));
+
+  // 4. For each orphan, compute cosine against every LO and pick the best
+  let matched = 0;
+  let nearMiss = 0;
+  let belowThreshold = 0;
+  const confidences: number[] = [];
+
+  for (const o of orphans) {
+    const orphanEmb = existingMap.get(o.id);
+    if (!orphanEmb || orphanEmb.length === 0) {
+      belowThreshold++;
+      continue;
+    }
+    let bestScore = 0;
+    let bestLo: LoRow | null = null;
+    for (let i = 0; i < los.length; i++) {
+      const loEmb = loEmbeddings[i];
+      if (!loEmb) continue;
+      const score = cosineSimilarity(orphanEmb, loEmb);
+      if (score > bestScore) {
+        bestScore = score;
+        bestLo = los[i];
+      }
+    }
+    if (!bestLo) {
+      belowThreshold++;
+      continue;
+    }
+    if (bestScore >= 0.4 && bestScore < VECTOR_LO_THRESHOLD) {
+      nearMiss++;
+      console.debug(
+        `[pass3 near-miss] assertion=${o.id} lo=${bestLo.id} score=${bestScore.toFixed(3)}`,
+      );
+    }
+    if (bestScore >= VECTOR_LO_THRESHOLD) {
+      await prisma.contentAssertion.update({
+        where: { id: o.id },
+        data: {
+          learningObjectiveId: bestLo.id,
+          learningOutcomeRef: bestLo.ref,
+          linkConfidence: bestScore,
+        },
+      });
+      matched++;
+      confidences.push(bestScore);
+    } else {
+      belowThreshold++;
+    }
+  }
+
+  const avgConfidence =
+    confidences.length > 0
+      ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+      : 0;
+
+  return { matched, nearMiss, belowThreshold, avgConfidence };
+}
+
+/** Cosine similarity of two equal-length numeric vectors. */
+function cosineSimilarity(a: number[], b: number[]): number {
+  const len = Math.min(a.length, b.length);
+  if (len === 0) return 0;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < len; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }

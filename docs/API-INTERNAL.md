@@ -4479,6 +4479,23 @@ AI-fills content source metadata from a free-text description, ISBN, or URL.
 
 ## Content Trust
 
+### `PATCH` /api/assertions/:assertionId
+
+Update editable fields on a ContentAssertion. Currently scoped
+
+**Auth**: OPERATOR · **Scope**: `content-trust:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| assertionId | path | string | Yes |  |
+
+**Response** `200`
+```json
+{ ok, assertion: { id, learningObjectiveId, learningOutcomeRef, linkConfidence } }
+```
+
+---
+
 ### `DELETE` /api/content-sources/:sourceId
 
 Archive a content source (soft-delete). Returns 409 with usage details if the source
@@ -5069,7 +5086,7 @@ Returns teaching point assertions for a course, with source name and optional se
 
 **Response** `200`
 ```json
-{ ok, assertions: Array<{ id, assertion, category, teachMethod, learningOutcomeRef, sourceName, session, trustLevel }>, total }
+{ ok, assertions: Array<{ id, assertion, category, teachMethod, learningOutcomeRef, sourceName, session, trustLevel, linkConfidence }>, total }
 ```
 
 ---
@@ -5727,6 +5744,29 @@ Resolve which images belong to each lesson plan session (from persisted media[] 
 **Response** `404`
 ```json
 { ok: false, error: "..." }
+```
+
+---
+
+### `POST` /api/curricula/:curriculumId/reconcile-orphans
+
+Run Pass 3 (vector cosine) reconciliation for orphan teaching
+
+**Auth**: OPERATOR · **Scope**: `curricula:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| curriculumId | path | string | Yes |  |
+| force | query | boolean | No | Reserved for future use (server cooldown still applies) |
+
+**Response** `200`
+```json
+{ ok, scanned, vectorFkWritten, vectorNearMiss, avgVectorConfidence }
+```
+
+**Response** `429`
+```json
+{ ok: false, error, retryAfter }
 ```
 
 ---
@@ -14000,8 +14040,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 428 |
-| Files with annotations | 427 |
+| Route files found | 430 |
+| Files with annotations | 429 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 
