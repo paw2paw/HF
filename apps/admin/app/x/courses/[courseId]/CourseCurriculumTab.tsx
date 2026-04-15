@@ -24,6 +24,7 @@ import {
   BookOpen,
   Wrench,
   HelpCircle,
+  ClipboardList,
   Layers,
   CircleDashed,
   CircleDot,
@@ -228,6 +229,23 @@ function ScorecardBanner({
           }
           pct={scorecard.studentContent.total > 0 ? scorecard.studentContent.linkedPct : null}
           helper="What your learners will actually study"
+        />
+
+        <MetricCard
+          icon={<ClipboardList size={16} />}
+          accent="gold"
+          label="Assessment items"
+          headline={
+            scorecard.assessmentItems.total === 0
+              ? "No assessment content yet"
+              : `${scorecard.assessmentItems.total} source question${scorecard.assessmentItems.total !== 1 ? "s" : ""} and model answers`
+          }
+          subline={
+            scorecard.assessmentItems.total > 0
+              ? `${scorecard.assessmentItems.linkedToOutcome} tied to specific outcomes`
+              : undefined
+          }
+          helper="Question banks and past papers the tutor draws from"
         />
 
         <MetricCard

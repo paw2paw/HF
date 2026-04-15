@@ -158,6 +158,19 @@ export interface CourseLinkageScorecard {
     linkedPct: number;
   };
 
+  /**
+   * Assessment-item source content — question banks, past papers, worked
+   * examples. Extracted as assertions so the AI can ground MCQ generation,
+   * but these are testing content, not teaching content. Shown in its own
+   * scorecard box so it doesn't drag the "student teaching points" metric
+   * (where low linkage is expected — questions don't teach LOs directly).
+   */
+  assessmentItems: {
+    total: number;
+    linkedToOutcome: number;
+    linkedPct: number;
+  };
+
   /** Tutor instructions — what shapes how the AI tutor behaves */
   tutorInstructions: {
     total: number;
@@ -244,9 +257,15 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
       })
     : [];
   const TUTOR_ONLY_DOC_TYPES = new Set(["COURSE_REFERENCE", "LESSON_PLAN", "POLICY_DOCUMENT"]);
+  const ASSESSMENT_DOC_TYPES = new Set(["QUESTION_BANK", "ASSESSMENT"]);
   const tutorSourceIds = new Set(
     sources
       .filter((s) => s.documentType && TUTOR_ONLY_DOC_TYPES.has(s.documentType))
+      .map((s) => s.id),
+  );
+  const assessmentSourceIds = new Set(
+    sources
+      .filter((s) => s.documentType && ASSESSMENT_DOC_TYPES.has(s.documentType))
       .map((s) => s.id),
   );
 
@@ -260,6 +279,8 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
 
   let studentTotal = 0;
   let studentLinked = 0;
+  let assessmentTotal = 0;
+  let assessmentLinked = 0;
   let tutorTotal = 0;
   let tutorLinked = 0;
 
@@ -272,9 +293,11 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
 
   for (const a of assertions) {
     // Route by source documentType first (strongest signal: a COURSE_REFERENCE
-    // doc IS tutor methodology, regardless of per-assertion category).
+    // doc IS tutor methodology, regardless of per-assertion category; a
+    // QUESTION_BANK doc IS testing content regardless of its assertions' cats).
     // Fall back to category-based detection for mixed-content sources.
     const isTutorBySource = a.sourceId !== null && tutorSourceIds.has(a.sourceId);
+    const isAssessmentBySource = a.sourceId !== null && assessmentSourceIds.has(a.sourceId);
     const isTutorByCategory = instructionSet.has(a.category);
     const isTutor = isTutorBySource || isTutorByCategory;
     const hasRef = sanitiseLORef(a.learningOutcomeRef) !== null;
@@ -284,6 +307,9 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
     if (isTutor) {
       tutorTotal++;
       if (hasFk) tutorLinked++;
+    } else if (isAssessmentBySource) {
+      assessmentTotal++;
+      if (hasFk) assessmentLinked++;
     } else {
       studentTotal++;
       if (hasFk) studentLinked++;
@@ -305,6 +331,7 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
   }
 
   const studentLinkedPct = studentTotal > 0 ? Math.round((studentLinked / studentTotal) * 100) : 0;
+  const assessmentLinkedPct = assessmentTotal > 0 ? Math.round((assessmentLinked / assessmentTotal) * 100) : 0;
   const tutorLinkedPct = tutorTotal > 0 ? Math.round((tutorLinked / tutorTotal) * 100) : 0;
 
   // ── Curriculum structure ───────────────────────────────
@@ -380,6 +407,11 @@ export async function computeCourseLinkageScorecard(courseId: string): Promise<C
       linkedToOutcome: studentLinked,
       linkedPct: studentLinkedPct,
     },
+    assessmentItems: {
+      total: assessmentTotal,
+      linkedToOutcome: assessmentLinked,
+      linkedPct: assessmentLinkedPct,
+    },
     tutorInstructions: {
       total: tutorTotal,
       linkedToOutcome: tutorLinked,
@@ -450,6 +482,7 @@ function makeEmptyScorecard(
     curriculumId,
     health,
     studentContent: { total: 0, linkedToOutcome: 0, linkedPct: 0 },
+    assessmentItems: { total: 0, linkedToOutcome: 0, linkedPct: 0 },
     tutorInstructions: { total: 0, linkedToOutcome: 0, linkedPct: 0 },
     questions: { total: 0, linkedToTp: 0, linkedPct: 0 },
     structure: {
