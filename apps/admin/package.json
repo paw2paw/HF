@@ -21,6 +21,8 @@
     "start": "next start",
     "lint": "eslint",
     "prisma:status": "npx prisma migrate status",
+    "smoke:env": "./scripts/smoke-env.sh",
+    "deploy:gate": "./scripts/deploy-gate.sh",
     "prisma:dev": "npx prisma migrate dev",
     "prisma:generate": "npx prisma generate",
     "prisma:seed": "npx prisma db seed",

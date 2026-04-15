@@ -32,21 +32,35 @@ All environments:
 - **Region**: `europe-west2`
 - **Artifact Registry**: `europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/`
 
-## MANDATORY: Pending-migration guard (run BEFORE asking deploy action)
+## MANDATORY: Deploy Gate (run BEFORE asking deploy action)
 
-After the user picks an environment and BEFORE offering the Quick/Full/Rollback choice, **always** run:
+**⚠️ CRITICAL: After the user picks an environment, run the full deploy-gate script against that env BEFORE offering any deploy action.** One single command replaces what used to be four separate manual guards. It exists because last night (2026-04-15) a missing migration shipped to dev undetected — the previous inline migration-status check had escape hatches that let broken deploys through.
 
 ```bash
-cd apps/admin && npx prisma migrate status
+cd apps/admin && npm run deploy:gate <env>
+# where <env> is: dev | test | prod
 ```
 
-Parse the output:
+What the gate runs (in order, fail-fast):
 
-- If it says **"Database schema is up to date"** → proceed to the deploy-action question normally.
-- If it says **"Following migrations have not yet been applied"** or **"Drift detected"** → STOP. Print the pending migration names and force the user into **Full deploy**. Do NOT offer Quick deploy as an option. Message the user:
-  > ⚠️ Pending migrations detected: `<names>`. Quick deploy is disabled — you must run Full deploy so the migrate job applies them. This guard exists because code-only deploys against an un-migrated DB cause runtime Prisma errors (`column does not exist`) that aren't caught by smoke tests.
+1. **`npx tsc --noEmit`** — catches TypeScript errors before Cloud Build wastes a round-trip
+2. **`npm run lint`** — catches style + unused-import errors
+3. **`npm run test`** — unit tests (vitest)
+4. **Migration diff against target Cloud SQL** — fetches the matching secret from Secret Manager (`DATABASE_URL_DEV` / `_TEST` / `""`) in a subshell, runs `prisma migrate status` against the real target DB. Never falls back to local `.env`. Parses output; pending migrations or drift → FAIL.
+5. **Smoke-env against the current live URL** — hits `/api/health`, `/api/ready`, `/api/system/readiness`, `/api/system/ini`. Any non-2xx or schema-drift error → FAIL. This is the safety net that catches "column does not exist" errors from mismatched deploys.
 
-This guard is non-negotiable. Never skip it, even if the user insists it's "just a code change". The only way to bypass is to first apply the migration via Full deploy, then re-run `/deploy` which will then show a clean status.
+**If deploy-gate exits non-zero: STOP.** Print the gate output to the user and refuse to proceed. Do NOT offer Quick deploy, Full deploy, or any other option until the gates are green.
+
+If the migration gate (gate 4) specifically fails with "pending migrations" or "drift detected": force the user into **Full deploy**. Do NOT offer Quick deploy as an option. Message:
+> ⚠️ Pending migrations detected on `$ENV`. Quick deploy is disabled — you must run Full deploy so the migrate job applies them. This guard exists because code-only deploys against an un-migrated DB cause runtime Prisma errors (`column does not exist`) that aren't caught by simple health checks.
+
+**Never skip the gate**, even if the user insists it's "just a code change". The only legitimate bypass is to fix the failing gate first — if gate 4 fails, run Full deploy to apply the migration, then re-run `/deploy` which will show a clean gate.
+
+**If gcloud cannot reach Secret Manager** (auth/permissions), the gate fails on gate 4. Do NOT fall back to local `.env`. Tell the user the gate could not run and ask them to grant Secret Manager access or run the gate on the VM.
+
+### Why a script, not inline bash
+
+Previously this check was 20 lines of inline shell in the skill, and kept getting skipped or half-run when the skill was interrupted. The script is committed at `apps/admin/scripts/deploy-gate.sh` so CI, cron, and humans can all run the exact same gates. If the script is ever modified, that change shows up in git diff and can be reviewed.
 
 After environment selection and the migration guard, ask the deploy action:
 
@@ -179,6 +193,8 @@ gcloud run jobs execute hf-seed-dev --region=europe-west2 --project=hf-admin-pro
 ## Full Deploy Steps (option 3)
 
 ### With Migrations
+
+**⚠️ Always rebuild the migrate image before running `hf-migrate-*`.** The `:latest` tag in Artifact Registry may be days old and missing new migrations. Running the migrate job against a stale image is a no-op and will leave the guard failure from /deploy's 2026-04-15 incident in place. Rebuild first, always.
 
 Build + push migrate image via Cloud Build (on VM):
 ```bash
