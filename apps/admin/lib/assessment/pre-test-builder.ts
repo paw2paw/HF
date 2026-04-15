@@ -193,6 +193,22 @@ function selectRandom(
 }
 
 /**
+ * Top up a partially-filled selection from the unused remainder of the pool.
+ * Dedupes by id, random-fills until `target` is reached or the pool is exhausted.
+ */
+function fillUp(
+  selected: ContentQuestionRow[],
+  pool: ContentQuestionRow[],
+  target: number,
+): ContentQuestionRow[] {
+  if (selected.length >= target) return selected;
+  const usedIds = new Set(selected.map((q) => q.id));
+  const remainder = pool.filter((q) => !usedIds.has(q.id));
+  const shuffled = [...remainder].sort(() => Math.random() - 0.5);
+  return [...selected, ...shuffled.slice(0, target - selected.length)];
+}
+
+/**
  * Select questions distributed across Bloom cognitive levels.
  * Prioritises higher-order thinking (UNDERSTAND, ANALYZE) over pure recall.
  */
@@ -374,19 +390,16 @@ async function buildFromSourceIds(sourceIds: string[]): Promise<PreTestResult> {
     return { questions: [], questionIds: [], skipped: true, skipReason: "no_questions", sourceId: sourceIds[0] };
   }
 
-  // Apply selection strategy
-  // Auto-select bloom_spread when questions have bloom data
-  const hasBloomData = allQuestions.some((q) => q.bloomLevel != null);
-  const strategy = assessmentCfg.selectionStrategy === "bloom_spread" || hasBloomData
-    ? "bloom_spread"
-    : assessmentCfg.selectionStrategy;
+  const strategy = assessmentCfg.selectionStrategy;
 
-  const selected =
+  const primary =
     strategy === "bloom_spread"
       ? selectByBloomSpread(allQuestions, assessmentCfg.questionCount)
       : strategy === "one_per_module"
         ? selectOnePerModule(allQuestions, assessmentCfg.questionCount)
         : selectRandom(allQuestions, assessmentCfg.questionCount);
+
+  const selected = fillUp(primary, allQuestions, assessmentCfg.questionCount);
 
   // Convert to SurveyStepConfig
   const steps = selected.map(toSurveyStep).filter((s): s is SurveyStepConfig => s !== null);
@@ -469,8 +482,8 @@ export async function buildComprehensionPostTest(playbookId: string): Promise<Pr
     return { questions: [], questionIds: [], skipped: true, skipReason: "no_questions", sourceId: sourceIds[0] };
   }
 
-  // Spread across comprehension skills (one per skillRef, round-robin)
-  const selected = selectBySkillSpread(allQuestions, assessmentCfg.questionCount);
+  const primary = selectBySkillSpread(allQuestions, assessmentCfg.questionCount);
+  const selected = fillUp(primary, allQuestions, assessmentCfg.questionCount);
 
   const steps = selected.map(toSurveyStep).filter((s): s is SurveyStepConfig => s !== null);
 
