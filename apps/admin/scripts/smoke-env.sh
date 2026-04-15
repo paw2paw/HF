@@ -30,15 +30,18 @@ if ! command -v curl >/dev/null 2>&1; then
 fi
 
 # Critical endpoints that together exercise:
-#   - Next.js app is up
-#   - Prisma can connect
-#   - Schema matches code (readiness hits multiple models incl ContentSource)
-#   - System-scoped reads work
+#   - Next.js app is up (/api/health)
+#   - Prisma can connect (/api/ready — lightweight DB ping)
+#   - Schema matches code (/api/system/readiness — hits many models including
+#     ContentSource, which is where the 2026-04-15 missing-migration bit us)
+#
+# We DON'T include auth-gated routes here because a 307 redirect to /login is
+# a "route exists" signal, not a failure. The failure modes we need to catch
+# are 5xx — runtime Prisma errors from schema drift.
 ENDPOINTS=(
   "/api/health"
   "/api/ready"
   "/api/system/readiness"
-  "/api/system/ini"
 )
 
 failed=0
