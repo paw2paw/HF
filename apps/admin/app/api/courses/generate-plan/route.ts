@@ -302,6 +302,12 @@ async function runGeneratePlan(
     } catch (err: any) {
       console.warn("[courses/generate-plan] Module sync failed (non-fatal):", err.message);
     }
+    // NOTE: MCQ retag (#163 Phase 2) does not fire from this route because
+    // generate-plan creates a subject + curriculum but does not own a
+    // playbook id — MCQ reconcile is scoped per course. MCQ reconcile fires
+    // from /regenerate-curriculum, the /reconcile-mcqs route, and the silent
+    // background auto-run on scorecard load. Courses created fresh via this
+    // route will pick up MCQ linkage on their first Curriculum-tab load.
 
     // 2c. Emit skeleton plan so frontend can show session cards while AI refines
     const skeletonPlan: LessonPlanEntry[] = [

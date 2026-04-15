@@ -220,6 +220,18 @@ export async function POST(
 
     // 9. The reconciler already ran inside syncModulesToDB — we surface its
     // stats from syncResult rather than firing a second call.
+    //
+    // Additionally: MCQ→TP linkage (#163 Phase 2). Fires after TPs are linked
+    // to LOs so the teaching-point list is as complete as possible before
+    // the AI maps MCQs onto it. Non-fatal on failure.
+    try {
+      const { reconcileQuestionAssertions } = await import(
+        "@/lib/content-trust/reconcile-question-linkage"
+      );
+      await reconcileQuestionAssertions(courseId);
+    } catch (err: any) {
+      console.warn(`[regenerate-curriculum] MCQ reconcile failed (non-fatal): ${err.message}`);
+    }
 
     return NextResponse.json({
       ok: true,

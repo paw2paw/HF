@@ -5370,6 +5370,28 @@ Returns all extracted questions for a course with linked teaching-point
 
 ---
 
+### `POST` /api/courses/:courseId/reconcile-mcqs
+
+Run the AI retag pass for orphan MCQs on this course. Issue
+
+**Auth**: OPERATOR · **Scope**: `courses:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes |  |
+
+**Response** `200`
+```json
+{ ok, scanned, matched, unmatched, invalidRefs }
+```
+
+**Response** `429`
+```json
+{ ok: false, error, retryAfter }
+```
+
+---
+
 ### `POST` /api/courses/:courseId/regenerate-curriculum
 
 Regenerates the curriculum structure (modules + learning objectives)
@@ -14039,8 +14061,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 430 |
-| Files with annotations | 429 |
+| Route files found | 431 |
+| Files with annotations | 430 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 

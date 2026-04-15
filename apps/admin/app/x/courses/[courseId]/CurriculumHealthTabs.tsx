@@ -93,8 +93,10 @@ export function CurriculumHealthTabs({
 
   const [reconciling, setReconciling] = useState(false);
   const [reconcileBanner, setReconcileBanner] = useState<string | null>(null);
+  const [reconcilingMcqs, setReconcilingMcqs] = useState(false);
 
   const orphans = scorecard.studentContent.total - scorecard.studentContent.linkedToOutcome;
+  const mcqOrphans = scorecard.questions.total - scorecard.questions.linkedToTp;
 
   // Silent auto-run on mount when there are orphaned outcomes and we haven't
   // already reconciled this curriculum within the 5-minute client window.
@@ -116,6 +118,61 @@ export function CurriculumHealthTabs({
       })
       .catch(() => {});
   }, [curriculumId, scorecard.structure.outcomesWithoutContent, onScorecardRefresh]);
+
+  // #163 Phase 2 — silent background MCQ reconcile. Fires on mount when the
+  // course has orphan MCQs and the 5-min client cooldown has expired.
+  useEffect(() => {
+    if (!courseId || mcqOrphans === 0) return;
+    const key = `reconcile-mcqs:${courseId}:lastRunAt`;
+    const lastRun = Number(localStorage.getItem(key) || "0");
+    if (Date.now() - lastRun < 5 * 60 * 1000) return;
+    localStorage.setItem(key, String(Date.now()));
+    fetch(`/api/courses/${courseId}/reconcile-mcqs`, { method: "POST" })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.ok && res.matched > 0) {
+          onScorecardRefresh?.();
+        }
+      })
+      .catch(() => {});
+  }, [courseId, mcqOrphans, onScorecardRefresh]);
+
+  const handleReconcileMcqs = async () => {
+    if (reconcilingMcqs) return;
+    const confirmMsg =
+      `This will try to match ${mcqOrphans} orphan MCQ${mcqOrphans !== 1 ? "s" : ""} ` +
+      `to teaching points using AI similarity. It makes 1 embedding API call (~$0.001).`;
+    if (!window.confirm(confirmMsg)) return;
+    setReconcilingMcqs(true);
+    setReconcileBanner(null);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/reconcile-mcqs`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        if (res.status === 429) {
+          setReconcileBanner(
+            `MCQ reconcile just ran. Try again in ${data.retryAfter || 60} seconds.`,
+          );
+        } else {
+          setReconcileBanner(`MCQ reconcile failed: ${data.error || "unknown error"}`);
+        }
+      } else {
+        const matched = data.matched ?? 0;
+        setReconcileBanner(
+          matched === 0
+            ? `No additional MCQ matches found.`
+            : `Matched ${matched} MCQ${matched !== 1 ? "s" : ""} to teaching points via AI retagging.`,
+        );
+        onScorecardRefresh?.();
+      }
+    } catch (e: any) {
+      setReconcileBanner(`MCQ reconcile failed: ${e?.message || "network error"}`);
+    } finally {
+      setReconcilingMcqs(false);
+    }
+  };
 
   const handleReconcile = async () => {
     if (!curriculumId || reconciling) return;
@@ -216,6 +273,25 @@ export function CurriculumHealthTabs({
               ) : (
                 <>
                   <RefreshCw size={13} /> Reconcile TPs
+                </>
+              )}
+            </button>
+          )}
+          {isOperator && mcqOrphans > 0 && (
+            <button
+              type="button"
+              className="hf-btn hf-btn-secondary hf-btn-sm"
+              onClick={handleReconcileMcqs}
+              disabled={reconcilingMcqs}
+              title="Run semantic similarity to match orphan MCQs to teaching points"
+            >
+              {reconcilingMcqs ? (
+                <>
+                  <RefreshCw size={13} className="hf-glow-active" /> Reconciling…
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={13} /> Reconcile MCQs
                 </>
               )}
             </button>

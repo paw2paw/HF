@@ -36,13 +36,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { loRefsMatch } from "@/lib/lesson-plan/lo-ref-match";
-import { getConfiguredMeteredAICompletion } from "@/lib/metering/instrumented-ai";
-import { parseJsonResponse } from "./extractors/base-extractor";
-
-// ── Configuration ─────────────────────────────────────────
-
-// Max orphans to send in a single AI retag call. Above this we batch.
-const RETAG_BATCH_SIZE = 80;
+import { reconcileChildToParent } from "./reconcile-child-parent";
 
 // ── Result types ──────────────────────────────────────────
 
@@ -361,16 +355,14 @@ type OrphanAssertion = {
 type LoRow = { id: string; ref: string; description: string };
 
 /**
- * Ask the AI to tag orphan assertions to LOs using the full LO list as
- * context. This is the fix for "the extractor can't tag refs because the
- * curriculum didn't exist yet" — we retag AFTER the curriculum is in place.
+ * Assertion→LO flavour of the generic reconcileChildToParent utility.
+ * Thin wrapper — all prompt-building, batching, validation, and retry logic
+ * lives in reconcile-child-parent.ts. This function just wires the Prisma
+ * write path.
  *
- * Batches orphans in groups of RETAG_BATCH_SIZE to stay under prompt limits.
- * Output is validated against the real LO whitelist — refs not in the
- * curriculum are rejected (the AI-to-DB guard).
- *
- * Writes `linkConfidence = 0.85` on match: AI-verified but not ground-truth.
- * Teachers who manually pick via the drawer get `1.0`.
+ * Writes `linkConfidence = 0.80` on match (generic default). Lands in the
+ * 🟡 "ok" band, visually distinct from 🟢 "strong" rows (1.0: exact-ref or
+ * manual drawer picks).
  */
 async function runAiRetagPass_impl(
   orphans: OrphanAssertion[],
@@ -381,125 +373,36 @@ async function runAiRetagPass_impl(
   invalidRefs: number;
   byRef: Record<string, number>;
 }> {
-  const validRefs = new Set(los.map((lo) => lo.ref.toUpperCase()));
-  const loById = new Map(los.map((lo) => [lo.id, lo] as const));
-  const loByRef = new Map(los.map((lo) => [lo.ref.toUpperCase(), lo] as const));
-
-  let matched = 0;
-  let unmatched = 0;
-  let invalidRefs = 0;
-  const byRef: Record<string, number> = {};
-
-  // Build the LO list block (stable across batches)
-  const loList = los
-    .map((lo) => `- ${lo.ref}: ${lo.description}`)
-    .join("\n");
-
-  // Process in batches
-  for (let i = 0; i < orphans.length; i += RETAG_BATCH_SIZE) {
-    const batch = orphans.slice(i, i + RETAG_BATCH_SIZE);
-
-    const assertionBlock = batch
-      .map((a) => `${a.id} [${a.category}] ${a.assertion}`)
-      .join("\n");
-
-    const systemPrompt = `You are a curriculum mapping assistant. You receive a list of Learning Outcomes (LOs) from a course curriculum, and a list of teaching points (assertions) that are currently unassigned to any LO. Your job is to map each assertion to the single best-matching LO, or to "null" if no LO fits.
-
-Rules:
-- Return ONLY a JSON object of the form { "<assertionId>": "<LO ref>" | null, ... }
-- Every assertion id in the input MUST appear as a key in the output
-- Values must be either a valid LO ref (exact string from the provided list) or null
-- Prefer null over a weak guess — it is better to leave an assertion unassigned than to mis-tag it
-- Consider the assertion's category tag for disambiguation (e.g. "character" hints at character-focused LOs)
-- An assertion can match at most one LO — pick the single best one
-- Do not invent LO refs not in the provided list`;
-
-    const userPrompt = `Learning Outcomes:
-${loList}
-
-Unassigned teaching points (format: <id> [<category>] <text>):
-${assertionBlock}
-
-Return the JSON mapping now.`;
-
-    let result;
-    try {
-      result = await getConfiguredMeteredAICompletion(
-        {
-          callPoint: "content-trust.retag-orphans",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          maxTokens: 4000,
-          temperature: 0,
-        },
-        { sourceOp: "content-trust:retag-orphans" },
-      );
-    } catch (err) {
-      console.error(`[ai-retag] batch ${i / RETAG_BATCH_SIZE} failed:`, err);
-      unmatched += batch.length;
-      continue;
-    }
-
-    // Parse the JSON response — shared repair tolerates trailing text, unquoted
-    // keys, code fences, etc.
-    let parsed: Record<string, string | null>;
-    try {
-      const raw = parseJsonResponse(result.content.trim());
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-        throw new Error("not an object");
-      }
-      parsed = raw as Record<string, string | null>;
-    } catch (err) {
-      console.error(`[ai-retag] parse failed for batch ${i / RETAG_BATCH_SIZE}:`, err);
-      unmatched += batch.length;
-      continue;
-    }
-
-    // Per-row validation + write
-    for (const a of batch) {
-      const rawRef = parsed[a.id];
-      if (rawRef == null || rawRef === "") {
-        unmatched++;
-        continue;
-      }
-      if (typeof rawRef !== "string") {
-        invalidRefs++;
-        unmatched++;
-        continue;
-      }
-      const normalised = rawRef.trim().toUpperCase();
-      if (!validRefs.has(normalised)) {
-        // AI hallucinated a ref not in the curriculum — reject per ai-to-db guard
-        invalidRefs++;
-        unmatched++;
-        continue;
-      }
-      const lo = loByRef.get(normalised);
-      if (!lo) {
-        invalidRefs++;
-        unmatched++;
-        continue;
-      }
-      // Write — AI-verified but not ground-truth: linkConfidence 0.80.
-      // Lands in the 🟡 "ok" (blue) chip band, visually distinct from 🟢
-      // "strong" rows (1.0: exact ref match or teacher-verified picker).
+  const result = await reconcileChildToParent<OrphanAssertion, LoRow>({
+    children: orphans,
+    parents: los,
+    getChildId: (a) => a.id,
+    getChildText: (a) => a.assertion,
+    getChildCategory: (a) => a.category,
+    getParentRef: (lo) => lo.ref,
+    getParentDescription: (lo) => lo.description,
+    getParentId: (lo) => lo.id,
+    writeFk: async (childId, parentId, confidence) => {
+      // Sync learningOutcomeRef to the matched LO ref so the next reconcile
+      // run can short-circuit in Pass 1.
+      const lo = los.find((x) => x.id === parentId);
       await prisma.contentAssertion.update({
-        where: { id: a.id },
+        where: { id: childId },
         data: {
-          learningObjectiveId: lo.id,
-          learningOutcomeRef: lo.ref,
-          linkConfidence: 0.8,
+          learningObjectiveId: parentId,
+          learningOutcomeRef: lo?.ref ?? null,
+          linkConfidence: confidence,
         },
       });
-      matched++;
-      byRef[lo.ref] = (byRef[lo.ref] ?? 0) + 1;
-    }
-  }
-
-  // loById is referenced only for type-check safety / future extension
-  void loById;
-
-  return { matched, unmatched, invalidRefs, byRef };
+    },
+    aiCallPoint: "content-trust.retag-orphans",
+    childLabel: "teaching points",
+    parentLabel: "learning outcomes",
+  });
+  return {
+    matched: result.matched,
+    unmatched: result.unmatched,
+    invalidRefs: result.invalidRefs,
+    byRef: result.byRef,
+  };
 }
