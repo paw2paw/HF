@@ -83,13 +83,24 @@ function fmt(v: number): string {
   return v.toFixed(2);
 }
 
-/** Humanise a BEH-PARAM-NAME into "Param Name" */
+/** Humanise a BEH-PARAM-NAME into "Param Name" (safety fallback) */
 function humanise(parameterId: string): string {
   return parameterId
     .replace(/^BEH-/i, "")
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
+}
+
+/** Generate a unique 2-3 char abbreviation from a parameter name */
+function abbreviate(name: string): string {
+  const words = name.split(/[\s-]+/).filter(Boolean);
+  if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+  // Use first letter of each word (up to 3)
+  return words
+    .slice(0, 3)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("");
 }
 
 /** Group parameters by domainGroup, with nice group labels */
@@ -552,7 +563,7 @@ export function PromptTunerSidebar({
           </div>
         </div>
 
-        {/* Data-driven behavior dials, grouped by domainGroup */}
+        {/* Data-driven behavior dials — graphic EQ layout, grouped by domainGroup */}
         {!paramsLoading && grouped.map(({ group, params }) => {
           const isCollapsed = collapsedGroups.has(group);
           const groupChangedCount = params.filter((p) => {
@@ -561,15 +572,15 @@ export function PromptTunerSidebar({
           }).length;
 
           return (
-            <div key={group} className="ps-tuner-section">
+            <div key={group} className="ps-eq-group">
               <button
-                className="ps-tuner-group-header"
+                className="ps-eq-group-header"
                 onClick={() => toggleGroup(group)}
               >
                 <span className="ps-tuner-group-chevron">
                   {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                 </span>
-                <span className="ps-tuner-section-title">{group}</span>
+                <span className="ps-eq-group-title">{group.replace(/_/g, " ").replace(/-/g, " ")}</span>
                 <span className="ps-tuner-group-count">{params.length}</span>
                 {groupChangedCount > 0 && (
                   <span className="ps-tuner-group-changed">{groupChangedCount} changed</span>
@@ -577,34 +588,37 @@ export function PromptTunerSidebar({
               </button>
 
               {!isCollapsed && (
-                <div className="ps-tuner-dials">
+                <div className="ps-eq-grid">
                   {params.map((p) => {
                     const draft = draftTargets[p.parameterId] ?? p.effectiveValue;
                     const changed = Math.abs(p.effectiveValue - draft) > 0.01;
-                    const lowLabel = p.interpretationLow || "Low";
-                    const highLabel = p.interpretationHigh || "High";
+                    const displayName = p.name || humanise(p.parameterId);
+                    const abbr = abbreviate(displayName);
+                    const lowLabel = p.interpretationLow?.split(":")[0] || "Low";
+                    const highLabel = p.interpretationHigh?.split(":")[0] || "High";
+                    const tooltipLines = [
+                      displayName,
+                      p.definition || "",
+                      "",
+                      p.interpretationHigh ? `High: ${p.interpretationHigh}` : "",
+                      p.interpretationLow ? `Low: ${p.interpretationLow}` : "",
+                    ].filter(Boolean).join("\n");
 
                     return (
                       <div
                         key={p.parameterId}
-                        className={`ps-tuner-dial${changed ? " ps-tuner-dial--changed" : ""}`}
-                        title={p.definition || undefined}
+                        className={`ps-eq-channel${changed ? " ps-eq-channel--changed" : ""}`}
+                        title={tooltipLines}
                       >
-                        <div className="ps-tuner-dial-header">
-                          <span className="ps-tuner-dial-label">
-                            {p.name || humanise(p.parameterId)}
-                          </span>
-                          <span className="ps-tuner-dial-value">{fmt(draft)}</span>
-                        </div>
-                        <div className="ps-tuner-dial-row">
-                          <span className="ps-tuner-dial-low">{lowLabel}</span>
+                        <span className="ps-eq-high-label">{highLabel}</span>
+                        <div className="ps-eq-slider-wrap">
                           <input
                             type="range"
                             min={0}
                             max={1}
                             step={0.05}
                             value={draft}
-                            aria-label={p.name || humanise(p.parameterId)}
+                            aria-label={displayName}
                             aria-valuetext={fmt(draft)}
                             onChange={(e) =>
                               setDraftTargets((prev) => ({
@@ -612,15 +626,12 @@ export function PromptTunerSidebar({
                                 [p.parameterId]: parseFloat(e.target.value),
                               }))
                             }
-                            className="ps-tuner-slider"
+                            className="ps-eq-slider"
                           />
-                          <span className="ps-tuner-dial-high">{highLabel}</span>
                         </div>
-                        {p.effectiveScope !== "DEFAULT" && (
-                          <div className="ps-tuner-dial-scope">
-                            {p.effectiveScope === "PLAYBOOK" ? "Course override" : "System default"}
-                          </div>
-                        )}
+                        <span className="ps-eq-low-label">{lowLabel}</span>
+                        <span className="ps-eq-value">{fmt(draft)}</span>
+                        <span className="ps-eq-abbr">{abbr}</span>
                       </div>
                     );
                   })}

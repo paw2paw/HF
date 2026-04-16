@@ -211,19 +211,7 @@
   font-style: italic;
 }
 
-/* ── Collapsible group header ── */
-.ps-tuner-group-header {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 0;
-}
-
-.ps-tuner-group-header:hover .ps-tuner-section-title {
-  color: var(--text-primary);
-}
+/* ── Collapsible group shared ── */
 
 .ps-tuner-group-chevron {
   color: var(--text-placeholder);
@@ -244,76 +232,99 @@
   margin-left: auto;
 }
 
-/* ── Teaching Dials (sliders) ── */
-.ps-tuner-dials {
+/* ══════════════════════════════════════════════════════════════════════
+   GRAPHIC EQ LAYOUT — vertical sliders in a wrapped grid
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Group box ── */
+.ps-eq-group {
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ps-eq-group-header {
+  all: unset;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ps-tuner-dial {
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--surface-secondary);
-  transition: background 0.15s;
-}
-
-.ps-tuner-dial--changed {
-  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-secondary));
-  outline: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
-}
-
-.ps-tuner-dial-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 2px;
+  gap: 4px;
+  padding: 8px 12px;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-default);
 }
 
-.ps-tuner-dial-label {
-  font-size: 12px;
-  font-weight: 500;
+.ps-eq-group-header:hover .ps-eq-group-title {
   color: var(--text-primary);
 }
 
-.ps-tuner-dial-value {
+.ps-eq-group-title {
   font-size: 11px;
   font-weight: 600;
-  font-family: var(--font-mono, monospace);
+  text-transform: capitalize;
   color: var(--text-muted);
-  min-width: 32px;
-  text-align: right;
 }
 
-.ps-tuner-dial-row {
+/* ── Flex-wrap grid of vertical channels ── */
+.ps-eq-grid {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px 4px;
+  justify-content: center;
 }
 
-.ps-tuner-dial-low,
-.ps-tuner-dial-high {
-  font-size: 10px;
+/* ── Single EQ channel (one vertical slider) ── */
+.ps-eq-channel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  padding: 4px 2px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  cursor: default;
+}
+
+.ps-eq-channel:hover {
+  background: var(--surface-secondary);
+}
+
+.ps-eq-channel--changed {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+/* ── High/Low labels (endpoints) ── */
+.ps-eq-high-label,
+.ps-eq-low-label {
+  font-size: 8px;
   color: var(--text-placeholder);
-  white-space: nowrap;
-  min-width: 44px;
-  max-width: 64px;
+  text-align: center;
+  line-height: 1.1;
+  max-width: 46px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ps-tuner-dial-low { text-align: right; }
-.ps-tuner-dial-high { text-align: left; }
-
-.ps-tuner-dial-scope {
-  font-size: 9px;
-  color: var(--text-placeholder);
-  margin-top: 2px;
+/* ── Vertical slider wrapper ── */
+.ps-eq-slider-wrap {
+  width: 48px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* ── Range slider styling ── */
-.ps-tuner-slider {
-  flex: 1;
+/* ── The actual range input, rotated vertical ── */
+.ps-eq-slider {
+  width: 72px; /* becomes visual height after rotation */
+  transform: rotate(-90deg);
+  transform-origin: center center;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
@@ -321,9 +332,10 @@
   background: var(--border-default);
   outline: none;
   cursor: pointer;
+  margin: 0;
 }
 
-.ps-tuner-slider::-webkit-slider-thumb {
+.ps-eq-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -336,11 +348,11 @@
   transition: transform 0.1s;
 }
 
-.ps-tuner-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+.ps-eq-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
 }
 
-.ps-tuner-slider::-moz-range-thumb {
+.ps-eq-slider::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -348,6 +360,36 @@
   border: 2px solid var(--surface-primary);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--text-primary) 20%, transparent);
   cursor: pointer;
+}
+
+/* Changed channel — accent thumb */
+.ps-eq-channel--changed .ps-eq-slider::-webkit-slider-thumb {
+  background: var(--status-warning-text);
+}
+.ps-eq-channel--changed .ps-eq-slider::-moz-range-thumb {
+  background: var(--status-warning-text);
+}
+
+/* ── Value readout ── */
+.ps-eq-value {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Abbreviation label (bottom) ── */
+.ps-eq-abbr {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+  text-align: center;
+  max-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Approach selectors ── */
