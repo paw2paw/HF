@@ -18,7 +18,7 @@ import { buildGraphPromptSection } from "@/lib/wizard/graph-evaluator";
 import { AGENT_TUNING_DEFAULTS } from "@/lib/domain/agent-tuning";
 import { config } from "@/lib/config";
 import { getPromptSpecs } from "@/lib/prompts/spec-prompts";
-import { getVisibilitySummary } from "@/lib/doc-type-icons";
+import { getVisibilitySummary, getDocTypePlainLanguageMapping } from "@/lib/doc-type-icons";
 import { interpolateTemplate } from "@/lib/prompts/interpolate";
 
 // ── Helpers ──────────────────────────────────────────────
@@ -341,16 +341,11 @@ in your setup data — an array of { fileName, documentType, confidence, reasoni
 
 For EACH file, narrate in plain language:
   1. **What it is** — translate documentType using the mapping below
-  2. **How you'd use it** — teach from it directly / shape AI behaviour / reference material
+  2. **How you'd use it** — extract teaching points / shape AI behaviour / reference material
   3. **If confidence < 0.7** — flag it: "I'm not certain about this one — does that sound right?"
 
 **DocumentType → plain language mapping:**
-- TEXTBOOK / READING_PASSAGE / COMPREHENSION → "teaching content — I'll teach directly from this"
-- QUESTION_BANK / WORKSHEET / EXAM_PAPER / PAST_PAPER → "practice material — exercises and questions"
-- LESSON_PLAN / STUDY_GUIDE → "lesson guide — I'll use this to structure sessions"
-- COURSE_REFERENCE / POLICY_DOCUMENT → "teaching guide — tells me how to run the course, not what to teach the student"
-- GLOSSARY / VOCABULARY_LIST → "vocabulary reference — I'll introduce these terms during sessions"
-- UNKNOWN → flag as uncertain, ask the user to describe it
+${getDocTypePlainLanguageMapping()}
 
 **Example narration (two files):**
   "Here's what I found:

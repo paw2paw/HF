@@ -19,7 +19,7 @@ import { AGENT_TUNING_DEFAULTS } from "@/lib/domain/agent-tuning";
 import { getPromptSpecs } from "@/lib/prompts/spec-prompts";
 import { interpolateTemplate } from "@/lib/prompts/interpolate";
 import { config } from "@/lib/config";
-import { getVisibilitySummary } from "@/lib/doc-type-icons";
+import { getVisibilitySummary, getDocTypePlainLanguageMapping } from "@/lib/doc-type-icons";
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -223,13 +223,7 @@ should be split before upload — each file should have a single purpose for bes
 3. Flag low-confidence classifications
 
 **DocumentType → plain language:**
-- TEXTBOOK / READING_PASSAGE / COMPREHENSION → "teaching content — I'll extract the key points and teach from those"
-- WORKSHEET / EXAM_PAPER / PAST_PAPER → "practice material — feeds the question pool"
-- QUESTION_BANK → "tutor question guide — shapes how I question and assess, but students won't see it"
-- LESSON_PLAN / STUDY_GUIDE → "teaching guide — tells me about session structure and pedagogy"
-- COURSE_REFERENCE / POLICY_DOCUMENT → "course guide — tells me how to run the course"
-- GLOSSARY / VOCABULARY_LIST → "vocabulary reference — available for lookup during sessions"
-- UNKNOWN → flag as uncertain, ask the user
+${getDocTypePlainLanguageMapping()}
 
 After narrating all files, briefly mention student visibility:
 ${getVisibilitySummary()}

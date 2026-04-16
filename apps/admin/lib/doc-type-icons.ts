@@ -149,6 +149,7 @@ export const DOC_TYPE_INFO: Record<string, DocTypeInfo> = {
     icon: FileSearch,   emojiIcon: '📄',
     label: "Example",
     description: "Worked example or case study — illustrates concepts in context.",
+    promptLabel: "worked example — I'll use this to illustrate concepts",
     role: 'reference',
     color: 'var(--text-muted)',
     bg: 'var(--surface-tertiary)',
@@ -207,10 +208,30 @@ export function getVisibilitySummary(): string {
   const toList = (set: Set<string>): string =>
     [...set].map(t => (DOC_TYPE_INFO[t]?.label ?? t).toLowerCase() + "s").join(", ");
   return [
-    `- ${toList(STUDENT_VISIBLE_DOC_TYPES)} are automatically shared with students (they can see them on their phone during calls).`,
+    `- ${toList(STUDENT_VISIBLE_DOC_TYPES)} can be shared with students during sessions (inline in text chat, or sent to their phone in voice calls).`,
     `- ${toList(TEACHER_ONLY_DOC_TYPES)} stay behind the scenes — the AI uses them to shape how it teaches, but students never see them.`,
     `- "You can adjust what students see using the eye toggles in the panel."`,
   ].join("\n");
+}
+
+/**
+ * Prompt-ready DocumentType → plain language mapping.
+ * Groups types that share the same promptLabel to avoid repetition.
+ */
+export function getDocTypePlainLanguageMapping(): string {
+  // Group by promptLabel
+  const groups = new Map<string, string[]>();
+  for (const [key, info] of Object.entries(DOC_TYPE_INFO)) {
+    const existing = groups.get(info.promptLabel) ?? [];
+    existing.push(key);
+    groups.set(info.promptLabel, existing);
+  }
+  const lines: string[] = [];
+  for (const [promptLabel, types] of groups) {
+    lines.push(`- ${types.join(" / ")} → "${promptLabel}"`);
+  }
+  lines.push(`- UNKNOWN → flag as uncertain, ask the user`);
+  return lines.join("\n");
 }
 
 /** Ordered groups for the role-grouped picker UI */
