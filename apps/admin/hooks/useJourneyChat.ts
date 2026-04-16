@@ -452,6 +452,9 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
 
       const stopType = data.nextStop.type;
 
+      // pre_survey / post_survey: dormant until Phase 2 event-triggered surveys
+      // (ADR: 2026-04-14-scheduler-owns-the-plan.md). Journey-position no longer
+      // returns these types, but the handlers are kept for reuse.
       if (stopType === 'pre_survey') {
         await loadPreSurvey();
       } else if (stopType === 'post_survey') {

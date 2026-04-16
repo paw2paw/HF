@@ -233,13 +233,29 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
         ctx.input.subjectId = undefined;
       }
     }
-    // If no subjectId but packSubjects exist, reuse the first one as the primary subject
+    // If no subjectId but packSubjects exist, reuse the first one as the primary subject.
+    // When subjectDiscipline is also set, rename the pack subject to the discipline name
+    // so it has a proper label ("English Language") instead of the course name.
+    // Important: do NOT create a second subject from subjectDiscipline — that causes
+    // duplicate subjects on the same course. The ingest-created subject is per-course
+    // by design (#169) to prevent assertion co-mingling across courses.
     if (!subject && ctx.input.packSubjectIds?.length) {
       subject = await prisma.subject.findUnique({ where: { id: ctx.input.packSubjectIds[0] } });
+      if (subject && ctx.input.subjectDiscipline && subject.name !== ctx.input.subjectDiscipline) {
+        const disciplineSlug = `${domainSlug}-${slugify(ctx.input.courseName, { lower: true, strict: true })}`;
+        subject = await prisma.subject.update({
+          where: { id: subject.id },
+          data: {
+            name: ctx.input.subjectDiscipline,
+            slug: disciplineSlug,
+            teachingProfile: subject.teachingProfile || suggestTeachingProfile(ctx.input.subjectDiscipline),
+          },
+        });
+      }
     }
-    // If subjectDiscipline provided (knowledge area name like "Biology"), use it for Subject
+    // If subjectDiscipline provided but no pack subject, find or create from discipline
     if (!subject && ctx.input.subjectDiscipline) {
-      const disciplineSlug = `${domainSlug}-${slugify(ctx.input.subjectDiscipline, { lower: true, strict: true })}`;
+      const disciplineSlug = `${domainSlug}-${slugify(ctx.input.courseName, { lower: true, strict: true })}`;
       subject = await prisma.subject.findFirst({ where: { slug: disciplineSlug } });
       if (!subject) {
         subject = await prisma.subject.create({
