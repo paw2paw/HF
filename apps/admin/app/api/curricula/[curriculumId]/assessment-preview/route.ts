@@ -2,10 +2,10 @@
  * @api GET /api/curricula/:curriculumId/assessment-preview
  * @auth OPERATOR+
  * @tags curriculum, assessment
- * @desc Returns MCQ questions that would be used for pre/mid/post-test assessment.
+ * @desc Returns MCQ questions that would be used for pre/post-test assessment.
  *       Admin preview only — shows what the test builder would select.
- * @query type — "pre_test" (default) | "mid_test" | "post_test"
- * @query playbookId — required for playbook-wide fallback and comprehension post/mid tests
+ * @query type — "pre_test" (default) | "post_test"
+ * @query playbookId — required for playbook-wide fallback and comprehension post tests
  * @response 200 { ok, questions: SurveyStepConfig[], questionCount, sourceId, skipped, skipReason? }
  */
 
@@ -26,8 +26,8 @@ export async function GET(
 
   let result;
 
-  if ((type === "mid_test" || type === "post_test") && playbookId) {
-    // Mid/post tests use comprehension post-test builder (queries POST_TEST MCQs directly)
+  if (type === "post_test" && playbookId) {
+    // Post tests use comprehension post-test builder (queries POST_TEST MCQs directly)
     result = await buildComprehensionPostTest(playbookId);
   } else {
     // Pre-test: curriculum-scoped, then playbook-wide fallback
