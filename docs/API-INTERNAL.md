@@ -12430,13 +12430,13 @@ Soft-restart a completed course. Resets goals, curriculum progress, surveys, and
 
 ### `GET` /api/student/journey-position
 
-Resolves the student's next stop: onboarding → teaching (or continuous with TP progress).
+Resolves the student's next stop via a 4-state machine (continuous mode):
 
 **Auth**: session (STUDENT | OPERATOR+) · **Scope**: `student:read`
 
 **Response** `200`
 ```json
-{ ok, nextStop: { type, session, redirect }, journey: { totalStops, completedStops, currentPosition, progressPercentage? } }
+{ ok, nextStop: { type, session, redirect, includePostTest? }, journey: { totalStops, completedStops, currentPosition, progressPercentage? } }
 ```
 
 **Response** `404`
@@ -12470,7 +12470,7 @@ Mark onboarding as complete for a caller.
 
 **Response** `200`
 ```json
-{ ok, subject, assessment, onboarding, offboarding }
+{ ok, subject, welcome, assessment, onboarding, offboarding }
 ```
 
 **Response** `404`

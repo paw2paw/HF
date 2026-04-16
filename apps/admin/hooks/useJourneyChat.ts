@@ -11,7 +11,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { SurveyStep } from '@/components/student/ChatSurvey';
 import type { SurveyStepConfig } from '@/lib/types/json-fields';
-import { SURVEY_SCOPES, PRE_SURVEY_KEYS, POST_SURVEY_KEYS } from '@/lib/learner/survey-keys';
+import { SURVEY_SCOPES, POST_SURVEY_KEYS } from '@/lib/learner/survey-keys';
 import { DEFAULT_PERSONALITY_QUESTIONS } from '@/lib/assessment/personality-defaults';
 import { DEFAULT_OFFBOARDING_SURVEY } from '@/lib/learner/survey-config';
 
@@ -150,6 +150,12 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
   const mcqQuestionIdsRef = useRef<string[]>([]);
   const subjectRef = useRef('this subject');
   const resolving = useRef(false);
+  /** Remaining welcome phases to run after the current one completes */
+  const welcomeQueueRef = useRef<Array<'onboarding' | 'aboutYou' | 'knowledgeCheck'>>([]);
+  /** Ref to break circular dep: advanceWelcomeQueue ↔ phase loaders */
+  const advanceRef = useRef<() => Promise<void>>(async () => {});
+  /** Stashed WelcomeConfig from resolveJourneyPosition for phase loaders */
+  const welcomeConfigRef = useRef<{ goals?: { enabled: boolean }; aboutYou?: { enabled: boolean }; knowledgeCheck?: { enabled: boolean } } | null>(null);
 
   const pushItems = useCallback((...newItems: ChatItem[]) => {
     setItems(prev => [...prev, ...newItems]);
@@ -282,60 +288,6 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
     advanceSurveyStep();
   }, [advanceSurveyStep]);
 
-  // ── Load and start pre-survey (personality + pre-test) ──
-  const loadPreSurvey = useCallback(async () => {
-    try {
-      pushItems(dividerItem('About You'));
-
-      const [teacherRes, configRes, personalityRes, preTestRes] = await Promise.all([
-        fetch(url('/api/student/teacher', callerId)),
-        fetch(url('/api/student/survey-config', callerId)),
-        fetch(url(`/api/student/survey`, callerId, { scope: SURVEY_SCOPES.PERSONALITY })),
-        fetch(url('/api/student/assessment-questions', callerId, { type: 'pre_test' })),
-      ]);
-      const [teacherData, configData, personalityData, preTestData] = await Promise.all([
-        teacherRes.json(), configRes.json(), personalityRes.json(), preTestRes.json(),
-      ]);
-
-      let subject = 'this subject';
-      let teacherName = '';
-      let personalityConfigs: SurveyStepConfig[] = DEFAULT_PERSONALITY_QUESTIONS;
-
-      if (teacherData.ok) {
-        subject = teacherData.domain || subject;
-        teacherName = teacherData.teacher?.name || '';
-      }
-      if (configData.ok) {
-        if (configData.subject) subject = configData.subject;
-        if (configData.assessment?.personality?.questions?.length > 0) {
-          personalityConfigs = configData.assessment.personality.questions;
-        }
-      }
-      subjectRef.current = subject;
-
-      // Check if personality already done
-      const personalityDone = personalityData.ok && personalityData.answers?.submitted_at;
-
-      if (!personalityDone) {
-        startSurveyPhase('personality', buildPersonalitySteps(personalityConfigs, subject, teacherName));
-        return;
-      }
-
-      // Personality done — try pre-test
-      if (preTestData.ok && !preTestData.skipped && preTestData.questions?.length > 0) {
-        pushItems(dividerItem('Knowledge Check'));
-        startSurveyPhase('pre_test', buildPreTestSteps(preTestData.questions, subject), preTestData.questionIds);
-        return;
-      }
-
-      // Both done or no pre-test — re-resolve
-      resolveJourneyPosition();
-    } catch (err) {
-      console.error('[journey] pre-survey load failed:', err);
-      setState('teaching'); // fail open
-    }
-  }, [callerId, pushItems, startSurveyPhase]);
-
   // ── Load and start post-survey (with optional MCQ post-test) ──
   const loadPostSurvey = useCallback(async () => {
     try {
@@ -377,8 +329,8 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
     }
   }, [callerId, pushItems, startSurveyPhase]);
 
-  // ── Load onboarding ──
-  const loadOnboarding = useCallback(async () => {
+  // ── Load onboarding (welcome message + optional goals) ──
+  const loadOnboardingPhase = useCallback(async () => {
     try {
       const progressRes = await fetch(url('/api/student/progress', callerId));
       const progressData = await progressRes.json();
@@ -392,28 +344,30 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
         textItem('assistant', `Welcome to ${inst}! ${teacher ? `${teacher} set this up for you. ` : ''}I'm your AI study partner — ready to help you learn through conversation.`),
       );
 
-      if (goals.length > 0) {
+      const goalsEnabled = welcomeConfigRef.current?.goals?.enabled !== false;
+      if (goalsEnabled && goals.length > 0) {
         const goalList = goals.map((g: { name: string }) => `• ${g.name}`).join('\n');
         pushItems(textItem('assistant', `Here are your learning goals:\n${goalList}`));
       }
 
       pushItems(textItem('assistant', "You'll have AI-powered practice sessions that adapt to how you're doing. Let's get started!"));
 
+      const hasMorePhases = welcomeQueueRef.current.length > 0;
+
       // Push a NextStopCTA
       const ctaItem: NextStopItem = {
         id: nextId(),
         kind: 'next_stop',
-        label: 'Start Your First Session ▶',
+        label: hasMorePhases ? 'Continue ▶' : 'Start Your First Session ▶',
         timestamp: new Date(),
         action: async () => {
           // Mark onboarding complete
           try {
             const res = await fetch(url('/api/student/onboarding', callerId), { method: 'POST' });
             if (!res.ok) throw new Error('Failed');
-            resolveJourneyPosition();
+            await advanceRef.current();
           } catch {
             pushItems(textItem('assistant', "Something went wrong. Tap below to try again."));
-            // Re-push the same CTA so user can retry
             pushItems({
               id: nextId(),
               kind: 'next_stop',
@@ -421,7 +375,7 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
               timestamp: new Date(),
               action: async () => {
                 const res2 = await fetch(url('/api/student/onboarding', callerId), { method: 'POST' }).catch(() => null);
-                if (res2?.ok) resolveJourneyPosition();
+                if (res2?.ok) await advanceRef.current();
                 else pushItems(textItem('assistant', "Still having trouble. Please refresh the page."));
               },
             });
@@ -435,6 +389,79 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
       setState('teaching');
     }
   }, [callerId, pushItems]);
+
+  // ── Load a single pre-survey phase (aboutYou = personality, knowledgeCheck = pre-test) ──
+  const loadPreSurveyPhase = useCallback(async (phase: 'aboutYou' | 'knowledgeCheck') => {
+    try {
+      const [teacherRes, configRes, personalityRes, preTestRes] = await Promise.all([
+        fetch(url('/api/student/teacher', callerId)),
+        fetch(url('/api/student/survey-config', callerId)),
+        fetch(url(`/api/student/survey`, callerId, { scope: SURVEY_SCOPES.PERSONALITY })),
+        fetch(url('/api/student/assessment-questions', callerId, { type: 'pre_test' })),
+      ]);
+      const [teacherData, configData, personalityData, preTestData] = await Promise.all([
+        teacherRes.json(), configRes.json(), personalityRes.json(), preTestRes.json(),
+      ]);
+
+      let subject = 'this subject';
+      let teacherName = '';
+      let personalityConfigs: SurveyStepConfig[] = DEFAULT_PERSONALITY_QUESTIONS;
+
+      if (teacherData.ok) {
+        subject = teacherData.domain || subject;
+        teacherName = teacherData.teacher?.name || '';
+      }
+      if (configData.ok) {
+        if (configData.subject) subject = configData.subject;
+        if (configData.assessment?.personality?.questions?.length > 0) {
+          personalityConfigs = configData.assessment.personality.questions;
+        }
+      }
+      subjectRef.current = subject;
+
+      if (phase === 'aboutYou') {
+        // Check if personality already done
+        const personalityDone = personalityData.ok && personalityData.answers?.submitted_at;
+        if (!personalityDone) {
+          pushItems(dividerItem('About You'));
+          startSurveyPhase('personality', buildPersonalitySteps(personalityConfigs, subject, teacherName));
+          return;
+        }
+        // Already done — advance to next phase
+        await advanceRef.current();
+      } else if (phase === 'knowledgeCheck') {
+        if (preTestData.ok && !preTestData.skipped && preTestData.questions?.length > 0) {
+          pushItems(dividerItem('Knowledge Check'));
+          startSurveyPhase('pre_test', buildPreTestSteps(preTestData.questions, subject), preTestData.questionIds);
+          return;
+        }
+        // No pre-test available — advance
+        await advanceRef.current();
+      }
+    } catch (err) {
+      console.error(`[journey] ${phase} load failed:`, err);
+      setState('teaching'); // fail open
+    }
+  }, [callerId, pushItems, startSurveyPhase]);
+
+  // ── Advance to next welcome phase (or fall through to teaching) ──
+  // Uses advanceRef to break circular dependency with phase loaders.
+  const advanceWelcomeQueue = useCallback(async () => {
+    const next = welcomeQueueRef.current.shift();
+    if (!next) {
+      // All welcome phases done — go to teaching
+      setState('teaching');
+      return;
+    }
+    if (next === 'onboarding') {
+      await loadOnboardingPhase();
+    } else if (next === 'aboutYou' || next === 'knowledgeCheck') {
+      await loadPreSurveyPhase(next);
+    }
+  }, [loadOnboardingPhase, loadPreSurveyPhase]);
+
+  // Keep ref in sync
+  advanceRef.current = advanceWelcomeQueue;
 
   // ── Resolve journey position ──
   const resolveJourneyPosition = useCallback(async () => {
@@ -452,20 +479,42 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
 
       const stopType = data.nextStop.type;
 
-      // pre_survey / post_survey: dormant until Phase 2 event-triggered surveys
-      // (ADR: 2026-04-14-scheduler-owns-the-plan.md). Journey-position no longer
-      // returns these types, but the handlers are kept for reuse.
-      if (stopType === 'pre_survey') {
-        await loadPreSurvey();
-      } else if (stopType === 'post_survey') {
+      if (stopType === 'post_survey') {
         await loadPostSurvey();
       } else if (stopType === 'onboarding') {
-        await loadOnboarding();
+        // Fetch WelcomeConfig to decide which pre-course phases to show
+        const configRes = await fetch(url('/api/student/survey-config', callerId));
+        const configData = await configRes.json();
+        const welcome = configData.ok ? configData.welcome : null;
+
+        // Build queue of enabled phases
+        const queue: Array<'onboarding' | 'aboutYou' | 'knowledgeCheck'> = [];
+        // Onboarding (welcome message) always shows unless ALL toggles are off
+        const goalsOn = welcome?.goals?.enabled !== false;
+        const aboutYouOn = welcome?.aboutYou?.enabled === true;
+        const knowledgeCheckOn = welcome?.knowledgeCheck?.enabled === true;
+
+        if (goalsOn || aboutYouOn || knowledgeCheckOn) {
+          queue.push('onboarding');
+        }
+        if (aboutYouOn) queue.push('aboutYou');
+        if (knowledgeCheckOn) queue.push('knowledgeCheck');
+
+        if (queue.length === 0) {
+          // All disabled — mark onboarding complete and go straight to teaching
+          await fetch(url('/api/student/onboarding', callerId), { method: 'POST' }).catch(() => {});
+          setState('teaching');
+          return;
+        }
+
+        welcomeQueueRef.current = queue;
+        welcomeConfigRef.current = welcome;
+        await advanceRef.current();
       } else if (stopType === 'complete') {
         pushItems(dividerItem('Journey Complete'), textItem('assistant', "You've completed all your learning sessions. Great work!"));
         setState('complete');
       } else {
-        // Teaching session
+        // teaching, continuous, or unknown — start teaching
         setState('teaching');
       }
     } catch {
@@ -474,7 +523,7 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
     } finally {
       resolving.current = false;
     }
-  }, [callerId, pushItems, loadPreSurvey, loadPostSurvey, loadOnboarding]);
+  }, [callerId, pushItems, loadPostSurvey]);
 
   // ── Handle survey answer ──
   const onSurveyAnswer = useCallback((stepId: string, value: string | number, displayText: string) => {
@@ -500,18 +549,6 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
           await submitSurvey();
           const completedPhase = surveyPhaseRef.current;
 
-          if (completedPhase === 'personality') {
-            try {
-              const preTestRes = await fetch(url('/api/student/assessment-questions', callerId, { type: 'pre_test' }));
-              const preTestData = await preTestRes.json();
-              if (preTestData.ok && !preTestData.skipped && preTestData.questions?.length > 0) {
-                pushItems(dividerItem('Knowledge Check'));
-                startSurveyPhase('pre_test', buildPreTestSteps(preTestData.questions, subjectRef.current), preTestData.questionIds);
-                return;
-              }
-            } catch {}
-          }
-
           // After post-test MCQs → transition to post satisfaction survey
           if (completedPhase === 'post_test') {
             try {
@@ -526,6 +563,16 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
             } catch {}
           }
 
+          // Pre-course phases (personality, pre-test) → advance welcome queue
+          if (completedPhase === 'personality' || completedPhase === 'pre_test') {
+            if (welcomeQueueRef.current.length > 0) {
+              await advanceRef.current();
+              return;
+            }
+          }
+
+          // Default: re-resolve journey position (post-survey done, or queue empty)
+          resolving.current = false;
           await resolveJourneyPosition();
         })();
       }

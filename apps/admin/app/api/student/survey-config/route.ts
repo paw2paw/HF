@@ -8,7 +8,7 @@
  *         2. playbook.config.onboardingFlowPhases (legacy fallback for pre)
  *         3. SURVEY_TEMPLATES_V1 contract defaults
  *       Also returns assessment config (personality questions, pre/post-test settings).
- * @response 200 { ok, subject, assessment, onboarding, offboarding }
+ * @response 200 { ok, subject, welcome, assessment, onboarding, offboarding }
  * @response 404 { ok: false, error: "..." }
  */
 
@@ -21,6 +21,7 @@ import type {
   OffboardingConfig,
   SurveyStepConfig,
 } from "@/lib/types/json-fields";
+import { DEFAULT_WELCOME_CONFIG } from "@/lib/types/json-fields";
 import {
   DEFAULT_ONBOARDING_SURVEY,
   DEFAULT_OFFBOARDING_SURVEY,
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ok: true,
       subject,
       tone: pbConfig.interactionPattern ?? "default",
+      welcome: { ...DEFAULT_WELCOME_CONFIG, ...pbConfig.welcome },
       assessment: {
         personality: {
           enabled: pbConfig.assessment?.personality?.enabled ?? true,
