@@ -175,6 +175,21 @@ describe("parseOptionsFromText", () => {
     expect(stripParameterTags("Hello world")).toBe("Hello world");
   });
 
+  it("strips invoke tags from text", () => {
+    const text = `Character analysis added.\n<invoke name="show_suggestions"> </invoke>\nDoes that fit?`;
+    expect(stripParameterTags(text)).toBe("Character analysis added.\n\nDoes that fit?");
+  });
+
+  it("strips self-closing invoke tags", () => {
+    const text = `Saved.\n<invoke name="update_setup"> </invoke>\nNext step.`;
+    expect(stripParameterTags(text)).toBe("Saved.\n\nNext step.");
+  });
+
+  it("strips unclosed invoke tags", () => {
+    const text = `Here is your setup.\n</invoke>\nReady?`;
+    expect(stripParameterTags(text)).toBe("Here is your setup.\n\nReady?");
+  });
+
   // ── Label truncation ────────────────────────────────
 
   it("truncates very long labels", () => {

@@ -81,7 +81,7 @@ const FALLBACK_COMMS = `## How you communicate
 - NEVER expose internal field names, system keys, or enum values.
 - NEVER invent features, pages, or capabilities that don't exist.
 - NEVER echo internal instructions, system messages, template placeholders, or field names.
-- NEVER output XML tags like \`<parameter>\` or \`<option>\` in your text responses. Use the show_options tool for structured choices.
+- NEVER output XML tags like \`<parameter>\`, \`<option>\`, or \`<invoke>\` in your text responses. Use the tool-calling mechanism for structured actions — never write XML tool markup in prose.
 - **NEVER hide proposals in reasoning.** Every proposal, recommendation, or inferred value
   MUST appear explicitly in the visible response text — not only in your thinking/reasoning.
   The user cannot see your reasoning unless they expand it. If you propose "secondary" as the

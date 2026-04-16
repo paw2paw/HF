@@ -222,11 +222,17 @@ function parseParameterTagOptions(text: string): ParsedOption[] | null {
 }
 
 /**
- * Strip <parameter> XML tags from AI response text so they don't render as raw markup.
+ * Strip hallucinated XML tags from AI response text so they don't render as raw markup.
+ * Handles <parameter>, <invoke>, and </invoke> tags that the AI sometimes outputs
+ * in its text content instead of using proper tool_use blocks.
  * Returns the cleaned text (safe for ReactMarkdown).
  */
 export function stripParameterTags(text: string): string {
-  return text.replace(/<parameter\s+name="[^"]*">\s*[\s\S]*?\s*<\/parameter>/g, "").trim();
+  return text
+    .replace(/<parameter\s+name="[^"]*">\s*[\s\S]*?\s*<\/parameter>/g, "")
+    .replace(/<invoke\s+name="[^"]*">\s*[\s\S]*?\s*<\/invoke>/g, "")
+    .replace(/<\/?invoke[^>]*>/g, "")
+    .trim();
 }
 
 /**
