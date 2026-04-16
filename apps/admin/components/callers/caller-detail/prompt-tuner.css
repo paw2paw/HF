@@ -31,6 +31,15 @@
   overflow: hidden;
 }
 
+/* Inline variant — rendered inside a tab, not as a fixed overlay */
+.ps-tuner-inline {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+}
+
 /* Always-mounted hidden state — preserves React state */
 .ps-tuner-sidebar--hidden {
   transform: translateX(100%);
@@ -537,38 +546,6 @@
   .ps-tuner-sidebar--hidden {
     transform: translateY(100%);
   }
-}
-
-/* Tune toggle button in header */
-.cdp-tune-btn {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-  border: 1px solid var(--border-default);
-  transition: all 0.15s;
-}
-
-.cdp-tune-btn:hover {
-  background: var(--surface-secondary);
-  color: var(--text-primary);
-}
-
-.cdp-tune-btn--active {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-primary));
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-
-.cdp-tune-btn--has-changes {
-  border-color: var(--status-warning-text);
-  color: var(--status-warning-text);
 }
 
 /* Spinner inside button */

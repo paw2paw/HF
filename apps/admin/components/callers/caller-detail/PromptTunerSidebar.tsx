@@ -43,6 +43,8 @@ export interface PromptTunerSidebarProps {
   playbookId: string | null;
   onApplied: (changes: PendingChange[]) => void;
   onClose: () => void;
+  /** Render inline (inside a tab) instead of as a fixed sidebar overlay */
+  inline?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +140,7 @@ export function PromptTunerSidebar({
   playbookId,
   onApplied,
   onClose,
+  inline,
 }: PromptTunerSidebarProps): React.ReactElement | null {
   // --- Fetch real parameters from the targets API ---
   const [parameters, setParameters] = useState<TunerParameter[]>([]);
@@ -429,7 +432,7 @@ export function PromptTunerSidebar({
   const hasChanges = pendingChanges.length > 0;
 
   return (
-    <div className={`ps-tuner-sidebar${open ? "" : " ps-tuner-sidebar--hidden"}`}>
+    <div className={inline ? "ps-tuner-inline" : `ps-tuner-sidebar${open ? "" : " ps-tuner-sidebar--hidden"}`}>
       {/* Header */}
       <div className="ps-tuner-header">
         <div className="ps-tuner-header-text">
@@ -445,9 +448,11 @@ export function PromptTunerSidebar({
             )}
           </span>
         </div>
-        <button className="ps-tuner-close" onClick={onClose} aria-label="Close tuner">
-          <X size={14} />
-        </button>
+        {!inline && (
+          <button className="ps-tuner-close" onClick={onClose} aria-label="Close tuner">
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {/* Scrollable body */}

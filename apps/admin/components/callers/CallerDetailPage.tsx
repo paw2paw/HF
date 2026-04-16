@@ -61,7 +61,7 @@ export default function CallerDetailPage() {
     transcripts: "calls-prompts", prompt: "calls-prompts",
   };
   const rawTab = searchParams.get("tab");
-  const validTabs: SectionId[] = ["overview", "calls-prompts", "how", "what", "artifacts", "ai-call"];
+  const validTabs: SectionId[] = ["overview", "calls-prompts", "tuning", "how", "what", "artifacts", "ai-call"];
   const mappedTab = rawTab ? (tabRedirects[rawTab] || rawTab) as SectionId : null;
   const initialTab: SectionId = mappedTab && validTabs.includes(mappedTab) ? mappedTab : "overview";
 
@@ -95,26 +95,8 @@ export default function CallerDetailPage() {
   // Expanded states
   const [expandedCall, setExpandedCall] = useState<string | null>(null);
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
-  const [activePromptExpanded, setActivePromptExpanded] = useState(false);
 
-  // Tuner sidebar state — persisted per caller
-  const tunerStorageKey = `hf.tuner.open.${callerId}`;
-  const [tunerOpen, setTunerOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(tunerStorageKey) === "1";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(tunerStorageKey, tunerOpen ? "1" : "0");
-  }, [tunerOpen, tunerStorageKey]);
-  useEffect(() => {
-    if (!tunerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setTunerOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [tunerOpen]);
+  // Tuning tab state
   const [appliedChanges, setAppliedChanges] = useState<{ label: string; oldValue: string; newValue: string }[] | null>(null);
 
   // Prompts state
@@ -442,6 +424,13 @@ export default function CallerDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  // Re-fetch when window regains focus (picks up pipeline results from sim tab)
+  useEffect(() => {
+    const onFocus = () => fetchData();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchData]);
+
   // ── Processing detection + auto-poll ──────────────
   // A call is "processing" if it's recent (< 5 min) and hasn't been analyzed yet.
   // When processing calls exist, poll every 5s to pick up pipeline results.
@@ -539,6 +528,7 @@ export default function CallerDetailPage() {
   const sections: { id: SectionId; label: string; icon: React.ReactNode; count?: number; special?: boolean; group: "history" | "caller" | "shared" | "action" }[] = [
     { id: "overview", label: "Overview", icon: <span aria-hidden>🧭</span>, group: "shared" },
     { id: "calls-prompts", label: "Calls & Prompts", icon: <Phone size={13} />, count: data.counts.calls, group: "history" },
+    { id: "tuning", label: "Tuning", icon: <SlidersHorizontal size={13} />, count: composedPrompts.length || undefined, group: "history" },
     { id: "how", label: "How", icon: <User size={13} />, count: (data.counts.memories || 0) + (data.counts.observations || 0), group: "caller" },
     { id: "what", label: "What", icon: <Gauge size={13} />, count: (new Set(data.scores?.map((s: any) => s.parameterId)).size || 0) + (data.counts.callerTargets || 0) + (data.counts.measurements || 0), group: "shared" },
     { id: "artifacts", label: "Artifacts", icon: <BookMarked size={13} />, count: (data.counts.artifacts || 0) + (data.counts.actions || 0), group: "shared" },
@@ -782,18 +772,6 @@ export default function CallerDetailPage() {
             ✨ Ask AI
           </button>
 
-          {/* Tune Button — opens persistent sidebar */}
-          {composedPrompts.length > 0 && (
-            <button
-              onClick={() => setTunerOpen(!tunerOpen)}
-              title="Adjust teaching style and behaviour targets"
-              className={`cdp-tune-btn${tunerOpen ? " cdp-tune-btn--active" : ""}`}
-            >
-              <SlidersHorizontal size={14} />
-              Tune
-            </button>
-          )}
-
           {/* Export Data Button (GDPR SAR) */}
           <button
             onClick={async () => {
@@ -860,36 +838,6 @@ export default function CallerDetailPage() {
           >
             Unarchive
           </button>
-        </div>
-      )}
-
-      {/* Prompt Navigator - Browse all composed prompts (bootstrap → current) */}
-      {composedPrompts.length > 0 && (
-        <div className="cdp-active-prompt">
-          <button
-            onClick={() => setActivePromptExpanded(!activePromptExpanded)}
-            className="cdp-active-prompt-toggle"
-          >
-            <span className="cdp-active-prompt-title">📜 Prompt Navigator</span>
-            <span className="cdp-active-prompt-subtitle">
-              {composedPrompts.length} prompt{composedPrompts.length !== 1 ? "s" : ""} — bootstrap to current
-            </span>
-            <span className={`cdp-active-prompt-chevron${composedPrompts.length === 1 ? " cdp-active-prompt-chevron--solo" : ""}`}>
-              {activePromptExpanded ? "▼" : "▶"}
-            </span>
-          </button>
-          {activePromptExpanded && (
-            <div className="cdp-active-prompt-content">
-              <UnifiedPromptSection
-                prompts={composedPrompts}
-                loading={promptsLoading}
-                onRefresh={fetchPrompts}
-                callerId={callerId}
-                appliedChanges={appliedChanges}
-                onDismissApplied={() => setAppliedChanges(null)}
-              />
-            </div>
-          )}
         </div>
       )}
 
@@ -1017,6 +965,38 @@ export default function CallerDetailPage() {
             fetchPrompts();
           }}
         />
+      )}
+
+      {activeSection === "tuning" && (
+        <div className="cdp-tuning-tab">
+          <UnifiedPromptSection
+            prompts={composedPrompts}
+            loading={promptsLoading}
+            onRefresh={fetchPrompts}
+            callerId={callerId}
+            appliedChanges={appliedChanges}
+            onDismissApplied={() => setAppliedChanges(null)}
+          />
+          {composedPrompts.length > 0 && (
+            <PromptTunerSidebar
+              inline
+              open
+              llmPrompt={composedPrompts[composedPrompts.length - 1]?.llmPrompt ?? null}
+              callerId={callerId}
+              callerName={data.caller.name || "Learner"}
+              playbookId={data.publishedPlaybookId ?? null}
+              onApplied={(changes) => {
+                setAppliedChanges(changes.map((c) => ({
+                  label: c.label,
+                  oldValue: c.oldValue,
+                  newValue: c.newValue,
+                })));
+                fetchPrompts();
+              }}
+              onClose={() => setActiveSection("calls-prompts")}
+            />
+          )}
+        </div>
       )}
 
       {activeSection === "how" && (
@@ -1148,36 +1128,6 @@ export default function CallerDetailPage() {
       )}
       </div>
       </div>{/* cdp-body */}
-      {/* Prompt Tuner Sidebar — fixed overlay, always mounted to preserve state */}
-      {composedPrompts.length > 0 && (
-        <>
-          {tunerOpen && (
-            <div
-              className="ps-tuner-backdrop"
-              onClick={() => setTunerOpen(false)}
-              aria-hidden="true"
-            />
-          )}
-          <PromptTunerSidebar
-            open={tunerOpen}
-            llmPrompt={composedPrompts[composedPrompts.length - 1]?.llmPrompt ?? null}
-            callerId={callerId}
-            callerName={data.caller.name || "Learner"}
-            playbookId={data.publishedPlaybookId ?? null}
-            onApplied={(changes) => {
-              setAppliedChanges(changes.map((c) => ({
-                label: c.label,
-                oldValue: c.oldValue,
-                newValue: c.newValue,
-              })));
-              setTunerOpen(false);
-              setActivePromptExpanded(true);
-              fetchPrompts();
-            }}
-            onClose={() => setTunerOpen(false)}
-          />
-        </>
-      )}
     </div>
   );
 }

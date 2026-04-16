@@ -579,7 +579,17 @@ export function CallsPromptsTab({
   );
 
   const latestId = entries[0]?.id ?? null;
-  const effectiveExpanded = expandedCallId ?? latestId;
+
+  // Auto-expand latest call on first render only (can be closed afterward)
+  const didAutoExpand = useRef(false);
+  useEffect(() => {
+    if (!didAutoExpand.current && latestId && expandedCallId === null && externalExpanded === undefined) {
+      didAutoExpand.current = true;
+      setInternalExpanded(latestId);
+    }
+  }, [latestId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const effectiveExpanded = expandedCallId;
 
   // Lazy-load call details when expanded
   const loadCallDetails = useCallback(async (callId: string) => {
@@ -781,7 +791,7 @@ export function CallsPromptsTab({
             <div className="cpt-call-header">
               <button
                 className="cpt-call-header-left"
-                onClick={() => setExpandedCallId(isExpanded && entry.id !== latestId ? null : entry.id)}
+                onClick={() => setExpandedCallId(isExpanded ? null : entry.id)}
               >
                 <div className="cpt-call-icon">
                   <Phone size={14} />
@@ -823,7 +833,7 @@ export function CallsPromptsTab({
 
               <button
                 className="cpt-call-chevron"
-                onClick={() => setExpandedCallId(isExpanded && entry.id !== latestId ? null : entry.id)}
+                onClick={() => setExpandedCallId(isExpanded ? null : entry.id)}
               >
                 {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
