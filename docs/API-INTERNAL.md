@@ -2787,7 +2787,7 @@ Export all data for a caller (GDPR Subject Access Request).
 
 ### `GET` /api/callers/:callerId/journey-progress
 
-Returns per-enrollment journey progress for a caller: lesson plan sessions +
+Returns per-enrollment journey progress for a caller. Scheduler owns pacing —
 
 **Auth**: session (VIEWER+) · **Scope**: `callers:read`
 

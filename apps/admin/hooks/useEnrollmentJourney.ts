@@ -7,6 +7,7 @@ export interface EnrollmentJourney {
   playbookId: string;
   playbookName: string;
   status: string;
+  /** @deprecated Session rail removed — scheduler owns pacing. Always empty. */
   sessions: Array<{
     session: number;
     type: string;
@@ -14,8 +15,12 @@ export interface EnrollmentJourney {
     moduleLabel: string;
     estimatedDurationMins: number | null;
   }>;
+  /** @deprecated Use callCount instead */
   currentSession: number | null;
+  /** @deprecated Session budget, not a pacing plan */
   totalSessions: number;
+  /** Total calls completed by this learner */
+  callCount?: number;
 }
 
 export function useEnrollmentJourney(callerId: string | null): {

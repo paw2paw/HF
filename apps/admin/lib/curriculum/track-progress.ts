@@ -23,8 +23,6 @@ interface ProgressUpdate {
   /** Per-LO mastery outcomes for a specific module */
   loMastery?: { moduleId: string; outcomes: Record<string, number> };
   lastAccessedAt?: Date;
-  /** Current lesson plan session number (1-based) */
-  currentSession?: number;
 }
 
 /**
@@ -157,31 +155,7 @@ export async function updateCurriculumProgress(
     }
   }
 
-  // Update current lesson plan session
-  if (updates.currentSession !== undefined) {
-    const key = await buildStorageKey(specSlug, 'currentSession');
-    writes.push(
-      prisma.callerAttribute.upsert({
-        where: {
-          callerId_key_scope: {
-            callerId,
-            key,
-            scope: 'CURRICULUM',
-          },
-        },
-        create: {
-          callerId,
-          key,
-          scope: 'CURRICULUM',
-          valueType: 'NUMBER',
-          numberValue: updates.currentSession,
-        },
-        update: {
-          numberValue: updates.currentSession,
-        },
-      })
-    );
-  }
+  // currentSession write removed — scheduler owns pacing
 
   // Update last accessed timestamp
   if (updates.lastAccessedAt !== undefined) {
@@ -283,7 +257,6 @@ export async function getCurriculumProgress(
   /** Per-LO mastery: { moduleId: { loRef: score } } */
   loMastery: Record<string, Record<string, number>>;
   lastAccessedAt: string | null;
-  currentSession: number | null;
 }> {
   // Get contract keys
   const storageKeys = await ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
@@ -312,7 +285,6 @@ export async function getCurriculumProgress(
     modulesMastery: {} as Record<string, number>,
     loMastery: {} as Record<string, Record<string, number>>,
     lastAccessedAt: null as string | null,
-    currentSession: null as number | null,
   };
 
   // Build match prefixes from contract keys
@@ -341,8 +313,7 @@ export async function getCurriculumProgress(
       progress.modulesMastery[moduleId] = attr.numberValue || 0;
     } else if (key === storageKeys.lastAccessed) {
       progress.lastAccessedAt = attr.stringValue;
-    } else if (key === storageKeys.currentSession) {
-      progress.currentSession = attr.numberValue || null;
+    // currentSession parsing removed — scheduler owns pacing
     }
   }
 

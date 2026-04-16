@@ -290,24 +290,15 @@ describe('track-progress.ts', () => {
 
       const progress = await getCurriculumProgress('caller-1', 'FS-L2-001');
 
-      expect(progress.currentSession).toBe(4);
+      // currentSession removed — scheduler owns pacing
       expect(progress.currentModuleId).toBe('mod-2');
       expect(progress.modulesMastery).toEqual({ 'mod-1': 0.85 });
     });
 
-    it('returns null currentSession when not set', async () => {
-      mockPrisma.callerAttribute.findMany.mockResolvedValue([
-        { key: 'curriculum:FS-L2-001:current_module', stringValue: 'mod-1', numberValue: null },
-      ]);
+    // currentSession tests removed — scheduler owns pacing
 
-      const progress = await getCurriculumProgress('caller-1', 'FS-L2-001');
-
-      expect(progress.currentSession).toBeNull();
-    });
-
-    it('updates currentSession alongside other fields', async () => {
+    it('updates module + lastAccessed fields', async () => {
       await updateCurriculumProgress('caller-1', 'FS-L2-001', {
-        currentSession: 5,
         currentModuleId: 'mod-3',
         lastAccessedAt: new Date('2026-02-16T12:00:00Z'),
       });
