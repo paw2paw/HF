@@ -79,51 +79,57 @@ export function SuccessCard({
               <Users size={14} /> Test Learners
             </div>
             {draftDemoCallerId && (
-              <div className="cv4-success-row">
-                <a
-                  href={`/x/callers/${draftDemoCallerId}`}
-                  className="hf-btn hf-btn-secondary cv4-success-btn-half"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {draftDemoCallerName || "Demo Caller"} <span className="hf-text-xs hf-text-muted">(ready)</span>
-                </a>
-                <a
-                  href={`/x/sim/${draftDemoCallerId}?${new URLSearchParams({
-                    ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
-                    ...(draftDomainId ? { domainId: draftDomainId } : {}),
-                  }).toString()}`}
-                  className="hf-btn hf-btn-secondary cv4-success-btn-half"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Headphones size={14} /> Try a Practice Call
-                </a>
+              <div className="cv4-success-caller-block">
+                <div className="cv4-success-row">
+                  <a
+                    href={`/x/callers/${draftDemoCallerId}`}
+                    className="hf-btn hf-btn-secondary cv4-success-btn-half"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {draftDemoCallerName || "Demo Caller"} <span className="hf-text-xs hf-text-muted">(quick test)</span>
+                  </a>
+                  <a
+                    href={`/x/sim/${draftDemoCallerId}?${new URLSearchParams({
+                      ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
+                      ...(draftDomainId ? { domainId: draftDomainId } : {}),
+                    }).toString()}`}
+                    className="hf-btn hf-btn-secondary cv4-success-btn-half"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Headphones size={14} /> Try a Practice Call
+                  </a>
+                </div>
+                <div className="hf-text-xs hf-text-muted">Skips welcome — straight to teaching.</div>
               </div>
             )}
             {draftCallerId && (
-              <div className="cv4-success-row">
-                <a
-                  href={`/x/callers/${draftCallerId}`}
-                  className="hf-btn hf-btn-secondary cv4-success-btn-half"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {draftCallerName || "Test Caller"} <span className="hf-text-xs hf-text-muted">(new)</span>
-                </a>
-                <a
-                  href={communityJoinToken
-                    ? buildJoinUrl("", communityJoinToken, draftPlaybookId, draftCallerName)
-                    : `/x/sim/${draftCallerId}?${new URLSearchParams({
-                        ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
-                        ...(draftDomainId ? { domainId: draftDomainId } : {}),
-                      }).toString()}`}
-                  className="hf-btn hf-btn-secondary cv4-success-btn-half"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <GraduationCap size={14} /> Try the Learner Journey
-                </a>
+              <div className="cv4-success-caller-block">
+                <div className="cv4-success-row">
+                  <a
+                    href={`/x/callers/${draftCallerId}`}
+                    className="hf-btn hf-btn-secondary cv4-success-btn-half"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {draftCallerName || "Test Caller"} <span className="hf-text-xs hf-text-muted">(full journey)</span>
+                  </a>
+                  <a
+                    href={communityJoinToken
+                      ? buildJoinUrl("", communityJoinToken, draftPlaybookId, draftCallerName)
+                      : `/x/sim/${draftCallerId}?${new URLSearchParams({
+                          ...(draftPlaybookId ? { playbookId: draftPlaybookId } : {}),
+                          ...(draftDomainId ? { domainId: draftDomainId } : {}),
+                        }).toString()}`}
+                    className="hf-btn hf-btn-secondary cv4-success-btn-half"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <GraduationCap size={14} /> Try the Learner Journey
+                  </a>
+                </div>
+                <div className="hf-text-xs hf-text-muted">Goes through welcome, surveys, and teaching.</div>
               </div>
             )}
           </div>

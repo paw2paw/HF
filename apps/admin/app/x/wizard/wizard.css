@@ -352,6 +352,10 @@
   margin-bottom: 6px;
 }
 
+.cv4-success-caller-block {
+  margin-bottom: 8px;
+}
+
 /* Demoted text link for dashboard */
 .cv4-success-link {
   background: none;
