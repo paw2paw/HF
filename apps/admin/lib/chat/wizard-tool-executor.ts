@@ -873,9 +873,13 @@ export async function executeWizardTool(
           // Playbook was deleted — fall through to normal creation
         }
 
-        // 1. Create or find Subject (domain-prefixed slug to scope per-institution)
+        // 1. Create or find Subject (course-scoped slug to prevent content bleeding)
+        //    Each course gets its own subject even if the discipline name is the same.
+        //    e.g. "abacus-academy-pw-secret-garden-1005-english-language"
         const domainRow = await prisma.domain.findUnique({ where: { id: domainId }, select: { slug: true } });
-        const subjectSlug = `${domainRow!.slug}-${slugify(subjectDiscipline, { lower: true, strict: true })}`;
+        const courseSlug = slugify(courseName, { lower: true, strict: true });
+        const disciplineSlug = slugify(subjectDiscipline, { lower: true, strict: true });
+        const subjectSlug = `${domainRow!.slug}-${courseSlug}-${disciplineSlug}`;
         let subject = await prisma.subject.findFirst({ where: { slug: subjectSlug } });
         if (!subject) {
           const { suggestTeachingProfile } = await import("@/lib/content-trust/teaching-profiles");
