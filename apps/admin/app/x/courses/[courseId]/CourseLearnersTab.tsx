@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { CohortLearningAggregate } from './CohortLearningAggregate';
 import { ClassProgressSection } from '@/components/shared/ClassProgressSection';
+import { CourseGenomeTab } from './CourseGenomeTab';
 import type { SessionEntry, StudentProgress } from '@/lib/lesson-plan/types';
 
 // ── Types ──────────────────────────────────────────────
@@ -433,6 +434,9 @@ export function CourseLearnersTab({ courseId, initialJoinToken, sessionEntries, 
           </table>
         )}
       </div>
+
+      {/* ── Genome (TP coverage heatmap) — absorbed from Genome tab ── */}
+      <CourseGenomeTab courseId={courseId} />
     </div>
   );
 }
