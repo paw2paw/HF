@@ -23,8 +23,6 @@ function redirectForStop(type: string): string {
   switch (type) {
     case "pre_survey":
       return "/x/student/welcome";
-    case "mid_survey":
-      return "/x/student/survey/mid";
     case "post_survey":
       return "/x/student/survey/post";
     case "continuous":
@@ -42,8 +40,6 @@ function surveyScopesForStop(type: string): string[] {
   switch (type) {
     case "pre_survey":
       return [SURVEY_SCOPES.PERSONALITY, SURVEY_SCOPES.PRE_TEST, SURVEY_SCOPES.PRE];
-    case "mid_survey":
-      return [SURVEY_SCOPES.MID];
     case "post_survey":
       return [SURVEY_SCOPES.POST_TEST, SURVEY_SCOPES.POST];
     default:
@@ -203,7 +199,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           const preTestWasTaken = surveySubmitted.has(SURVEY_SCOPES.PRE_TEST);
           isSubmitted = postSurveyDone && (!preTestWasTaken || postTestDone);
         } else {
-          // mid_survey — simple single scope
+          // Other survey types — simple single scope
           isSubmitted = scopes.some((s) => surveySubmitted.has(s));
         }
 

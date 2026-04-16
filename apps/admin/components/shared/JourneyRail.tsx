@@ -64,29 +64,18 @@ export interface JourneyRailProps {
   onToggleAssessments?: (enabled: boolean) => void;
   /** Whether assessments (pre+post) are currently enabled */
   assessmentsEnabled?: boolean;
-  /** Toggle mid-survey independently (only available when assessments are on) */
-  onToggleMidSurvey?: (enabled: boolean) => void;
-  /** Whether mid-survey is currently enabled */
-  midSurveyEnabled?: boolean;
-
   /** Sub-component toggles for survey stops */
   personalityEnabled?: boolean;
   onTogglePersonality?: (enabled: boolean) => void;
   preTestEnabled?: boolean;
   onTogglePreTest?: (enabled: boolean) => void;
-  midTestEnabled?: boolean;
-  onToggleMidTest?: (enabled: boolean) => void;
   postTestEnabled?: boolean;
   onTogglePostTest?: (enabled: boolean) => void;
-  /** Whether the course is comprehension-led (shows mid-test toggle) */
-  isComprehension?: boolean;
   /** Question counts for badge display */
   preTestQuestionCount?: number;
-  midTestQuestionCount?: number;
   postTestQuestionCount?: number;
   personalityQuestionCount?: number;
-  /** Mid/post satisfaction question counts */
-  midSurveyQuestionCount?: number;
+  /** Post satisfaction question count */
   postSurveyQuestionCount?: number;
 
   /** Loaded session type config (for type dropdowns) */
@@ -216,9 +205,9 @@ function OnboardingSessionDetail({
         onClick={(e) => {
           e.stopPropagation();
           if (onSwitchTab) {
-            onSwitchTab("journey");
+            onSwitchTab("design");
           } else {
-            router.push(`/x/courses/${courseId}?tab=journey`);
+            router.push(`/x/courses/${courseId}?tab=design`);
           }
         }}
         type="button"
@@ -256,9 +245,9 @@ function OffboardingSessionDetail({
         onClick={(e) => {
           e.stopPropagation();
           if (onSwitchTab) {
-            onSwitchTab("journey");
+            onSwitchTab("design");
           } else {
-            router.push(`/x/courses/${courseId}?tab=journey`);
+            router.push(`/x/courses/${courseId}?tab=design`);
           }
         }}
         type="button"
@@ -419,22 +408,15 @@ export function JourneyRail({
   onReorderSession,
   onToggleAssessments,
   assessmentsEnabled,
-  onToggleMidSurvey,
-  midSurveyEnabled,
   personalityEnabled,
   onTogglePersonality,
   preTestEnabled,
   onTogglePreTest,
-  midTestEnabled,
-  onToggleMidTest,
   postTestEnabled,
   onTogglePostTest,
-  isComprehension,
   preTestQuestionCount,
-  midTestQuestionCount,
   postTestQuestionCount,
   personalityQuestionCount,
-  midSurveyQuestionCount,
   postSurveyQuestionCount,
   sessionTypeConfig,
   educatorTypes,
@@ -784,24 +766,6 @@ export function JourneyRail({
               </label>
             )}
 
-            {/* Admin: mid-survey independent toggle (only when assessments are on) */}
-            {isAdmin && formStop && onToggleMidSurvey && entry.type === "mid_survey" && assessmentsEnabled && (
-              <label
-                className="jrl-survey-toggle"
-                onClick={(e) => e.stopPropagation()}
-                title={midSurveyEnabled ? "Mid check-in enabled" : "Mid check-in disabled"}
-              >
-                <input
-                  type="checkbox"
-                  checked={midSurveyEnabled ?? false}
-                  onChange={(e) => onToggleMidSurvey(e.target.checked)}
-                  className="hf-checkbox"
-                />
-                <span className={`hf-text-xs ${midSurveyEnabled ? "hf-text-muted" : "jrl-survey-off-label"}`}>
-                  {midSurveyEnabled ? "Mid Check-in" : "Mid Check-in off"}
-                </span>
-              </label>
-            )}
 
             {/* Admin: optional toggle (teaching stops only) */}
             {isAdmin && !pinned && !formStop && onToggleOptional && (
@@ -849,27 +813,11 @@ export function JourneyRail({
                     {personalityQuestionCount != null && <span className="jrl-stop-control-count">{personalityQuestionCount} Qs</span>}
                   </label>
                 )}
-                {onTogglePreTest && !isComprehension && (
+                {onTogglePreTest && (
                   <label className="jrl-stop-control">
                     <input type="checkbox" checked={preTestEnabled ?? true} onChange={(e) => onTogglePreTest(e.target.checked)} className="hf-checkbox" />
                     <span className="hf-text-xs hf-text-muted">Knowledge Check</span>
                     {preTestQuestionCount != null && <span className="jrl-stop-control-count">{preTestQuestionCount} Qs</span>}
-                  </label>
-                )}
-              </>
-            )}
-            {entry.type === "mid_survey" && (
-              <>
-                <label className="jrl-stop-control">
-                  <input type="checkbox" checked={midSurveyEnabled ?? false} onChange={(e) => onToggleMidSurvey?.(e.target.checked)} className="hf-checkbox" disabled={!onToggleMidSurvey} />
-                  <span className="hf-text-xs hf-text-muted">Satisfaction Check-in</span>
-                  {midSurveyQuestionCount != null && <span className="jrl-stop-control-count">{midSurveyQuestionCount} Qs</span>}
-                </label>
-                {isComprehension && onToggleMidTest && (
-                  <label className="jrl-stop-control">
-                    <input type="checkbox" checked={midTestEnabled ?? false} onChange={(e) => onToggleMidTest(e.target.checked)} className="hf-checkbox" />
-                    <span className="hf-text-xs hf-text-muted">Knowledge Check</span>
-                    {midTestQuestionCount != null && <span className="jrl-stop-control-count">{midTestQuestionCount} Qs</span>}
                   </label>
                 )}
               </>
@@ -1019,7 +967,6 @@ export function JourneyRail({
                   { educatorLabel: "Learn", dbTypes: ["introduce"], icon: "BookOpen", category: "teaching" },
                   { educatorLabel: "Review", dbTypes: ["review"], icon: "RotateCcw", category: "teaching" },
                   { educatorLabel: "Assess", dbTypes: ["assess"], icon: "Target", category: "teaching" },
-                  { educatorLabel: "Survey", dbTypes: ["mid_survey"], icon: "ClipboardList", category: "survey" },
                 ]).map((et) => (
                   <button
                     key={et.educatorLabel}

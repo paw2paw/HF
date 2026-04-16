@@ -11,7 +11,7 @@ import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access"
 import { SURVEY_SCOPES } from "@/lib/learner/survey-keys";
 
 const SURVEY_ATTR_SCOPES = [
-  SURVEY_SCOPES.PERSONALITY, SURVEY_SCOPES.PRE, SURVEY_SCOPES.MID, SURVEY_SCOPES.POST,
+  SURVEY_SCOPES.PERSONALITY, SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST,
   SURVEY_SCOPES.PRE_TEST, SURVEY_SCOPES.POST_TEST,
 ];
 
@@ -141,7 +141,6 @@ export async function GET(request: NextRequest) {
     surveys: {
       personality: hasData(surveys[SURVEY_SCOPES.PERSONALITY]) ? surveys[SURVEY_SCOPES.PERSONALITY] : null,
       pre: hasData(surveys[SURVEY_SCOPES.PRE]) ? surveys[SURVEY_SCOPES.PRE] : null,
-      mid: hasData(surveys[SURVEY_SCOPES.MID]) ? surveys[SURVEY_SCOPES.MID] : null,
       post: hasData(surveys[SURVEY_SCOPES.POST]) ? surveys[SURVEY_SCOPES.POST] : null,
     },
     testScores: {

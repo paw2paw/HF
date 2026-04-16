@@ -50,7 +50,6 @@ export const SESSION_TYPES = [
   { value: 'review', label: 'Review', color: 'var(--status-warning-text)' },
   { value: 'assess', label: 'Assess', color: 'var(--status-error-text)' },
   { value: 'consolidate', label: 'Consolidate', color: 'var(--status-success-text)' },
-  { value: 'mid_survey', label: 'Mid-Survey', color: 'var(--login-blue)' },
   { value: 'offboarding', label: 'Last Call', color: 'var(--login-gold)' },
   { value: 'post_survey', label: 'Post-Survey', color: 'var(--login-blue)' },
   { value: 'continuous', label: 'Learning Programme', color: 'var(--accent-primary)' },
@@ -58,7 +57,7 @@ export const SESSION_TYPES = [
 
 /** Teaching session type entries with labels/colors — for educator type dropdowns */
 export const TEACHING_SESSION_TYPE_ENTRIES = SESSION_TYPES.filter(
-  (t) => !['pre_survey', 'mid_survey', 'post_survey', 'onboarding', 'offboarding'].includes(t.value),
+  (t) => !['pre_survey', 'post_survey', 'onboarding', 'offboarding'].includes(t.value),
 );
 
 export const SESSION_TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>> = {
@@ -69,7 +68,6 @@ export const SESSION_TYPE_ICONS: Record<string, React.ComponentType<{ size?: num
   review: RotateCcw,
   assess: Target,
   consolidate: CheckCircle,
-  mid_survey: ClipboardList,
   offboarding: Flag,
   post_survey: ClipboardList,
   continuous: Layers,
@@ -99,7 +97,7 @@ export async function getSessionTypeConfig(): Promise<SessionTypeConfig> {
       value: t.value,
       label: t.label,
       educatorLabel: t.label,
-      category: (['pre_survey', 'mid_survey', 'post_survey'].includes(t.value) ? 'survey' :
+      category: (['pre_survey', 'post_survey'].includes(t.value) ? 'survey' :
         ['onboarding', 'offboarding'].includes(t.value) ? 'structural' : 'teaching') as SessionTypeEntry["category"],
       color: t.color,
       icon: 'BookOpen',
@@ -111,7 +109,7 @@ export async function getSessionTypeConfig(): Promise<SessionTypeConfig> {
       { educatorLabel: 'Learn', dbTypes: ['introduce', 'deepen'], icon: 'BookOpen', category: 'teaching' },
       { educatorLabel: 'Review', dbTypes: ['review', 'consolidate'], icon: 'RotateCcw', category: 'teaching' },
       { educatorLabel: 'Assess', dbTypes: ['assess'], icon: 'Target', category: 'teaching' },
-      { educatorLabel: 'Survey', dbTypes: ['pre_survey', 'mid_survey', 'post_survey'], icon: 'ClipboardList', category: 'survey' },
+      { educatorLabel: 'Survey', dbTypes: ['pre_survey', 'post_survey'], icon: 'ClipboardList', category: 'survey' },
     ],
   };
   return _cachedConfig;
@@ -147,7 +145,6 @@ const SHORT_LABELS: Record<string, string> = {
   review: "RV",
   assess: "AS",
   consolidate: "CO",
-  mid_survey: "MS",
   offboarding: "OF",
   post_survey: "PO",
   continuous: "CL",
@@ -160,7 +157,7 @@ export function getSessionTypeShortLabel(type: string): string {
 
 /** Is this a form stop (survey category)? */
 export function isFormStop(type: string): boolean {
-  return ['pre_survey', 'mid_survey', 'post_survey'].includes(type);
+  return ['pre_survey', 'post_survey'].includes(type);
 }
 
 /** Is this a voice stop (structural or teaching)? */
@@ -182,7 +179,6 @@ export const STRUCTURAL_SESSION_TYPES = [
   'onboarding',
   'offboarding',
   'pre_survey',
-  'mid_survey',
   'post_survey',
 ] as const;
 

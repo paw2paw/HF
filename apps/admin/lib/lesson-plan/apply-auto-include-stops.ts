@@ -2,8 +2,7 @@
  * Auto-inject structural and survey stops into a lesson plan.
  *
  * Reads SESSION_TYPES_V1 contract for `autoInclude` positions and injects
- * stops that aren't already present. Handles mid_survey separately via
- * playbook survey config (not autoInclude).
+ * stops that aren't already present.
  *
  * Idempotent: strips existing auto-include stops before re-inserting.
  */
@@ -24,7 +23,6 @@ export interface PlanEntry {
 
 export interface SurveyConfig {
   pre?: { enabled: boolean };
-  mid?: { enabled: boolean };
   post?: { enabled: boolean };
 }
 
@@ -61,7 +59,7 @@ export async function applyAutoIncludeStops(
   const autoTypeValues = new Set(autoTypes.map((t) => t.value));
 
   // Strip existing auto-include stops (idempotency)
-  const teaching = entries.filter((e) => !autoTypeValues.has(e.type) && e.type !== "mid_survey");
+  const teaching = entries.filter((e) => !autoTypeValues.has(e.type));
 
   // Determine which auto-include stops to inject
   const beforeFirst: PlanEntry[] = [];
@@ -85,24 +83,8 @@ export async function applyAutoIncludeStops(
     }
   }
 
-  // Handle mid_survey — config-gated, not autoInclude-driven
-  let midSurvey: PlanEntry | undefined;
-  if (surveys?.mid?.enabled) {
-    const midDef = typeMap.get("mid_survey");
-    if (midDef) midSurvey = makeStop(midDef);
-  }
-
-  // Assemble: before_first → first → teaching (with mid_survey) → last → after_last
-  const result: PlanEntry[] = [...beforeFirst, ...first];
-
-  if (midSurvey && teaching.length >= 2) {
-    const midPoint = Math.ceil(teaching.length / 2);
-    result.push(...teaching.slice(0, midPoint));
-    result.push(midSurvey);
-    result.push(...teaching.slice(midPoint));
-  } else {
-    result.push(...teaching);
-  }
+  // Assemble: before_first → first → teaching → last → after_last
+  const result: PlanEntry[] = [...beforeFirst, ...first, ...teaching];
 
   result.push(...last, ...afterLast);
 
