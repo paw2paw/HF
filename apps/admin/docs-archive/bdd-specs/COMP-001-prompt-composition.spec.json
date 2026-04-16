@@ -839,6 +839,21 @@
       "dependsOn": ["curriculum"]
     },
     {
+      "id": "retrieval_practice",
+      "name": "Retrieval Practice Questions",
+      "priority": 12.75,
+      "dataSource": "_assembled",
+      "activateWhen": {
+        "condition": "always"
+      },
+      "fallback": {
+        "action": "null"
+      },
+      "transform": "formatRetrievalPractice",
+      "outputKey": "retrievalPractice",
+      "dependsOn": ["curriculum", "teaching_content"]
+    },
+    {
       "id": "teaching_style",
       "name": "Teaching Style",
       "priority": 12.8,
@@ -1048,5 +1063,49 @@
       "relationship": "provides learning objectives and session goals"
     }
   ],
-  "specRole": "SYNTHESISE"
+  "specRole": "SYNTHESISE",
+  "archetypes": {
+    "balanced": {
+      "retrieval": {
+        "maxQuestions": { "teach": 2, "assess": 3, "review": 1 },
+        "bloomFloor": "REMEMBER",
+        "minQuestions": 1
+      }
+    },
+    "interleaved": {
+      "retrieval": {
+        "maxQuestions": { "teach": 2, "assess": 3, "review": 2 },
+        "bloomFloor": "REMEMBER",
+        "minQuestions": 1
+      }
+    },
+    "comprehension": {
+      "retrieval": {
+        "maxQuestions": { "teach": 1, "assess": 2, "review": 1 },
+        "bloomFloor": "UNDERSTAND",
+        "minQuestions": 1
+      }
+    },
+    "exam_prep": {
+      "retrieval": {
+        "maxQuestions": { "teach": 2, "assess": 3, "review": 2 },
+        "bloomFloor": "UNDERSTAND",
+        "minQuestions": 1
+      }
+    },
+    "revision": {
+      "retrieval": {
+        "maxQuestions": { "teach": 2, "assess": 3, "review": 2 },
+        "bloomFloor": "REMEMBER",
+        "minQuestions": 1
+      }
+    },
+    "confidence_build": {
+      "retrieval": {
+        "maxQuestions": { "teach": 1, "assess": 2, "review": 1 },
+        "bloomFloor": "REMEMBER",
+        "minQuestions": 1
+      }
+    }
+  }
 }

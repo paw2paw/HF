@@ -310,6 +310,34 @@ export interface SharedComputedState {
   } | null;
   /** Map of LO ref → LO id for FK-based filtering (#142) */
   loRefToIdMap?: Map<string, string>;
+
+  // ── Scheduler v1 (#155) + retrieval practice (#164) ──
+
+  /**
+   * The scheduler's decision for the current call. Populated in continuous
+   * mode by modules.ts after calling selectNextExchange. Undefined in
+   * structured mode (transforms should check for presence before reading).
+   *
+   * `mode` drives retrieval question count (teach=light, assess=full,
+   * review=consolidation). `outcomeId` targets which LO to assess.
+   */
+  schedulerDecision?: {
+    mode: "teach" | "review" | "assess" | "practice";
+    outcomeId: string | null;
+  } | null;
+
+  /**
+   * The scheduler policy in effect for this call. Used by the retrieval
+   * transform to read preset defaults when no archetype-level override
+   * exists in the COMP-001 spec config. Populated alongside
+   * schedulerDecision in continuous mode.
+   */
+  schedulerPolicy?: {
+    name: string;
+    retrievalQuestions: { teach: number; assess: number; review: number };
+    retrievalBloomFloor: string;
+    retrievalCadence: number;
+  } | null;
 }
 
 export interface ModuleData {

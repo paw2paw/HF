@@ -42,6 +42,7 @@ import "./transforms/actions";
 import "./transforms/visual-aids";
 import "./transforms/physical-materials";
 import "./transforms/session-materials";
+import "./transforms/retrieval-practice";
 import "./transforms/course-instructions";
 import "./transforms/audience";
 import "./transforms/offboarding";
@@ -670,6 +671,17 @@ export function getDefaultSections(): CompositionSectionDef[] {
       transform: "computePedagogyMode",
       outputKey: "pedagogyMode",
       dependsOn: ["curriculum"],
+    },
+    {
+      id: "retrieval_practice",
+      name: "Retrieval Practice Questions",
+      priority: 12.75,
+      dataSource: "_assembled",
+      activateWhen: { condition: "always" },
+      fallback: { action: "null" },
+      transform: "formatRetrievalPractice",
+      outputKey: "retrievalPractice",
+      dependsOn: ["curriculum", "teaching_content"],
     },
     {
       id: "teaching_style",

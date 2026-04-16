@@ -82,6 +82,32 @@ describe("scheduler-presets", () => {
     }
   });
 
+  it("each preset declares retrieval practice defaults (#164)", () => {
+    const validBloomFloors = ["REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE"];
+    for (const preset of Object.values(ALL_PRESETS)) {
+      // Every mode has at least 1 question (retrieval is never off)
+      expect(preset.retrievalQuestions.teach).toBeGreaterThanOrEqual(1);
+      expect(preset.retrievalQuestions.assess).toBeGreaterThanOrEqual(1);
+      expect(preset.retrievalQuestions.review).toBeGreaterThanOrEqual(1);
+      // Assess mode always has the most questions
+      expect(preset.retrievalQuestions.assess).toBeGreaterThanOrEqual(preset.retrievalQuestions.teach);
+      expect(preset.retrievalQuestions.assess).toBeGreaterThanOrEqual(preset.retrievalQuestions.review);
+      // Bloom floor is a valid taxonomy level
+      expect(validBloomFloors).toContain(preset.retrievalBloomFloor);
+    }
+  });
+
+  it("Comprehension and Exam-prep use UNDERSTAND as bloom floor (not REMEMBER)", () => {
+    expect(COMPREHENSION.retrievalBloomFloor).toBe("UNDERSTAND");
+    expect(EXAM_PREP.retrievalBloomFloor).toBe("UNDERSTAND");
+  });
+
+  it("Confidence-build has the fewest assess-mode questions (low pressure)", () => {
+    for (const p of [BALANCED, INTERLEAVED, EXAM_PREP, REVISION]) {
+      expect(CONFIDENCE_BUILD.retrievalQuestions.assess).toBeLessThanOrEqual(p.retrievalQuestions.assess);
+    }
+  });
+
   it("getPresetForPlaybook maps teachingMode to preset", () => {
     expect(getPresetForPlaybook({ config: { teachingMode: "comprehension" } }).name).toBe("COMPREHENSION");
     expect(getPresetForPlaybook({ config: { teachingMode: "practice" } }).name).toBe("INTERLEAVED");

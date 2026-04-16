@@ -641,6 +641,11 @@ async function activateFeatureSet(featureSetId: string): Promise<SeedSpecResult>
       config.sections = rawSpecData.sections;
       console.log(`      Copied ${rawSpecData.sections.length} composition sections from rawSpec`);
     }
+    // Copy archetypes from rawSpec if present (#164 — retrieval practice config per archetype)
+    if (rawSpecData?.archetypes) {
+      config.archetypes = rawSpecData.archetypes;
+      console.log(`      Copied ${Object.keys(rawSpecData.archetypes).length} archetype configs from rawSpec`);
+    }
   }
   // For IDENTITY and CONTENT specs: preserve parameters array AND flatten for backward compat
   else if (specRole === SpecRole.IDENTITY || specRole === SpecRole.CONTENT) {

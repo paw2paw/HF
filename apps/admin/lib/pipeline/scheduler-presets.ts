@@ -1,18 +1,20 @@
 /**
- * Scheduler policy presets — #155 Slice 2.
+ * Scheduler policy presets — #155 Slice 2, extended by #164 (retrieval practice).
  *
  * Each preset is a bundle of weights for the 7 factors in `selectNextExchange`
  * (α–η, see `docs/decisions/2026-04-14-scheduler-owns-the-plan.md`) plus a
- * Track A retrieval cadence that drives `mode: assess` gating.
+ * Track A retrieval cadence that drives `mode: assess` gating, plus retrieval
+ * practice defaults that control how many MCQs are injected per call mode.
  *
  * Teachers never see these numbers. They pick a preset (Balanced / Interleaved /
  * Comprehension / Exam-prep / Revision / Confidence-build) or the system picks
  * one from `Playbook.config.teachingMode`.
  *
- * Forward compatibility note: when CourseArchetype lands (deferred per
- * 2026-04-15 planning session), archetype-level overrides replace the
- * teachingMode → preset mapping in `getPresetForPlaybook`. The preset values
- * themselves don't change.
+ * Archetype alignment: each preset is the FIRST FACET of what will become a
+ * full CourseArchetype — the retrieval defaults here are the seed values for
+ * per-archetype config records in the DB. When the CourseArchetype epic ships,
+ * the teachingMode → preset mapping is replaced by archetype → config lookup.
+ * The preset values become the seed source, not the runtime truth.
  *
  * This module is a pure data module — no DB, no imports from runtime state.
  * `resolveLessonPlanMode()` in `lib/content-trust/resolve-config.ts` handles
@@ -56,6 +58,28 @@ export interface SchedulerPolicy {
    * inherit from `LearningObjective.masteryThreshold ?? module.masteryThreshold`.
    */
   masteryThresholdOverride: number | null;
+
+  // ── Retrieval practice defaults (#164) ────────────────────
+  //
+  // These seed the per-archetype retrieval config in the DB. After seeding,
+  // the DB owns the values. This is the first facet of the CourseArchetype
+  // shape — more facets (prompt tone, assessment strategy, communication
+  // rules) will follow when the archetype epic ships.
+
+  /**
+   * Maximum retrieval questions per call, keyed by scheduler mode.
+   * Actual count is scaled down by `informationNeed` (0–1): fewer questions
+   * when the system has fresh, comprehensive mastery data for this learner.
+   * Minimum is always 1 (retrieval is never off in continuous mode).
+   */
+  retrievalQuestions: { teach: number; assess: number; review: number };
+
+  /**
+   * Minimum Bloom taxonomy level for retrieval questions.
+   * Exam-prep and comprehension courses skip REMEMBER-only questions;
+   * confidence-build and revision include them for easy wins.
+   */
+  retrievalBloomFloor: "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE";
 }
 
 export const BALANCED: SchedulerPolicy = {
@@ -69,6 +93,8 @@ export const BALANCED: SchedulerPolicy = {
   retrievalOpportunity: 0.4,
   retrievalCadence: 3,
   masteryThresholdOverride: null,
+  retrievalQuestions: { teach: 2, assess: 3, review: 1 },
+  retrievalBloomFloor: "REMEMBER",
 };
 
 export const INTERLEAVED: SchedulerPolicy = {
@@ -82,6 +108,8 @@ export const INTERLEAVED: SchedulerPolicy = {
   retrievalOpportunity: 0.4,
   retrievalCadence: 2,
   masteryThresholdOverride: null,
+  retrievalQuestions: { teach: 2, assess: 3, review: 2 },
+  retrievalBloomFloor: "REMEMBER",
 };
 
 export const COMPREHENSION: SchedulerPolicy = {
@@ -97,6 +125,9 @@ export const COMPREHENSION: SchedulerPolicy = {
   // Fire retrieval after each passage chunk — v1 approximation
   retrievalCadence: 2,
   masteryThresholdOverride: null,
+  // Theme recall + inference probes, not factual recall
+  retrievalQuestions: { teach: 1, assess: 2, review: 1 },
+  retrievalBloomFloor: "UNDERSTAND",
 };
 
 export const EXAM_PREP: SchedulerPolicy = {
@@ -113,6 +144,9 @@ export const EXAM_PREP: SchedulerPolicy = {
   retrievalCadence: 2,
   // Lower threshold during coverage sweep
   masteryThresholdOverride: 0.6,
+  // Past-paper style, application-level questions
+  retrievalQuestions: { teach: 2, assess: 3, review: 2 },
+  retrievalBloomFloor: "UNDERSTAND",
 };
 
 export const REVISION: SchedulerPolicy = {
@@ -127,6 +161,9 @@ export const REVISION: SchedulerPolicy = {
   retrievalOpportunity: 1.0,
   retrievalCadence: 1,
   masteryThresholdOverride: null,
+  // High frequency, all levels — student has seen this material before
+  retrievalQuestions: { teach: 2, assess: 3, review: 2 },
+  retrievalBloomFloor: "REMEMBER",
 };
 
 export const CONFIDENCE_BUILD: SchedulerPolicy = {
@@ -143,6 +180,9 @@ export const CONFIDENCE_BUILD: SchedulerPolicy = {
   retrievalCadence: 4,
   // Lower bar to let the learner bank wins
   masteryThresholdOverride: 0.6,
+  // Easy wins, low pressure — REMEMBER-level so the learner can bank successes
+  retrievalQuestions: { teach: 1, assess: 2, review: 1 },
+  retrievalBloomFloor: "REMEMBER",
 };
 
 export const ALL_PRESETS: Record<SchedulerPresetName, SchedulerPolicy> = {

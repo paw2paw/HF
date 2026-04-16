@@ -540,6 +540,8 @@ export async function computeSharedState(
   // CONTINUOUS MODE — working set selector replaces session-based scoping
   // =========================================================================
   let workingSet: SharedComputedState['workingSet'] = null;
+  let schedulerDecision: SharedComputedState['schedulerDecision'] = null;
+  let schedulerPolicy: SharedComputedState['schedulerPolicy'] = null;
 
   if (lessonPlanMode === 'continuous' && modules.length > 0 && specSlug && curriculumId) {
     try {
@@ -646,6 +648,20 @@ export async function computeSharedState(
           reviewIds: wsResult.reviewIds,
           newIds: wsResult.newIds,
           selectedLOs: wsResult.selectedLOs,
+        };
+
+        // #164 — expose scheduler decision + policy so the retrieval-practice
+        // transform can read the current mode and preset question counts
+        // without doing its own DB lookups.
+        schedulerDecision = {
+          mode: decision.mode,
+          outcomeId: decision.outcomeId,
+        };
+        schedulerPolicy = {
+          name: policy.name,
+          retrievalQuestions: policy.retrievalQuestions,
+          retrievalBloomFloor: policy.retrievalBloomFloor,
+          retrievalCadence: policy.retrievalCadence,
         };
 
         // Build synthetic lessonPlanEntry from working set.
@@ -757,6 +773,9 @@ export async function computeSharedState(
     workingSet,
     // #142: LO ref → id map for FK-based assertion filtering in teaching-content
     loRefToIdMap,
+    // #155 + #164: scheduler decision + policy for downstream transforms
+    schedulerDecision,
+    schedulerPolicy,
   };
 }
 

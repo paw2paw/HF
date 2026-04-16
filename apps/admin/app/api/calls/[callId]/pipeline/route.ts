@@ -341,11 +341,13 @@ async function runBatchedCallerAnalysis(
   const measureParams = Array.from(paramMap.values());
 
   // Check if LEARN-ASSESS-001 (or any spec with assessmentMode) is active.
-  // Learning-assessment is a skill-scoring path (curriculum mastery), so it is
-  // also gated by skipMeasure — event-gated calls must NOT write mastery scores.
-  const assessmentSpec = skipMeasure
-    ? null
-    : learnSpecs.find((s) => (s.config as SpecConfig)?.assessmentMode === "curriculum_mastery");
+  // #164: LEARN-ASSESS runs unconditionally. Retrieval practice injects questions
+  // on every call (including teach-mode), and the learning-assessment path picks
+  // up answers from the transcript. The event-gate (skipMeasure) only blocks
+  // MEASURE parameter scoring, not curriculum mastery tracking.
+  const assessmentSpec = learnSpecs.find(
+    (s) => (s.config as SpecConfig)?.assessmentMode === "curriculum_mastery",
+  );
   let moduleContext: Awaited<ReturnType<typeof loadCurrentModuleContext>> = null;
 
   if (assessmentSpec) {
