@@ -145,10 +145,8 @@ export function CourseDesignTab({
     saveConfig(welcome, updated);
   }, [welcome, nps, saveConfig]);
 
-  // Session info from playbook config
-  const sessionCount = (playbookConfig?.sessionCount as number) || null;
+  // Duration from playbook config (sessionCount is now just a budget, not pacing)
   const durationMins = (playbookConfig?.durationMins as number) || null;
-  const lessonPlanMode = (playbookConfig?.lessonPlanMode as string) || 'structured';
 
   // Overview-derived data (from absorbed CourseOverviewTab)
   const pbConfig = (playbookConfig || {}) as PlaybookConfig;
@@ -264,15 +262,13 @@ export function CourseDesignTab({
           <div className="hf-section-title hf-mb-sm">Learning Sessions</div>
           <div className="cdt-info-grid">
             <div className="cdt-info-item">
-              <span className="hf-text-xs hf-text-muted">Mode</span>
-              <span className="hf-text-sm hf-text-bold">
-                {lessonPlanMode === 'continuous' ? 'Continuous (scheduler-driven)' : 'Structured'}
-              </span>
+              <span className="hf-text-xs hf-text-muted">Pacing</span>
+              <span className="hf-text-sm hf-text-bold">Scheduler-driven</span>
             </div>
-            {sessionCount && (
+            {(playbookConfig?.sessionCount as number) > 0 && (
               <div className="cdt-info-item">
-                <span className="hf-text-xs hf-text-muted">Sessions</span>
-                <span className="hf-text-sm hf-text-bold">{sessionCount}</span>
+                <span className="hf-text-xs hf-text-muted">Session budget</span>
+                <span className="hf-text-sm hf-text-bold">{playbookConfig?.sessionCount as number}</span>
               </div>
             )}
             {durationMins && (

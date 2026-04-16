@@ -18,7 +18,7 @@ export const CONVERSATIONAL_TOOLS: AITool[] = [
       "Valid field keys: institutionName, typeSlug, websiteUrl, groupName, groupId, courseName, subjectDiscipline, " +
       "interactionPattern, teachingMode, audience, learningOutcomes, " +
       "welcomeMessage, sessionCount, durationMins, " +
-      "planEmphasis, assessments, behaviorTargets, lessonPlanModel, " +
+      "planEmphasis, assessments, behaviorTargets, " +
       "existingInstitutionId, existingDomainId, defaultDomainKind, " +
       "physicalMaterials, personalityPreset, personalityDescription, " +
       "courseContext, assessmentTargets, constraints, communityMode, " +

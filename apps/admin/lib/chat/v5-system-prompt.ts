@@ -454,7 +454,7 @@ Amendment tiers:
 - **Post-creation config**: welcome, sessions, personality → update_setup AND update_course_config.
 - **Post-creation structural**: course name, institution, approach → explain can't change, offer new course.
 
-⚠️ Session count/duration changes (post-creation): Tell user to click **Regenerate Plan**.
+⚠️ Session budget/duration changes (post-creation): update via update_course_config.
 
 {{amendmentTier}}`;
 
@@ -573,7 +573,7 @@ export async function buildV5SystemPrompt(
     }
     if (pedagogy.suggestedSessionCount) {
       lines.push(
-        `- **sessionCount: ${pedagogy.suggestedSessionCount}** — the course reference suggests a soft budget of ${pedagogy.suggestedSessionCount} calls. Use this as the proposed session count.`,
+        `- **sessionCount: ${pedagogy.suggestedSessionCount}** — the course reference suggests a soft budget of ${pedagogy.suggestedSessionCount} calls. This is a commercial limit, not a pacing plan.`,
       );
     }
     if (pedagogy.pedagogicalPreset) {
@@ -599,12 +599,9 @@ export async function buildV5SystemPrompt(
 - recall, comprehension (default), practice, syllabus
 
 ### Session structure
-- Count: 3, 5, 8, or 12 (default: 5)
+- Budget: 3, 5, 8, or 12 (optional soft cap for pricing — leave blank for open-ended)
 - Duration: 15, 20, 30, 45, or 60 minutes (default: 30)
 - Coverage: breadth, balanced (default), depth
-
-### Lesson plan model (lessonPlanModel)
-- direct, 5e, spiral, mastery, project
 ${pedagogyOverlay}`
     : "";
 
