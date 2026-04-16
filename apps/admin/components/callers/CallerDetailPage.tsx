@@ -780,18 +780,6 @@ export default function CallerDetailPage() {
             ✨ Ask AI
           </button>
 
-          {/* Tune Button — opens persistent sidebar */}
-          {composedPrompts.length > 0 && (
-            <button
-              onClick={() => setTunerOpen(!tunerOpen)}
-              title="Adjust teaching style and behaviour targets"
-              className={`cdp-tune-btn${tunerOpen ? " cdp-tune-btn--active" : ""}`}
-            >
-              <SlidersHorizontal size={14} />
-              Tune
-            </button>
-          )}
-
           {/* Export Data Button (GDPR SAR) */}
           <button
             onClick={async () => {
@@ -901,6 +889,18 @@ export default function CallerDetailPage() {
             </span>
           );
         })}
+
+        {/* Tune toggle — right-aligned in tab bar */}
+        {composedPrompts.length > 0 && (
+          <button
+            onClick={() => setTunerOpen(!tunerOpen)}
+            title="Adjust teaching style and behaviour targets"
+            className={`cdp-tune-btn${tunerOpen ? " cdp-tune-btn--active" : ""}`}
+          >
+            <SlidersHorizontal size={14} />
+            Tune
+          </button>
+        )}
       </div>
 
       {/* Section Content */}

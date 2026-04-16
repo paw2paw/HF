@@ -28,7 +28,7 @@
   border-left: 1px solid var(--border-default);
   background: var(--surface-primary);
   overflow-y: auto;
-  max-height: calc(100vh - 160px);
+  height: calc(100vh - 44px); /* full viewport minus sticky tab bar */
   position: sticky;
   top: 44px; /* below sticky tab bar */
   display: flex;
@@ -585,6 +585,11 @@
 @keyframes cdp-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ── Tune button in tab bar — push to far right ── */
+.cdp-tab-bar .cdp-tune-btn {
+  margin-left: auto;
 }
 
 /* ── Profile section divider ── */
