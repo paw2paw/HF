@@ -1,4 +1,4 @@
-/* ── Uplift Tab ─────────────────────────────────────── */
+/* ── Uplift Tab — Premium Proof-of-Improvement View ─── */
 
 .uplift-root {
   display: flex;
@@ -6,103 +6,242 @@
   gap: 24px;
 }
 
-/* ── Headline Strip ─────────────────────────────────── */
+/* ── Hero Ring Section ──────────────────────────────── */
 
-.uplift-headline-strip {
+.uplift-hero {
   display: flex;
-  gap: 12px;
+  justify-content: center;
+  gap: 40px;
+  padding: 32px 24px;
   flex-wrap: wrap;
 }
 
-.uplift-delta-card {
-  flex: 1;
-  min-width: 120px;
+.uplift-ring-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 16px 12px;
+  gap: 8px;
+  min-width: 120px;
 }
 
-.uplift-delta-label {
+.uplift-ring-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uplift-ring-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.uplift-ring-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.uplift-ring-sub {
   font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.uplift-ring-label {
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
-.uplift-delta-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.uplift-delta-sub {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.uplift-delta-badge {
+.uplift-ring-delta {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  font-family: ui-monospace, monospace;
   padding: 2px 8px;
   border-radius: 10px;
+  margin-top: 2px;
 }
 
-.uplift-delta-badge--positive {
+.uplift-ring-delta--positive {
   color: var(--status-success-text);
   background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
 }
 
-.uplift-delta-badge--negative {
+.uplift-ring-delta--negative {
   color: var(--status-error-text);
   background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
 }
 
-.uplift-delta-badge--neutral {
+.uplift-ring-delta--neutral {
   color: var(--text-muted);
-  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
 }
 
-.uplift-delta-awaiting {
-  font-size: 12px;
+.uplift-ring-awaiting {
+  font-size: 11px;
   color: var(--text-muted);
   font-style: italic;
 }
 
-/* ── Section Layout ─────────────────────────────────── */
+/* Ring animation */
+@keyframes uplift-ring-fill {
+  from { stroke-dashoffset: var(--ring-circumference); }
+  to { stroke-dashoffset: var(--ring-offset); }
+}
+
+.uplift-ring-progress {
+  animation: uplift-ring-fill 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Ring track (background) */
+.uplift-ring-track {
+  opacity: 0.12;
+}
+
+/* ── Collapsible Section ────────────────────────────── */
 
 .uplift-section {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.uplift-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.uplift-section-header:hover {
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
+
+.uplift-section-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.uplift-section-icon--modules {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.uplift-section-icon--goals {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.uplift-section-icon--trends {
+  background: color-mix(in srgb, #8b5cf6 12%, transparent);
+  color: #8b5cf6;
+}
+
+.uplift-section-icon--adapt {
+  background: color-mix(in srgb, var(--status-warning-text) 12%, transparent);
+  color: var(--status-warning-text);
+}
+
+.uplift-section-icon--trajectory {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.uplift-section-icon--engage {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.uplift-section-title-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.uplift-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.uplift-section-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.uplift-section-badge {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--accent-primary);
+}
+
+.uplift-section-chevron {
+  color: var(--text-muted);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.uplift-section-chevron--open {
+  transform: rotate(180deg);
+}
+
+.uplift-section-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.uplift-section-body--open {
+  grid-template-rows: 1fr;
+}
+
+.uplift-section-body-inner {
+  overflow: hidden;
+}
+
+.uplift-section-content {
+  padding: 0 20px 20px;
+}
+
+/* ── Module Mastery Bars ────────────────────────────── */
+
+.uplift-modules {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.uplift-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-default);
-}
-
-/* ── Module Progress ────────────────────────────────── */
-
-.uplift-module-row {
+.uplift-mod-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 0;
 }
 
-.uplift-module-name {
-  flex: 0 0 200px;
+.uplift-mod-name {
+  flex: 0 0 180px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
@@ -111,170 +250,243 @@
   text-overflow: ellipsis;
 }
 
-.uplift-module-bar-track {
+.uplift-mod-bar-track {
   flex: 1;
-  height: 10px;
+  height: 12px;
   background: var(--surface-secondary);
-  border-radius: 5px;
+  border-radius: 6px;
   overflow: hidden;
+  position: relative;
 }
 
-.uplift-module-bar-fill {
+.uplift-mod-bar-fill {
   height: 100%;
-  border-radius: 5px;
-  background: var(--accent-primary);
-  transition: width 0.3s ease;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 70%, var(--status-success-text)));
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.uplift-module-bar-fill--complete {
-  background: var(--status-success-text);
+.uplift-mod-bar-fill--complete {
+  background: linear-gradient(90deg, var(--status-success-text), color-mix(in srgb, var(--status-success-text) 70%, var(--accent-primary)));
 }
 
-.uplift-module-pct {
+.uplift-mod-pct {
   flex: 0 0 42px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: right;
-}
-
-.uplift-module-status {
-  flex: 0 0 80px;
-  font-size: 11px;
-  text-align: right;
-}
-
-.uplift-module-status--completed { color: var(--status-success-text); }
-.uplift-module-status--in_progress { color: var(--accent-primary); }
-.uplift-module-status--not_started { color: var(--text-muted); }
-
-/* ── Goals ──────────────────────────────────────────── */
-
-.uplift-goal-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-
-.uplift-goal-type {
-  flex: 0 0 auto;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
-}
-
-.uplift-goal-name {
-  flex: 1;
   font-size: 13px;
-  color: var(--text-primary);
-}
-
-.uplift-goal-bar-track {
-  flex: 0 0 120px;
-  height: 8px;
-  background: var(--surface-secondary);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.uplift-goal-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  background: var(--accent-primary);
-  transition: width 0.3s ease;
-}
-
-.uplift-goal-pct {
-  flex: 0 0 36px;
-  font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
   color: var(--text-primary);
   text-align: right;
 }
 
-.uplift-goal-status {
-  flex: 0 0 auto;
+.uplift-mod-calls {
+  flex: 0 0 50px;
   font-size: 11px;
-  font-weight: 500;
+  color: var(--text-muted);
+  text-align: right;
 }
 
-.uplift-goal-status--COMPLETED { color: var(--status-success-text); }
-.uplift-goal-status--ACTIVE { color: var(--accent-primary); }
-.uplift-goal-status--PAUSED { color: var(--text-muted); }
+/* ── Goal Cards ─────────────────────────────────────── */
 
-/* ── Score Trends ───────────────────────────────────── */
-
-.uplift-trend-grid {
+.uplift-goals {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
 }
 
-.uplift-trend-card {
+.uplift-goal-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  transition: box-shadow 0.15s ease;
+}
+
+.uplift-goal-card:hover {
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+.uplift-goal-ring-wrap {
+  flex-shrink: 0;
+}
+
+.uplift-goal-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.uplift-goal-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uplift-goal-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.uplift-goal-type {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.uplift-goal-status--COMPLETED {
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
+  color: var(--status-success-text);
+}
+
+.uplift-goal-pct {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+}
+
+/* ── Score Trends Grid ──────────────────────────────── */
+
+.uplift-trends {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.uplift-trend-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.uplift-trend-card:hover {
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.uplift-trend-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .uplift-trend-name {
-  flex: 1;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uplift-trend-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
 }
 
 .uplift-trend-avg {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
   color: var(--text-primary);
 }
 
-.uplift-trend-direction {
-  font-size: 12px;
-  font-weight: 500;
+.uplift-trend-dir {
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.uplift-trend-direction--up { color: var(--status-success-text); }
-.uplift-trend-direction--down { color: var(--status-error-text); }
-.uplift-trend-direction--stable { color: var(--text-muted); }
+.uplift-trend-dir--up { color: var(--status-success-text); }
+.uplift-trend-dir--down { color: var(--status-error-text); }
+.uplift-trend-dir--stable { color: var(--text-muted); }
 
 /* ── Adaptation Evidence ────────────────────────────── */
+
+.uplift-adapt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
 .uplift-adapt-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
 }
 
 .uplift-adapt-name {
-  flex: 0 0 160px;
+  flex: 0 0 140px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
-.uplift-adapt-shift {
+.uplift-adapt-viz {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
 }
 
-.uplift-adapt-arrow {
+.uplift-adapt-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-primary);
+  border-radius: 3px;
+  position: relative;
+}
+
+.uplift-adapt-bar-default {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background: var(--text-muted);
+  border-radius: 1px;
+  opacity: 0.5;
+}
+
+.uplift-adapt-bar-current {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--accent-primary);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.uplift-adapt-values {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
   color: var(--text-muted);
 }
 
 .uplift-adapt-current {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -285,27 +497,97 @@
   border-radius: 8px;
 }
 
-/* ── Engagement Strip ───────────────────────────────── */
-
-.uplift-engagement-strip {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding: 12px 0;
+.uplift-adapt-delta--positive {
+  color: var(--status-success-text);
+  background: color-mix(in srgb, var(--status-success-text) 12%, transparent);
 }
 
-.uplift-engagement-item {
+.uplift-adapt-delta--negative {
+  color: var(--status-error-text);
+  background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
+}
+
+/* ── Engagement Strip ───────────────────────────────── */
+
+.uplift-engage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.uplift-engage-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 4px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  background: var(--surface-secondary);
+}
+
+.uplift-engage-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
   color: var(--text-primary);
 }
 
-.uplift-engagement-label {
+.uplift-engage-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
-.uplift-engagement-value {
-  font-weight: 600;
+.uplift-engage-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Loading shimmer ────────────────────────────────── */
+
+@keyframes uplift-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.uplift-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+}
+
+.uplift-loading-bar {
+  height: 16px;
+  border-radius: 8px;
+  background: linear-gradient(90deg,
+    var(--surface-secondary) 25%,
+    color-mix(in srgb, var(--surface-secondary) 60%, var(--surface-primary)) 50%,
+    var(--surface-secondary) 75%);
+  background-size: 200% 100%;
+  animation: uplift-shimmer 1.5s ease-in-out infinite;
+}
+
+.uplift-loading-bar--short { width: 60%; }
+.uplift-loading-bar--medium { width: 80%; }
+.uplift-loading-bar--long { width: 100%; }
+
+.uplift-loading-rings {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+
+.uplift-loading-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(90deg,
+    var(--surface-secondary) 25%,
+    color-mix(in srgb, var(--surface-secondary) 60%, var(--surface-primary)) 50%,
+    var(--surface-secondary) 75%);
+  background-size: 200% 100%;
+  animation: uplift-shimmer 1.5s ease-in-out infinite;
 }
