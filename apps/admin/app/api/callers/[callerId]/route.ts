@@ -114,7 +114,7 @@ export async function GET(
         },
       }),
 
-      // Active memories (not superseded, not expired), deduplicated by normalizedKey
+      // Active memories (not superseded, not expired)
       prisma.callerMemory.findMany({
         where: {
           callerId: callerId,
@@ -124,8 +124,8 @@ export async function GET(
             { expiresAt: { gt: new Date() } },
           ],
         },
-        orderBy: [{ category: "asc" }, { confidence: "desc" }],
-        take: 200, // fetch extra to allow dedup
+        orderBy: [{ category: "asc" }, { extractedAt: "desc" }],
+        take: 100,
         select: {
           id: true,
           category: true,
@@ -138,17 +138,6 @@ export async function GET(
           extractedAt: true,
           expiresAt: true,
         },
-      }).then(raw => {
-        // Deduplicate by normalizedKey — keep highest confidence per key
-        const seen = new Map<string, typeof raw[0]>();
-        for (const m of raw) {
-          const dedup = m.normalizedKey || m.key;
-          const existing = seen.get(dedup);
-          if (!existing || (m.confidence ?? 0) > (existing.confidence ?? 0)) {
-            seen.set(dedup, m);
-          }
-        }
-        return Array.from(seen.values()).slice(0, 100);
       }),
 
       // Memory summary

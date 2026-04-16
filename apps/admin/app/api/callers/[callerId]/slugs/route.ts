@@ -249,7 +249,7 @@ export async function GET(
           type: "spec",
           name: category,
           meta: { count: categoryMemories.length },
-          children: categoryMemories.slice(0, 10).map((mem) => ({
+          children: categoryMemories.map((mem) => ({
             id: mem.id,
             type: "variable" as const,
             name: mem.key,
@@ -262,14 +262,6 @@ export async function GET(
             },
           })),
         };
-
-        if (categoryMemories.length > 10) {
-          categoryNode.children!.push({
-            id: `memory-${category}-more`,
-            type: "value",
-            name: `... and ${categoryMemories.length - 10} more`,
-          });
-        }
 
         memoriesCategory.children!.push(categoryNode);
       }

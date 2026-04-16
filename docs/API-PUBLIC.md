@@ -1033,6 +1033,28 @@ Compute trust-weighted progress for a caller across all active curricula
 
 ---
 
+### `GET` /api/v1/callers/:callerId/uplift
+
+Compute uplift metrics for a learner — survey deltas, score trends, adaptation evidence, engagement
+
+**Auth**: Session · **Scope**: `callers:read`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| callerId | path | string | Yes | The caller ID |
+
+**Response** `200`
+```json
+{ ok: true, uplift: UpliftData }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Caller not found" }
+```
+
+---
+
 ### `POST` /api/v1/callers/merge
 
 Merge multiple source callers into a single target caller. Moves all data (calls, memories, observations, scores, identities, composed prompts, slug selections) from source callers to the target. Handles unique constraints by merging personality, personality profiles, memory summaries, caller targets, and caller attributes using weighted averages. Re-sequences calls chronologically. Deletes source callers after merge.
