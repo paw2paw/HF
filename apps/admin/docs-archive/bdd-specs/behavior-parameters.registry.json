@@ -1,7 +1,7 @@
 {
   "version": "2.0",
-  "description": "GENERATED FROM DATABASE - DO NOT EDIT",
-  "generatedAt": "2026-02-10T15:03:58.368Z",
+  "description": "GENERATED FROM DATABASE - enriched BEH-* names 2026-04-16",
+  "generatedAt": "2026-04-16T17:47:52.532Z",
   "sourceOfTruth": "Parameter table in database",
   "parameters": [
     {
@@ -143,59 +143,75 @@
     },
     {
       "parameterId": "BEH-ABSTRACT-OK",
-      "name": "BEH ABSTRACT OK",
-      "definition": "Comfortable with theoretical concepts",
+      "name": "Abstract Comfort",
+      "definition": "How comfortable the learner is with theoretical and abstract concepts versus concrete ones.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Abstract Thinker: Comfortable with theory, models, and generalisations",
+      "interpretationLow": "Concrete Thinker: Needs tangible examples and real-world grounding"
     },
     {
       "parameterId": "BEH-ACTION-VERBS",
-      "name": "BEH ACTION VERBS",
-      "definition": "Ground in action rather than abstraction",
+      "name": "Action Language",
+      "definition": "Whether the AI uses action-oriented, practical language versus abstract terminology.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Action-Oriented: Uses 'do', 'build', 'try' — grounds learning in activity",
+      "interpretationLow": "Conceptual: Uses 'consider', 'reflect', 'understand' — grounds learning in thought"
     },
     {
       "parameterId": "BEH-ADVANCE-READINESS",
-      "name": "BEH ADVANCE READINESS",
-      "definition": "Ready to move to next module",
+      "name": "Advance Readiness",
+      "definition": "How quickly the AI moves the learner to new material based on demonstrated understanding.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Fast Progression: Moves to new topics as soon as basic competence is shown",
+      "interpretationLow": "Thorough Mastery: Stays on a topic until deep understanding is confirmed"
     },
     {
       "parameterId": "BEH-ANALOGY-USAGE",
-      "name": "BEH ANALOGY USAGE",
-      "definition": "Analogies can unlock understanding",
+      "name": "Analogy Use",
+      "definition": "How often the AI uses analogies and metaphors to bridge from familiar concepts to new ones.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Analogy-Rich: Frequently uses comparisons and metaphors to explain ideas",
+      "interpretationLow": "Direct Explanation: Explains concepts in their own terms without analogies"
     },
     {
       "parameterId": "BEH-APPROACH-SWITCHING",
-      "name": "BEH APPROACH SWITCHING",
-      "definition": "Switch between modalities freely",
+      "name": "Approach Switching",
+      "definition": "How freely the AI switches between different teaching modalities during a session.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Flexible: Switches freely between visual, auditory, and hands-on approaches",
+      "interpretationLow": "Consistent: Sticks with one approach throughout the session"
     },
     {
       "parameterId": "BEH-CHALLENGE-LEVEL",
-      "name": "BEH CHALLENGE LEVEL",
-      "definition": "Ready for harder problems",
+      "name": "Challenge Level",
+      "definition": "The difficulty of questions and problems the AI presents to the learner.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Stretching: Presents problems just beyond current ability to promote growth",
+      "interpretationLow": "Comfortable: Keeps problems within easy reach to build confidence"
     },
     {
       "parameterId": "BEH-CHECK-FOR-UNDERSTANDING",
-      "name": "BEH CHECK FOR UNDERSTANDING",
-      "definition": "Frequently verify comprehension",
+      "name": "Comprehension Checks",
+      "definition": "How frequently the AI pauses to verify the learner has understood before moving on.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Frequent Checks: Regularly asks the learner to explain back or demonstrate understanding",
+      "interpretationLow": "Trust & Continue: Assumes understanding unless the learner signals confusion"
     },
     {
       "parameterId": "BEH-CONCEPT-DENSITY",
-      "name": "BEH CONCEPT DENSITY",
-      "definition": "Can handle more concepts at once",
+      "name": "Concept Density",
+      "definition": "How many new ideas the AI introduces in a single exchange.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Dense: Introduces multiple connected ideas per exchange for fast learners",
+      "interpretationLow": "Sparse: One idea at a time with space to absorb before adding more"
     },
     {
       "parameterId": "BEH-CONVERSATIONAL-DEPTH",
@@ -208,31 +224,39 @@
     },
     {
       "parameterId": "BEH-CONVERSATIONAL-TONE",
-      "name": "BEH CONVERSATIONAL TONE",
-      "definition": "Keep it casual and natural",
+      "name": "Conversational Tone",
+      "definition": "How casual and natural the AI's language is during teaching.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Chatty: Relaxed, informal, conversational — like talking to a friend",
+      "interpretationLow": "Formal: Structured, professional, precise — like a textbook"
     },
     {
       "parameterId": "BEH-DEFINITION-PRECISION",
-      "name": "BEH DEFINITION PRECISION",
-      "definition": "R/W learner values precise definitions",
+      "name": "Definition Precision",
+      "definition": "How precisely the AI defines technical terms and concepts.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Precise: Uses exact definitions, technical accuracy, formal terminology",
+      "interpretationLow": "Approximate: Uses plain-language descriptions, favours intuition over precision"
     },
     {
       "parameterId": "BEH-DIAGRAM-LANGUAGE",
-      "name": "BEH DIAGRAM LANGUAGE",
-      "definition": "Describe concepts as visual structures",
+      "name": "Diagram Language",
+      "definition": "How much the AI describes concepts using visual/spatial structures (diagrams, charts, maps).",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Visual Structures: Describes layouts, diagrams, and spatial relationships frequently",
+      "interpretationLow": "Narrative: Explains through stories and sequential descriptions"
     },
     {
       "parameterId": "BEH-DIRECTNESS",
-      "name": "BEH DIRECTNESS",
-      "definition": "Set directness high - no-nonsense communication",
+      "name": "Directness",
+      "definition": "How straightforward and to-the-point the AI's communication style is.",
       "domainGroup": "personality-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Direct: Gets to the point quickly, no-nonsense, efficient communication",
+      "interpretationLow": "Diplomatic: Softens messages, uses hedging language, approaches topics gently"
     },
     {
       "parameterId": "BEH-EMPATHY-RATE",
@@ -245,52 +269,66 @@
     },
     {
       "parameterId": "BEH-EXAMPLE-RICHNESS",
-      "name": "BEH EXAMPLE RICHNESS",
-      "definition": "More concrete examples needed",
+      "name": "Example Richness",
+      "definition": "How many concrete examples the AI provides when explaining a concept.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Example-Rich: Multiple worked examples and illustrations for each concept",
+      "interpretationLow": "Minimal Examples: Brief or no examples — relies on abstract explanation"
     },
     {
       "parameterId": "BEH-EXPLANATION-VARIETY",
-      "name": "BEH EXPLANATION VARIETY",
-      "definition": "Try different explanation approaches",
+      "name": "Explanation Variety",
+      "definition": "Whether the AI tries different approaches when a learner doesn't understand the first time.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Multi-Angle: Rephrases, uses different models, and tries new angles automatically",
+      "interpretationLow": "Consistent: Repeats and reinforces the same explanation with more detail"
     },
     {
       "parameterId": "BEH-FEELING-LANGUAGE",
-      "name": "BEH FEELING LANGUAGE",
-      "definition": "Use feel/sense/touch language",
+      "name": "Feeling Language",
+      "definition": "How much the AI uses sensory and emotional language (feel, sense, touch, experience).",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Kinaesthetic: Rich sensory language — 'feel the weight of', 'get a sense for'",
+      "interpretationLow": "Analytical: Factual, logical language — 'note that', 'observe that'"
     },
     {
       "parameterId": "BEH-FORMALITY",
-      "name": "BEH FORMALITY",
-      "definition": "Set formality higher - structured, organized",
+      "name": "Formality Level",
+      "definition": "How formal and structured the AI's language and interaction style is.",
       "domainGroup": "personality-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Formal: Professional, organised, uses proper grammar and structured delivery",
+      "interpretationLow": "Casual: Relaxed, conversational, uses colloquial language and flexible structure"
     },
     {
       "parameterId": "BEH-FOUNDATION-FOCUS",
-      "name": "BEH FOUNDATION FOCUS",
-      "definition": "Must fill foundational gaps",
+      "name": "Foundation Focus",
+      "definition": "How much the AI prioritises filling gaps in prerequisite knowledge before advancing.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Gap-Filling: Pauses to address missing foundations before teaching new material",
+      "interpretationLow": "Forward-Moving: Focuses on current material, addressing gaps only when they block progress"
     },
     {
       "parameterId": "BEH-GUIDED-PRACTICE",
-      "name": "BEH GUIDED PRACTICE",
-      "definition": "Practice needs heavy guidance",
+      "name": "Guided Practice",
+      "definition": "How much step-by-step support the AI provides during practice activities.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Heavily Guided: Walks through each step, provides hints and scaffolding",
+      "interpretationLow": "Independent: Sets the task and lets the learner work through it alone"
     },
     {
       "parameterId": "BEH-IMAGERY-DENSITY",
-      "name": "BEH IMAGERY DENSITY",
-      "definition": "Visual learner benefits from rich mental imagery",
+      "name": "Imagery Density",
+      "definition": "How much the AI uses vivid mental imagery and visualisation in explanations.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Image-Rich: Paints vivid mental pictures and asks learner to visualise",
+      "interpretationLow": "Text-Focused: Relies on logical reasoning and verbal explanation"
     },
     {
       "parameterId": "BEH-INSIGHT-FREQUENCY",
@@ -312,17 +350,21 @@
     },
     {
       "parameterId": "BEH-INTERLEAVING",
-      "name": "BEH INTERLEAVING",
-      "definition": "Mix review with current topic",
+      "name": "Interleaving",
+      "definition": "How much the AI mixes review of previous topics into current learning.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Mixed Practice: Regularly weaves past topics into current sessions for retention",
+      "interpretationLow": "Focused Blocks: Concentrates on one topic at a time without mixing"
     },
     {
       "parameterId": "BEH-LIST-STRUCTURE",
-      "name": "BEH LIST STRUCTURE",
-      "definition": "Organize as numbered lists and hierarchies",
+      "name": "List Structure",
+      "definition": "How much the AI organises information into numbered lists, hierarchies, and structured formats.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Structured: Frequently uses numbered lists, bullet points, and clear hierarchies",
+      "interpretationLow": "Flowing: Uses natural prose and connected paragraphs"
     },
     {
       "parameterId": "BEH-MEMORY-REFERENCE",
@@ -335,31 +377,39 @@
     },
     {
       "parameterId": "BEH-MODALITY-CONSISTENCY",
-      "name": "BEH MODALITY CONSISTENCY",
-      "definition": "Stick with what works",
+      "name": "Modality Consistency",
+      "definition": "Whether the AI sticks to the learner's preferred learning modality or varies approaches.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Stick With What Works: Consistently uses the modality the learner responds to best",
+      "interpretationLow": "Mix It Up: Deliberately varies approaches even when one is working well"
     },
     {
       "parameterId": "BEH-MODALITY-VARIETY",
-      "name": "BEH MODALITY VARIETY",
-      "definition": "Use all channels based on content",
+      "name": "Modality Variety",
+      "definition": "How many different teaching channels the AI uses based on the content being taught.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Multi-Modal: Switches between visual, auditory, and kinesthetic based on content type",
+      "interpretationLow": "Single Channel: Relies on one primary teaching approach regardless of content"
     },
     {
       "parameterId": "BEH-NEW-CONTENT-RATE",
-      "name": "BEH NEW CONTENT RATE",
-      "definition": "Limit new content until review complete",
+      "name": "New Content Rate",
+      "definition": "How quickly the AI introduces fresh material versus reviewing what's already been taught.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Fast Introduction: Quickly moves to new material, minimal review time",
+      "interpretationLow": "Review First: Extensive review of existing material before introducing anything new"
     },
     {
       "parameterId": "BEH-NUANCE-EXPLORATION",
-      "name": "BEH NUANCE EXPLORATION",
-      "definition": "Explore edge cases and nuances",
+      "name": "Nuance Exploration",
+      "definition": "How deeply the AI explores edge cases, exceptions, and subtle distinctions.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Deep Nuance: Probes edge cases, exceptions, and grey areas to deepen understanding",
+      "interpretationLow": "Core Only: Sticks to the main rule or concept without exploring exceptions"
     },
     {
       "parameterId": "BEH-PACE-MATCH",
@@ -381,31 +431,39 @@
     },
     {
       "parameterId": "BEH-PAUSE-TOLERANCE",
-      "name": "BEH PAUSE TOLERANCE",
-      "definition": "Set pause tolerance high - give introverts time",
+      "name": "Pause Tolerance",
+      "definition": "How long the AI waits in silence before prompting or moving on.",
       "domainGroup": "personality-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Patient Silences: Comfortable with long pauses, gives ample thinking time",
+      "interpretationLow": "Quick Fill: Fills silences quickly with prompts, hints, or new content"
     },
     {
       "parameterId": "BEH-PRACTICE-EXERCISES",
-      "name": "BEH PRACTICE EXERCISES",
-      "definition": "K learner learns by doing",
+      "name": "Practice Exercises",
+      "definition": "How much the AI includes hands-on activities and exercises in the learning experience.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Activity-Heavy: Lots of exercises, drills, and hands-on tasks",
+      "interpretationLow": "Discussion-Based: Learning through conversation and explanation, few exercises"
     },
     {
       "parameterId": "BEH-PRACTICE-RATIO",
-      "name": "BEH PRACTICE RATIO",
-      "definition": "Not ready for heavy practice",
+      "name": "Practice Ratio",
+      "definition": "The balance between explanation and hands-on practice in each session.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Practice-Heavy: Most of the session is spent on exercises and application",
+      "interpretationLow": "Explanation-Heavy: Most of the session is spent on teaching and explaining"
     },
     {
       "parameterId": "BEH-PREREQUISITE-CALLBACK",
-      "name": "BEH PREREQUISITE CALLBACK",
-      "definition": "Reference back to prerequisite concepts",
+      "name": "Prerequisite Callback",
+      "definition": "How often the AI explicitly links current material back to previously learned concepts.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Frequent Links: Regularly connects new ideas to what was learned before",
+      "interpretationLow": "Standalone: Teaches each concept independently without referencing prior knowledge"
     },
     {
       "parameterId": "BEH-PROACTIVE",
@@ -418,17 +476,21 @@
     },
     {
       "parameterId": "BEH-PROBING-QUESTIONS",
-      "name": "BEH PROBING QUESTIONS",
-      "definition": "Deepen with probing questions",
+      "name": "Probing Questions",
+      "definition": "How often the AI asks deeper follow-up questions to extend the learner's thinking.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Socratic: Frequently asks 'why' and 'what if' to push thinking further",
+      "interpretationLow": "Accepting: Accepts answers at face value without probing deeper"
     },
     {
       "parameterId": "BEH-PRODUCTIVE-STRUGGLE",
-      "name": "BEH PRODUCTIVE STRUGGLE",
-      "definition": "Let them work through challenges",
+      "name": "Productive Struggle",
+      "definition": "How long the AI lets a learner work through difficulty before stepping in to help.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Patient Struggle: Lets the learner wrestle with the problem, offering encouragement",
+      "interpretationLow": "Quick Rescue: Steps in quickly with hints or answers when difficulty is detected"
     },
     {
       "parameterId": "BEH-QUESTION-RATE",
@@ -441,24 +503,30 @@
     },
     {
       "parameterId": "BEH-REAL-WORLD-EXAMPLES",
-      "name": "BEH REAL WORLD EXAMPLES",
-      "definition": "Connect to practical application",
+      "name": "Real-World Examples",
+      "definition": "How much the AI connects abstract concepts to practical, everyday applications.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Practical: Frequently links ideas to real-life situations and applications",
+      "interpretationLow": "Theoretical: Stays within the academic or abstract domain"
     },
     {
       "parameterId": "BEH-REPETITION-FREQUENCY",
-      "name": "BEH REPETITION FREQUENCY",
-      "definition": "Repeat key concepts",
+      "name": "Repetition Frequency",
+      "definition": "How often the AI restates or revisits key concepts within a session.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Frequent Repetition: Deliberately restates key ideas multiple times per session",
+      "interpretationLow": "Say Once: States concepts once and moves on without repetition"
     },
     {
       "parameterId": "BEH-REPETITION-OFFER",
-      "name": "BEH REPETITION OFFER",
-      "definition": "Offer to repeat key points",
+      "name": "Repetition Offers",
+      "definition": "How proactively the AI offers to repeat or rephrase key points.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Proactive Repeats: Offers to say things again or differently without being asked",
+      "interpretationLow": "On Request: Only repeats when the learner explicitly asks"
     },
     {
       "parameterId": "BEH-RESPECT-EXPERIENCE",
@@ -471,38 +539,48 @@
     },
     {
       "parameterId": "BEH-RESPONSE-LEN",
-      "name": "BEH RESPONSE LEN",
-      "definition": "Set response length moderate - back and forth dialogue",
+      "name": "Response Length",
+      "definition": "How long the AI's typical responses are in a conversational exchange.",
       "domainGroup": "personality-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Longer Turns: Extended responses with more content per exchange",
+      "interpretationLow": "Short Turns: Brief responses that encourage quick back-and-forth dialogue"
     },
     {
       "parameterId": "BEH-RHYTHM-ATTENTION",
-      "name": "BEH RHYTHM ATTENTION",
-      "definition": "Cadence and flow of speech matters",
+      "name": "Rhythm Attention",
+      "definition": "How much the AI attends to the pace, cadence, and flow of spoken delivery.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Rhythmic: Varies pace, uses pauses deliberately, attends to speech rhythm",
+      "interpretationLow": "Steady: Maintains a consistent pace without deliberate rhythmic variation"
     },
     {
       "parameterId": "BEH-SCAFFOLDING",
-      "name": "BEH SCAFFOLDING",
-      "definition": "High mastery needs minimal scaffolding",
+      "name": "Scaffolding",
+      "definition": "How much structural support the AI provides to help the learner tackle complex tasks.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Heavy Scaffolding: Breaks tasks into small steps, provides frameworks and templates",
+      "interpretationLow": "Minimal Scaffolding: Presents the full task and lets the learner structure their approach"
     },
     {
       "parameterId": "BEH-SPACED-RETRIEVAL-PRIORITY",
-      "name": "BEH SPACED RETRIEVAL PRIORITY",
-      "definition": "Must address declining mastery",
+      "name": "Spaced Retrieval",
+      "definition": "How aggressively the AI schedules review of material showing signs of fading.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Aggressive Review: Prioritises retrieval practice for declining mastery areas",
+      "interpretationLow": "Forward Focus: Prioritises new material over reviewing fading knowledge"
     },
     {
       "parameterId": "BEH-SPATIAL-METAPHOR",
-      "name": "BEH SPATIAL METAPHOR",
-      "definition": "Use spatial organization and metaphors",
+      "name": "Spatial Metaphors",
+      "definition": "How much the AI uses spatial organisation and location-based metaphors.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Spatial: Uses 'above', 'below', 'left of', 'inside' — maps concepts to space",
+      "interpretationLow": "Sequential: Uses 'first', 'then', 'next' — maps concepts to time"
     },
     {
       "parameterId": "BEH-STORY-INVITATION",
@@ -515,45 +593,57 @@
     },
     {
       "parameterId": "BEH-TERMINOLOGY-FORMAL",
-      "name": "BEH TERMINOLOGY FORMAL",
-      "definition": "Use proper technical terminology",
+      "name": "Technical Terminology",
+      "definition": "How much the AI uses formal, subject-specific vocabulary versus everyday language.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Technical: Uses proper subject terminology and expects learner to learn it",
+      "interpretationLow": "Plain Language: Avoids jargon, uses everyday words to explain concepts"
     },
     {
       "parameterId": "BEH-TURN-LENGTH",
-      "name": "BEH TURN LENGTH",
-      "definition": "Set turn length higher - more content per exchange",
+      "name": "Turn Length",
+      "definition": "How much content the AI delivers in each conversational turn.",
       "domainGroup": "engagement",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Extended: Longer, more content-rich turns with multiple points per exchange",
+      "interpretationLow": "Brief: Short, punchy turns that keep the conversation fast-paced"
     },
     {
       "parameterId": "BEH-VERBAL-ELABORATION",
-      "name": "BEH VERBAL ELABORATION",
-      "definition": "Auditory learner benefits from rich verbal explanation",
+      "name": "Verbal Elaboration",
+      "definition": "How richly and extensively the AI elaborates on concepts through spoken explanation.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Elaborate: Extended, detailed verbal explanations with multiple angles",
+      "interpretationLow": "Concise: Brief, to-the-point explanations — says it once, clearly"
     },
     {
       "parameterId": "BEH-WARMTH",
-      "name": "BEH WARMTH",
-      "definition": "Set warmth high - welcome back warmly",
+      "name": "Warmth",
+      "definition": "How warm, friendly, and welcoming the AI's tone and manner is.",
       "domainGroup": "engagement",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Warm: Friendly greetings, encouraging language, emotional warmth",
+      "interpretationLow": "Neutral: Professional and pleasant but emotionally reserved"
     },
     {
       "parameterId": "BEH-WORKED-EXAMPLES",
-      "name": "BEH WORKED EXAMPLES",
-      "definition": "Show worked examples first",
+      "name": "Worked Examples",
+      "definition": "Whether the AI demonstrates complete solutions before asking the learner to try.",
       "domainGroup": "curriculum-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Demo First: Shows fully worked examples before asking the learner to attempt",
+      "interpretationLow": "Try First: Asks the learner to attempt the problem before showing solutions"
     },
     {
       "parameterId": "BEH-WRITTEN-ALTERNATIVE",
-      "name": "BEH WRITTEN ALTERNATIVE",
-      "definition": "Consider offering written reference",
+      "name": "Written Alternatives",
+      "definition": "How much the AI offers written references, summaries, or notes alongside spoken teaching.",
       "domainGroup": "learning-adaptation",
-      "defaultTarget": 0.5
+      "defaultTarget": 0.5,
+      "interpretationHigh": "Text Support: Frequently offers written summaries, key points, or reference notes",
+      "interpretationLow": "Verbal Only: Teaches entirely through conversation without written supplements"
     },
     {
       "parameterId": "call_frequency_adaptation",
