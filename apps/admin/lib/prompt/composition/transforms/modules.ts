@@ -103,32 +103,9 @@ export function filterTeachableAssertions<T extends { sourceDocumentType?: strin
   return assertions.filter((a) => a.sourceDocumentType !== "COURSE_REFERENCE");
 }
 
-/**
- * Resolve the effective `lessonPlanMode` for a course given its curriculum
- * delivery config and playbook config.
- *
- * Priority (highest wins):
- *   1. `deliveryConfig.lessonPlanMode === 'continuous'` — set by the prompt
- *      composer pipeline directly on the curriculum.
- *   2. `playbookConfig.lessonPlanMode === 'continuous'` — set by the V5
- *      conversational wizard when the uploaded COURSE_REFERENCE declared a
- *      continuous/adaptive teaching cadence (#167).
- *   3. `playbookConfig.teachingMode === 'comprehension'` — comprehension
- *      courses are inherently linear reading courses that interleave skills
- *      over a shared passage rather than sequencing through discrete sessions.
- *   4. Everything else defaults to 'structured'.
- *
- * Exported for regression tests — see tests/lib/composition/modules.test.ts.
- */
-export function resolveLessonPlanMode(
-  deliveryConfig: Record<string, unknown> | null | undefined,
-  playbookConfig: Record<string, unknown> | null | undefined,
-): 'continuous' | 'structured' {
-  if ((deliveryConfig?.lessonPlanMode as string) === 'continuous') return 'continuous';
-  if ((playbookConfig?.lessonPlanMode as string) === 'continuous') return 'continuous';
-  if ((playbookConfig?.teachingMode as string) === 'comprehension') return 'continuous';
-  return 'structured';
-}
+// resolveLessonPlanMode() deleted — all courses now use scheduler-driven
+// continuous pacing. Session-based structured mode is removed.
+// See ADR: docs/decisions/2026-04-14-outcome-graph-pacing.md
 
 // =============================================================================
 // CURRICULUM METADATA TYPES (from CURRICULUM_PROGRESS_V1 contract)
@@ -443,107 +420,17 @@ export async function computeSharedState(
   let nextModule = nextModuleIndex < modules.length ? modules[nextModuleIndex] : null;
 
   // =========================================================================
-  // LESSON PLAN SESSION TRACKING
-  // If a lesson plan exists and onboarding is complete, use the lesson plan
-  // entry for the current session to override module selection.
+  // SCHEDULER-DRIVEN PACING — all courses use the scheduler
+  // Session-based structured mode removed. See ADR: outcome-graph-pacing.md
   // =========================================================================
-  let currentSessionNumber: number | null = null;
-  let lessonPlanSessionType: string | null = null;
   let lessonPlanEntry: SharedComputedState['lessonPlanEntry'] = null;
-
-  // Load lesson plan from Subject curriculum deliveryConfig
-  const subjects = data.subjectSources?.subjects;
-  let lessonPlan: { estimatedSessions: number; entries: any[] } | null = null;
-  let deliveryConfig: Record<string, any> | null = null;
-
-  if (subjects?.length) {
-    for (const subject of subjects) {
-      const dc = subject.curriculum?.deliveryConfig as Record<string, any> | null;
-      if (dc?.lessonPlan?.entries?.length) {
-        lessonPlan = dc.lessonPlan;
-        deliveryConfig = dc;
-        break;
-      }
-    }
-  }
-
-  const playbookConfigForMode = data.playbooks?.[0]?.config as Record<string, unknown> | undefined;
-  const lessonPlanMode = resolveLessonPlanMode(deliveryConfig, playbookConfigForMode);
-
-  if (lessonPlan && onboardingSession?.isComplete) {
-    // Read currentSession from callerAttributes
-    const sessionAttr = data.callerAttributes.find(
-      (a) => a.key.includes(':current_session') && a.scope === 'CURRICULUM'
-    );
-    currentSessionNumber = sessionAttr?.numberValue ?? null;
-
-    if (currentSessionNumber) {
-      const entry = lessonPlan.entries.find((e: any) => e.session === currentSessionNumber);
-      if (entry) {
-        lessonPlanSessionType = entry.type;
-        lessonPlanEntry = {
-          session: entry.session,
-          type: entry.type,
-          moduleId: entry.moduleId || null,
-          moduleLabel: entry.moduleLabel || '',
-          label: entry.label || '',
-          phases: entry.phases || null,
-          learningOutcomeRefs: entry.learningOutcomeRefs || null,
-          assertionIds: entry.assertionIds || null,
-          vocabularyIds: entry.vocabularyIds || null,
-          questionIds: entry.questionIds || null,
-          media: entry.media || null,
-        };
-
-        // Merge carry-forward TPs from previous session (weak-LO assertions)
-        const carryForwardAttr = data.callerAttributes.find(
-          (a) => a.key.includes(':carry_forward_tps') && a.scope === 'CURRICULUM'
-        );
-        if (carryForwardAttr?.stringValue && lessonPlanEntry) {
-          try {
-            const carryIds: string[] = JSON.parse(carryForwardAttr.stringValue);
-            if (carryIds.length > 0) {
-              const existingIds = lessonPlanEntry.assertionIds || [];
-              // Prepend carry-forward (review first), deduplicate
-              lessonPlanEntry.assertionIds = [...new Set([...carryIds, ...existingIds])];
-              // Store carry-forward IDs for [Review] labeling in teaching-content
-              (lessonPlanEntry as any).carryForwardAssertionIds = carryIds;
-              console.log(`[modules] Merged ${carryIds.length} carry-forward TPs into session ${currentSessionNumber}`);
-            }
-          } catch { /* ignore malformed JSON */ }
-        }
-
-        // Override nextModule if entry specifies a moduleId
-        if (entry.moduleId) {
-          const entryModule = modules.find((m) => (m.id || m.slug) === entry.moduleId);
-          if (entryModule) {
-            nextModule = entryModule;
-            console.log(
-              `[modules] Lesson plan session ${currentSessionNumber}: ${entry.type} - ${entry.moduleLabel}`
-            );
-          }
-        } else {
-          console.log(
-            `[modules] Lesson plan session ${currentSessionNumber}: ${entry.type} (cross-module)`
-          );
-        }
-      } else {
-        // Session number exceeds plan — curriculum complete
-        console.log(
-          `[modules] Lesson plan complete: session ${currentSessionNumber} > ${lessonPlan.estimatedSessions} entries`
-        );
-      }
-    }
-  }
-
-  // =========================================================================
-  // CONTINUOUS MODE — working set selector replaces session-based scoping
-  // =========================================================================
   let workingSet: SharedComputedState['workingSet'] = null;
   let schedulerDecision: SharedComputedState['schedulerDecision'] = null;
   let schedulerPolicy: SharedComputedState['schedulerPolicy'] = null;
+  let schedulerTotalMastered = 0;
+  let schedulerTotalLOs = 0;
 
-  if (lessonPlanMode === 'continuous' && modules.length > 0 && specSlug && curriculumId) {
+  if (modules.length > 0 && specSlug && curriculumId) {
     try {
       const { getTpProgressBatch } = await import("@/lib/curriculum/track-progress");
       const { selectNextExchange } = await import("@/lib/pipeline/scheduler");
@@ -681,8 +568,9 @@ export async function computeSharedState(
           questionIds: null,
           media: null,
         };
-        lessonPlanSessionType = 'continuous';
-        currentSessionNumber = 1;
+        // Capture totals for isFinalSession calculation
+        schedulerTotalMastered = wsResult.totalMastered;
+        schedulerTotalLOs = wsResult.totalLOs;
 
         // Override nextModule to the frontier module
         if (wsResult.frontierModuleId) {
@@ -713,7 +601,7 @@ export async function computeSharedState(
         }
       }
     } catch (err) {
-      console.error('[modules] Continuous mode selector failed, falling back to structured:', err);
+      console.error('[modules] Scheduler failed — composition will proceed without working set:', err);
     }
   }
 
@@ -738,16 +626,17 @@ export async function computeSharedState(
   // Determine if this is the final teaching session
   const pbConfig = (data.playbooks?.[0]?.config || {}) as Record<string, any>;
   const sessionCount = pbConfig.sessionCount as number | undefined;
-  const callNumber = currentSessionNumber ?? data.recentCalls.length;
-  const isFinalBySessionCount = !!(sessionCount && sessionCount > 0 && callNumber >= sessionCount);
+  const callNumber = data.recentCalls.length + 1; // 1-based: this is the Nth call
+  const isFinalByBudget = !!(sessionCount && sessionCount > 0 && callNumber >= sessionCount);
+  const isFinalByScheduler = schedulerTotalLOs > 0 && schedulerTotalMastered >= schedulerTotalLOs;
   const isFinalByModules = modules.length > 0 && completedModules.size >= modules.length;
-  const isFinalSession = isFinalBySessionCount || isFinalByModules;
+  const isFinalSession = isFinalByBudget || isFinalByScheduler || isFinalByModules;
 
   return {
     channel,
     modules,
     isFirstCall,
-    isFirstCallInDomain, // For domain-switch re-onboarding
+    isFirstCallInDomain,
     isFinalSession,
     daysSinceLastCall,
     completedModules,
@@ -758,18 +647,12 @@ export async function computeSharedState(
     reviewType,
     reviewReason,
     thresholds,
-    // Include metadata for downstream transforms
     curriculumMetadata: metadata,
     curriculumName: curriculumInfo?.name || null,
     curriculumSpecSlug: specSlug || undefined,
-    // Lesson plan session tracking
-    currentSessionNumber,
-    lessonPlanSessionType,
+    // Scheduler-driven pacing
+    callNumber,
     lessonPlanEntry,
-    // Carry-forward TP IDs from previous session (for [Review] labeling)
-    carryForwardAssertionIds: (lessonPlanEntry as any)?.carryForwardAssertionIds as string[] | undefined,
-    // Continuous learning mode
-    lessonPlanMode,
     workingSet,
     // #142: LO ref → id map for FK-based assertion filtering in teaching-content
     loRefToIdMap,

@@ -54,6 +54,9 @@ function makeContext(personality: PersonalityData | null = null): AssembledConte
       reviewType: "",
       reviewReason: "",
       thresholds: { high: 0.65, low: 0.35 },
+      callNumber: 1,
+      channel: "voice" as const,
+      isFinalSession: false,
     },
     specConfig: {},
   };

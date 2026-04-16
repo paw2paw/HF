@@ -38,6 +38,9 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
       reviewType: "",
       reviewReason: "",
       thresholds: { high: 0.65, low: 0.35 },
+      callNumber: 1,
+      channel: "voice" as const,
+      isFinalSession: false,
     },
     specConfig: {},
     ...overrides,
@@ -135,6 +138,9 @@ describe("computePreamble transform", () => {
         reviewType: "",
         reviewReason: "",
         thresholds: { high: 0.65, low: 0.35 },
+        callNumber: 1,
+        channel: "voice" as const,
+        isFinalSession: false,
       },
     });
     const result = getTransform("computePreamble")!(null, ctx, makeSectionDef());
@@ -159,6 +165,9 @@ describe("computePreamble transform", () => {
         reviewType: "",
         reviewReason: "",
         thresholds: { high: 0.65, low: 0.35 },
+        callNumber: 1,
+        channel: "voice" as const,
+        isFinalSession: false,
       },
     });
     const result = getTransform("computePreamble")!(null, ctx, makeSectionDef());
@@ -184,6 +193,9 @@ describe("computePreamble transform", () => {
         reviewType: "",
         reviewReason: "",
         thresholds: { high: 0.65, low: 0.35 },
+        callNumber: 1,
+        channel: "voice" as const,
+        isFinalSession: false,
       },
       sections: {},
     });

@@ -234,6 +234,9 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
       reviewType: "",
       reviewReason: "",
       thresholds: { high: 0.65, low: 0.35 },
+      callNumber: 1,
+      channel: "voice" as const,
+      isFinalSession: false,
     },
     specConfig: {},
     ...overrides,
@@ -321,6 +324,9 @@ describe("transform chain: deduplicateMemories → scoreMemoryRelevance → grou
         reviewType: "",
         reviewReason: "",
         thresholds: { high: 0.65, low: 0.35 },
+        callNumber: 1,
+        channel: "voice" as const,
+        isFinalSession: false,
       },
     });
     const sectionDef = makeSectionDef({ relevanceAlpha: 0.5 });

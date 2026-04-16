@@ -461,106 +461,44 @@ registerTransform("renderTeachingContent", (
     currentModule = context.sharedState?.nextModule || context.sharedState?.moduleToReview;
   }
   let assertions = allAssertions;
-  let isContinuousMode = false;
 
-  // ── Continuous mode: scheduler-owned selection is the single source of truth (#155) ──
+  // ── Scheduler-owned selection is the single source of truth ──
   //
-  // Previously this branch silently fell through to the structured-mode priority
-  // chain when the working-set IDs didn't match current assertions (stale data,
-  // regeneration race). That produced two competing selection passes and silent
-  // TP drift. Slice 2 locks the transform to the scheduler's decision — if the
-  // IDs are stale, we log and commit to an empty renderable set rather than
-  // shadow-selecting via LO-ref matching.
-  if (context.sharedState?.lessonPlanMode === 'continuous' && context.sharedState?.workingSet) {
-    const wsIds = new Set(context.sharedState.workingSet.assertionIds);
+  // All courses use the scheduler. When a working set exists, it locks TP
+  // selection — if the IDs are stale, we log and commit to an empty renderable
+  // set rather than shadow-selecting via LO-ref matching.
+  // See ADR: docs/decisions/2026-04-14-outcome-graph-pacing.md
+  const hasSchedulerWorkingSet = !!context.sharedState?.workingSet;
+
+  if (hasSchedulerWorkingSet) {
+    const wsIds = new Set(context.sharedState!.workingSet!.assertionIds);
     const wsAssertions = allAssertions.filter((a) => wsIds.has(a.id));
 
-    // Label review TPs (reuse existing carry-forward pattern)
-    const reviewIds = new Set(context.sharedState.workingSet.reviewIds);
+    // Label review TPs
+    const reviewIds = new Set(context.sharedState!.workingSet!.reviewIds);
     assertions = wsAssertions.map((a) =>
       reviewIds.has(a.id)
         ? { ...a, assertion: `[Review from previous call] ${a.assertion}` }
         : a,
     );
-    isContinuousMode = true;
 
     if (wsAssertions.length === 0 && wsIds.size > 0) {
       console.error(
         `[teaching-content] Scheduler working set is stale: ${wsIds.size} IDs matched 0 of ${allAssertions.length} assertions. ` +
-        `NOT falling back to structured selection — continuous mode commits to scheduler output. ` +
-        `Run curriculum regeneration or investigate scheduler state.`,
+        `Committing to scheduler output — run curriculum regeneration or investigate scheduler state.`,
       );
     } else {
       console.log(
-        `[teaching-content] Continuous mode: ${assertions.length} TPs in working set ` +
+        `[teaching-content] Scheduler: ${assertions.length} TPs in working set ` +
         `(${reviewIds.size} review, ${assertions.length - reviewIds.size} new)`,
       );
     }
-  }
-
-  // ── Structured mode: session-based priority chain ──
-  if (!isContinuousMode) {
-
-  // Priority 0: Explicit assertionIds from lesson plan entry (educator-curated, most precise)
-  const explicitIds = context.sharedState?.lessonPlanEntry?.assertionIds;
-  if (explicitIds?.length && allAssertions.length > 0) {
-    const idSet = new Set(explicitIds as string[]);
-    const explicitAssertions = allAssertions.filter((a) => idSet.has(a.id));
-    if (explicitAssertions.length > 0) {
-      assertions = explicitAssertions;
-    } else {
-      // #155: stale lesson plan detected. Log error (not warn) so it surfaces
-      // in pipeline manifests, then fall through to LO-ref priority. Structured
-      // mode retains the fallback cascade — the scheduler only owns continuous.
-      console.error(
-        `[teaching-content] Stale structured assertionIds: ${explicitIds.length} IDs matched 0 of ${allAssertions.length} assertions. ` +
-        `Session ${context.sharedState?.lessonPlanEntry?.session ?? "?"} falling back to LO refs. ` +
-        `Source may have been re-extracted without lesson plan refresh.`,
-      );
-    }
-  }
-
-  // Priority 1: Session-specific LO refs from lesson plan (only if assertionIds didn't match)
-  // #142: Prefer FK-based filtering. Resolve LO refs → IDs via sharedState LO map,
-  // fall back to string-ref matching for legacy plans without LO IDs.
-  if (assertions === allAssertions) {
-    const sessionLORefs = context.sharedState?.lessonPlanEntry?.learningOutcomeRefs;
-    if (sessionLORefs?.length && allAssertions.length > 0) {
-      // Try FK path: resolve refs to LO IDs from curriculum LO map
-      const loRefToId = context.sharedState?.loRefToIdMap as Map<string, string> | undefined;
-      const sessionLoIds = loRefToId
-        ? sessionLORefs.map((ref: string) => loRefToId.get(canonicaliseRef(ref)) ?? loRefToId.get(ref)).filter(Boolean) as string[]
-        : [];
-
-      if (sessionLoIds.length > 0) {
-        const loIdSet = new Set(sessionLoIds);
-        const sessionAssertions = allAssertions.filter((a) =>
-          a.learningObjectiveId && loIdSet.has(a.learningObjectiveId),
-        );
-        if (sessionAssertions.length > 0) {
-          assertions = sessionAssertions;
-        }
-      }
-
-      // Fallback: string-ref matching (legacy plans or no LO map)
-      if (assertions === allAssertions) {
-        const sessionAssertions = allAssertions.filter((a) =>
-          assertionMatchesAnyLoRef(a.learningOutcomeRef, sessionLORefs),
-        );
-        if (sessionAssertions.length > 0) {
-          assertions = sessionAssertions;
-        }
-      }
-    }
-  }
-
-  // Priority 2: Fall back to current module LOs (existing behavior)
-  // #142: Prefer FK path, fall back to string-ref matching
-  if (assertions === allAssertions && currentModule?.learningOutcomes?.length && allAssertions.length > 0) {
+  } else if (currentModule?.learningOutcomes?.length && allAssertions.length > 0) {
+    // Fallback: no scheduler working set (no modules, or scheduler failed).
+    // Filter to current module LOs. #142: Prefer FK path, fall back to string-ref.
     const moduleLOs = currentModule.learningOutcomes as string[];
     const loRefToId = context.sharedState?.loRefToIdMap as Map<string, string> | undefined;
 
-    // FK path
     if (loRefToId) {
       const moduleLoIds = moduleLOs
         .map((lo) => {
@@ -596,20 +534,6 @@ registerTransform("renderTeachingContent", (
     }
   }
 
-  // Label carry-forward TPs with [Review] prefix so the AI treats them as review, not new material
-  const carryForwardIds = new Set<string>(
-    (context.sharedState?.carryForwardAssertionIds as string[] | undefined) || [],
-  );
-  if (carryForwardIds.size > 0) {
-    assertions = assertions.map((a) =>
-      carryForwardIds.has(a.id)
-        ? { ...a, assertion: `[Review from last session] ${a.assertion}` }
-        : a,
-    );
-  }
-
-  } // end if (!isContinuousMode)
-
   // Detect if we have pyramid hierarchy
   const hasHierarchy = assertions.some((a) => a.depth !== null && a.depth !== undefined);
 
@@ -620,7 +544,7 @@ registerTransform("renderTeachingContent", (
 
   let teachingPoints: string;
 
-  if (isContinuousMode) {
+  if (hasSchedulerWorkingSet) {
     // LO-grouped mode: group TPs under their parent LO header
     // Build LO ID → ref display label lookup from working set
     const loLookup = new Map<string, string>();
@@ -657,12 +581,8 @@ registerTransform("renderTeachingContent", (
   // Collect unique sources for metadata
   const sources = [...new Set(assertions.map((a) => a.sourceName))];
 
-  // Filter vocabulary to current session if lesson plan specifies vocabularyIds
-  const allVocabulary = context.loadedData.curriculumVocabulary || [];
-  const sessionVocabIds = context.sharedState?.lessonPlanEntry?.vocabularyIds;
-  const vocabulary = sessionVocabIds?.length
-    ? allVocabulary.filter((v) => (sessionVocabIds as string[]).includes(v.id))
-    : allVocabulary;
+  // All vocabulary for this curriculum (session-scoped filtering removed with lesson plans)
+  const vocabulary = context.loadedData.curriculumVocabulary || [];
 
   // Render vocabulary section if available
   let vocabularySection = "";
@@ -674,12 +594,8 @@ registerTransform("renderTeachingContent", (
     vocabularySection = `\n\nKEY VOCABULARY:\n${vocabLines.join("\n")}`;
   }
 
-  // Filter questions to current session if lesson plan specifies questionIds
-  const allQuestions = context.loadedData.curriculumQuestions || [];
-  const sessionQuestionIds = context.sharedState?.lessonPlanEntry?.questionIds;
-  const questions = sessionQuestionIds?.length
-    ? allQuestions.filter((q) => (sessionQuestionIds as string[]).includes(q.id))
-    : allQuestions;
+  // All questions for this curriculum (session-scoped filtering removed with lesson plans)
+  const questions = context.loadedData.curriculumQuestions || [];
 
   // Split questions by type: TUTOR_QUESTION (skill-mapped with tiered responses) vs MCQ/TRUE_FALSE (practice)
   const tutorQuestions = questions.filter((q) => q.questionType === "TUTOR_QUESTION");

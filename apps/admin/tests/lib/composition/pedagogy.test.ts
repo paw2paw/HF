@@ -44,8 +44,10 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
       reviewType: "quick_recall",
       reviewReason: "Last session covered Introduction",
       thresholds: { high: 0.65, low: 0.35 },
-      currentSessionNumber: null,
-      lessonPlanSessionType: null,
+      callNumber: 5,
+      channel: "voice" as const,
+      isFinalSession: false,
+      schedulerDecision: null,
       lessonPlanEntry: null,
     },
     specConfig: {},
@@ -298,58 +300,41 @@ describe("computeSessionPedagogy transform", () => {
     });
   });
 
-  describe("LESSON PLAN session-type flows", () => {
-    function makeLessonPlanContext(sessionType: string, moduleLabel: string = "Module A"): AssembledContext {
+  describe("SCHEDULER MODE flows", () => {
+    function makeSchedulerContext(mode: "teach" | "review" | "assess" | "practice"): AssembledContext {
       return makeContext({
         sharedState: {
           ...makeContext().sharedState,
           isFirstCall: false,
           isFirstCallInDomain: false,
-          lessonPlanSessionType: sessionType,
-          currentSessionNumber: 3,
-          lessonPlanEntry: {
-            session: 3,
-            type: sessionType,
-            moduleId: sessionType === "review" || sessionType === "assess" || sessionType === "consolidate" ? null : "MOD-1",
-            moduleLabel,
-            label: `${sessionType} session`,
-          },
+          callNumber: 3,
+          schedulerDecision: { mode, outcomeId: "lo-1" },
+          lessonPlanEntry: null,
         },
       });
     }
 
-    it("uses INTRODUCE session type with preview-oriented flow", () => {
-      const ctx = makeLessonPlanContext("introduce", "Hazards");
+    it("uses TEACH mode with introduce-oriented flow", () => {
+      const ctx = makeSchedulerContext("teach");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
 
-      expect(result.sessionType).toBe("INTRODUCE");
-      expect(result.flow.some((s: string) => s.includes("Hazards"))).toBe(true);
-      expect(result.newMaterial).toBeDefined();
-      expect(result.newMaterial.module).toBe("Hazards");
+      expect(result.sessionType).toBe("TEACH");
+      expect(result.flow.length).toBeGreaterThan(0);
+      expect(result.flow.some((s: string) => s.includes("Introduce") || s.includes("Preview"))).toBe(true);
       expect(result.lessonPlanSession).toBeDefined();
-      expect(result.lessonPlanSession.type).toBe("introduce");
+      expect(result.lessonPlanSession.type).toBe("teach");
     });
 
-    it("uses DEEPEN session type with practice-oriented flow", () => {
-      const ctx = makeLessonPlanContext("deepen", "Temperature Control");
-      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
-
-      expect(result.sessionType).toBe("DEEPEN");
-      expect(result.flow.some((s: string) => s.includes("edge cases") || s.includes("Deepen"))).toBe(true);
-      expect(result.newMaterial).toBeDefined();
-      expect(result.newMaterial.approach).toContain("Temperature Control");
-    });
-
-    it("uses REVIEW session type with spaced retrieval", () => {
-      const ctx = makeLessonPlanContext("review");
+    it("uses REVIEW mode with spaced retrieval", () => {
+      const ctx = makeSchedulerContext("review");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
 
       expect(result.sessionType).toBe("REVIEW");
       expect(result.flow.some((s: string) => s.includes("retrieval") || s.includes("recall"))).toBe(true);
     });
 
-    it("uses ASSESS session type — no new material", () => {
-      const ctx = makeLessonPlanContext("assess");
+    it("uses ASSESS mode — no new material", () => {
+      const ctx = makeSchedulerContext("assess");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
 
       expect(result.sessionType).toBe("ASSESS");
@@ -357,35 +342,27 @@ describe("computeSessionPedagogy transform", () => {
       expect(result.newMaterial).toBeUndefined();
     });
 
-    it("uses CONSOLIDATE session type with synthesis focus", () => {
-      const ctx = makeLessonPlanContext("consolidate");
+    it("uses PRACTICE mode with synthesis focus", () => {
+      const ctx = makeSchedulerContext("practice");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
 
-      expect(result.sessionType).toBe("CONSOLIDATE");
-      expect(result.flow.some((s: string) => s.includes("Synthesize") || s.includes("Big picture"))).toBe(true);
+      expect(result.sessionType).toBe("PRACTICE");
+      expect(result.flow.some((s: string) => s.includes("Synthesize") || s.includes("Application"))).toBe(true);
     });
 
     it("includes lessonPlanSession metadata in output", () => {
-      const ctx = makeLessonPlanContext("introduce", "Hazards");
+      const ctx = makeSchedulerContext("teach");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
 
       expect(result.lessonPlanSession).toEqual({
         number: 3,
-        type: "introduce",
-        label: "introduce session",
+        type: "teach",
+        label: "Scheduler: teach",
       });
     });
 
-    it("falls back to generic flow for unknown session type", () => {
-      const ctx = makeLessonPlanContext("mystery-type");
-      const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
-
-      expect(result.sessionType).toBe("MYSTERY-TYPE");
-      expect(result.flow.length).toBeGreaterThan(0);
-    });
-
     it("still includes curriculum pedagogy principles", () => {
-      const ctx = makeLessonPlanContext("deepen");
+      const ctx = makeSchedulerContext("review");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
 
       expect(result.principles.some((p: string) => p.includes("Review BEFORE"))).toBe(true);
@@ -393,29 +370,23 @@ describe("computeSessionPedagogy transform", () => {
   });
 
   describe("postCoverageGuidance", () => {
-    const sessionTypes = ["introduce", "deepen", "review", "assess", "consolidate"] as const;
+    const schedulerModes = ["teach", "review", "assess", "practice"] as const;
 
-    function makeLpCtx(sessionType: string): AssembledContext {
+    function makeSchedulerCtx(mode: string): AssembledContext {
       return makeContext({
         sharedState: {
           ...makeContext().sharedState,
           isFirstCall: false,
           isFirstCallInDomain: false,
-          lessonPlanSessionType: sessionType,
-          currentSessionNumber: 3,
-          lessonPlanEntry: {
-            session: 3,
-            type: sessionType,
-            moduleId: "MOD-1",
-            moduleLabel: "Module A",
-            label: `${sessionType} session`,
-          },
+          callNumber: 3,
+          schedulerDecision: { mode: mode as any, outcomeId: "lo-1" },
+          lessonPlanEntry: null,
         },
       });
     }
 
-    it.each(sessionTypes)("produces postCoverageGuidance for %s sessions", (type) => {
-      const result = getTransform("computeSessionPedagogy")!(null, makeLpCtx(type), makeSectionDef());
+    it.each(schedulerModes)("produces postCoverageGuidance for %s mode", (mode) => {
+      const result = getTransform("computeSessionPedagogy")!(null, makeSchedulerCtx(mode), makeSectionDef());
       expect(result.postCoverageGuidance).toBeDefined();
       expect(result.postCoverageGuidance).toContain("IF YOU COVER ALL TEACHING POINTS");
     });
@@ -442,7 +413,7 @@ describe("computeSessionPedagogy transform", () => {
           moduleToReview: null,
           nextModule: null,
           isFirstCall: false,
-          lessonPlanSessionType: null,
+          schedulerDecision: null,
           lessonPlanEntry: null,
         },
         sections: {},
@@ -474,15 +445,9 @@ describe("computeSessionPedagogy transform", () => {
         sharedState: {
           ...makeContext().sharedState,
           isFirstCall: false,
-          lessonPlanSessionType: "introduce",
-          currentSessionNumber: 2,
-          lessonPlanEntry: {
-            session: 2,
-            type: "introduce",
-            moduleId: "MOD-1",
-            moduleLabel: "Module A",
-            label: "introduce session",
-          },
+          callNumber: 2,
+          schedulerDecision: { mode: "teach", outcomeId: "lo-1" },
+          lessonPlanEntry: null,
         },
       });
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
@@ -492,7 +457,7 @@ describe("computeSessionPedagogy transform", () => {
     });
 
     it("uses hardcoded fallback when no TUT-001 spec is loaded", () => {
-      const ctx = makeLpCtx("deepen");
+      const ctx = makeSchedulerCtx("review");
       const result = getTransform("computeSessionPedagogy")!(null, ctx, makeSectionDef());
       // Fallback includes teach-back instruction
       expect(result.postCoverageGuidance).toContain("Teach-back");
@@ -510,7 +475,7 @@ describe("computeSessionPedagogy transform", () => {
           nextModule: null,
           isFirstCall: false,
           isFirstCallInDomain: false,
-          lessonPlanSessionType: null,
+          schedulerDecision: null,
           lessonPlanEntry: null,
         },
         sections: {},

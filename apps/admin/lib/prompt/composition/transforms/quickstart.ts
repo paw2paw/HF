@@ -46,7 +46,7 @@ registerTransform("computeQuickStart", (
   context: AssembledContext,
 ) => {
   const { sharedState, loadedData, resolvedSpecs, sections } = context;
-  const { modules, isFirstCall, completedModules, moduleToReview, nextModule, thresholds, currentSessionNumber, lessonPlanEntry } = sharedState;
+  const { modules, isFirstCall, completedModules, moduleToReview, nextModule, thresholds, callNumber, schedulerDecision, schedulerPolicy } = sharedState;
   const caller = loadedData.caller;
   const learnerGoals = loadedData.goals;
   const identitySpec = resolvedSpecs.identitySpec;
@@ -81,9 +81,7 @@ registerTransform("computeQuickStart", (
     || null;
   const audienceId = pbConfig.audience;
   const constraints = pbConfig.constraints;
-  const sessionCount = pbConfig.sessionCount;
   const durationMins = pbConfig.durationMins;
-  const lessonPlanModel = pbConfig.lessonPlanModel;
   const courseLearningOutcomes = pbConfig.courseLearningOutcomes;
   const emphasis = pbConfig.emphasis;
   const assessments = pbConfig.assessments;
@@ -125,9 +123,9 @@ registerTransform("computeQuickStart", (
 
     course_context: courseContext || null,
 
-    session_pacing: sessionCount || durationMins
-      ? `${sessionCount ? `${sessionCount} sessions` : ""}${sessionCount && durationMins ? " x " : ""}${durationMins ? `${durationMins} min each` : ""}`
-      : null,
+    session_pacing: durationMins ? `${durationMins} min per session` : null,
+
+    scheduler_preset: schedulerPolicy?.name || null,
 
     channel_note: sharedState.channel === 'text'
       ? "This is a TEXT chat — the learner types, not speaks. Typing is much slower than talking. Cover less material per session, keep messages concise, and don't rush through phases. A 20-min voice session is roughly equivalent to 5-7 min of text chat in content coverage."
@@ -198,9 +196,7 @@ registerTransform("computeQuickStart", (
         .join(", ");
     })(),
 
-    lesson_model: lessonPlanModel
-      ? lessonPlanModel.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
-      : null,
+    lesson_model: null, // removed — scheduler preset replaces pedagogical model
 
     course_goals: courseLearningOutcomes?.length
       ? courseLearningOutcomes.join("; ")
@@ -438,20 +434,13 @@ registerTransform("computeQuickStart", (
     })(),
 
     offboarding_guidance: (() => {
-      // Detect final session: lesson plan type is 'offboarding' or 'consolidate',
-      // or all modules are completed with no next module
-      const sessionType = (lessonPlanEntry as any)?.type;
-      const isOffboardingSession = sessionType === "offboarding" || sessionType === "consolidate";
-      const allModulesComplete = modules.length > 0 && completedModules.size >= modules.length && !nextModule;
-
-      if (!isOffboardingSession && !allModulesComplete) return null;
+      if (!sharedState.isFinalSession) return null;
 
       const completedCount = completedModules.size;
       const totalCount = modules.length;
-      const sessionNum = currentSessionNumber ?? "final";
 
       const parts = [
-        `This is session ${sessionNum} — the final session for this learner.`,
+        `This is call ${callNumber} — the final session for this learner.`,
         `They have completed ${completedCount}/${totalCount} modules.`,
         "",
         "SESSION GOALS:",

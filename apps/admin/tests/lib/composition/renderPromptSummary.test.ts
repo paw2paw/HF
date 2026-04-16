@@ -214,35 +214,35 @@ describe("renderVoicePrompt — working_toward", () => {
   });
 });
 
-describe("renderVoicePrompt — session pacing + lesson model", () => {
+describe("renderVoicePrompt — session pacing + scheduler preset", () => {
   it("renders session pacing in SESSION PLAN section", () => {
     const result = renderVoicePrompt({
       _quickStart: {
-        session_pacing: "8 sessions x 30 min each",
+        session_pacing: "30 min per session",
       },
     } as any);
 
     expect(result).toContain("[SESSION PLAN]");
-    expect(result).toContain("Pacing: 8 sessions x 30 min each");
+    expect(result).toContain("Pacing: 30 min per session");
   });
 
-  it("renders lesson model in SESSION PLAN section", () => {
+  it("renders scheduler preset in SESSION PLAN section", () => {
     const result = renderVoicePrompt({
       _quickStart: {
-        lesson_model: "Direct Instruction",
+        scheduler_preset: "BALANCED",
       },
     } as any);
 
-    expect(result).toContain("Teaching model: Direct Instruction");
+    expect(result).toContain("Scheduler: BALANCED");
   });
 
-  it("omits pacing and model when not set", () => {
+  it("omits pacing and scheduler when not set", () => {
     const result = renderVoicePrompt({
       _quickStart: {},
     } as any);
 
     expect(result).not.toContain("Pacing:");
-    expect(result).not.toContain("Teaching model:");
+    expect(result).not.toContain("Scheduler:");
   });
 });
 

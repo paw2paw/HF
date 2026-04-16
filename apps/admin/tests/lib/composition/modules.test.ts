@@ -12,7 +12,6 @@ import { describe, it, expect } from "vitest";
 import {
   computeSharedState,
   findCurriculumInfo,
-  resolveLessonPlanMode,
   filterTeachableAssertions,
 } from "@/lib/prompt/composition/transforms/modules";
 import { getTransform } from "@/lib/prompt/composition/TransformRegistry";
@@ -349,185 +348,9 @@ describe("computeSharedState", () => {
     });
   });
 
-  describe("lesson plan session tracking", () => {
-    const subjectSourcesWithPlan = {
-      subjects: [{
-        id: "s-1", slug: "food-safety", name: "Food Safety",
-        defaultTrustLevel: "ACCREDITED_MATERIAL", qualificationRef: null, sources: [],
-        curriculum: {
-          id: "c-1", slug: "CURR-FS", name: "FS Curriculum", description: null,
-          notableInfo: {
-            modules: [
-              { id: "MOD-1", title: "Introduction", sortOrder: 0, learningOutcomes: [] },
-              { id: "MOD-2", title: "Hazards", sortOrder: 1, learningOutcomes: [] },
-              { id: "MOD-3", title: "Temperature", sortOrder: 2, learningOutcomes: [] },
-            ],
-          },
-          deliveryConfig: {
-            lessonPlan: {
-              estimatedSessions: 6,
-              entries: [
-                { session: 1, type: "onboarding", moduleId: null, moduleLabel: "Onboarding", label: "Welcome & orientation" },
-                { session: 2, type: "introduce", moduleId: "MOD-1", moduleLabel: "Introduction", label: "First exposure", assertionIds: ["a1", "a2"], vocabularyIds: ["v1", "v2"], questionIds: ["q1"] },
-                { session: 3, type: "deepen", moduleId: "MOD-1", moduleLabel: "Introduction", label: "Deepen basics" },
-                { session: 4, type: "introduce", moduleId: "MOD-2", moduleLabel: "Hazards", label: "Hazard types" },
-                { session: 5, type: "review", moduleId: null, moduleLabel: "Review", label: "Review session" },
-                { session: 6, type: "assess", moduleId: null, moduleLabel: "Assessment", label: "Final check" },
-              ],
-            },
-          },
-          trustLevel: "L4", qualificationBody: null,
-          qualificationNumber: null, qualificationLevel: null,
-        },
-      }],
-    };
-
-    it("does NOT use lesson plan when onboarding is incomplete", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: false, completedPhases: [], currentPhase: "welcome" },
-        callerAttributes: [
-          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 2, scope: "CURRICULUM" }),
-        ],
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      // Should use mastery-based selection, not lesson plan
-      expect(result.lessonPlanSessionType).toBeNull();
-      expect(result.lessonPlanEntry).toBeNull();
-    });
-
-    it("uses lesson plan when onboarding is complete and currentSession is set", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-        callerAttributes: [
-          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 2, scope: "CURRICULUM" }),
-        ],
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      expect(result.currentSessionNumber).toBe(2);
-      expect(result.lessonPlanSessionType).toBe("introduce");
-      expect(result.lessonPlanEntry).toBeDefined();
-      expect(result.lessonPlanEntry!.moduleId).toBe("MOD-1");
-      expect(result.lessonPlanEntry!.moduleLabel).toBe("Introduction");
-    });
-
-    it("threads assertionIds, vocabularyIds, and questionIds from lesson plan entry", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-        callerAttributes: [
-          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 2, scope: "CURRICULUM" }),
-        ],
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      // Session 2 has assertionIds, vocabularyIds, questionIds
-      expect(result.lessonPlanEntry).toBeDefined();
-      expect(result.lessonPlanEntry!.assertionIds).toEqual(["a1", "a2"]);
-      expect(result.lessonPlanEntry!.vocabularyIds).toEqual(["v1", "v2"]);
-      expect(result.lessonPlanEntry!.questionIds).toEqual(["q1"]);
-    });
-
-    it("returns null for ID arrays when lesson plan entry has none", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-        callerAttributes: [
-          // Session 5 is "review" with no ID arrays
-          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 5, scope: "CURRICULUM" }),
-        ],
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      expect(result.lessonPlanEntry).toBeDefined();
-      expect(result.lessonPlanEntry!.assertionIds).toBeNull();
-      expect(result.lessonPlanEntry!.vocabularyIds).toBeNull();
-      expect(result.lessonPlanEntry!.questionIds).toBeNull();
-    });
-
-    it("overrides nextModule to match lesson plan entry", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-        callerAttributes: [
-          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 4, scope: "CURRICULUM" }),
-        ],
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      // Session 4 is "introduce MOD-2"
-      expect(result.nextModule).toBeDefined();
-      expect(result.nextModule!.id).toBe("MOD-2");
-      expect(result.lessonPlanSessionType).toBe("introduce");
-    });
-
-    it("handles cross-module sessions (review, assess) with null moduleId", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-        callerAttributes: [
-          makeCallerAttribute({ key: "curriculum:CURR-FS:current_session", numberValue: 5, scope: "CURRICULUM" }),
-        ],
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      // Session 5 is "review" with no moduleId
-      expect(result.lessonPlanSessionType).toBe("review");
-      expect(result.lessonPlanEntry!.moduleId).toBeNull();
-    });
-
-    it("falls back to mastery-based selection when no lesson plan", async () => {
-      const subjectSourcesNoLP = {
-        subjects: [{
-          ...subjectSourcesWithPlan.subjects[0],
-          curriculum: {
-            ...subjectSourcesWithPlan.subjects[0].curriculum,
-            deliveryConfig: null,
-          },
-        }],
-      };
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesNoLP,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      expect(result.lessonPlanSessionType).toBeNull();
-      expect(result.lessonPlanEntry).toBeNull();
-      expect(result.currentSessionNumber).toBeNull();
-    });
-
-    it("returns null fields when currentSession not in callerAttributes", async () => {
-      const data = makeLoadedData({
-        subjectSources: subjectSourcesWithPlan,
-        recentCalls: [{ id: "call-1", transcript: "hi", createdAt: new Date(), scores: [] }],
-        onboardingSession: { isComplete: true, completedPhases: [], currentPhase: null },
-        callerAttributes: [], // no currentSession
-      });
-      const specs = makeResolvedSpecs();
-      const result = await computeSharedState(data, specs, {});
-
-      expect(result.currentSessionNumber).toBeNull();
-      expect(result.lessonPlanSessionType).toBeNull();
-    });
-  });
+  // lesson plan session tracking tests removed — structured mode deleted.
+  // All courses now use scheduler-driven pacing via computeSharedState's
+  // continuous-mode branch. See ADR: outcome-graph-pacing.md
 });
 
 describe("computeModuleProgress transform", () => {
@@ -539,53 +362,9 @@ describe("computeModuleProgress transform", () => {
   });
 });
 
-// =====================================================
-// REGRESSION: comprehension routing + specSlug propagation
-// Covers Phase 0 fixes from 304d602b and f1c6508a (2026-04-14).
-// =====================================================
-
-describe("resolveLessonPlanMode", () => {
-  it("returns 'continuous' when deliveryConfig.lessonPlanMode is explicitly continuous", () => {
-    expect(resolveLessonPlanMode({ lessonPlanMode: "continuous" }, null)).toBe("continuous");
-    expect(resolveLessonPlanMode({ lessonPlanMode: "continuous" }, { teachingMode: "recall" })).toBe("continuous");
-  });
-
-  it("returns 'continuous' when playbookConfig.lessonPlanMode is explicitly continuous (#167 — wizard override from course ref)", () => {
-    // V5 conversational wizard writes lessonPlanMode to Playbook.config when
-    // an uploaded COURSE_REFERENCE declares continuous teaching cadence.
-    expect(resolveLessonPlanMode(null, { lessonPlanMode: "continuous" })).toBe("continuous");
-    expect(resolveLessonPlanMode({}, { lessonPlanMode: "continuous", teachingMode: "recall" })).toBe("continuous");
-    expect(resolveLessonPlanMode(undefined, { lessonPlanMode: "continuous" })).toBe("continuous");
-  });
-
-  it("returns 'continuous' when playbook.teachingMode is comprehension (Phase 0 routing fix)", () => {
-    // Regression for Boaz 2026-04-13 B2: Secret Garden served wrong passage because
-    // comprehension courses never set deliveryConfig.lessonPlanMode=continuous, so
-    // they silently fell through to the structured session-index lookup.
-    expect(resolveLessonPlanMode(null, { teachingMode: "comprehension" })).toBe("continuous");
-    expect(resolveLessonPlanMode({}, { teachingMode: "comprehension" })).toBe("continuous");
-    expect(resolveLessonPlanMode(undefined, { teachingMode: "comprehension" })).toBe("continuous");
-  });
-
-  it("returns 'structured' for all other teachingMode values", () => {
-    expect(resolveLessonPlanMode(null, { teachingMode: "recall" })).toBe("structured");
-    expect(resolveLessonPlanMode(null, { teachingMode: "practice" })).toBe("structured");
-    expect(resolveLessonPlanMode(null, { teachingMode: "syllabus" })).toBe("structured");
-  });
-
-  it("returns 'structured' when both inputs are empty", () => {
-    expect(resolveLessonPlanMode(null, null)).toBe("structured");
-    expect(resolveLessonPlanMode(undefined, undefined)).toBe("structured");
-    expect(resolveLessonPlanMode({}, {})).toBe("structured");
-  });
-
-  it("explicit deliveryConfig='structured' does not override comprehension routing", () => {
-    // Comprehension is an inherent course property; if a continuous-style
-    // delivery was not set, comprehension still forces continuous. This is
-    // intentional — see ADR 2026-04-14-outcome-graph-pacing.md.
-    expect(resolveLessonPlanMode({ lessonPlanMode: "structured" }, { teachingMode: "comprehension" })).toBe("continuous");
-  });
-});
+// resolveLessonPlanMode tests removed — function deleted.
+// All courses now use scheduler-driven pacing.
+// See ADR: docs/decisions/2026-04-14-outcome-graph-pacing.md
 
 describe("filterTeachableAssertions", () => {
   // Regression for diagnosis 2026-04-14: COURSE_REFERENCE assertions are

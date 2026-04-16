@@ -64,6 +64,9 @@ function makeContext(overrides: Partial<AssembledContext> = {}): AssembledContex
     sections: {},
     resolvedSpecs: { identitySpec: null, voiceSpec: null },
     sharedState: {
+      channel: "voice" as const,
+      callNumber: 1,
+      isFinalSession: false,
       modules: [],
       isFirstCall: false,
       daysSinceLastCall: 0,

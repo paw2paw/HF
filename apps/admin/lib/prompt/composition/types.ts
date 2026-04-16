@@ -258,50 +258,25 @@ export interface SharedComputedState {
   curriculumSpecSlug?: string;
   /** Whether first call in current domain (for domain-switch re-onboarding) */
   isFirstCallInDomain?: boolean;
-  /** Whether this is the learner's final teaching session (by sessionCount or module completion) */
+  /** Whether this is the learner's final teaching session (by budget, scheduler mastery, or module completion) */
   isFinalSession: boolean;
-  /** Current lesson plan session number (1-based), null if no lesson plan */
-  currentSessionNumber?: number | null;
-  /** Session type from lesson plan entry (introduce, deepen, review, assess, consolidate) */
-  lessonPlanSessionType?: string | null;
-  /** Full lesson plan entry for current session */
+  /** Call number (1-based) — this is the Nth call for this learner */
+  callNumber: number;
+  /** Synthetic lesson plan entry built from scheduler working set (for downstream transform compat) */
   lessonPlanEntry?: {
     session: number;
     type: string;
     moduleId: string | null;
     moduleLabel: string;
     label: string;
-    /** Per-session phases from pedagogical model (hook → instruction → practice → check) */
-    phases?: Array<{
-      id: string;
-      label: string;
-      durationMins?: number;
-      teachMethods?: string[];
-      learningOutcomeRefs?: string[];
-      guidance?: string;
-    }> | null;
-    /** Which learning outcomes this session covers (subset of module LOs) */
+    phases?: null;
     learningOutcomeRefs?: string[] | null;
-    /** Explicit TP-to-session binding (educator-curated). Overrides learningOutcomeRefs matching. */
     assertionIds?: string[] | null;
-    /** Vocabulary items assigned to this session by the lesson planner */
-    vocabularyIds?: string[] | null;
-    /** Questions assigned to this session by the lesson planner */
-    questionIds?: string[] | null;
-    /** Images assigned to this session (auto-resolved or manually curated) */
-    media?: Array<{
-      mediaId: string;
-      fileName?: string;
-      captionText?: string | null;
-      figureRef?: string | null;
-      mimeType?: string;
-    }> | null;
+    vocabularyIds?: null;
+    questionIds?: null;
+    media?: null;
   } | null;
-  /** Carry-forward TP IDs from previous session (for [Review] labeling) */
-  carryForwardAssertionIds?: string[];
-  /** Lesson plan mode: 'structured' (default multi-session) or 'continuous' (fat stack) */
-  lessonPlanMode?: "structured" | "continuous";
-  /** Working set selected by continuous mode selector (null in structured mode) */
+  /** Working set selected by scheduler (null if scheduler didn't run or no modules) */
   workingSet?: {
     assertionIds: string[];
     reviewIds: string[];

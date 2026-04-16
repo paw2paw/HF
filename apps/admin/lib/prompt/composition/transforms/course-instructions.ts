@@ -74,10 +74,10 @@ registerTransform("renderCourseInstructions", (
     };
   }
 
-  // Session-aware filtering for session_override assertions.
+  // Call-number-aware filtering for session_override assertions.
   // Only include overrides whose sessionRange matches the current call number.
-  const callNumber = (context.sharedState as Record<string, unknown>)?.currentSessionNumber as number | undefined;
-  const totalSessions = (context.sharedState as Record<string, unknown>)?.totalSessions as number | undefined;
+  const callNumber = context.sharedState?.callNumber as number | undefined;
+  const totalSessions = undefined; // session count no longer drives pacing
   const filtered = instructions.filter((inst) => {
     if (inst.category !== "session_override") return true;
     if (!callNumber || !inst.section) return true; // no session context → include all

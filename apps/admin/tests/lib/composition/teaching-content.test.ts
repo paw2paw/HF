@@ -76,6 +76,9 @@ function makeContext(overrides: {
   questions?: Array<{ id: string; questionText: string; questionType?: string; options?: any; correctAnswer?: string; chapter?: string; learningOutcomeRef?: string; difficulty?: string }>;
 } = {}): AssembledContext {
   const sharedState: SharedComputedState = {
+    channel: "voice",
+    callNumber: 1,
+    isFinalSession: false,
     modules: [],
     isFirstCall: false,
     daysSinceLastCall: 1,
@@ -542,46 +545,8 @@ describe("renderTeachingContent transform", () => {
       expect(result.vocabularyCount).toBe(3);
     });
 
-    it("filters vocabulary to session-specific IDs when present", () => {
-      const assertions = [makeAssertion()];
-      const ctx = makeContext({
-        assertions,
-        vocabulary: vocab,
-        lessonPlanEntry: {
-          session: 1,
-          type: "introduce",
-          moduleId: null,
-          moduleLabel: "",
-          label: "Session 1",
-          vocabularyIds: ["v1", "v3"],
-        },
-      });
-      const result = transform(null, ctx, sectionDef);
-
-      expect(result.teachingPoints).toContain("Bacteria");
-      expect(result.teachingPoints).not.toContain("Pathogen");
-      expect(result.teachingPoints).toContain("Contamination");
-      expect(result.vocabularyCount).toBe(2);
-    });
-
-    it("falls back to all vocabulary when vocabularyIds is empty array", () => {
-      const assertions = [makeAssertion()];
-      const ctx = makeContext({
-        assertions,
-        vocabulary: vocab,
-        lessonPlanEntry: {
-          session: 1,
-          type: "introduce",
-          moduleId: null,
-          moduleLabel: "",
-          label: "Session 1",
-          vocabularyIds: [],
-        },
-      });
-      const result = transform(null, ctx, sectionDef);
-
-      expect(result.vocabularyCount).toBe(3);
-    });
+    // Session-scoped vocabulary filtering tests removed — scheduler replaced
+    // session-indexed lesson plans. All vocabulary now renders every call.
   });
 
   // =====================================================
@@ -607,27 +572,8 @@ describe("renderTeachingContent transform", () => {
       expect(result.questionCount).toBe(3);
     });
 
-    it("filters questions to session-specific IDs when present", () => {
-      const assertions = [makeAssertion()];
-      const ctx = makeContext({
-        assertions,
-        questions,
-        lessonPlanEntry: {
-          session: 1,
-          type: "introduce",
-          moduleId: null,
-          moduleLabel: "",
-          label: "Session 1",
-          questionIds: ["q1"],
-        },
-      });
-      const result = transform(null, ctx, sectionDef);
-
-      expect(result.teachingPoints).toContain("PRACTICE QUESTIONS (1):");
-      expect(result.teachingPoints).toContain("What temperature is the danger zone?");
-      expect(result.teachingPoints).not.toContain("Name three food safety hazards");
-      expect(result.questionCount).toBe(1);
-    });
+    // Session-scoped question filtering tests removed — scheduler replaced
+    // session-indexed lesson plans. All questions now render every call.
 
     it("includes correct answers in rendered questions", () => {
       const assertions = [makeAssertion()];
@@ -640,24 +586,7 @@ describe("renderTeachingContent transform", () => {
       expect(result.teachingPoints).toContain("[Answer: 8-63°C]");
     });
 
-    it("falls back to all questions when questionIds is empty array", () => {
-      const assertions = [makeAssertion()];
-      const ctx = makeContext({
-        assertions,
-        questions,
-        lessonPlanEntry: {
-          session: 1,
-          type: "introduce",
-          moduleId: null,
-          moduleLabel: "",
-          label: "Session 1",
-          questionIds: [],
-        },
-      });
-      const result = transform(null, ctx, sectionDef);
-
-      expect(result.questionCount).toBe(3);
-    });
+    // "falls back to all questions" test removed — all questions render always.
 
     it("omits questions section when no questions available", () => {
       const assertions = [makeAssertion()];

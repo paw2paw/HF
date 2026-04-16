@@ -28,7 +28,7 @@ interface LLMPrompt {
     working_toward?: string;
     constraints?: string;
     session_pacing?: string;
-    lesson_model?: string;
+    scheduler_preset?: string | null;
     curriculum_progress?: string | null;
     first_line?: string;
     critical_voice?: {
@@ -274,7 +274,7 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
   // --- SESSION PLAN ---
   parts.push("[SESSION PLAN]");
   if (qs?.session_pacing) parts.push(`Pacing: ${qs.session_pacing}`);
-  if (qs?.lesson_model) parts.push(`Teaching model: ${qs.lesson_model}`);
+  if (qs?.scheduler_preset) parts.push(`Scheduler: ${qs.scheduler_preset}`);
   if (pedagogy?.sessionType) parts.push(`Type: ${pedagogy.sessionType}`);
   if (pedagogy?.flow?.length) {
     parts.push("Flow: " + pedagogy.flow.join(" → "));
@@ -386,8 +386,7 @@ export function renderVoicePrompt(llmPrompt: LLMPrompt): string {
     for (const v of visuals.available.slice(0, 8)) {
       const label = v.captionText || v.figureRef || v.fileName;
       const chapterTag = v.chapter ? ` (${v.chapter})` : "";
-      const sessionTag = v.currentSession ? " ★" : "";
-      parts.push(`- [${v.mediaId}] ${label}${chapterTag}${sessionTag}`);
+      parts.push(`- [${v.mediaId}] ${label}${chapterTag}`);
     }
     parts.push("In voice calls, the content is sent to the caller's phone — tell them to check their messages.");
     parts.push("In text sessions, the content appears inline in the chat.");

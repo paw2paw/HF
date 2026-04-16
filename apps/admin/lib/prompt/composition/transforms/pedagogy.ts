@@ -21,7 +21,7 @@ registerTransform("computeSessionPedagogy", (
   const {
     isFirstCall, isFirstCallInDomain,
     modules, moduleToReview, nextModule, reviewType, reviewReason,
-    lessonPlanSessionType, lessonPlanEntry, currentSessionNumber,
+    schedulerDecision, callNumber,
   } = context.sharedState;
   const domain = context.loadedData.caller?.domain;
   const onboardingSpec = context.loadedData.onboardingSpec;
@@ -106,78 +106,39 @@ registerTransform("computeSessionPedagogy", (
         approach: `Start with ${firstModule.description || "foundational concepts"}. Use concrete examples before abstractions.`,
       };
     }
-  } else if (lessonPlanSessionType && lessonPlanEntry) {
-    // === LESSON PLAN MODE ===
-    // Use the session type from the lesson plan to shape pedagogical flow
-    plan.sessionType = lessonPlanSessionType.toUpperCase();
+  } else if (schedulerDecision && hasCurriculum) {
+    // === SCHEDULER MODE ===
+    // Use the scheduler's decision mode to shape pedagogical flow
+    const mode = schedulerDecision.mode;
+    plan.sessionType = mode.toUpperCase();
     plan.lessonPlanSession = {
-      number: currentSessionNumber || lessonPlanEntry.session,
-      type: lessonPlanSessionType,
-      label: lessonPlanEntry.label,
+      number: callNumber,
+      type: mode,
+      label: `Scheduler: ${mode}`,
     };
 
-    // Phase-driven flow (model-aware) — when lesson plan entry has phases
-    if (lessonPlanEntry.phases?.length) {
-      plan.flow = lessonPlanEntry.phases.map((phase: any, i: number) => {
-        const dur = phase.durationMins ? ` (${phase.durationMins}m)` : "";
-        const methods = phase.teachMethods?.length
-          ? ` — use ${phase.teachMethods.join("/")} techniques` : "";
-        const guidance = phase.guidance ? ` — ${phase.guidance}` : "";
-        return `${i + 1}. ${phase.label}${dur}${methods}${guidance}`;
-      });
-
-      if (moduleToReview && lessonPlanSessionType !== "introduce") {
-        plan.reviewFirst = {
-          module: moduleToReview.name,
-          reason: reviewReason || "Spaced retrieval before new material",
-          technique: reviewType === "quick_recall"
-            ? "Ask one recall question, wait for their attempt"
-            : "Walk through concepts with fresh examples",
-        };
-      }
-
-      if (nextModule) {
-        plan.newMaterial = {
-          module: nextModule.name,
-          approach: `Session focus: ${lessonPlanEntry.label}`,
-        };
-      }
-
-      console.log(`[pedagogy] Phase-driven session ${currentSessionNumber}: ${lessonPlanSessionType} with ${lessonPlanEntry.phases.length} phases`);
-    } else {
-    // Fallback to hardcoded flows per session type (backward compatible)
-    switch (lessonPlanSessionType) {
-      case "introduce":
+    switch (mode) {
+      case "teach":
         plan.flow = [
           "1. Reconnect - reference last session briefly",
-          `2. Preview - orient to today's topic: ${lessonPlanEntry.moduleLabel}`,
+          `2. Preview - orient to today's topic: ${nextModule?.name || "next concept"}`,
           "3. Introduce - start with concrete examples, build to concepts",
           "4. Check understanding - application question on new material",
-          "5. Summarize key takeaways and preview next session",
+          "5. Summarize key takeaways",
         ];
-        plan.newMaterial = {
-          module: lessonPlanEntry.moduleLabel,
-          approach: `First exposure to ${lessonPlanEntry.moduleLabel}. Lead with examples before definitions. Build from familiar to unfamiliar.`,
-        };
-        break;
-
-      case "deepen":
-        plan.flow = [
-          "1. Reconnect - recall previous session",
-          `2. Quick recall on ${lessonPlanEntry.moduleLabel} basics`,
-          "3. Deepen - explore edge cases, exceptions, applications",
-          "4. Practice - harder scenarios, real-world problems",
-          "5. Consolidate understanding and preview next session",
-        ];
-        plan.newMaterial = {
-          module: lessonPlanEntry.moduleLabel,
-          approach: `Deepen understanding of ${lessonPlanEntry.moduleLabel}. Push beyond basics into application, edge cases, and integration with prior concepts.`,
-        };
-        if (moduleToReview) {
+        if (nextModule) {
+          plan.newMaterial = {
+            module: nextModule.name,
+            approach: `Introduce ${nextModule.description || "new concepts"}. Lead with examples before definitions.`,
+          };
+        }
+        if (moduleToReview && nextModule?.name !== moduleToReview.name) {
           plan.reviewFirst = {
             module: moduleToReview.name,
-            reason: "Quick recall before deepening",
-            technique: "Ask one recall question to activate prior knowledge",
+            reason: reviewReason || "Spaced retrieval before new material",
+            technique: reviewType === "quick_recall"
+              ? "Ask one recall question, wait for their attempt"
+              : "Walk through concepts with fresh examples",
           };
         }
         break;
@@ -211,18 +172,17 @@ registerTransform("computeSessionPedagogy", (
         ];
         break;
 
-      case "consolidate":
+      case "practice":
         plan.flow = [
           "1. Reconnect - reference the learning journey so far",
           "2. Synthesize - how do the concepts connect across modules?",
-          "3. Big picture - overarching themes and patterns",
-          "4. Application - integrate multiple concepts in a scenario",
+          "3. Application - integrate multiple concepts in a scenario",
+          "4. Practice harder scenarios and real-world problems",
           "5. Reflect - learner articulates their own understanding",
         ];
         break;
 
       default:
-        // Unknown session type — use generic returning caller flow
         plan.flow = [
           "1. Reconnect - reference last session",
           `2. Review - recall on ${moduleToReview?.name || "previous concept"}`,
@@ -232,8 +192,7 @@ registerTransform("computeSessionPedagogy", (
         ];
     }
 
-    console.log(`[pedagogy] Lesson plan session ${currentSessionNumber}: ${lessonPlanSessionType} - ${lessonPlanEntry.label}`);
-    } // end fallback switch
+    console.log(`[pedagogy] Scheduler call ${callNumber}: ${mode}`);
   } else if (hasCurriculum) {
     // === GENERIC RETURNING CALLER MODE (with curriculum) ===
     plan.flow = [

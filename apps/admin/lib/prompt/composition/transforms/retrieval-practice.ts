@@ -35,8 +35,8 @@ registerTransform(
   ) => {
     const { sharedState, loadedData, specConfig } = context;
 
-    // ── Gate: only fires in continuous mode with a scheduler decision ──
-    if (!sharedState.schedulerDecision || sharedState.lessonPlanMode !== "continuous") {
+    // ── Gate: only fires when the scheduler has made a decision ──
+    if (!sharedState.schedulerDecision) {
       return null;
     }
 
