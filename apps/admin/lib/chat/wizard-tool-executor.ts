@@ -1117,25 +1117,11 @@ export async function executeWizardTool(
         }
 
         // 7. Link content-upload subjects from PackUploadStep (if any)
-        //    LEGACY: Ingest now uses a single primary subject, so this is a no-op for new courses.
-        //    Kept for backward compatibility with courses created before the single-subject fix.
-        //    Fallback: if AI didn't pass packSubjectIds, auto-discover content
-        //    subjects already on this domain and link them to the new playbook.
-        let subjectIdsToLink = packSubjectIds ?? [];
-        if (subjectIdsToLink.length === 0 && domainId) {
-          const domainSubjects = await prisma.subjectDomain.findMany({
-            where: { domainId },
-            select: { subjectId: true },
-          });
-          const withSources = await prisma.subjectSource.findMany({
-            where: { subjectId: { in: domainSubjects.map(ds => ds.subjectId) } },
-            select: { subjectId: true },
-            distinct: ["subjectId"],
-          });
-          subjectIdsToLink = withSources
-            .map(ss => ss.subjectId)
-            .filter(id => id !== subject.id);
-        }
+        //    Only link subjects explicitly passed via packSubjectIds (from the upload step).
+        //    No domain-wide fallback — that caused content from other courses on the
+        //    same domain to bleed into new courses.
+        const subjectIdsToLink = (packSubjectIds ?? [])
+          .filter(id => id !== subject.id); // primary subject already linked at step 4b
         for (const packSubId of subjectIdsToLink) {
           await prisma.playbookSubject.upsert({
             where: { playbookId_subjectId: { playbookId, subjectId: packSubId } },
