@@ -139,11 +139,10 @@ export async function GET(
           expiresAt: true,
         },
       }).then(raw => {
-        // Deduplicate by key+value — same fact merges (keeps highest confidence),
-        // but different facts with the same key coexist (e.g. two pets, two hobbies)
+        // Deduplicate by normalizedKey — keep highest confidence per key
         const seen = new Map<string, typeof raw[0]>();
         for (const m of raw) {
-          const dedup = (m.normalizedKey || m.key) + "::" + (m.value ?? "");
+          const dedup = m.normalizedKey || m.key;
           const existing = seen.get(dedup);
           if (!existing || (m.confidence ?? 0) > (existing.confidence ?? 0)) {
             seen.set(dedup, m);

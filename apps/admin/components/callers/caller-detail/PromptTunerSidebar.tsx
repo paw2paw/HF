@@ -43,7 +43,7 @@ export interface PromptTunerSidebarProps {
   playbookId: string | null;
   onApplied: (changes: PendingChange[]) => void;
   onClose: () => void;
-  /** Render inline (inside a tab) instead of as a fixed sidebar overlay */
+  /** Render inline (inside a panel) instead of as a fixed sidebar overlay */
   inline?: boolean;
 }
 

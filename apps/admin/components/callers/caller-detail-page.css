@@ -10,12 +10,29 @@
 }
 
 .cdp-body {
-  /* plain wrapper — no overflow constraint */
+  display: flex;
+  gap: 0;
 }
 
 .cdp-content {
+  flex: 1;
+  min-width: 0;
   padding: 20px 24px 24px 24px;
   min-height: 50vh;
+}
+
+/* ── Tuning slide-out panel (sits beside content) ── */
+.cdp-tuning-panel {
+  width: 420px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-default);
+  background: var(--surface-primary);
+  overflow-y: auto;
+  max-height: calc(100vh - 160px);
+  position: sticky;
+  top: 44px; /* below sticky tab bar */
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Loading / Error ── */
@@ -443,14 +460,6 @@
 
 .cdp-btn-unarchive:hover {
   filter: brightness(1.1);
-}
-
-/* ── Active prompt section ── */
-/* ── Tuning tab ── */
-.cdp-tuning-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
 }
 
 /* ── Processing banner ── */
