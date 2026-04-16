@@ -75,7 +75,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (lessonPlanMode === 'continuous' && curriculum?.slug) {
       const pbConfig = (enrollment.playbook.config ?? {}) as PlaybookConfig;
       const nps: NpsConfig = { ...DEFAULT_NPS_CONFIG, ...pbConfig.nps };
-      const preTestEnabled = pbConfig.assessment?.preTest?.enabled ?? false;
+      // Wizard writes welcome.knowledgeCheck; seed/legacy writes assessment.preTest
+      const preTestEnabled = pbConfig.welcome?.knowledgeCheck?.enabled
+        ?? pbConfig.assessment?.preTest?.enabled
+        ?? false;
 
       // Load progress + survey state + call count in parallel
       const [summary, surveyAttrs, callCount] = await Promise.all([
