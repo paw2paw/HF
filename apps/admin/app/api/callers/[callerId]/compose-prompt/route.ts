@@ -57,7 +57,21 @@ export async function POST(
       targetOverrides,
       playbookIds,
       forceFirstCall = false,
+      skipIfFreshMs = 0,
     } = body;
+
+    // Skip composition if a fresh active prompt already exists (avoids duplicate on sim start)
+    if (skipIfFreshMs > 0) {
+      const cutoff = new Date(Date.now() - skipIfFreshMs);
+      const fresh = await prisma.composedPrompt.findFirst({
+        where: { callerId, status: "active", createdAt: { gte: cutoff } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (fresh) {
+        console.log(`[compose-prompt] Skipping — fresh prompt ${fresh.id} is ${Math.round((Date.now() - fresh.createdAt.getTime()) / 1000)}s old`);
+        return NextResponse.json({ ok: true, prompt: fresh, metadata: { skipped: true } });
+      }
+    }
 
     // Load COMPOSE spec config (shared helper)
     const { fullSpecConfig, sections, specSlug } = await loadComposeConfig({

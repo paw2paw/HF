@@ -351,10 +351,20 @@ export function SimChat({
     try {
       let usedPromptId: string | null = null;
       let firstLine: string | null = null;
+
+      // Use the existing enrolled prompt (from autoComposeForCaller) — don't recompose.
+      // Post-call pipeline will compose the next prompt after this call ends.
+      // TODO: if course config changes after enrollment, advise/offer educator to regen relevant prompts
       const composeRes = await fetch(`/api/callers/${callerId}/compose-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ triggerType: 'sim', ...(playbookId ? { playbookIds: [playbookId] } : {}), ...(targetOverrides ? { targetOverrides } : {}), ...(forceFirstCall ? { forceFirstCall: true } : {}) }),
+        body: JSON.stringify({
+          triggerType: 'sim',
+          skipIfFreshMs: 24 * 60 * 60 * 1000, // reuse any prompt from last 24h — effectively "use enrolled prompt"
+          ...(playbookId ? { playbookIds: [playbookId] } : {}),
+          ...(targetOverrides ? { targetOverrides } : {}),
+          ...(forceFirstCall ? { forceFirstCall: true } : {}),
+        }),
       });
       if (composeRes.ok) {
         const composeData = await composeRes.json();
@@ -679,30 +689,32 @@ export function SimChat({
             if (!data.ok) console.error('[sim] Pipeline failed:', data.error, data.logs);
             else {
               console.log('[sim] Pipeline complete:', data.message);
-              // Fetch artifacts + actions + new prompt after pipeline completes
+              // Pipeline COMPOSE stage already persisted the next prompt — fetch artifacts + actions only
+              const pipelinePromptId = data.data?.promptId as string | undefined;
+              if (pipelinePromptId) {
+                setNewPromptId(pipelinePromptId);
+                console.log('[sim] Pipeline composed prompt:', pipelinePromptId);
+              }
               Promise.all([
                 fetch(`/api/callers/${callerId}/artifacts?callId=${callId}`).then(r => r.json()).catch(() => null),
                 fetch(`/api/callers/${callerId}/actions?callId=${callId}`).then(r => r.json()).catch(() => null),
-                fetch(`/api/callers/${callerId}/compose-prompt`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ triggerType: 'post-call', ...(playbookId ? { playbookIds: [playbookId] } : {}), ...(targetOverrides ? { targetOverrides } : {}) }),
-                }).then(r => r.json()).catch(() => null),
+                // Fetch the pipeline-composed prompt to get quickStart data
+                pipelinePromptId
+                  ? fetch(`/api/callers/${callerId}/compose-prompt?status=active&limit=1`).then(r => r.json()).catch(() => null)
+                  : Promise.resolve(null),
               ]).then(([artData, actData, promptData]) => {
                 const artCount = artData?.ok && artData.artifacts?.length > 0 ? artData.artifacts.length : 0;
                 const actCount = actData?.ok && actData.actions?.length > 0 ? actData.actions.length : 0;
                 if (artCount > 0) setArtifacts(artData.artifacts);
                 if (actCount > 0) setActions(actData.actions);
-                if (promptData?.prompt?.id) {
-                  setNewPromptId(promptData.prompt.id);
-                  const postQs = (promptData.prompt?.llmPrompt as any)?._quickStart;
+                if (promptData?.ok && promptData.prompts?.[0]) {
+                  const postQs = (promptData.prompts[0]?.llmPrompt as any)?._quickStart;
                   if (postQs) setQuickStart(postQs);
-                  console.log('[sim] New prompt composed:', promptData.prompt.id);
                 }
                 const parts = [];
                 if (artCount > 0) parts.push(`${artCount} artifact${artCount > 1 ? 's' : ''}`);
                 if (actCount > 0) parts.push(`${actCount} action${actCount > 1 ? 's' : ''}`);
-                if (promptData?.prompt?.id) parts.push('new prompt');
+                if (pipelinePromptId) parts.push('new prompt');
                 if (parts.length > 0) showToast(`${parts.join(' & ')} generated`);
               });
             }
@@ -1007,8 +1019,8 @@ export function SimChat({
           </>
         )}
 
-        {/* Post-call: new prompt notification */}
-        {newPromptId && (
+        {/* Post-call: new prompt notification (operator-only — breaks learner immersion) */}
+        {newPromptId && isOperator && (
           <div style={{
             alignSelf: 'center',
             background: 'linear-gradient(135deg, var(--status-success-bg), var(--status-success-bg))',
