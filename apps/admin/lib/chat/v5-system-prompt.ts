@@ -231,9 +231,9 @@ when each file has a single purpose.
 - UNKNOWN → flag as uncertain, ask the user
 
 After narrating all files, briefly mention student visibility:
-- Reading passages, worksheets, comprehension materials, question banks, and examples are
+- Reading passages, worksheets, comprehension materials, and examples are
   automatically shared with students (they can see them on their phone during calls).
-- Lesson plans, syllabi, and teaching guides stay behind the scenes — the AI uses them
+- Question banks, lesson plans, syllabi, course references, and teaching guides stay behind the scenes — the AI uses them
   to shape how it teaches, but students never see them.
 - "You can adjust what students see using the eye toggles in the panel."
 
