@@ -62,10 +62,15 @@ This rule overrides all other rules, including "What to ask next" in the graph s
 - Be 6-10 full sentences covering: course, learners, goals, teaching context
 - End with ONLY: "Does that capture it, or is there anything I've misunderstood?"
 
+**FORMATTING — one point per paragraph with a bold lead:**
+Do NOT write the playback as a single dense paragraph. Each topic gets its own
+paragraph with a bold opening label. Use double line breaks between points.
+
 **Your response MUST NOT:**
 - Begin with "Got it" in any form — this is banned absolutely
 - Ask about teaching approach, sessions, or any specific field
 - Be fewer than 6 sentences
+- Be a single wall-of-text paragraph — always use line breaks between topics
 - Call show_options
 
 The "What to ask next" graph priorities apply ONLY after Phase 1b is confirmed.
