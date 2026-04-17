@@ -125,26 +125,26 @@ export async function POST(
     }
 
     // 3. Find existing curriculum for this subject (we upsert onto it, not create)
-    const existingCurriculum = await prisma.curriculum.findFirst({
+    const curriculumRecord = await prisma.curriculum.findFirst({
       where: { subjectId: primarySubject.id },
       orderBy: { createdAt: "desc" },
       select: { id: true, deliveryConfig: true },
     });
 
-    if (!existingCurriculum) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error:
-            "No curriculum exists for this subject yet — use the course setup wizard to create one first",
-        },
-        { status: 404 },
-      );
-    }
+    // Create curriculum if none exists (wizard path may not have created one)
+    const curriculumRecord = curriculumRecord ?? await prisma.curriculum.create({
+      data: {
+        subjectId: primarySubject.id,
+        name: primarySubject.name,
+        description: `Auto-generated curriculum for ${playbook.name}`,
+        deliveryConfig: {},
+      },
+      select: { id: true, deliveryConfig: true },
+    });
 
     // 4. Snapshot module slugs before regen so we can detect orphan risk
     const priorModules = await prisma.curriculumModule.findMany({
-      where: { curriculumId: existingCurriculum.id, isActive: true },
+      where: { curriculumId: curriculumRecord.id, isActive: true },
       select: { slug: true, _count: { select: { callerProgress: true } } },
     });
     const priorSlugSet = new Set(priorModules.map((m) => m.slug));
@@ -193,7 +193,7 @@ export async function POST(
     // the safer default 'merge' to avoid clobbering on AI non-determinism.
     // Pass assertion tags so the in-transaction apply can write LO refs back
     // to the source assertions before reconcile runs.
-    const syncResult = await syncModulesToDB(existingCurriculum.id, newModules, {
+    const syncResult = await syncModulesToDB(curriculumRecord.id, newModules, {
       mode: "replace",
       assertionTags: extracted.assertionTags,
       assertionIdByIndex,
@@ -211,7 +211,7 @@ export async function POST(
     // 8. Detect lesson plan staleness — if the module slugs changed, the
     // lesson plan's learningOutcomeRefs arrays may reference LO refs that no
     // longer exist
-    const dc = existingCurriculum.deliveryConfig as Record<string, unknown> | null;
+    const dc = curriculumRecord.deliveryConfig as Record<string, unknown> | null;
     const lessonPlan = dc?.lessonPlan as { entries?: unknown[] } | undefined;
     const hasLessonPlan = Array.isArray(lessonPlan?.entries) && lessonPlan.entries.length > 0;
     const slugsChanged = [...newSlugSet].some((s) => !priorSlugSet.has(s)) ||
@@ -235,7 +235,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      curriculumId: existingCurriculum.id,
+      curriculumId: curriculumRecord.id,
       moduleCount: syncResult.count,
       warnings: extracted.warnings,
       reconcile: syncResult.reconcile
