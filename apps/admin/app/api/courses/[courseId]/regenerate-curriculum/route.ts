@@ -133,6 +133,7 @@ export async function POST(
 
     const curriculumRecord = existingCurr ?? await prisma.curriculum.create({
       data: {
+        slug: `${courseId}-content`,
         subjectId: primarySubject.id,
         name: primarySubject.name,
         description: `Auto-generated curriculum for ${playbook.name}`,

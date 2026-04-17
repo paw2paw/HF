@@ -243,8 +243,11 @@ export async function generateContentSpec(domainId: string, options?: GenerateCo
         where: { subjectId },
         select: { id: true },
       });
+      const slugify = (await import("slugify")).default;
+      const currSlug = `${slugify(subjectName, { lower: true, strict: true })}-content-${Date.now()}`;
       const curriculumRecord = existingCurr ?? await p.curriculum.create({
         data: {
+          slug: currSlug,
           subjectId,
           name: curriculum.name || subjectName,
           description: curriculum.description || "",
