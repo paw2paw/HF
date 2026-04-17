@@ -176,9 +176,22 @@ function TeachingPointsInventory({ courseId, subjects }: { courseId: string; sub
       .finally(() => setLoading(false));
   }, [fetched, courseId, allItems.length]);
 
-  // Use contentTotal (from breakdown API via PlaybookSource) — not subjects.reduce
-  // which double-counts when sources are linked to multiple subjects.
-  const totalCount = contentTotal || subjects.reduce((sum, s) => sum + s.assertionCount, 0);
+  // Deduplicate source assertion counts across subjects (same source may appear
+  // in multiple subjects via SubjectSource — PlaybookSource eliminates this but
+  // the subjects prop still comes from the old chain).
+  const totalCount = useMemo(() => {
+    const seen = new Set<string>();
+    let sum = 0;
+    for (const s of subjects) {
+      for (const src of (s.sources ?? [])) {
+        if (!seen.has(src.id)) {
+          seen.add(src.id);
+          sum += src.assertionCount ?? 0;
+        }
+      }
+    }
+    return sum || subjects.reduce((acc, s) => acc + s.assertionCount, 0);
+  }, [subjects]);
   if (totalCount === 0) return null;
 
   // Split into TPs (content) and TIs (instructions)
