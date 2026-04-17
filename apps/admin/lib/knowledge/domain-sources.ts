@@ -96,7 +96,17 @@ export async function getSourceIdsForDomain(domainId: string): Promise<string[]>
  * Returns deduplicated array. Returns empty array if no sources found.
  */
 export async function getSourceIdsForPlaybook(playbookId: string): Promise<string[]> {
-  // 1. Try course-scoped: Playbook → PlaybookSubject → Subject → SubjectSource
+  // 1. PRIMARY: PlaybookSource (direct link — Phase 3a)
+  const playbookSources = await prisma.playbookSource.findMany({
+    where: { playbookId },
+    select: { sourceId: true },
+  });
+
+  if (playbookSources.length > 0) {
+    return [...new Set(playbookSources.map((ps) => ps.sourceId))];
+  }
+
+  // 2. FALLBACK: Legacy Subject chain (pre-migration courses without PlaybookSource rows)
   const playbookSubjects = await prisma.playbookSubject.findMany({
     where: { playbookId },
     select: {
@@ -115,7 +125,7 @@ export async function getSourceIdsForPlaybook(playbookId: string): Promise<strin
     return [...new Set(sourceIds)];
   }
 
-  // 2. Fallback: domain-wide (backward compat for pre-scoping courses)
+  // 3. Fallback: domain-wide (backward compat for pre-scoping courses)
   const playbook = await prisma.playbook.findUnique({
     where: { id: playbookId },
     select: { domainId: true },
@@ -143,6 +153,63 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
   }>;
   scoped: boolean;
 }> {
+  // 1. PRIMARY: PlaybookSource for content + PlaybookSubject for metadata
+  const playbookSources = await prisma.playbookSource.findMany({
+    where: { playbookId },
+    select: {
+      sourceId: true,
+      sortOrder: true,
+      tags: true,
+      source: { select: { documentType: true } },
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  if (playbookSources.length > 0) {
+    // Get subject metadata from PlaybookSubject (taxonomy, teachingDepth)
+    const playbookSubjects = await prisma.playbookSubject.findMany({
+      where: { playbookId },
+      select: { subject: { select: { id: true, teachingDepth: true } } },
+    });
+
+    // Build subjects with sources from PlaybookSource, metadata from PlaybookSubject
+    // All sources belong to the playbook (not a specific subject), so we attach them
+    // to the first subject for backward compat with transforms that read subjects[0].sources
+    const subjects = playbookSubjects.map((ps, idx) => ({
+      ...ps.subject,
+      sources: idx === 0
+        ? playbookSources.map((s) => ({
+            subjectSourceId: "", // Not applicable for PlaybookSource path
+            sourceId: s.sourceId,
+            documentType: s.source?.documentType ?? null,
+            sortOrder: s.sortOrder,
+            tags: s.tags,
+          }))
+        : [], // Only first subject carries sources (content is course-scoped, not subject-scoped)
+    }));
+
+    // If no PlaybookSubject exists (edge case), synthesize a minimal subject entry
+    if (subjects.length === 0) {
+      return {
+        subjects: [{
+          id: "",
+          teachingDepth: null,
+          sources: playbookSources.map((s) => ({
+            subjectSourceId: "",
+            sourceId: s.sourceId,
+            documentType: s.source?.documentType ?? null,
+            sortOrder: s.sortOrder,
+            tags: s.tags,
+          })),
+        }],
+        scoped: true,
+      };
+    }
+
+    return { subjects, scoped: true };
+  }
+
+  // 2. FALLBACK: Legacy Subject chain (pre-migration courses)
   const sourceSelect = {
     select: {
       id: true,
@@ -154,8 +221,7 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
     orderBy: { sortOrder: "asc" as const },
   } as const;
 
-  // 1. Try course-scoped
-  const playbookSubjects = await prisma.playbookSubject.findMany({
+  const playbookSubjectsLegacy = await prisma.playbookSubject.findMany({
     where: { playbookId },
     select: {
       subject: {
@@ -168,9 +234,9 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
     },
   });
 
-  if (playbookSubjects.length > 0) {
+  if (playbookSubjectsLegacy.length > 0) {
     return {
-      subjects: playbookSubjects.map((ps) => ({
+      subjects: playbookSubjectsLegacy.map((ps) => ({
         ...ps.subject,
         sources: ps.subject.sources.map((s) => ({
           subjectSourceId: s.id,
@@ -184,7 +250,7 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
     };
   }
 
-  // 2. Fallback: domain-wide
+  // 3. Fallback: domain-wide
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId },
     select: {
@@ -211,26 +277,6 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
     })),
     scoped: false,
   };
-}
-
-/**
- * Get source IDs for a playbook via PlaybookSource (direct link).
- * Falls back to the legacy Subject chain if no PlaybookSource rows exist.
- * Phase 1 of PlaybookSource migration — will replace getSourceIdsForPlaybook().
- */
-export async function getSourceIdsForPlaybookDirect(playbookId: string): Promise<string[]> {
-  // PRIMARY: PlaybookSource (direct link)
-  const playbookSources = await prisma.playbookSource.findMany({
-    where: { playbookId },
-    select: { sourceId: true },
-  });
-
-  if (playbookSources.length > 0) {
-    return [...new Set(playbookSources.map((ps) => ps.sourceId))];
-  }
-
-  // FALLBACK: Legacy Subject chain (pre-migration courses)
-  return getSourceIdsForPlaybook(playbookId);
 }
 
 /**
