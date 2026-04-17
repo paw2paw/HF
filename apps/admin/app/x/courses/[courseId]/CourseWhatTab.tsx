@@ -165,7 +165,7 @@ function TeachingPointsInventory({ courseId, subjects }: { courseId: string; sub
   useEffect(() => {
     if (!fetched || allItems.length > 0) return;
     setLoading(true);
-    fetch(`/api/courses/${courseId}/assertions?limit=500`)
+    fetch(`/api/courses/${courseId}/assertions?limit=500&scope=all`)
       .then((r) => r.json())
       .then((res) => {
         if (res.ok && Array.isArray(res.assertions)) {
