@@ -431,6 +431,10 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
           },
         });
 
+        // Dual-write: sync PlaybookSource from SubjectSource chain
+        const { syncPlaybookSources } = await import("@/lib/knowledge/domain-sources");
+        await syncPlaybookSources(scaffoldResult.playbook.id, ctx.results.subjectId);
+
         // Link Subject to Department (teacher hierarchy: dept → subject → course)
         if (ctx.input.groupId) {
           await prisma.playbookGroupSubject.upsert({
@@ -483,6 +487,10 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
             subjectId: packSubId,
           },
         });
+
+        // Dual-write: sync PlaybookSource from pack subject's SubjectSource chain
+        const { syncPlaybookSources: syncPack } = await import("@/lib/knowledge/domain-sources");
+        await syncPack(scaffoldResult.playbook.id, packSubId);
 
         // Link to Domain
         const domainLink = await prisma.subjectDomain.findFirst({

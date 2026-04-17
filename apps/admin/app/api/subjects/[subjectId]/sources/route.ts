@@ -123,6 +123,16 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
 
+    // Dual-write: PlaybookSource for all playbooks that teach this subject
+    const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+    for (const pb of pbLinks) {
+      await prisma.playbookSource.upsert({
+        where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId } },
+        create: { playbookId: pb.playbookId, sourceId, tags, sortOrder: body.sortOrder || 0 },
+        update: {},
+      });
+    }
+
     return NextResponse.json({ subjectSource, source }, { status: 201 });
   } catch (error: any) {
     if (error.code === "P2002") {
@@ -184,6 +194,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         },
       },
     });
+
+    // Dual-write: PlaybookSource for all playbooks that teach this subject
+    const pbLinksUpsert = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+    for (const pb of pbLinksUpsert) {
+      await prisma.playbookSource.upsert({
+        where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: body.sourceId } },
+        create: { playbookId: pb.playbookId, sourceId: body.sourceId, tags: body.tags },
+        update: {},
+      });
+    }
 
     return NextResponse.json({ ok: true, subjectSource });
   } catch (error: any) {

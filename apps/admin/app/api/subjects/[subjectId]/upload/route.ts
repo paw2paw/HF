@@ -94,6 +94,16 @@ export async function POST(
         },
       });
 
+      // Dual-write: PlaybookSource for all playbooks that teach this subject
+      const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+      for (const pb of pbLinks) {
+        await prisma.playbookSource.upsert({
+          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: existingId } },
+          create: { playbookId: pb.playbookId, sourceId: existingId, tags, trustLevelOverride: trustLevelOverride as any ?? undefined },
+          update: {},
+        });
+      }
+
       // Link existing media to subject (idempotent)
       const existingMedia = await prisma.mediaAsset.findUnique({ where: { contentHash } });
       if (existingMedia) {
@@ -228,6 +238,16 @@ export async function POST(
         trustLevelOverride: trustLevelOverride ? (trustLevelOverride as any) : null,
       },
     });
+
+    // Dual-write: PlaybookSource for all playbooks that teach this subject
+    const pbLinksNew = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+    for (const pb of pbLinksNew) {
+      await prisma.playbookSource.upsert({
+        where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: source.id } },
+        create: { playbookId: pb.playbookId, sourceId: source.id, tags: finalTags, trustLevelOverride: trustLevelOverride as any ?? undefined },
+        update: {},
+      });
+    }
 
     // ── Store file in storage backend + create MediaAsset ──
 

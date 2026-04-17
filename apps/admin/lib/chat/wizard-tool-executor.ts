@@ -798,6 +798,9 @@ export async function executeWizardTool(
                         data: { subjectId: existingPbSubject.subjectId, sourceId: ps.sourceId },
                       });
                     }
+                    // Dual-write: PlaybookSource for bridged source
+                    const { upsertPlaybookSource: upsertBridge } = await import("@/lib/knowledge/domain-sources");
+                    await upsertBridge(existingPlaybookId, ps.sourceId);
                   }
                 }
               }
@@ -850,6 +853,10 @@ export async function executeWizardTool(
                     await prisma.subjectSource.create({
                       data: { subjectId: existingPbSubject.subjectId, sourceId: refSource.id },
                     });
+                    // Dual-write: PlaybookSource for pedagogy source
+                    const { upsertPlaybookSource: upsertPedExisting } = await import("@/lib/knowledge/domain-sources");
+                    await upsertPedExisting(existingPlaybookId, refSource.id, { tags: ["course-reference"] });
+
                     for (const row of assertionRows) {
                       await prisma.contentAssertion.create({
                         data: { ...row, sourceId: refSource.id, confidence: 1.0, depth: 0, isActive: true },
@@ -964,6 +971,10 @@ export async function executeWizardTool(
           update: {},
           create: { playbookId, subjectId: subject.id },
         });
+
+        // Dual-write: sync PlaybookSource from primary subject
+        const { syncPlaybookSources } = await import("@/lib/knowledge/domain-sources");
+        await syncPlaybookSources(playbookId, subject.id);
 
         // 5. Store config in playbook
         // Fall back to setupData (wizard data bag) for fields the AI may not repeat in create_course
@@ -1082,6 +1093,10 @@ export async function executeWizardTool(
           create: { playbookId, subjectId: subject.id },
         });
 
+        // Dual-write: sync PlaybookSource from primary subject (idempotent if already done at 4b)
+        const { syncPlaybookSources: syncStep6 } = await import("@/lib/knowledge/domain-sources");
+        await syncStep6(playbookId, subject.id);
+
         // 6b. Create per-course identity spec overlay
         //     Extends the domain identity spec so course-specific teaching rules
         //     are scoped to this course and don't bleed into other courses.
@@ -1145,6 +1160,10 @@ export async function executeWizardTool(
             update: {},
             create: { playbookId, subjectId: packSubId },
           });
+          // Dual-write: sync PlaybookSource from pack subject
+          const { syncPlaybookSources: syncPackSub } = await import("@/lib/knowledge/domain-sources");
+          await syncPackSub(playbookId, packSubId);
+
           const domainLink = await prisma.subjectDomain.findFirst({
             where: { subjectId: packSubId, domainId },
           });
@@ -1173,6 +1192,9 @@ export async function executeWizardTool(
                   data: { subjectId: subject.id, sourceId: ps.sourceId },
                 });
               }
+              // Dual-write: PlaybookSource for bridged source
+              const { upsertPlaybookSource: upsertBridgeNew } = await import("@/lib/knowledge/domain-sources");
+              await upsertBridgeNew(playbookId, ps.sourceId);
             }
           }
         }
@@ -1423,6 +1445,9 @@ export async function executeWizardTool(
                 await prisma.subjectSource.create({
                   data: { subjectId: subject.id, sourceId: refSource.id },
                 });
+                // Dual-write: PlaybookSource for pedagogy source
+                const { upsertPlaybookSource: upsertPedNew } = await import("@/lib/knowledge/domain-sources");
+                await upsertPedNew(playbookId, refSource.id, { tags: ["course-reference"] });
 
                 // Create assertion rows
                 for (const row of assertionRows) {

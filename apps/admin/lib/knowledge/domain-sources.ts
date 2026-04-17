@@ -17,6 +17,57 @@ import { prisma } from "@/lib/prisma";
 import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
 
 /**
+ * Sync PlaybookSource rows for a playbook from its SubjectSource chain.
+ * Call after creating/updating PlaybookSubject or SubjectSource links.
+ * Idempotent — upserts with ON CONFLICT DO NOTHING semantics.
+ */
+export async function syncPlaybookSources(playbookId: string, subjectId: string): Promise<number> {
+  const subjectSources = await prisma.subjectSource.findMany({
+    where: { subjectId },
+    select: { sourceId: true, sortOrder: true, tags: true, trustLevelOverride: true },
+  });
+
+  let synced = 0;
+  for (const ss of subjectSources) {
+    await prisma.playbookSource.upsert({
+      where: { playbookId_sourceId: { playbookId, sourceId: ss.sourceId } },
+      create: {
+        playbookId,
+        sourceId: ss.sourceId,
+        sortOrder: ss.sortOrder,
+        tags: ss.tags,
+        trustLevelOverride: ss.trustLevelOverride,
+      },
+      update: {},
+    });
+    synced++;
+  }
+  return synced;
+}
+
+/**
+ * Upsert a single PlaybookSource row. Call when a new SubjectSource is created
+ * and the playbookId is known.
+ */
+export async function upsertPlaybookSource(
+  playbookId: string,
+  sourceId: string,
+  opts?: { sortOrder?: number; tags?: string[]; trustLevelOverride?: string | null },
+): Promise<void> {
+  await prisma.playbookSource.upsert({
+    where: { playbookId_sourceId: { playbookId, sourceId } },
+    create: {
+      playbookId,
+      sourceId,
+      sortOrder: opts?.sortOrder ?? 0,
+      tags: opts?.tags ?? ["content"],
+      trustLevelOverride: opts?.trustLevelOverride as any,
+    },
+    update: {},
+  });
+}
+
+/**
  * Get all ContentSource IDs linked to a domain via its subjects.
  * Returns deduplicated array. Returns empty array if no sources found.
  */

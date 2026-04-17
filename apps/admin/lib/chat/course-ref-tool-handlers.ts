@@ -237,6 +237,13 @@ async function attachToExistingCourse(
       },
     });
 
+    // Dual-write: PlaybookSource
+    await tx.playbookSource.upsert({
+      where: { playbookId_sourceId: { playbookId: courseId, sourceId: source.id } },
+      create: { playbookId: courseId, sourceId: source.id, tags: ["course-reference", "chat-built"] },
+      update: {},
+    });
+
     if (assertions.length > 0) {
       await tx.contentAssertion.createMany({
         data: assertions.map((a) => ({
@@ -362,6 +369,13 @@ async function createCourseFromRef(
         sourceId: source.id,
         tags: ["course-reference", "chat-built"],
       },
+    });
+
+    // Dual-write: PlaybookSource
+    await tx.playbookSource.upsert({
+      where: { playbookId_sourceId: { playbookId: playbook.id, sourceId: source.id } },
+      create: { playbookId: playbook.id, sourceId: source.id, tags: ["course-reference", "chat-built"] },
+      update: {},
     });
 
     // 8. Create assertions
