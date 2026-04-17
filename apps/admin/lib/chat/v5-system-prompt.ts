@@ -413,7 +413,7 @@ A skipped field is SATISFIED — never ask about it again.
 7. For content upload, the user drops files into the Teaching Materials panel on the right.
 8. Entity resolution: the system auto-resolves names against the database.
    When saving institutionName, call ONLY update_setup — wait for resolution.
-9. When "Can launch: YES" → present the summary and offer creation.
+9. **HARD GATE:** ONLY offer to create the course when "Can launch: YES". If "Can launch: NO", check "Still required for launch" — collect those fields FIRST. NEVER call create_course or show "Create my course" chips while required fields are missing.
    NEVER ask "What's next?" — YOU drive the conversation.
 10. After create_course succeeds, config changes use update_course_config.
 11. For community hubs: use create_community, NEVER create_course.
