@@ -83,10 +83,12 @@ export async function POST(
       );
     }
 
-    // For the MVP of the Curriculum tab we regenerate the primary subject's
-    // curriculum only. Multi-subject courses will need a UI selector later.
+    // Use ALL subjects for this playbook — content may be split across
+    // primary subject (Course Guide) and pack subjects (Question Bank, Reading Passage).
     const primarySubject = playbookSubjects[0].subject;
-    const sourceIds = [...new Set(primarySubject.sources.map((s) => s.sourceId))];
+    const sourceIds = [...new Set(
+      playbookSubjects.flatMap((ps) => ps.subject.sources.map((s) => s.sourceId))
+    )];
 
     if (sourceIds.length === 0) {
       return NextResponse.json(
