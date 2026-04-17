@@ -967,11 +967,20 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
             const { detectCourseConfig, hasCourseConfig } = await import("@/lib/wizard/detect-course-config");
             const courseConfig = detectCourseConfig(combinedText);
             if (hasCourseConfig(courseConfig)) {
-              // Structured config from the document WINS over AI guesses.
-              // The educator wrote these checkboxes — they are the truth.
-              // Track which keys came from the document so update_setup won't clobber them.
+              // Structured config from the document WINS over AI guesses —
+              // BUT only for fields the user/AI hasn't already set.
+              // courseName is special: the user names their course, the doc
+              // just has a document title. Never overwrite an existing courseName.
               const docKeys: string[] = [];
-              if (courseConfig.courseName) { setData("courseName", courseConfig.courseName); docKeys.push("courseName"); }
+              const setIfEmpty = (key: string, value: unknown) => {
+                if (!getData(key)) {
+                  setData(key, value);
+                  docKeys.push(key);
+                }
+              };
+              // courseName: only fill if blank — user's chosen name always wins
+              if (courseConfig.courseName) setIfEmpty("courseName", courseConfig.courseName);
+              // These pedagogy fields: doc config wins (educator checkboxes)
               if (courseConfig.subjectDiscipline) { setData("subjectDiscipline", courseConfig.subjectDiscipline); docKeys.push("subjectDiscipline"); }
               if (courseConfig.interactionPattern) { setData("interactionPattern", courseConfig.interactionPattern); docKeys.push("interactionPattern"); }
               if (courseConfig.teachingMode) { setData("teachingMode", courseConfig.teachingMode); docKeys.push("teachingMode"); }
