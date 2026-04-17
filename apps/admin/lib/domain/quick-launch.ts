@@ -654,6 +654,7 @@ const stepExecutors: Record<string, StepExecutor> = {
         name: skeleton.name || `${domain!.name} Curriculum`,
         description: skeleton.description || `AI-generated curriculum for ${domain!.name}`,
         subjectId,
+        playbookId: ctx.results.playbookId ?? null,
         deliveryConfig: {},
       },
     });

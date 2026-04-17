@@ -174,6 +174,12 @@ export async function POST(req: NextRequest, { params }: Params) {
 
       const slug = `${subject.slug}-curriculum`;
 
+      // Resolve playbookId from subject → PlaybookSubject
+      const pbLink = await prisma.playbookSubject.findFirst({
+        where: { subjectId },
+        select: { playbookId: true },
+      });
+
       const curriculum = await prisma.curriculum.upsert({
         where: { slug },
         create: {
@@ -181,6 +187,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           name: result.name,
           description: result.description,
           subjectId,
+          playbookId: pbLink?.playbookId ?? null,
           primarySourceId,
           trustLevel: subject.defaultTrustLevel,
           qualificationBody: subject.qualificationBody,

@@ -80,13 +80,24 @@ export async function POST(req: NextRequest) {
       .slice(0, 60);
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
+    // Resolve playbookId from subjectId if available
+    let playbookId: string | null = null;
+    if (subjectId) {
+      const pbLink = await prisma.playbookSubject.findFirst({
+        where: { subjectId },
+        select: { playbookId: true },
+      });
+      playbookId = pbLink?.playbookId ?? null;
+    }
+
     const curriculum = await prisma.curriculum.create({
       data: {
         slug,
         name: name.trim(),
         subjectId: subjectId || null,
+        playbookId,
       },
-      select: { id: true, slug: true, name: true, subjectId: true },
+      select: { id: true, slug: true, name: true, subjectId: true, playbookId: true },
     });
 
     return NextResponse.json({ ok: true, curriculum });

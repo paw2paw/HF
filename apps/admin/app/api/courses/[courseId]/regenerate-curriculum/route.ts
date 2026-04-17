@@ -136,7 +136,8 @@ export async function POST(
       data: {
         slug: `${courseId}-content`,
         subjectId: primarySubject.id,
-        name: primarySubject.name,
+        playbookId: courseId,
+        name: disciplineName,
         description: `Auto-generated curriculum for ${playbook.name}`,
         deliveryConfig: {},
       },
