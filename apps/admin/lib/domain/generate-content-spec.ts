@@ -108,9 +108,12 @@ export async function generateContentSpec(domainId: string, options?: GenerateCo
   // 1. Load domain + assertions via shared loader (optionally scoped to specific subjects)
   const { domain, assertions, subjectName, qualificationRef, sourceCount } = await loadDomainAssertions(domainId, tx, options?.subjectIds);
 
-  // 2. Check if curriculum already exists for this domain's subjects
+  // 2. Check if curriculum already exists for THIS course's subjects (not domain-wide)
+  const curriculumFilter = options?.subjectIds?.length
+    ? { subjectId: { in: options.subjectIds } }
+    : { subject: { domains: { some: { domainId } } } };
   const existingCurriculum = await p.curriculum.findFirst({
-    where: { subject: { domains: { some: { domainId } } } },
+    where: curriculumFilter,
     select: { id: true },
   });
 

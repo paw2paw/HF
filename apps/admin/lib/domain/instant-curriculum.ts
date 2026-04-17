@@ -146,20 +146,23 @@ export async function generateInstantCurriculum(
   if (subjectIds && subjectIds.length > 0) {
     const result = await generateContentSpec(domainId, { subjectIds, intents });
 
-    if (result.contentSpec) {
-      await patchContentSpecForContract(result.contentSpec.id);
-
-      // Ensure it's linked to THIS playbook (generateContentSpec links to first published)
-      await ensurePlaybookLink(playbookId, result.contentSpec.id);
-
+    // ADR-002: contentSpec is always null (AnalysisSpec removed).
+    // Curriculum data now lives in Curriculum/Module/LO tables,
+    // written by extractCurriculumFromAssertions inside generateContentSpec.
+    // Check moduleCount to know if curriculum was generated.
+    if (result.moduleCount > 0) {
+      console.log(`[instant-curriculum] assertion-based curriculum generated: ${result.moduleCount} modules from ${result.assertionCount} assertions`);
       return {
         ok: true,
-        contentSpecId: result.contentSpec.id,
+        contentSpecId: null,
         moduleCount: result.moduleCount,
         path: "assertions",
       };
     }
-    // No assertions yet — fall through to goals-based
+    if (result.skipped?.length) {
+      console.log(`[instant-curriculum] skipped: ${result.skipped.join(", ")}`);
+    }
+    // No modules produced — fall through to goals-based
   }
 
   // ── Path 2: Goals-based (no content uploaded) ──
