@@ -473,6 +473,42 @@ async function composeContentFromSubject(
   callerId: string,
   domainId: string
 ): Promise<ContentSection> {
+  // Try playbook curriculum first (direct link)
+  const { resolvePlaybookId } = await import("@/lib/enrollment");
+  const enrolledPbId = await resolvePlaybookId(callerId);
+  if (enrolledPbId) {
+    const pbCurr = await prisma.curriculum.findFirst({
+      where: { playbookId: enrolledPbId },
+      orderBy: { updatedAt: "desc" },
+      select: { slug: true, name: true, notableInfo: true },
+    });
+    if (pbCurr?.notableInfo) {
+      const rawModules = (pbCurr.notableInfo as any)?.modules;
+      if (Array.isArray(rawModules) && rawModules.length > 0) {
+        const modules: CurriculumModule[] = rawModules.map((m: any, idx: number) => ({
+          id: m.id,
+          slug: m.slug || m.id,
+          title: m.name || m.title || `Module ${idx + 1}`,
+          description: m.description,
+          sortOrder: idx,
+          keyTerms: m.keyTerms || [],
+          learningOutcomes: (m.learningOutcomes || []).map((lo: any) =>
+            typeof lo === "string" ? lo : lo.description || lo.ref || String(lo),
+          ),
+        }));
+
+        const progress = await getCurriculumProgress(callerId, pbCurr.slug);
+        return buildContentSection(
+          { slug: pbCurr.slug, name: pbCurr.name },
+          modules,
+          progress,
+          callerId,
+        );
+      }
+    }
+  }
+
+  // Fallback: domain-wide Subject curriculum (legacy)
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId },
     include: {

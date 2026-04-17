@@ -122,7 +122,34 @@ async function loadCurrentModuleContext(
     }
   }
 
-  // Path 2: Subject curriculum fallback
+  // Path 2: Playbook curriculum (direct link via playbookId)
+  if (resolvedPlaybookId) {
+    const pbCurriculum = await prisma.curriculum.findFirst({
+      where: { playbookId: resolvedPlaybookId },
+      orderBy: { updatedAt: "desc" },
+      select: { slug: true, notableInfo: true },
+    });
+    if (pbCurriculum?.notableInfo) {
+      const rawModules = (pbCurriculum.notableInfo as Record<string, any>)?.modules;
+      if (Array.isArray(rawModules) && rawModules.length > 0) {
+        const progress = await getCurriculumProgress(callerId, pbCurriculum.slug);
+        const currentModuleId = progress.currentModuleId || rawModules[0]?.id;
+        const currentModule = rawModules.find((m: any) => m.id === currentModuleId) || rawModules[0];
+        if (currentModule) {
+          return {
+            specSlug: pbCurriculum.slug,
+            moduleId: currentModule.id,
+            moduleName: currentModule.name || currentModule.title || currentModule.id,
+            learningOutcomes: currentModule.learningOutcomes || [],
+            masteryThreshold: 0.7,
+            allModuleIds: rawModules.map((m: any) => m.id),
+          };
+        }
+      }
+    }
+  }
+
+  // Path 3: Domain-wide Subject curriculum fallback (legacy)
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId: caller.domainId },
     include: {
@@ -1619,7 +1646,39 @@ async function trackCurriculumAfterCall(
     }
   }
 
-  // Subject curriculum fallback — assign first module if no CONTENT spec found
+  // Playbook curriculum — assign first module (direct link)
+  if (!updated) {
+    try {
+      const enrolledPbId = await resolvePlaybookId(callerId);
+      if (enrolledPbId) {
+        const pbCurr = await prisma.curriculum.findFirst({
+          where: { playbookId: enrolledPbId },
+          orderBy: { updatedAt: "desc" },
+          select: { slug: true, notableInfo: true },
+        });
+        if (pbCurr?.notableInfo) {
+          const rawMods = (pbCurr.notableInfo as Record<string, any>)?.modules;
+          if (Array.isArray(rawMods) && rawMods.length > 0) {
+            const prog = await getCurriculumProgress(callerId, pbCurr.slug);
+            if (!prog.currentModuleId) {
+              await updateCurriculumProgress(callerId, pbCurr.slug, {
+                currentModuleId: rawMods[0].id,
+                lastAccessedAt: new Date(),
+              });
+              log.info(`Assigned caller to first module of Playbook curriculum ${pbCurr.slug}`, { moduleId: rawMods[0].id });
+            } else {
+              await updateCurriculumProgress(callerId, pbCurr.slug, { lastAccessedAt: new Date() });
+            }
+            updated = true;
+          }
+        }
+      }
+    } catch (err: any) {
+      log.warn(`Playbook curriculum progress update failed: ${err.message}`);
+    }
+  }
+
+  // Subject curriculum fallback — assign first module if no CONTENT spec found (legacy)
   if (!updated) {
     try {
       const subjectDomains = await prisma.subjectDomain.findMany({
@@ -1734,6 +1793,41 @@ async function updateTpMasteryAfterCall(
   });
   if (!caller?.domainId) return false;
 
+  // Try playbook curriculum first (direct link)
+  const enrolledPbForAssess = await resolvePlaybookId(callerId);
+  if (enrolledPbForAssess) {
+    const pbCurr = await prisma.curriculum.findFirst({
+      where: { playbookId: enrolledPbForAssess },
+      orderBy: { updatedAt: "desc" },
+      select: { slug: true },
+    });
+    if (pbCurr) {
+      const threshold = learningAssessment.masteryThreshold || 0.7;
+      const assessedLoRefs = Object.keys(learningAssessment.outcomes);
+      const loRows = await prisma.learningObjective.findMany({
+        where: {
+          ref: { in: assessedLoRefs },
+          module: { curriculum: { slug: pbCurr.slug }, isActive: true },
+        },
+        select: { id: true, ref: true },
+      });
+      if (loRows.length > 0) {
+        for (const lo of loRows) {
+          const score = learningAssessment.outcomes[lo.ref];
+          if (score !== undefined) {
+            await prisma.callerAttribute.upsert({
+              where: { callerId_key: { callerId, key: `curriculum:${pbCurr.slug}:lo:${lo.ref}` } },
+              update: { value: String(score), updatedAt: new Date() },
+              create: { callerId, key: `curriculum:${pbCurr.slug}:lo:${lo.ref}`, value: String(score) },
+            });
+          }
+        }
+        return true;
+      }
+    }
+  }
+
+  // Fallback: domain-wide Subject curriculum (legacy)
   const subjectDomains = await prisma.subjectDomain.findMany({
     where: { domainId: caller.domainId },
     include: {
