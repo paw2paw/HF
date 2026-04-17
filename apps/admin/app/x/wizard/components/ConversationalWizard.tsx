@@ -347,7 +347,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
       "physicalMaterials",
       "draftDomainId", "draftInstitutionId", "draftPlaybookId", "draftCallerId",
       "draftCallerName", "draftDemoCallerId", "draftDemoCallerName",
-      "launched", "sourceId", "packSubjectIds", "extractionTotals", "categoryCounts", "contentSkipped",
+      "launched", "sourceId", "packSubjectIds", "uploadSourceIds", "extractionTotals", "categoryCounts", "contentSkipped",
       "lastUploadClassifications", "courseContext",
       "coursePedagogy", "courseRefDigest", "courseRefEnabled", "_docConfigKeys",
       "welcomeSkipped", "tuneSkipped",
