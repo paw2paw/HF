@@ -28,6 +28,7 @@ export async function GET(
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
     const subjectIdsParam = searchParams.get("subjectIds");
     const subjectIds = subjectIdsParam ? subjectIdsParam.split(",").filter(Boolean) : undefined;
+    const playbookId = searchParams.get("playbookId");
 
     // Verify domain exists
     const domain = await prisma.domain.findUnique({
@@ -38,19 +39,21 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
     }
 
-    // When subjectIds provided, scope to those subjects only (must still belong to domain)
+    // Resolve source scoping: prefer playbookId (PlaybookSource), fall back to subjectIds
+    let sourceIdScope: string[] | undefined;
+    if (playbookId) {
+      const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+      sourceIdScope = await getSourceIdsForPlaybook(playbookId);
+    }
+
     const subjectFilter = subjectIds?.length
       ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
       : { subject: { domains: { some: { domainId } } } };
 
-    // Query assertions directly through the subject chain (same pattern as course-readiness)
-    const whereClause = {
-      source: {
-        subjects: {
-          some: subjectFilter,
-        },
-      },
-    };
+    // Query assertions — PlaybookSource scope or subject chain
+    const whereClause = sourceIdScope
+      ? { sourceId: { in: sourceIdScope } }
+      : { source: { subjects: { some: subjectFilter } } };
 
     const [assertions, total] = await Promise.all([
       prisma.contentAssertion.findMany({

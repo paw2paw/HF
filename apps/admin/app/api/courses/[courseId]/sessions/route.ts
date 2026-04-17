@@ -37,32 +37,9 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Course not found" }, { status: 404 });
     }
 
-    // 2. Get subjects — PlaybookSubject first, domain fallback
-    const playbookSubjects = await prisma.playbookSubject.findMany({
+    // 2. Fetch curricula — prefer direct playbookId link, fallback to subject chain
+    let curricula = await prisma.curriculum.findMany({
       where: { playbookId: courseId },
-      select: { subjectId: true },
-    });
-
-    const subjectIds = playbookSubjects.length > 0
-      ? playbookSubjects.map((ps) => ps.subjectId)
-      : (await prisma.subjectDomain.findMany({
-          where: { domainId: playbook.domainId },
-          select: { subjectId: true },
-        })).map((sd) => sd.subjectId);
-
-    if (subjectIds.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        plan: null,
-        modules: [],
-        curriculumId: null,
-        subjectCount: 0,
-      });
-    }
-
-    // 3. Fetch curricula with deliveryConfig and modules
-    const curricula = await prisma.curriculum.findMany({
-      where: { subjectId: { in: subjectIds } },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -83,6 +60,39 @@ export async function GET(
         },
       },
     });
+
+    // Fallback: subject chain for pre-migration courses
+    if (curricula.length === 0) {
+      const playbookSubjects = await prisma.playbookSubject.findMany({
+        where: { playbookId: courseId },
+        select: { subjectId: true },
+      });
+      const subjectIds = playbookSubjects.map((ps) => ps.subjectId);
+      if (subjectIds.length > 0) {
+        curricula = await prisma.curriculum.findMany({
+          where: { subjectId: { in: subjectIds } },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            slug: true,
+            deliveryConfig: true,
+            modules: {
+              where: { isActive: true },
+              orderBy: { sortOrder: "asc" },
+              select: {
+                id: true, slug: true, title: true, description: true,
+                estimatedDurationMinutes: true, sortOrder: true,
+                _count: { select: { learningObjectives: true } },
+              },
+            },
+          },
+        });
+      }
+    }
+
+    if (curricula.length === 0) {
+      return NextResponse.json({ ok: true, plan: null, modules: [], curriculumId: null, subjectCount: 0 });
+    }
 
     // 4. Find first curriculum with a persisted lesson plan
     let plan: Record<string, any> | null = null;
@@ -166,7 +176,7 @@ export async function GET(
         : null,
       modules,
       curriculumId,
-      subjectCount: subjectIds.length,
+      subjectCount: curricula.length,
       ...(studentProgress !== undefined && { studentProgress }),
     });
   } catch (error: unknown) {

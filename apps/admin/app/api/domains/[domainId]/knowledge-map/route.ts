@@ -38,6 +38,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const subjectIdsParam = searchParams.get("subjectIds");
     const subjectIds = subjectIdsParam ? subjectIdsParam.split(",").filter(Boolean) : undefined;
+    const playbookId = searchParams.get("playbookId");
 
     // Verify domain exists
     const domain = await prisma.domain.findUnique({
@@ -48,19 +49,29 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
     }
 
-    // Build subject filter (same pattern as content-categories)
-    const subjectFilter = subjectIds?.length
-      ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
-      : { subject: { domains: { some: { domainId } } } };
-
-    // Get sources linked to this domain that have structured content
-    const sources = await prisma.contentSource.findMany({
-      where: {
-        subjects: { some: subjectFilter },
-        assertions: { some: { depth: { not: null } } },
-      },
-      select: { id: true, name: true },
-    });
+    // Get sources — prefer playbookId (PlaybookSource), fall back to subjectIds
+    let sources: { id: string; name: string }[];
+    if (playbookId) {
+      const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+      const ids = await getSourceIdsForPlaybook(playbookId);
+      sources = ids.length > 0
+        ? await prisma.contentSource.findMany({
+            where: { id: { in: ids }, assertions: { some: { depth: { not: null } } } },
+            select: { id: true, name: true },
+          })
+        : [];
+    } else {
+      const subjectFilter = subjectIds?.length
+        ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
+        : { subject: { domains: { some: { domainId } } } };
+      sources = await prisma.contentSource.findMany({
+        where: {
+          subjects: { some: subjectFilter },
+          assertions: { some: { depth: { not: null } } },
+        },
+        select: { id: true, name: true },
+      });
+    }
 
     if (sources.length === 0) {
       return NextResponse.json({

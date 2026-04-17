@@ -34,7 +34,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Classroom not found" }, { status: 404 });
     }
 
-    // Get all playbooks assigned to this classroom, including their subjects' curricula
+    // Get all playbooks assigned to this classroom with their curricula (direct link)
     const cohortPlaybooks = await prisma.cohortPlaybook.findMany({
       where: { cohortGroupId: id },
       select: {
@@ -42,18 +42,10 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            subjects: {
-              select: {
-                subject: {
-                  select: {
-                    curricula: {
-                      orderBy: { createdAt: "desc" },
-                      take: 1,
-                      select: { slug: true, deliveryConfig: true },
-                    },
-                  },
-                },
-              },
+            curricula: {
+              orderBy: { updatedAt: "desc" },
+              take: 1,
+              select: { slug: true, deliveryConfig: true },
             },
           },
         },
@@ -65,14 +57,12 @@ export async function GET(
     const courses = cohortPlaybooks
       .map(({ playbook }) => {
         let lessonPlanConfig: Record<string, any> | null = null;
-        for (const ps of playbook.subjects) {
-          const c = ps.subject.curricula[0];
-          if (!c) continue;
+        const c = playbook.curricula[0];
+        if (c) {
           if (c.slug && !firstCurriculumSlug) firstCurriculumSlug = c.slug;
           const dc = c.deliveryConfig as Record<string, any> | null;
           if (dc?.lessonPlan?.entries?.length) {
             lessonPlanConfig = dc.lessonPlan;
-            break;
           }
         }
         if (!lessonPlanConfig) return null;

@@ -50,17 +50,24 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
     }
 
-    // Resolve sourceIds from domain (optionally scoped by subjects)
+    // Resolve sourceIds — prefer playbookId (PlaybookSource), fall back to subjectIds
     const subjectIds = subjectIdsParam ? subjectIdsParam.split(",").filter(Boolean) : undefined;
-    const subjectFilter = subjectIds?.length
-      ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
-      : { subject: { domains: { some: { domainId } } } };
+    const playbookId = searchParams.get("playbookId");
 
-    const sources = await prisma.contentSource.findMany({
-      where: { subjects: { some: subjectFilter } },
-      select: { id: true },
-    });
-    const sourceIds = sources.map((s) => s.id);
+    let sourceIds: string[];
+    if (playbookId) {
+      const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+      sourceIds = await getSourceIdsForPlaybook(playbookId);
+    } else {
+      const subjectFilter = subjectIds?.length
+        ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
+        : { subject: { domains: { some: { domainId } } } };
+      const sources = await prisma.contentSource.findMany({
+        where: { subjects: { some: subjectFilter } },
+        select: { id: true },
+      });
+      sourceIds = sources.map((s) => s.id);
+    }
 
     if (sourceIds.length === 0) {
       return NextResponse.json({ ok: true, items: [] });

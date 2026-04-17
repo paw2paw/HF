@@ -48,6 +48,7 @@ export async function GET(
         id: true,
         deliveryConfig: true,
         subjectId: true,
+        playbookId: true,
       },
     });
 
@@ -132,7 +133,7 @@ export async function GET(
 
       // Priority 2: backfill via learningOutcomeRefs → assertions → AssertionMedia
       if (sessionImages.length === 0 && Array.isArray(entry.learningOutcomeRefs) && entry.learningOutcomeRefs.length > 0) {
-        const backfilled = await resolveMediaFromLORefs(entry.learningOutcomeRefs, curriculum.subjectId);
+        const backfilled = await resolveMediaFromLORefs(entry.learningOutcomeRefs, curriculum.subjectId, curriculum.playbookId);
         for (const ref of backfilled) {
           if (!assignedMediaIds.has(ref.mediaId)) {
             sessionImages.push(ref);
@@ -187,19 +188,26 @@ export async function GET(
 async function resolveMediaFromLORefs(
   loRefs: string[],
   subjectId: string | null,
+  playbookId?: string | null,
 ): Promise<MediaRef[]> {
   if (loRefs.length === 0) return [];
 
-  // Build OR conditions for LO ref matching (LO refs can be partial, e.g., "LO1" matches "LO1.1")
   const loConditions = loRefs.map((ref) => ({
     learningOutcomeRef: { contains: ref },
   }));
 
+  // Scope assertions: prefer PlaybookSource, fall back to SubjectSource
+  let sourceScope: Record<string, unknown> = {};
+  if (playbookId) {
+    const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+    const ids = await getSourceIdsForPlaybook(playbookId);
+    if (ids.length > 0) sourceScope = { sourceId: { in: ids } };
+  } else if (subjectId) {
+    sourceScope = { source: { subjects: { some: { subjectId } } } };
+  }
+
   const assertionIds = await prisma.contentAssertion.findMany({
-    where: {
-      OR: loConditions,
-      ...(subjectId ? { source: { subjects: { some: { subjectId } } } } : {}),
-    },
+    where: { OR: loConditions, ...sourceScope },
     select: { id: true },
     take: 200,
   });

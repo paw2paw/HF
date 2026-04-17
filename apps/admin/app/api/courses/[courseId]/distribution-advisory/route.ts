@@ -28,25 +28,16 @@ export async function GET(
 
     const { courseId } = await params;
 
-    // Load playbook with its curriculum's lesson plan
+    // Load playbook with its curriculum (direct link)
     const playbook = await prisma.playbook.findUnique({
       where: { id: courseId },
       select: {
         id: true,
         config: true,
-        subjects: {
-          select: {
-            subject: {
-              select: {
-                id: true,
-                curricula: {
-                  select: { id: true, deliveryConfig: true },
-                  take: 1,
-                },
-                sources: { select: { sourceId: true } },
-              },
-            },
-          },
+        curricula: {
+          select: { id: true, deliveryConfig: true },
+          orderBy: { updatedAt: "desc" },
+          take: 1,
         },
       },
     });
@@ -59,9 +50,7 @@ export async function GET(
     }
 
     // Extract lesson plan entries from curriculum
-    const curriculum = playbook.subjects
-      .flatMap((ps) => ps.subject.curricula)
-      .find((c) => c.deliveryConfig);
+    const curriculum = playbook.curricula.find((c) => c.deliveryConfig);
 
     const deliveryConfig = curriculum?.deliveryConfig as Record<string, unknown> | null;
     const lessonPlanEntries = (deliveryConfig?.lessonPlan as Array<Record<string, unknown>>) || [];
@@ -87,9 +76,8 @@ export async function GET(
     }));
 
     // Load assertions with parentId for prerequisite violation checks
-    const sourceIds = [...new Set(
-      playbook.subjects.flatMap((ps) => ps.subject.sources.map((s) => s.sourceId)),
-    )];
+    const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+    const sourceIds = await getSourceIdsForPlaybook(courseId);
 
     const assertions = sourceIds.length > 0
       ? await prisma.contentAssertion.findMany({

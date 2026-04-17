@@ -27,6 +27,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const subjectIdsParam = searchParams.get("subjectIds");
     const subjectIds = subjectIdsParam ? subjectIdsParam.split(",").filter(Boolean) : undefined;
+    const playbookId = searchParams.get("playbookId");
 
     // Verify domain exists
     const domain = await prisma.domain.findUnique({
@@ -37,18 +38,24 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Domain not found" }, { status: 404 });
     }
 
-    // When subjectIds provided, scope to those subjects only (must still belong to domain)
+    // Resolve source IDs: prefer playbookId (PlaybookSource), fall back to subjectIds
+    let sourceIdFilter: { id: { in: string[] } } | undefined;
+    if (playbookId) {
+      const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+      const ids = await getSourceIdsForPlaybook(playbookId);
+      if (ids.length > 0) sourceIdFilter = { id: { in: ids } };
+    }
+
+    // Legacy: subjectIds filter
     const subjectFilter = subjectIds?.length
       ? { subject: { id: { in: subjectIds }, domains: { some: { domainId } } } }
       : { subject: { domains: { some: { domainId } } } };
 
-    // Get all content sources linked to this domain through subjects
+    // Get all content sources linked to this domain
     const sources = await prisma.contentSource.findMany({
-      where: {
-        subjects: {
-          some: subjectFilter,
-        },
-      },
+      where: sourceIdFilter
+        ? sourceIdFilter
+        : { subjects: { some: subjectFilter } },
       select: {
         id: true,
         createdAt: true,

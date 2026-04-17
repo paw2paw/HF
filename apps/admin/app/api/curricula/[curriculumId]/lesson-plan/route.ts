@@ -338,17 +338,21 @@ async function runBackgroundLessonPlanGeneration(
       return;
     }
 
-    // Count assertions per module topic (if we have subject linkage)
+    // Count assertions per module topic
     const assertionCounts: Record<string, number> = {};
-    if (curriculum.subjectId) {
+    if (curriculum.playbookId || curriculum.subjectId) {
+      // Resolve source IDs for assertion scoping
+      let scopeSourceIds: string[] | undefined;
+      if (curriculum.playbookId) {
+        const { getSourceIdsForPlaybook: getSrcIds } = await import("@/lib/knowledge/domain-sources");
+        scopeSourceIds = await getSrcIds(curriculum.playbookId);
+      }
+
       const assertions = await prisma.contentAssertion.groupBy({
         by: ["topicSlug"],
-        where: {
-          source: {
-            subjects: { some: { subjectId: curriculum.subjectId } },
-          },
-          topicSlug: { not: null },
-        },
+        where: scopeSourceIds
+          ? { sourceId: { in: scopeSourceIds }, topicSlug: { not: null } }
+          : { source: { subjects: { some: { subjectId: curriculum.subjectId! } } }, topicSlug: { not: null } },
         _count: true,
       });
       for (const group of assertions) {
@@ -675,12 +679,22 @@ export async function POST(
     // (the "Regenerate Plan" button may send {} — read saved educator preferences)
     let totalSessionTarget: number | null = body.totalSessionTarget || null;
     let durationMins: number | null = body.durationMins || null;
-    if ((!totalSessionTarget || !durationMins || !emphasis || !includeAssessments) && curriculum.subjectId) {
-      const playbookSubject = await prisma.playbookSubject.findFirst({
-        where: { subject: { curricula: { some: { id: curriculumId } } } },
-        select: { playbook: { select: { config: true } } },
-      });
-      const config = (playbookSubject?.playbook?.config as Record<string, any>) || {};
+    if ((!totalSessionTarget || !durationMins || !emphasis || !includeAssessments) && (curriculum.playbookId || curriculum.subjectId)) {
+      // Prefer direct playbook lookup, fall back to subject chain
+      let config: Record<string, any> = {};
+      if (curriculum.playbookId) {
+        const pb = await prisma.playbook.findUnique({
+          where: { id: curriculum.playbookId },
+          select: { config: true },
+        });
+        config = (pb?.config as Record<string, any>) || {};
+      } else {
+        const playbookSubject = await prisma.playbookSubject.findFirst({
+          where: { subject: { curricula: { some: { id: curriculumId } } } },
+          select: { playbook: { select: { config: true } } },
+        });
+        config = (playbookSubject?.playbook?.config as Record<string, any>) || {};
+      }
       if (!totalSessionTarget && config.sessionCount) totalSessionTarget = Number(config.sessionCount);
       if (!durationMins && config.durationMins) durationMins = Number(config.durationMins);
       if (!emphasis && config.emphasis) emphasis = String(config.emphasis);
