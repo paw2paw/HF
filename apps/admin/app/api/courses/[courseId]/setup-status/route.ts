@@ -47,30 +47,43 @@ export async function GET(
     }
 
     // ── Stage 4: Lesson Plan Built ──────────────────
-    // Lesson plan lives on Curriculum.deliveryConfig.lessonPlan (not on AnalysisSpec)
-    // Path: Playbook → PlaybookSubject → Subject → Curriculum
-    const subjectIds = await prisma.playbookSubject.findMany({
-      where: { playbookId: courseId },
-      select: { subjectId: true },
-    });
+    // Continuous courses don't have fixed lesson plans — the scheduler decides
+    // call-by-call. Mark as built automatically for continuous mode.
+    const pbConfig = (playbook.config as Record<string, any>) || {};
+    // A course is continuous if explicitly set, OR if no session count is declared
+    // (default = open-ended/continuous). Only structured courses with a fixed
+    // session count need a lesson plan.
+    const hasFixedSessionCount = typeof pbConfig.sessionCount === "number" && pbConfig.sessionCount > 0;
+    const isContinuous = pbConfig.lessonPlanMode === "continuous"
+      || pbConfig.lessonPlanModel === "continuous"
+      || pbConfig.learningStructure === "continuous"
+      || !hasFixedSessionCount;
 
     let lessonPlanBuilt = false;
-    if (subjectIds.length > 0) {
-      const curriculum = await prisma.curriculum.findFirst({
-        where: {
-          subjectId: { in: subjectIds.map((s) => s.subjectId) },
-        },
-        select: { deliveryConfig: true },
+    if (isContinuous) {
+      lessonPlanBuilt = true;
+    } else {
+      // Structured courses: check for lesson plan entries in curriculum
+      const subjectIds = await prisma.playbookSubject.findMany({
+        where: { playbookId: courseId },
+        select: { subjectId: true },
       });
-      const dc = curriculum?.deliveryConfig as Record<string, any> | null;
-      const lessonPlan = dc?.lessonPlan;
-      // lessonPlan can be { entries: [...], estimatedSessions, ... } or a raw array
-      const entries = Array.isArray(lessonPlan)
-        ? lessonPlan
-        : Array.isArray(lessonPlan?.entries)
-          ? lessonPlan.entries
-          : [];
-      lessonPlanBuilt = entries.length > 0;
+      if (subjectIds.length > 0) {
+        const curriculum = await prisma.curriculum.findFirst({
+          where: {
+            subjectId: { in: subjectIds.map((s) => s.subjectId) },
+          },
+          select: { deliveryConfig: true },
+        });
+        const dc = curriculum?.deliveryConfig as Record<string, any> | null;
+        const lessonPlan = dc?.lessonPlan;
+        const entries = Array.isArray(lessonPlan)
+          ? lessonPlan
+          : Array.isArray(lessonPlan?.entries)
+            ? lessonPlan.entries
+            : [];
+        lessonPlanBuilt = entries.length > 0;
+      }
     }
 
     // ── Stage 5: Tutor Configured ───────────────────

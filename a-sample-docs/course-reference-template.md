@@ -1,5 +1,46 @@
 # [Course Name] — Course Reference
 
+## Course Configuration
+
+> Machine-readable fields — used by HumanFirst to configure the AI tutor automatically.
+> Use exactly one `[x]` per group. Leave blank if unsure — the wizard will ask.
+
+**Course name:** [Full course name]
+**Subject / qualification:** [e.g. GCSE Biology, A-Level Economics, 11+ Comprehension]
+
+### Teaching approach
+- [ ] **Socratic** — question-based discovery, guides through questioning
+- [ ] **Directive** — structured, step-by-step instruction
+- [ ] **Advisory** — coaching style, offers guidance
+- [ ] **Coaching** — reflective dialogue, metacognition
+- [ ] **Companion** — supportive peer
+- [ ] **Facilitation** — discussion facilitation
+- [ ] **Reflective** — self-reflection and learning-from-experience
+- [ ] **Open** — flexible, adapts to need
+- [ ] **Conversational Guide** — guided 1:1 topic conversations
+
+### Teaching emphasis
+- [ ] **Recall** — retrieval practice; facts, definitions, content
+- [ ] **Comprehension** — understanding through language and reading
+- [ ] **Practice** — skill application through worked examples
+- [ ] **Syllabus** — structured curriculum coverage
+
+### Student audience
+- [ ] **Primary** — age 5–11 (KS1–2)
+- [ ] **Secondary** — age 11–16 (KS3–4)
+- [ ] **Sixth Form** — age 16–19 (KS5)
+- [ ] **Higher Education** — age 18–25 (university)
+- [ ] **Professional** — working adults, outcome-focused
+- [ ] **Adult Learner** — adult learners, mixed purposes
+- [ ] **Mixed** — spans multiple age groups
+
+### Coverage emphasis
+- [ ] **Breadth** — cover more outcomes lightly
+- [ ] **Balanced** — sensible default
+- [ ] **Depth** — fewer outcomes, mastered thoroughly
+
+---
+
 ## Document Purpose
 
 This document is the course reference for the HumanFirst [Course Name] AI tutor. It is loaded into the tutor's knowledge base and retrieved during call planning, delivery, and post-call processing. It contains everything the tutor needs to know about this specific course — the outcomes being pursued, the content that serves them, how they are taught, how they are assessed, and how the tutor adapts call by call.
@@ -360,7 +401,7 @@ This course does NOT:
 
 ## Document Version
 
-**Version:** 2.0
+**Version:** 3.0
 **Created:** [Date]
 **Course:** [Course name]
 **Status:** [e.g. Draft / Pilot-ready / Live]
@@ -368,5 +409,6 @@ This course does NOT:
 **Reviewed by:** [Name, if applicable]
 
 **Changelog:**
+- 3.0 — Machine-readable Course Configuration block: teaching approach, emphasis, audience, coverage checkboxes. Positioned before Document Purpose for textSample capture (#179).
 - 2.0 — Outcome-graph pacing model: outcomes + prerequisites as the spine, content tagged to outcomes with ordering modes, pedagogical preset picker, phases keyed to progress events (not session numbers), first-call guidance replaces session-1 guidance, pacing constraints section added.
 - 1.0 — Initial session-indexed template.

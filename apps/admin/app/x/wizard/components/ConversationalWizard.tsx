@@ -20,6 +20,7 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { MessageActions } from "./MessageActions";
 import { SuccessCard } from "./SuccessCard";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useStepFlow } from "@/contexts/StepFlowContext";
 import type { StepDefinition } from "@/contexts/StepFlowContext";
 import { FileCard } from "./FileCard";
@@ -207,6 +208,12 @@ function saveHistory(messages: Message[], version: string) {
 let idCounter = 0;
 function uid(): string {
   return `msg-${Date.now()}-${++idCounter}`;
+}
+
+/** Insert blank lines before emoji-led lines so markdown renders them as separate paragraphs. */
+const EMOJI_LINE_RE = /(?<!\n)\n(?=[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{200D}\u{2300}-\u{23FF}✅❌✓✗•▸►])/gu;
+function separateEmojiLines(text: string): string {
+  return text.replace(EMOJI_LINE_RE, "\n\n");
 }
 
 // ── Context → setup data ─────────────────────────────────
@@ -955,14 +962,39 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
               },
             );
           }
+          // #179 — detect structured course config block from template v3.0
+          try {
+            const { detectCourseConfig, hasCourseConfig } = await import("@/lib/wizard/detect-course-config");
+            const courseConfig = detectCourseConfig(combinedText);
+            if (hasCourseConfig(courseConfig)) {
+              // Guard: never overwrite user-provided or previously-set values
+              if (courseConfig.courseName && !getData("courseName"))
+                setData("courseName", courseConfig.courseName);
+              if (courseConfig.subjectDiscipline && !getData("subjectDiscipline"))
+                setData("subjectDiscipline", courseConfig.subjectDiscipline);
+              if (courseConfig.interactionPattern && !getData("interactionPattern"))
+                setData("interactionPattern", courseConfig.interactionPattern);
+              if (courseConfig.teachingMode && !getData("teachingMode"))
+                setData("teachingMode", courseConfig.teachingMode);
+              if (courseConfig.audience && !getData("audience"))
+                setData("audience", courseConfig.audience);
+              if (courseConfig.planEmphasis && !getData("planEmphasis"))
+                setData("planEmphasis", courseConfig.planEmphasis);
+              if (courseConfig.learningOutcomes?.length && !getData("learningOutcomes"))
+                setData("learningOutcomes", courseConfig.learningOutcomes);
+              console.log("[wizard] detected course config from course ref:", courseConfig);
+            }
+          } catch (configErr) {
+            console.warn("[wizard] course config detection failed:", configErr);
+          }
         } catch (err) {
           console.warn("[wizard] pedagogy detection failed:", err);
         }
 
         // Pre-populate pedagogy blackboard keys from extracted assertions.
-        // This lets the AI confirm what was found rather than re-interviewing.
+        // Guard: never overwrite values already set by user or AI (#179).
         const skillAssertions = allAssertions.filter((a) => a.category === "skill_framework");
-        if (skillAssertions.length > 0) {
+        if (skillAssertions.length > 0 && !getData("skillsFramework")) {
           const skills = skillAssertions.map((a, i) => {
             // Parse "SKILL-01: Name — Description\nEmerging: ...\nDeveloping: ...\nSecure: ..."
             const lines = a.assertion.split("\n");
@@ -982,7 +1014,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
 
         const ruleAssertions = allAssertions.filter((a) => a.category === "teaching_rule");
         const flowAssertions = allAssertions.filter((a) => a.category === "session_flow" && a.chapter === "Teaching Approach");
-        if (ruleAssertions.length > 0 || flowAssertions.length > 0) {
+        if ((ruleAssertions.length > 0 || flowAssertions.length > 0) && !getData("teachingPrinciples")) {
           setData("teachingPrinciples", {
             corePrinciples: ruleAssertions.map((a) => a.assertion),
             sessionStructure: flowAssertions.length > 0 ? { phases: flowAssertions.map((a) => ({ name: a.assertion })) } : undefined,
@@ -990,7 +1022,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         }
 
         const edgeAssertions = allAssertions.filter((a) => a.category === "edge_case");
-        if (edgeAssertions.length > 0) {
+        if (edgeAssertions.length > 0 && !getData("edgeCases")) {
           setData("edgeCases", edgeAssertions.map((a) => {
             const [scenario, response] = a.assertion.split(": ");
             return { scenario: scenario || a.assertion, response: response || "" };
@@ -998,7 +1030,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         }
 
         const phaseAssertions = allAssertions.filter((a) => a.category === "session_flow" && a.chapter === "Course Phases");
-        if (phaseAssertions.length > 0) {
+        if (phaseAssertions.length > 0 && !getData("coursePhases")) {
           setData("coursePhases", phaseAssertions.map((a) => {
             const parts: Record<string, string> = {};
             for (const segment of a.assertion.split(". ")) {
@@ -1010,7 +1042,7 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
         }
 
         const boundaryAssertions = allAssertions.filter((a) => a.category === "assessment_approach" && a.chapter === "Assessment Boundaries");
-        if (boundaryAssertions.length > 0) {
+        if (boundaryAssertions.length > 0 && !getData("assessmentBoundaries")) {
           setData("assessmentBoundaries", boundaryAssertions.map((a) => a.assertion));
         }
 
@@ -1418,13 +1450,13 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
                       { marker: "2", label: "I'd change something", fullText: "I'd change something" },
                     ]
                   : [];
-              const displayContent = stripParameterTags(msg.content);
+              const displayContent = separateEmojiLines(stripParameterTags(msg.content));
               return (
                 <div key={msg.id} className="cv4-row cv4-row--assistant">
                   {msg.thinking && <ThinkingBlock content={msg.thinking} />}
                   <div className="cv4-msg-actions-wrap">
                     <div className="cv4-bubble cv4-bubble--assistant">
-                      <ReactMarkdown>{displayContent}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
                     </div>
                     <MessageActions
                       message={msg}

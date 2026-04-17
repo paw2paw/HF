@@ -199,8 +199,16 @@ export function deriveStages(input: SetupStatusInput): CourseSetupStatus {
   const suggestedCount = (detail?.config as Record<string, unknown> | undefined)?.suggestedSessionCount as number | undefined;
   const confirmedCount = (detail?.config as Record<string, unknown> | undefined)?.sessionCount as number | undefined;
 
+  const configObj = (detail?.config as Record<string, unknown> | undefined) || {};
+  const hasFixedSessionCount = typeof configObj.sessionCount === "number" && (configObj.sessionCount as number) > 0;
+  const isContinuous = configObj.lessonPlanMode === "continuous"
+    || configObj.lessonPlanModel === "continuous"
+    || !hasFixedSessionCount;
+
   let stage4Detail = 'Generate a lesson plan';
-  if (hasPlan) {
+  if (isContinuous) {
+    stage4Detail = 'Continuous — scheduler plans each call';
+  } else if (hasPlan) {
     const sessionLabel = `${planSessions} session${planSessions !== 1 ? 's' : ''} planned`;
     if (suggestedCount && suggestedCount !== planSessions) {
       stage4Detail = `${sessionLabel} (suggested ${suggestedCount})`;
