@@ -21,27 +21,9 @@ export async function GET(
 
     const { courseId } = await params;
 
-    // 1. Get all subject source IDs for this course (playbook)
-    const subjects = await prisma.playbookSubject.findMany({
-      where: { playbookId: courseId },
-      select: {
-        subject: {
-          select: {
-            id: true,
-            name: true,
-            sources: {
-              select: { sourceId: true },
-            },
-          },
-        },
-      },
-    });
-
-    const allSourceIds = [
-      ...new Set(
-        subjects.flatMap((ps) => ps.subject.sources.map((ss) => ss.sourceId)),
-      ),
-    ];
+    // 1. Get all source IDs for this course via PlaybookSource
+    const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+    const allSourceIds = await getSourceIdsForPlaybook(courseId);
 
     if (allSourceIds.length === 0) {
       return NextResponse.json({

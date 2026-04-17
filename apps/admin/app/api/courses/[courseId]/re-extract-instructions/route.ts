@@ -25,44 +25,33 @@ export async function POST(
 
     const { courseId } = await params;
 
-    // Find all COURSE_REFERENCE sources linked to this course's subjects
-    const playbookSubjects = await prisma.playbookSubject.findMany({
+    // Find all COURSE_REFERENCE sources linked to this course via PlaybookSource
+    const playbookSources = await prisma.playbookSource.findMany({
       where: { playbookId: courseId },
       select: {
-        subject: {
+        sourceId: true,
+        source: {
           select: {
             id: true,
-            sources: {
-              select: {
-                sourceId: true,
-                source: {
-                  select: {
-                    id: true,
-                    name: true,
-                    documentType: true,
-                  },
-                },
-              },
-            },
+            name: true,
+            documentType: true,
           },
         },
       },
     });
 
-    // Collect unique COURSE_REFERENCE sources with their subject IDs
+    // Collect unique COURSE_REFERENCE sources
     const refSources: Array<{ sourceId: string; subjectId: string; name: string }> = [];
     const seen = new Set<string>();
 
-    for (const ps of playbookSubjects) {
-      for (const ss of ps.subject.sources) {
-        if (ss.source.documentType === "COURSE_REFERENCE" && !seen.has(ss.sourceId)) {
-          seen.add(ss.sourceId);
-          refSources.push({
-            sourceId: ss.sourceId,
-            subjectId: ps.subject.id,
-            name: ss.source.name,
-          });
-        }
+    for (const ps of playbookSources) {
+      if (ps.source.documentType === "COURSE_REFERENCE" && !seen.has(ps.sourceId)) {
+        seen.add(ps.sourceId);
+        refSources.push({
+          sourceId: ps.sourceId,
+          subjectId: "", // No longer subject-scoped
+          name: ps.source.name,
+        });
       }
     }
 

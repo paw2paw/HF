@@ -44,39 +44,30 @@ export async function POST(
 
     const { sourceIds } = parsed.data;
 
-    // Verify course exists and get all valid source IDs for this course
-    const playbookSubjects = await prisma.playbookSubject.findMany({
+    // Verify course exists and get all valid source IDs via PlaybookSource
+    const playbookSources = await prisma.playbookSource.findMany({
       where: { playbookId: courseId },
       select: {
-        subject: {
+        sourceId: true,
+        source: {
           select: {
             id: true,
-            sources: {
-              select: {
-                sourceId: true,
-                source: {
-                  select: {
-                    id: true,
-                    name: true,
-                    documentType: true,
-                    _count: { select: { assertions: true } },
-                  },
-                },
-              },
-            },
+            name: true,
+            documentType: true,
+            _count: { select: { assertions: true } },
           },
         },
       },
     });
 
-    if (playbookSubjects.length === 0) {
+    if (playbookSources.length === 0) {
       return NextResponse.json(
-        { ok: false, error: "Course not found or has no subjects" },
+        { ok: false, error: "Course not found or has no content sources" },
         { status: 404 },
       );
     }
 
-    // Build map of valid sources for this course (deduped)
+    // Build map of valid sources for this course
     const validSources = new Map<string, {
       sourceId: string;
       subjectId: string;
@@ -85,17 +76,15 @@ export async function POST(
       assertionCount: number;
     }>();
 
-    for (const ps of playbookSubjects) {
-      for (const ss of ps.subject.sources) {
-        if (!validSources.has(ss.sourceId)) {
-          validSources.set(ss.sourceId, {
-            sourceId: ss.sourceId,
-            subjectId: ps.subject.id,
-            name: ss.source.name,
-            documentType: ss.source.documentType,
-            assertionCount: ss.source._count.assertions,
-          });
-        }
+    for (const ps of playbookSources) {
+      if (!validSources.has(ps.sourceId)) {
+        validSources.set(ps.sourceId, {
+          sourceId: ps.sourceId,
+          subjectId: "", // No longer subject-scoped
+          name: ps.source.name,
+          documentType: ps.source.documentType,
+          assertionCount: ps.source._count.assertions,
+        });
       }
     }
 

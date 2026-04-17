@@ -23,35 +23,26 @@ export async function GET(
 
     const { courseId } = await params;
 
-    // Find all COURSE_REFERENCE sources linked to this course's subjects
-    const playbookSubjects = await prisma.playbookSubject.findMany({
+    // Find all COURSE_REFERENCE sources linked to this course via PlaybookSource
+    const playbookSources = await prisma.playbookSource.findMany({
       where: { playbookId: courseId },
       select: {
-        subject: {
+        source: {
           select: {
-            sources: {
-              select: {
-                source: {
-                  select: {
-                    id: true,
-                    name: true,
-                    documentType: true,
-                    textSample: true,
-                    createdAt: true,
-                  },
-                },
-              },
-            },
+            id: true,
+            name: true,
+            documentType: true,
+            textSample: true,
+            createdAt: true,
           },
         },
       },
     });
 
     // Collect COURSE_REFERENCE sources, pick most recent
-    const refSources = playbookSubjects
-      .flatMap((ps) => ps.subject.sources)
-      .filter((ss) => ss.source.documentType === "COURSE_REFERENCE")
-      .map((ss) => ss.source)
+    const refSources = playbookSources
+      .filter((ps) => ps.source.documentType === "COURSE_REFERENCE")
+      .map((ps) => ps.source)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const latest = refSources[0] ?? null;

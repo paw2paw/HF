@@ -49,21 +49,9 @@ export async function GET(
     const durationMins = (config.durationMins as number) || 30;
     const modelDef = getLessonPlanModel(lessonPlanModel);
 
-    // Resolve source IDs for this playbook
-    const playbookSubjects = await prisma.playbookSubject.findMany({
-      where: { playbookId: courseId },
-      select: {
-        subject: {
-          select: {
-            sources: { select: { sourceId: true } },
-          },
-        },
-      },
-    });
-
-    const sourceIds = [...new Set(
-      playbookSubjects.flatMap((ps) => ps.subject.sources.map((s) => s.sourceId)),
-    )];
+    // Resolve source IDs for this playbook via PlaybookSource
+    const { getSourceIdsForPlaybook } = await import("@/lib/knowledge/domain-sources");
+    const sourceIds = await getSourceIdsForPlaybook(courseId);
 
     if (sourceIds.length === 0) {
       return NextResponse.json({
