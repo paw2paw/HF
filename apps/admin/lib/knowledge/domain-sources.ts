@@ -163,6 +163,26 @@ export async function getSubjectsForPlaybook(playbookId: string, domainId: strin
 }
 
 /**
+ * Get source IDs for a playbook via PlaybookSource (direct link).
+ * Falls back to the legacy Subject chain if no PlaybookSource rows exist.
+ * Phase 1 of PlaybookSource migration — will replace getSourceIdsForPlaybook().
+ */
+export async function getSourceIdsForPlaybookDirect(playbookId: string): Promise<string[]> {
+  // PRIMARY: PlaybookSource (direct link)
+  const playbookSources = await prisma.playbookSource.findMany({
+    where: { playbookId },
+    select: { sourceId: true },
+  });
+
+  if (playbookSources.length > 0) {
+    return [...new Set(playbookSources.map((ps) => ps.sourceId))];
+  }
+
+  // FALLBACK: Legacy Subject chain (pre-migration courses)
+  return getSourceIdsForPlaybook(playbookId);
+}
+
+/**
  * Get teaching source IDs for a domain, EXCLUDING teacher-only documents.
  * Uses isStudentVisibleDefault() to filter — only READING_PASSAGE, WORKSHEET,
  * COMPREHENSION, and EXAMPLE documents are included.

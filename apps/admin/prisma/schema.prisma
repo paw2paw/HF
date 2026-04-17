@@ -2181,9 +2181,13 @@ model Curriculum {
   validFrom           DateTime? // When this curriculum version becomes active
   validUntil          DateTime? // When this curriculum version expires
 
-  // Subject linkage
+  // Subject linkage (legacy — being replaced by playbookId)
   subjectId String?
   subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  // Course linkage (replaces Subject → Curriculum chain)
+  playbookId String?
+  playbook   Playbook? @relation("PlaybookCurricula", fields: [playbookId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2196,6 +2200,7 @@ model Curriculum {
   @@index([trustLevel])
   @@index([validUntil])
   @@index([subjectId])
+  @@index([playbookId])
 }
 
 // =============================================================================
@@ -2554,8 +2559,14 @@ model Playbook {
   // Cohort assignments — which classrooms use this playbook (course)
   cohortAssignments CohortPlaybook[]
 
-  // Subject links — which subjects this playbook teaches (course → content scoping)
+  // Subject links — which subjects this playbook teaches (taxonomy + curriculum)
   subjects PlaybookSubject[]
+
+  // Direct content scoping — which content sources belong to this course
+  playbookSources PlaybookSource[]
+
+  // Curricula owned by this course (replaces Subject → Curriculum chain)
+  curricula Curriculum[] @relation("PlaybookCurricula")
 
   // Inverse relations for course scoping
   calls           Call[]           @relation("PlaybookCalls")
@@ -3595,8 +3606,9 @@ model ContentSource {
   questions   ContentQuestion[]
   vocabulary  ContentVocabulary[]
   curricula   Curriculum[]        @relation("CurriculumPrimarySource")
-  subjects    SubjectSource[] // Subjects this source belongs to
-  mediaAssets MediaAsset[] // Media files from this content source
+  subjects        SubjectSource[]  // Subjects this source belongs to (legacy scoping)
+  playbookSources PlaybookSource[] // Direct course → source link (replaces Subject chain)
+  mediaAssets     MediaAsset[]     // Media files from this content source
 
   @@index([trustLevel])
   @@index([documentType])
@@ -3910,6 +3922,25 @@ model PlaybookSubject {
   @@unique([playbookId, subjectId])
   @@index([playbookId])
   @@index([subjectId])
+}
+
+// Direct content scoping: which content sources belong to a course (playbook).
+// Replaces the 4-hop Subject chain (Playbook → PlaybookSubject → Subject → SubjectSource)
+// for content retrieval. Subject stays for taxonomy/curriculum.
+model PlaybookSource {
+  id                 String             @id @default(uuid())
+  playbookId         String
+  sourceId           String
+  sortOrder          Int                @default(0)
+  tags               String[]           @default(["content"])
+  trustLevelOverride ContentTrustLevel?
+  createdAt          DateTime           @default(now())
+  playbook           Playbook           @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  source             ContentSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([playbookId, sourceId])
+  @@index([playbookId])
+  @@index([sourceId])
 }
 
 // =============================================================================
