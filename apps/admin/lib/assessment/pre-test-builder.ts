@@ -99,18 +99,9 @@ async function getSourceIdsForCurriculum(curriculumId: string): Promise<string[]
 }
 
 async function getSourceIdsForPlaybook(playbookId: string): Promise<string[]> {
-  const subjects = await prisma.playbookSubject.findMany({
-    where: { playbookId },
-    select: { subjectId: true },
-  });
-  if (subjects.length === 0) return [];
-
-  const sources = await prisma.subjectSource.findMany({
-    where: { subjectId: { in: subjects.map((s) => s.subjectId) } },
-    select: { sourceId: true },
-    orderBy: { createdAt: "asc" },
-  });
-  return [...new Set(sources.map((s) => s.sourceId))];
+  // Use central resolution which prefers PlaybookSource
+  const { getSourceIdsForPlaybook: resolve } = await import("@/lib/knowledge/domain-sources");
+  return resolve(playbookId);
 }
 
 // ---------------------------------------------------------------------------
