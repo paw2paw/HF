@@ -434,8 +434,13 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
         });
 
         // Dual-write: sync PlaybookSource from SubjectSource chain
-        const { syncPlaybookSources } = await import("@/lib/knowledge/domain-sources");
-        await syncPlaybookSources(scaffoldResult.playbook.id, ctx.results.subjectId);
+        // Skip when sourceIds provided — Phase 5 creates PlaybookSource directly,
+        // and syncPlaybookSources would pull in ALL sources for this subject
+        // (including sources from other courses sharing the same subject).
+        if (!ctx.input.sourceIds?.length) {
+          const { syncPlaybookSources } = await import("@/lib/knowledge/domain-sources");
+          await syncPlaybookSources(scaffoldResult.playbook.id, ctx.results.subjectId);
+        }
 
         // Link Subject to Department (teacher hierarchy: dept → subject → course)
         if (ctx.input.groupId) {
@@ -491,8 +496,11 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
         });
 
         // Dual-write: sync PlaybookSource from pack subject's SubjectSource chain
-        const { syncPlaybookSources: syncPack } = await import("@/lib/knowledge/domain-sources");
-        await syncPack(scaffoldResult.playbook.id, packSubId);
+        // Skip when sourceIds provided — Phase 5 handles PlaybookSource directly.
+        if (!ctx.input.sourceIds?.length) {
+          const { syncPlaybookSources: syncPack } = await import("@/lib/knowledge/domain-sources");
+          await syncPack(scaffoldResult.playbook.id, packSubId);
+        }
 
         // Link to Domain
         const domainLink = await prisma.subjectDomain.findFirst({

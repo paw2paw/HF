@@ -976,8 +976,12 @@ export async function executeWizardTool(
         });
 
         // Dual-write: sync PlaybookSource from primary subject
-        const { syncPlaybookSources } = await import("@/lib/knowledge/domain-sources");
-        await syncPlaybookSources(playbookId, subject.id);
+        // Skip when uploadSourceIds provided — Phase 5 (step 7c) creates PlaybookSource
+        // directly, and syncPlaybookSources would pull in ALL sources for this subject.
+        if (!uploadSourceIds?.length) {
+          const { syncPlaybookSources } = await import("@/lib/knowledge/domain-sources");
+          await syncPlaybookSources(playbookId, subject.id);
+        }
 
         // 5. Store config in playbook
         // Fall back to setupData (wizard data bag) for fields the AI may not repeat in create_course
@@ -1097,8 +1101,11 @@ export async function executeWizardTool(
         });
 
         // Dual-write: sync PlaybookSource from primary subject (idempotent if already done at 4b)
-        const { syncPlaybookSources: syncStep6 } = await import("@/lib/knowledge/domain-sources");
-        await syncStep6(playbookId, subject.id);
+        // Skip when uploadSourceIds provided — Phase 5 (step 7c) handles it.
+        if (!uploadSourceIds?.length) {
+          const { syncPlaybookSources: syncStep6 } = await import("@/lib/knowledge/domain-sources");
+          await syncStep6(playbookId, subject.id);
+        }
 
         // 6b. Create per-course identity spec overlay
         //     Extends the domain identity spec so course-specific teaching rules
@@ -1164,8 +1171,11 @@ export async function executeWizardTool(
             create: { playbookId, subjectId: packSubId },
           });
           // Dual-write: sync PlaybookSource from pack subject
-          const { syncPlaybookSources: syncPackSub } = await import("@/lib/knowledge/domain-sources");
-          await syncPackSub(playbookId, packSubId);
+          // Skip when uploadSourceIds provided — Phase 5 (step 7c) handles it.
+          if (!uploadSourceIds?.length) {
+            const { syncPlaybookSources: syncPackSub } = await import("@/lib/knowledge/domain-sources");
+            await syncPackSub(playbookId, packSubId);
+          }
 
           const domainLink = await prisma.subjectDomain.findFirst({
             where: { subjectId: packSubId, domainId },

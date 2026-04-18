@@ -54,6 +54,8 @@ export async function POST(
     const tags = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
     const sourceName = (formData.get("sourceName") as string) || null;
     const trustLevelOverride = (formData.get("trustLevel") as string) || null;
+    // Scope PlaybookSource to a specific course (prevents cross-course content bleeding)
+    const playbookId = (formData.get("playbookId") as string) || null;
 
     if (!file) {
       return NextResponse.json({ ok: false, error: "No file uploaded" }, { status: 400 });
@@ -94,14 +96,23 @@ export async function POST(
         },
       });
 
-      // Dual-write: PlaybookSource for all playbooks that teach this subject
-      const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-      for (const pb of pbLinks) {
+      // Dual-write: PlaybookSource — scope to specific playbook if provided,
+      // otherwise fan-out to all playbooks teaching this subject (legacy path).
+      if (playbookId) {
         await prisma.playbookSource.upsert({
-          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: existingId } },
-          create: { playbookId: pb.playbookId, sourceId: existingId, tags, trustLevelOverride: trustLevelOverride as any ?? undefined },
+          where: { playbookId_sourceId: { playbookId, sourceId: existingId } },
+          create: { playbookId, sourceId: existingId, tags, trustLevelOverride: trustLevelOverride as any ?? undefined },
           update: {},
         });
+      } else {
+        const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+        for (const pb of pbLinks) {
+          await prisma.playbookSource.upsert({
+            where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: existingId } },
+            create: { playbookId: pb.playbookId, sourceId: existingId, tags, trustLevelOverride: trustLevelOverride as any ?? undefined },
+            update: {},
+          });
+        }
       }
 
       // Link existing media to subject (idempotent)
@@ -117,7 +128,7 @@ export async function POST(
       console.log(`[subjects/:id/upload] Deduplicated "${file.name}" → reusing source ${existingId} (${dedup.assertionCount} assertions)`);
 
       // Fire-and-forget: generate MCQs if the reused source doesn't have any yet
-      maybeGenerateMcqs(existingId, auth.userId).catch((err) =>
+      maybeGenerateMcqs(existingId, authResult.session.user.id).catch((err) =>
         console.error(`[subjects/:id/upload] MCQ generation failed for dedup source ${existingId}:`, err),
       );
 
@@ -239,14 +250,22 @@ export async function POST(
       },
     });
 
-    // Dual-write: PlaybookSource for all playbooks that teach this subject
-    const pbLinksNew = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-    for (const pb of pbLinksNew) {
+    // Dual-write: PlaybookSource — scope to specific playbook if provided.
+    if (playbookId) {
       await prisma.playbookSource.upsert({
-        where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: source.id } },
-        create: { playbookId: pb.playbookId, sourceId: source.id, tags: finalTags, trustLevelOverride: trustLevelOverride as any ?? undefined },
+        where: { playbookId_sourceId: { playbookId, sourceId: source.id } },
+        create: { playbookId, sourceId: source.id, tags: finalTags, trustLevelOverride: trustLevelOverride as any ?? undefined },
         update: {},
       });
+    } else {
+      const pbLinksNew = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+      for (const pb of pbLinksNew) {
+        await prisma.playbookSource.upsert({
+          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: source.id } },
+          create: { playbookId: pb.playbookId, sourceId: source.id, tags: finalTags, trustLevelOverride: trustLevelOverride as any ?? undefined },
+          update: {},
+        });
+      }
     }
 
     // ── Store file in storage backend + create MediaAsset ──

@@ -123,14 +123,23 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Dual-write: PlaybookSource for all playbooks that teach this subject
-    const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-    for (const pb of pbLinks) {
+    // Dual-write: PlaybookSource — scope to specific playbook if provided,
+    // otherwise fan-out to all playbooks teaching this subject (legacy path).
+    if (body.playbookId) {
       await prisma.playbookSource.upsert({
-        where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId } },
-        create: { playbookId: pb.playbookId, sourceId, tags, sortOrder: body.sortOrder || 0 },
+        where: { playbookId_sourceId: { playbookId: body.playbookId, sourceId } },
+        create: { playbookId: body.playbookId, sourceId, tags, sortOrder: body.sortOrder || 0 },
         update: {},
       });
+    } else {
+      const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+      for (const pb of pbLinks) {
+        await prisma.playbookSource.upsert({
+          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId } },
+          create: { playbookId: pb.playbookId, sourceId, tags, sortOrder: body.sortOrder || 0 },
+          update: {},
+        });
+      }
     }
 
     return NextResponse.json({ subjectSource, source }, { status: 201 });
@@ -195,14 +204,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Dual-write: PlaybookSource for all playbooks that teach this subject
-    const pbLinksUpsert = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-    for (const pb of pbLinksUpsert) {
+    // Dual-write: PlaybookSource — scope to specific playbook if provided.
+    if (body.playbookId) {
       await prisma.playbookSource.upsert({
-        where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: body.sourceId } },
-        create: { playbookId: pb.playbookId, sourceId: body.sourceId, tags: body.tags },
-        update: {},
+        where: { playbookId_sourceId: { playbookId: body.playbookId, sourceId: body.sourceId } },
+        create: { playbookId: body.playbookId, sourceId: body.sourceId, tags: body.tags },
+        update: { tags: body.tags },
       });
+    } else {
+      const pbLinksUpsert = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+      for (const pb of pbLinksUpsert) {
+        await prisma.playbookSource.upsert({
+          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: body.sourceId } },
+          create: { playbookId: pb.playbookId, sourceId: body.sourceId, tags: body.tags },
+          update: {},
+        });
+      }
     }
 
     return NextResponse.json({ ok: true, subjectSource });
@@ -245,6 +262,20 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         },
       },
     });
+
+    // Clean up PlaybookSource — remove from specific playbook or all playbooks for this subject.
+    if (body.playbookId) {
+      await prisma.playbookSource.deleteMany({
+        where: { playbookId: body.playbookId, sourceId: body.sourceId },
+      });
+    } else {
+      const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
+      for (const pb of pbLinks) {
+        await prisma.playbookSource.deleteMany({
+          where: { playbookId: pb.playbookId, sourceId: body.sourceId },
+        });
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
