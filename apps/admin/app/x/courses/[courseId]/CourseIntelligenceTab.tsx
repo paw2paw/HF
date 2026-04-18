@@ -3,23 +3,23 @@
 /**
  * CourseIntelligenceTab — "Content Intelligence" dashboard.
  *
- * Replaces the old CourseContentTab with a scannable layout:
+ * Layout:
  *   1. Stat cards row (large method counts)
  *   2. Two-column: sources + category proportional bar
- *   3. Segmented control: Genome | By Method | By Outcome | By Source
+ *   3. Two segments: Course Map | Teaching Points
+ *      - Course Map = GenomeBrowser (session×module×LO×TP grid)
+ *      - Teaching Points = grouped list with "Group by" dropdown + category filter chips
  *   4. Single AssertionDetailDrawer shared across all views
- *
- * All data comes from the parent page — no new API routes needed.
- * Assertions lazy-fetch on first segment switch away from Genome.
  */
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  BookMarked, AlertTriangle, Zap, RefreshCw, Target, Dna,
+  BookMarked, AlertTriangle, Zap, RefreshCw,
+  Map as MapIcon, ChevronDown,
 } from 'lucide-react';
 import { getDocTypeInfo } from '@/lib/doc-type-icons';
-import { CONTENT_CATEGORIES, CATEGORY_ORDER, getCategoryStyle } from '@/lib/content-categories';
+import { CONTENT_CATEGORIES, getCategoryStyle } from '@/lib/content-categories';
 import { INSTRUCTION_CATEGORIES, TEACH_METHOD_CONFIG } from '@/lib/content-trust/resolve-config';
 import { CourseGenomeTab } from './CourseGenomeTab';
 import { ReExtractModal } from './ReExtractModal';
@@ -82,7 +82,14 @@ export type CourseIntelligenceTabProps = {
 // ── Constants ──────────────────────────────────────────
 
 const INSTRUCTION_SET = new Set<string>(INSTRUCTION_CATEGORIES);
-type Segment = 'genome' | 'method' | 'outcome' | 'source';
+type Segment = 'map' | 'points';
+type GroupBy = 'learningOutcomeRef' | 'teachMethod' | 'sourceName';
+
+const GROUP_BY_OPTIONS: { value: GroupBy; label: string }[] = [
+  { value: 'learningOutcomeRef', label: 'Outcome' },
+  { value: 'teachMethod', label: 'Method' },
+  { value: 'sourceName', label: 'Source' },
+];
 
 type TPData = {
   id: string;
@@ -96,32 +103,92 @@ type TPData = {
 
 // ── Sub-components ─────────────────────────────────────
 
-/** Segmented control — pill-style toggle bar */
-function SegmentedControl({ active, onChange }: {
+/** Two-segment toggle: Course Map | Teaching Points */
+function SegmentedControl({ active, onChange, pointsCount }: {
   active: Segment;
   onChange: (s: Segment) => void;
+  pointsCount: number;
 }) {
-  const segments: { id: Segment; label: string; icon: React.ReactNode }[] = [
-    { id: 'genome', label: 'Genome', icon: <Dna size={14} /> },
-    { id: 'method', label: 'By Method', icon: <Target size={14} /> },
-    { id: 'outcome', label: 'By Outcome', icon: <BookMarked size={14} /> },
-    { id: 'source', label: 'By Source', icon: <Zap size={14} /> },
-  ];
-
   return (
     <div className="ci-segment-bar" role="tablist">
-      {segments.map((s) => (
-        <button
-          key={s.id}
-          role="tab"
-          aria-selected={active === s.id}
-          className={`ci-segment-btn${active === s.id ? ' ci-segment-active' : ''}`}
-          onClick={() => onChange(s.id)}
+      <button
+        role="tab"
+        aria-selected={active === 'map'}
+        className={`ci-segment-btn${active === 'map' ? ' ci-segment-active' : ''}`}
+        onClick={() => onChange('map')}
+      >
+        <MapIcon size={14} />
+        <span>Course Map</span>
+      </button>
+      <button
+        role="tab"
+        aria-selected={active === 'points'}
+        className={`ci-segment-btn${active === 'points' ? ' ci-segment-active' : ''}`}
+        onClick={() => onChange('points')}
+      >
+        <BookMarked size={14} />
+        <span>Teaching Points</span>
+        {pointsCount > 0 && <span className="ci-segment-count">{pointsCount}</span>}
+      </button>
+    </div>
+  );
+}
+
+/** Category filter chips — toggle categories on/off */
+function CategoryFilterChips({ categories, activeFilters, onToggle }: {
+  categories: Array<{ cat: string; count: number }>;
+  activeFilters: Set<string>;
+  onToggle: (cat: string) => void;
+}) {
+  if (categories.length === 0) return null;
+  const allActive = activeFilters.size === 0; // empty = show all
+
+  return (
+    <div className="ci-filter-chips">
+      {categories.map(({ cat, count }) => {
+        const meta = CONTENT_CATEGORIES[cat] ?? getCategoryStyle(cat);
+        const isActive = allActive || activeFilters.has(cat);
+        return (
+          <button
+            key={cat}
+            type="button"
+            className={`ci-filter-chip${isActive ? '' : ' ci-filter-chip-off'}`}
+            style={{
+              '--chip-color': meta.color,
+              '--chip-bg': meta.bg,
+            } as React.CSSProperties}
+            onClick={() => onToggle(cat)}
+          >
+            <span className="ci-filter-chip-swatch" style={{ background: meta.color }} />
+            {meta.label}
+            <span className="ci-filter-chip-count">{count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Group-by dropdown */
+function GroupBySelect({ value, onChange }: {
+  value: GroupBy;
+  onChange: (v: GroupBy) => void;
+}) {
+  return (
+    <div className="ci-groupby">
+      <span className="ci-groupby-label">Group by</span>
+      <div className="ci-groupby-select-wrap">
+        <select
+          className="ci-groupby-select"
+          value={value}
+          onChange={(e) => onChange(e.target.value as GroupBy)}
         >
-          {s.icon}
-          <span>{s.label}</span>
-        </button>
-      ))}
+          {GROUP_BY_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <ChevronDown size={12} className="ci-groupby-chevron" />
+      </div>
     </div>
   );
 }
@@ -129,7 +196,7 @@ function SegmentedControl({ active, onChange }: {
 /** Assertion list grouped by an arbitrary key */
 function GroupedAssertionList({ items, groupBy, drawerAssertionId, onSelect }: {
   items: TPData[];
-  groupBy: 'learningOutcomeRef' | 'sourceName' | 'teachMethod';
+  groupBy: GroupBy;
   drawerAssertionId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -137,7 +204,6 @@ function GroupedAssertionList({ items, groupBy, drawerAssertionId, onSelect }: {
     const groups = new Map<string, TPData[]>();
 
     if (groupBy === 'teachMethod') {
-      // Ordered by TEACH_METHOD_CONFIG, then unassigned
       const methodKeys = Object.keys(TEACH_METHOD_CONFIG);
       for (const key of methodKeys) groups.set(key, []);
       for (const tp of items) {
@@ -145,7 +211,6 @@ function GroupedAssertionList({ items, groupBy, drawerAssertionId, onSelect }: {
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(tp);
       }
-      // Remove empty groups
       for (const [k, v] of groups) { if (v.length === 0) groups.delete(k); }
     } else {
       for (const tp of items) {
@@ -178,11 +243,12 @@ function GroupedAssertionList({ items, groupBy, drawerAssertionId, onSelect }: {
             </div>
             {groupItems.map((tp) => {
               const cs = getCategoryStyle(tp.category);
+              const isInstruction = INSTRUCTION_SET.has(tp.category);
               return (
                 <button
                   key={tp.id}
                   type="button"
-                  className={`ci-tp-row${drawerAssertionId === tp.id ? ' ci-tp-row-active' : ''}`}
+                  className={`ci-tp-row${drawerAssertionId === tp.id ? ' ci-tp-row-active' : ''}${isInstruction ? ' ci-tp-row-instruction' : ''}`}
                   onClick={() => onSelect(tp.id)}
                 >
                   <span className="ci-tp-cat" style={{ background: cs.color }}>{tp.category}</span>
@@ -208,7 +274,6 @@ function CategoryBar({ categoryCounts }: { categoryCounts: Record<string, number
   const total = Object.values(categoryCounts).reduce((s, c) => s + c, 0);
   if (total === 0) return null;
 
-  // All categories with nonzero counts, sorted by count descending
   const entries = Object.entries(categoryCounts)
     .filter(([, c]) => c > 0)
     .sort((a, b) => b[1] - a[1]);
@@ -249,10 +314,8 @@ function CategoryBar({ categoryCounts }: { categoryCounts: Record<string, number
 
 export function CourseIntelligenceTab({
   courseId,
-  detail,
   subjects,
   courseSources,
-  courseTeachingProfile,
   contentMethods,
   contentTotal,
   instructionCount = 0,
@@ -264,29 +327,38 @@ export function CourseIntelligenceTab({
   const contentOnlyTotal = contentTotal - instructionCount;
 
   // ── State ────────────────────────────────────────────
-  const [segment, setSegment] = useState<Segment>('genome');
+  const [segment, setSegment] = useState<Segment>('map');
+  const [groupBy, setGroupBy] = useState<GroupBy>('learningOutcomeRef');
+  const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set());
+  const [showInstructions, setShowInstructions] = useState(true);
   const [allItems, setAllItems] = useState<TPData[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
   const [drawerAssertionId, setDrawerAssertionId] = useState<string | null>(null);
   const [backfilling, setBackfilling] = useState(false);
   const [showReExtract, setShowReExtract] = useState(false);
 
-  // ── Lazy fetch assertions when switching to list segments ──
-  const needsAssertions = segment !== 'genome';
+  // ── Lazy fetch assertions when switching to points ──
+  const needsAssertions = segment === 'points';
+  const loading = needsAssertions && !fetched && allItems.length === 0;
 
   useEffect(() => {
-    if (!needsAssertions || allItems.length > 0) return;
-    setLoading(true);
+    if (!needsAssertions || allItems.length > 0 || fetched) return;
+    let cancelled = false;
+
     fetch(`/api/courses/${courseId}/assertions?limit=500&scope=all`)
       .then((r) => r.json())
       .then((res) => {
-        if (res.ok && Array.isArray(res.assertions)) {
+        if (!cancelled && res.ok && Array.isArray(res.assertions)) {
           setAllItems(res.assertions);
         }
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [needsAssertions, courseId, allItems.length]);
+      .finally(() => {
+        if (!cancelled) setFetched(true);
+      });
+
+    return () => { cancelled = true; };
+  }, [needsAssertions, courseId, allItems.length, fetched]);
 
   // ── Arrow key navigation ─────────────────────────────
   const handleKeyNav = useCallback((e: KeyboardEvent) => {
@@ -306,7 +378,7 @@ export function CourseIntelligenceTab({
     return () => document.removeEventListener('keydown', handleKeyNav);
   }, [drawerAssertionId, handleKeyNav]);
 
-  // ── Derived data ─────────────────────────────────────
+  // ── Derived: split TPs vs instructions ──────────────
   const { tps, tis } = useMemo(() => {
     const content: TPData[] = [];
     const instructions: TPData[] = [];
@@ -319,6 +391,38 @@ export function CourseIntelligenceTab({
     }
     return { tps: content, tis: instructions };
   }, [allItems]);
+
+  // ── Derived: category list for filter chips ─────────
+  const availableCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    const items = showInstructions ? [...tps, ...tis] : tps;
+    for (const tp of items) {
+      counts.set(tp.category, (counts.get(tp.category) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([cat, count]) => ({ cat, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [tps, tis, showInstructions]);
+
+  // ── Derived: filtered items ─────────────────────────
+  const filteredItems = useMemo(() => {
+    const combined = showInstructions ? [...tps, ...tis] : tps;
+    if (categoryFilters.size === 0) return combined; // no filter = show all
+    return combined.filter((tp) => categoryFilters.has(tp.category));
+  }, [tps, tis, showInstructions, categoryFilters]);
+
+  // ── Toggle a category filter chip ───────────────────
+  const toggleCategoryFilter = useCallback((cat: string) => {
+    setCategoryFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) {
+        next.delete(cat);
+      } else {
+        next.add(cat);
+      }
+      return next;
+    });
+  }, []);
 
   // ── Sources ──────────────────────────────────────────
   const { courseGuideSources, otherSources, allSources } = useMemo(() => {
@@ -365,6 +469,7 @@ export function CourseIntelligenceTab({
       const data = await res.json();
       if (data.ok && data.updated > 0) {
         setAllItems([]);
+        setFetched(false);
         if (onContentRefresh) {
           const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());
           if (bd.ok) {
@@ -416,7 +521,6 @@ export function CourseIntelligenceTab({
 
       {/* ── ROW 2: Sources + Categories (2-col) ──────── */}
       <div className="ci-two-col">
-        {/* Sources */}
         <div className="ci-sources-panel">
           <div className="ci-panel-header">
             <span className="ci-panel-title">
@@ -469,7 +573,6 @@ export function CourseIntelligenceTab({
           </div>
         </div>
 
-        {/* Category bar */}
         <div className="ci-category-panel">
           <div className="ci-panel-header">
             <span className="ci-panel-title">Content Mix</span>
@@ -506,11 +609,16 @@ export function CourseIntelligenceTab({
         </div>
       )}
 
-      {/* ── ROW 3: Segmented Control + Content ───────── */}
-      <SegmentedControl active={segment} onChange={setSegment} />
+      {/* ── ROW 3: Segmented Control ─────────────────── */}
+      <SegmentedControl
+        active={segment}
+        onChange={setSegment}
+        pointsCount={contentOnlyTotal + instructionCount}
+      />
 
+      {/* ── Segment Content ──────────────────────────── */}
       <div className="ci-segment-content">
-        {segment === 'genome' && (
+        {segment === 'map' && (
           <CourseGenomeTab
             courseId={courseId}
             onAssertionSelect={setDrawerAssertionId}
@@ -518,13 +626,13 @@ export function CourseIntelligenceTab({
           />
         )}
 
-        {segment !== 'genome' && (
+        {segment === 'points' && (
           loading ? (
             <div className="hf-empty">
               <span className="hf-spinner" />
-              <span>Loading assertions...</span>
+              <span>Loading teaching points...</span>
             </div>
-          ) : tps.length === 0 && tis.length === 0 ? (
+          ) : allItems.length === 0 ? (
             <div className="hf-empty">
               <BookMarked size={24} />
               <span>No teaching points yet</span>
@@ -534,37 +642,52 @@ export function CourseIntelligenceTab({
             </div>
           ) : (
             <>
-              {/* Teaching Points */}
-              {tps.length > 0 && (
-                <div className="ci-list-section">
-                  <div className="ci-list-section-header">
-                    <BookMarked size={14} />
-                    <span>Teaching Points ({tps.length})</span>
-                  </div>
-                  <GroupedAssertionList
-                    items={tps}
-                    groupBy={segment === 'method' ? 'teachMethod' : segment === 'outcome' ? 'learningOutcomeRef' : 'sourceName'}
-                    drawerAssertionId={drawerAssertionId}
-                    onSelect={setDrawerAssertionId}
-                  />
+              {/* Toolbar: Group by + Instructions toggle + Filter chips */}
+              <div className="ci-toolbar">
+                <GroupBySelect value={groupBy} onChange={setGroupBy} />
+                {tis.length > 0 && (
+                  <label className="ci-toggle">
+                    <input
+                      type="checkbox"
+                      checked={showInstructions}
+                      onChange={(e) => setShowInstructions(e.target.checked)}
+                    />
+                    <span className="ci-toggle-label">
+                      Instructions ({tis.length})
+                    </span>
+                  </label>
+                )}
+                {categoryFilters.size > 0 && (
+                  <button
+                    type="button"
+                    className="ci-clear-filters"
+                    onClick={() => setCategoryFilters(new Set())}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+
+              <CategoryFilterChips
+                categories={availableCategories}
+                activeFilters={categoryFilters}
+                onToggle={toggleCategoryFilter}
+              />
+
+              {/* Filtered count */}
+              {categoryFilters.size > 0 && (
+                <div className="ci-filter-status">
+                  Showing {filteredItems.length} of {showInstructions ? tps.length + tis.length : tps.length}
                 </div>
               )}
 
-              {/* Teaching Instructions */}
-              {tis.length > 0 && (
-                <div className="ci-list-section">
-                  <div className="ci-list-section-header">
-                    <Zap size={14} />
-                    <span>Teaching Instructions ({tis.length})</span>
-                  </div>
-                  <GroupedAssertionList
-                    items={tis}
-                    groupBy={segment === 'method' ? 'teachMethod' : segment === 'outcome' ? 'learningOutcomeRef' : 'sourceName'}
-                    drawerAssertionId={drawerAssertionId}
-                    onSelect={setDrawerAssertionId}
-                  />
-                </div>
-              )}
+              {/* Grouped list */}
+              <GroupedAssertionList
+                items={filteredItems}
+                groupBy={groupBy}
+                drawerAssertionId={drawerAssertionId}
+                onSelect={setDrawerAssertionId}
+              />
             </>
           )
         )}
