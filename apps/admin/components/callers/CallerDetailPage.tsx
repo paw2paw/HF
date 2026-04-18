@@ -64,12 +64,22 @@ export default function CallerDetailPage() {
   const rawTab = searchParams.get("tab");
   const validTabs: SectionId[] = ["overview", "uplift", "calls-prompts", "how", "what", "artifacts", "ai-call"];
   const mappedTab = rawTab ? (tabRedirects[rawTab] || rawTab) as SectionId : null;
-  const initialTab: SectionId = mappedTab && validTabs.includes(mappedTab) ? mappedTab : "overview";
+  const lastTabKey = `hf.caller-tab.${callerId}`;
+  const savedTab = typeof window !== "undefined" ? window.localStorage.getItem(lastTabKey) as SectionId | null : null;
+  const initialTab: SectionId = mappedTab && validTabs.includes(mappedTab)
+    ? mappedTab
+    : savedTab && validTabs.includes(savedTab)
+      ? savedTab
+      : "what";
 
   const [data, setData] = useState<CallerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<SectionId>(initialTab);
+  const [activeSection, _setActiveSection] = useState<SectionId>(initialTab);
+  const setActiveSection = (id: SectionId) => {
+    _setActiveSection(id);
+    try { window.localStorage.setItem(lastTabKey, id); } catch {}
+  };
   const [simChatMounted, setSimChatMounted] = useState(initialTab === "ai-call");
   const [callSession, setCallSession] = useState(0);
   if (activeSection === "ai-call" && !simChatMounted) setSimChatMounted(true);

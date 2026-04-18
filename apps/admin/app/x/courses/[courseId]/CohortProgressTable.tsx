@@ -160,7 +160,7 @@ export function CohortProgressTable({ students }: Props): React.ReactElement {
               <tr key={s.callerId}>
                 <td>
                   <div className="cp-name-cell">
-                    <Link href={`/x/callers/${s.callerId}?tab=uplift`} className="cp-name-link">
+                    <Link href={`/x/callers/${s.callerId}`} className="cp-name-link">
                       {s.name || 'Unnamed'}
                     </Link>
                     {s.email && <span className="cp-email">{s.email}</span>}

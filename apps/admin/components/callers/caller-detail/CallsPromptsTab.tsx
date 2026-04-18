@@ -250,11 +250,11 @@ function ExtractionCard({ details, callId, callerId, isProcessing }: {
               {memories.map((memory: any) => {
                 const style = CATEGORY_COLORS[memory.category] || CATEGORY_COLORS.CONTEXT;
                 return (
-                  <div key={memory.id} className="cpt-memory-row">
+                  <div key={memory.id} className="cpt-memory-row" title={`${memory.category}: ${memory.key} = "${memory.value}" (${(memory.confidence * 100).toFixed(0)}% confidence)`}>
                     <span className="cpt-memory-cat" style={{ background: style.bg, color: style.text }}>{memory.category}</span>
                     <span className="cpt-memory-key">{memory.key}</span>
                     <span className="cpt-memory-val">= &ldquo;{memory.value}&rdquo;</span>
-                    <span className="cpt-memory-conf">{(memory.confidence * 100).toFixed(0)}%</span>
+                    <span className="cpt-memory-conf" title={`Confidence: ${(memory.confidence * 100).toFixed(0)}%`}>{(memory.confidence * 100).toFixed(0)}%</span>
                   </div>
                 );
               })}
@@ -285,7 +285,7 @@ function ExtractionCard({ details, callId, callerId, isProcessing }: {
                   const pct = (score.score * 100).toFixed(0);
                   const color = score.score >= 0.7 ? "var(--status-success-text)" : score.score >= 0.4 ? "var(--status-warning-text)" : "var(--status-error-text)";
                   return (
-                    <div key={score.id} className="cpt-score-item">
+                    <div key={score.id} className="cpt-score-item" title={`${score.parameter?.name || score.parameterId}: ${pct}%${score.score >= 0.7 ? " — on track" : score.score >= 0.4 ? " — needs attention" : " — below target"}`}>
                       <span className="cpt-score-name">{score.parameter?.name || score.parameterId}</span>
                       <span className="cpt-score-val" style={{ color }}>{pct}%</span>
                     </div>
@@ -299,10 +299,10 @@ function ExtractionCard({ details, callId, callerId, isProcessing }: {
               {callActions.map((action: any) => {
                 const colors = ASSIGNEE_COLORS[action.assignee] || ASSIGNEE_COLORS.CALLER;
                 return (
-                  <div key={action.id} className="cpt-action-row">
+                  <div key={action.id} className="cpt-action-row" title={`${action.type} — assigned to ${action.assignee}`}>
                     <span className="cpt-action-icon">{ACTION_TYPE_ICONS[action.type] || <CheckSquare size={13} />}</span>
                     <span className="cpt-action-title">{action.title}</span>
-                    <span className="cpt-action-assignee" style={{ background: colors.bg, color: colors.text }}>{action.assignee}</span>
+                    <span className="cpt-action-assignee" style={{ background: colors.bg, color: colors.text }} title={`Assigned to ${action.assignee.toLowerCase()}`}>{action.assignee}</span>
                   </div>
                 );
               })}
@@ -372,16 +372,16 @@ function BehaviourCard({ details, isProcessing }: {
 }
 
 function PipelineSummary({ call }: { call: Call }) {
-  const items: { icon: React.ReactNode; label: string; ok: boolean }[] = [
-    { icon: <Brain size={13} />, label: "Memories", ok: !!call.hasMemories },
-    { icon: <TrendingUp size={13} />, label: "Scores", ok: !!call.hasScores },
-    { icon: <CheckCircle2 size={13} />, label: "Behaviour", ok: !!call.hasBehaviorMeasurements },
+  const items: { icon: React.ReactNode; label: string; ok: boolean; variant: string; tip: string }[] = [
+    { icon: <Brain size={13} />, label: "Memories", ok: !!call.hasMemories, variant: "purple", tip: "Key facts, preferences, and context extracted from the call" },
+    { icon: <TrendingUp size={13} />, label: "Scores", ok: !!call.hasScores, variant: "blue", tip: "Parameter scores measured against teaching goals" },
+    { icon: <CheckCircle2 size={13} />, label: "Behaviour", ok: !!call.hasBehaviorMeasurements, variant: "teal", tip: "Behaviour measurements and reward score from the adaptive loop" },
   ];
 
   const allDone = items.every(i => i.ok);
   if (!allDone && !items.some(i => i.ok)) {
     return (
-      <div className="cpt-pipeline cpt-pipeline--pending">
+      <div className="cpt-pipeline cpt-pipeline--pending" title="Run the pipeline to extract memories, scores, and behaviour data">
         <Clock size={13} />
         <span>Pipeline not yet run</span>
       </div>
@@ -391,7 +391,11 @@ function PipelineSummary({ call }: { call: Call }) {
   return (
     <div className="cpt-pipeline">
       {items.map((item) => (
-        <span key={item.label} className={`cpt-pip ${item.ok ? "cpt-pip--ok" : "cpt-pip--pending"}`}>
+        <span
+          key={item.label}
+          className={`cpt-pip ${item.ok ? `cpt-pip--${item.variant}` : "cpt-pip--pending"}`}
+          title={item.ok ? item.tip : `Not yet extracted — ${item.tip.toLowerCase()}`}
+        >
           {item.icon} {item.label}
         </span>
       ))}
@@ -806,8 +810,8 @@ export function CallsPromptsTab({
                   )}
                 </div>
                 <div className="cpt-call-status">
-                  {isProcessing && <span className="cpt-processing-dot" />}
-                  {entry.hasPrompt && <FileText size={12} className="cpt-has-prompt" />}
+                  {isProcessing && <span className="cpt-processing-dot" title="Pipeline is processing this call" />}
+                  {entry.hasPrompt && <FileText size={12} className="cpt-has-prompt" title="Prompt composed for next call" />}
                 </div>
               </button>
 
