@@ -75,9 +75,9 @@ export function CourseGenomeTab({ courseId }: CourseGenomeTabProps) {
       <div className="hf-card">
         <div className="hf-empty">
           <Dna size={24} />
-          <span>No lesson plan yet</span>
+          <span>No curriculum modules yet</span>
           <span className="hf-text-muted hf-text-xs">
-            Generate a lesson plan to see the course genome.
+            Upload content and generate a curriculum to see the course genome.
           </span>
         </div>
       </div>

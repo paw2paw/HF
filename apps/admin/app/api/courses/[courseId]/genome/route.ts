@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { INSTRUCTION_CATEGORIES } from "@/lib/content-trust/resolve-config";
-import { loRefsMatch } from "@/lib/lesson-plan/lo-ref-match";
+import { getSourceIdsForPlaybook } from "@/lib/knowledge/domain-sources";
 
 type Params = { params: Promise<{ courseId: string }> };
 
 // ---------------------------------------------------------------------------
-// Types
+// Types — module-based genome (no session/lesson-plan dependency)
 // ---------------------------------------------------------------------------
 
 interface GenomeModule {
@@ -15,9 +15,8 @@ interface GenomeModule {
   slug: string;
   title: string;
   sortOrder: number;
-  /** First teaching session this module appears in (1-based) */
+  /** Column index in the genome grid (1-based) */
   sessionStart: number;
-  /** Last teaching session this module appears in (1-based) */
   sessionEnd: number;
   loCount: number;
 }
@@ -26,9 +25,8 @@ interface GenomeLO {
   ref: string;
   description: string;
   moduleSlug: string;
-  /** First teaching session (1-based) */
+  /** Column index matching the parent module */
   sessionStart: number;
-  /** Last teaching session (1-based) */
   sessionEnd: number;
   assertionCount: number;
 }
@@ -40,9 +38,8 @@ export interface GenomeAssertion {
 }
 
 interface GenomeSessionAssertions {
-  /** Teaching session index (1-based, teaching-only — excludes structural stops) */
+  /** Module index (1-based) — reuses "session" naming for GenomeBrowser compat */
   teachingIndex: number;
-  /** Original session number from lesson plan */
   session: number;
   type: string;
   label: string;
@@ -50,11 +47,8 @@ interface GenomeSessionAssertions {
   /** Assertion count per category */
   categories: Record<string, number>;
   totalAssertions: number;
-  /** Is this an assessment waymarker? */
   isAssessment: boolean;
-  /** LO refs for this session */
   loRefs: string[];
-  /** Individual assertions for drill-down */
   assertions: GenomeAssertion[];
 }
 
@@ -62,19 +56,19 @@ export interface GenomeJourneyStop {
   session: number;
   type: string;
   label: string;
-  /** 1-based teaching index (null for structural/survey stops) */
   teachingIndex: number | null;
 }
 
 export interface GenomeData {
   courseId: string;
   courseName: string;
+  /** Number of modules (replaces teachingSessionCount) */
   teachingSessionCount: number;
   totalAssertions: number;
   modules: GenomeModule[];
   learningOutcomes: GenomeLO[];
+  /** One entry per module (replaces per-session entries) */
   sessions: GenomeSessionAssertions[];
-  /** Full lesson plan as compact stops (including structural) for journey rail */
   journeyStops: GenomeJourneyStop[];
 }
 
@@ -87,10 +81,10 @@ export interface GenomeData {
  * @visibility internal
  * @scope courses:read
  * @auth session (VIEWER+)
- * @tags courses, lesson-plan, visualization
- * @description Returns hierarchical data for the course genome browser visualization.
- *   Computes module spans, LO spans, and per-session assertion category breakdowns
- *   across teaching sessions only (excludes structural/survey stops).
+ * @tags courses, curriculum, visualization
+ * @description Returns module-based genome data for the course genome browser.
+ *   Each module becomes a column with its assertions grouped by category.
+ *   No longer depends on lesson plans — works as soon as curriculum modules exist.
  * @response 200 { ok: true, data: GenomeData }
  * @response 404 { ok: false, error: "..." }
  */
@@ -104,32 +98,21 @@ export async function GET(
 
     const { courseId } = await params;
 
-    // 1. Load playbook with name
+    // 1. Load playbook
     const playbook = await prisma.playbook.findUnique({
       where: { id: courseId },
-      select: { id: true, name: true, domainId: true },
+      select: { id: true, name: true },
     });
     if (!playbook) {
       return NextResponse.json({ ok: false, error: "Course not found" }, { status: 404 });
     }
 
-    // 2. Resolve subjects → curriculum
-    const playbookSubjects = await prisma.playbookSubject.findMany({
+    // 2. Find curriculum — prefer playbookId, fallback to subject chain
+    let curriculum = await prisma.curriculum.findFirst({
       where: { playbookId: courseId },
-      select: { subjectId: true },
-    });
-    const subjectIds = playbookSubjects.map((ps) => ps.subjectId);
-    if (subjectIds.length === 0) {
-      return NextResponse.json({ ok: true, data: emptyGenome(courseId, playbook.name) });
-    }
-
-    // 3. Find curriculum with lesson plan
-    const curriculum = await prisma.curriculum.findFirst({
-      where: { subjectId: { in: subjectIds } },
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       select: {
         id: true,
-        deliveryConfig: true,
         modules: {
           where: { isActive: true },
           orderBy: { sortOrder: "asc" },
@@ -147,147 +130,164 @@ export async function GET(
       },
     });
 
-    const dc = curriculum?.deliveryConfig as any;
-    const entries: any[] = dc?.lessonPlan?.entries || [];
-    if (entries.length === 0) {
-      return NextResponse.json({ ok: true, data: emptyGenome(courseId, playbook.name) });
-    }
-
-    // 4. Filter to teaching sessions only
-    const STRUCTURAL = ["onboarding", "offboarding", "pre_survey", "post_survey"];
-    const teachingEntries = entries.filter((e: any) => !STRUCTURAL.includes(e.type));
-    if (teachingEntries.length === 0) {
-      return NextResponse.json({ ok: true, data: emptyGenome(courseId, playbook.name) });
-    }
-
-    // 5. Resolve sourceIds for assertion lookup
-    const sourceIds = await resolveSourceIds(subjectIds);
-
-    // 6. Load assertions for all sessions that have assertionIds
-    const allAssertionIds = teachingEntries.flatMap((e: any) => e.assertionIds || []);
-    const assertionMap = new Map<string, { assertion: string; category: string; learningOutcomeRef: string | null; learningObjectiveId: string | null }>();
-
-    if (allAssertionIds.length > 0) {
-      const assertions = await prisma.contentAssertion.findMany({
-        where: { id: { in: allAssertionIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
-        select: { id: true, assertion: true, category: true, learningOutcomeRef: true, learningObjectiveId: true },
+    if (!curriculum) {
+      // Fallback: subject chain
+      const ps = await prisma.playbookSubject.findMany({
+        where: { playbookId: courseId },
+        select: { subjectId: true },
       });
-      for (const a of assertions) {
-        assertionMap.set(a.id, { assertion: a.assertion, category: a.category, learningOutcomeRef: a.learningOutcomeRef, learningObjectiveId: a.learningObjectiveId });
+      if (ps.length > 0) {
+        curriculum = await prisma.curriculum.findFirst({
+          where: { subjectId: { in: ps.map((p) => p.subjectId) } },
+          orderBy: { updatedAt: "desc" },
+          select: {
+            id: true,
+            modules: {
+              where: { isActive: true },
+              orderBy: { sortOrder: "asc" },
+              select: {
+                id: true,
+                slug: true,
+                title: true,
+                sortOrder: true,
+                learningObjectives: {
+                  orderBy: { sortOrder: "asc" },
+                  select: { id: true, ref: true, description: true },
+                },
+              },
+            },
+          },
+        });
       }
     }
 
-    // 7. Build module lookup
-    const moduleMap = new Map(
-      (curriculum?.modules || []).map((m) => [m.slug, m]),
-    );
+    if (!curriculum || curriculum.modules.length === 0) {
+      return NextResponse.json({ ok: true, data: emptyGenome(courseId, playbook.name) });
+    }
 
-    // 8. Build genome sessions with category breakdowns
-    const genomeSessions: GenomeSessionAssertions[] = teachingEntries.map((entry: any, idx: number) => {
-      const ids: string[] = entry.assertionIds || [];
-      const categories: Record<string, number> = {};
-      const loRefsFromAssertions = new Set<string>();
-      const sessionAssertions: GenomeAssertion[] = [];
+    // 3. Source IDs via PlaybookSource
+    const sourceIds = await getSourceIdsForPlaybook(courseId);
 
-      for (const id of ids) {
-        const a = assertionMap.get(id);
-        if (a) {
-          categories[a.category] = (categories[a.category] || 0) + 1;
-          if (a.learningOutcomeRef) loRefsFromAssertions.add(a.learningOutcomeRef);
-          sessionAssertions.push({ id, assertion: a.assertion, category: a.category });
-        }
+    // 4. Load ALL content assertions for this course (exclude instruction categories)
+    const allAssertions = sourceIds.length > 0
+      ? await prisma.contentAssertion.findMany({
+          where: {
+            sourceId: { in: sourceIds },
+            category: { notIn: [...INSTRUCTION_CATEGORIES] },
+          },
+          select: {
+            id: true,
+            assertion: true,
+            category: true,
+            learningOutcomeRef: true,
+            learningObjectiveId: true,
+          },
+        })
+      : [];
+
+    // 5. Build LO ID → module slug mapping
+    const loIdToModule = new Map<string, string>();
+    const loRefToModule = new Map<string, string>();
+    for (const mod of curriculum.modules) {
+      for (const lo of mod.learningObjectives) {
+        loIdToModule.set(lo.id, mod.slug);
+        loRefToModule.set(lo.ref, mod.slug);
       }
+    }
 
-      const loRefs = entry.learningOutcomeRefs?.length
-        ? entry.learningOutcomeRefs
-        : [...loRefsFromAssertions];
+    // 6. Assign assertions to modules via LO linkage
+    const moduleAssertions = new Map<string, typeof allAssertions>();
+    const unassigned: typeof allAssertions = [];
 
-      return {
-        teachingIndex: idx + 1,
-        session: entry.session,
-        type: entry.type,
-        label: entry.label || `Session ${idx + 1}`,
-        moduleSlug: entry.moduleId || null,
-        categories,
-        totalAssertions: sessionAssertions.length,
-        isAssessment: entry.type === "assess",
-        loRefs,
-        assertions: sessionAssertions,
-      };
-    });
+    for (const a of allAssertions) {
+      const modSlug = (a.learningObjectiveId && loIdToModule.get(a.learningObjectiveId))
+        || (a.learningOutcomeRef && loRefToModule.get(a.learningOutcomeRef))
+        || null;
 
-    // 9. Compute module spans (first→last teaching session appearance)
+      if (modSlug) {
+        const list = moduleAssertions.get(modSlug) || [];
+        list.push(a);
+        moduleAssertions.set(modSlug, list);
+      } else {
+        unassigned.push(a);
+      }
+    }
+
+    // 7. Build genome data — one "session" per module
     const genomeModules: GenomeModule[] = [];
-    for (const [slug, mod] of moduleMap) {
-      const sessionsWithModule = genomeSessions.filter((s) => s.moduleSlug === slug);
-      if (sessionsWithModule.length === 0) continue;
+    const genomeSessions: GenomeSessionAssertions[] = [];
+    const genomeLOs: GenomeLO[] = [];
 
+    for (let i = 0; i < curriculum.modules.length; i++) {
+      const mod = curriculum.modules[i];
+      const colIndex = i + 1;
+      const assertions = moduleAssertions.get(mod.slug) || [];
+
+      // Module span
       genomeModules.push({
         id: mod.id,
-        slug,
+        slug: mod.slug,
         title: mod.title,
         sortOrder: mod.sortOrder,
-        sessionStart: Math.min(...sessionsWithModule.map((s) => s.teachingIndex)),
-        sessionEnd: Math.max(...sessionsWithModule.map((s) => s.teachingIndex)),
+        sessionStart: colIndex,
+        sessionEnd: colIndex,
         loCount: mod.learningObjectives.length,
       });
-    }
-    genomeModules.sort((a, b) => a.sortOrder - b.sortOrder);
 
-    // 10. Compute LO spans
-    const genomeLOs: GenomeLO[] = [];
-    for (const mod of curriculum?.modules || []) {
+      // Category breakdown for this module
+      const categories: Record<string, number> = {};
+      const loRefsInModule = new Set<string>();
+      const genomeAssertions: GenomeAssertion[] = [];
+
+      for (const a of assertions) {
+        categories[a.category] = (categories[a.category] || 0) + 1;
+        if (a.learningOutcomeRef) loRefsInModule.add(a.learningOutcomeRef);
+        genomeAssertions.push({ id: a.id, assertion: a.assertion, category: a.category });
+      }
+
+      genomeSessions.push({
+        teachingIndex: colIndex,
+        session: colIndex,
+        type: "module",
+        label: mod.title,
+        moduleSlug: mod.slug,
+        categories,
+        totalAssertions: assertions.length,
+        isAssessment: false,
+        loRefs: [...loRefsInModule],
+        assertions: genomeAssertions,
+      });
+
+      // LOs for this module
       for (const lo of mod.learningObjectives) {
-        // Find sessions that reference this LO
-        // #142: prefer FK matching, fall back to string ref
-        const sessionsWithLO = genomeSessions.filter((s) =>
-          s.loRefs.some((ref) => loRefsMatch(ref, lo.ref)),
-        );
-        if (sessionsWithLO.length === 0) continue;
-
-        // #142: Count assertions linked to this LO via FK
-        let assertionCount = 0;
-        for (const [, a] of assertionMap) {
-          if (a.learningObjectiveId === lo.id) {
-            assertionCount++;
-          }
-        }
-        // Fallback: string ref matching if FK found nothing
-        if (assertionCount === 0) {
-          for (const [, a] of assertionMap) {
-            if (loRefsMatch(a.learningOutcomeRef, lo.ref)) {
-              assertionCount++;
-            }
-          }
-        }
+        const loAssertionCount = assertions.filter(
+          (a) => a.learningObjectiveId === lo.id || a.learningOutcomeRef === lo.ref,
+        ).length;
 
         genomeLOs.push({
           ref: lo.ref,
           description: lo.description,
           moduleSlug: mod.slug,
-          sessionStart: Math.min(...sessionsWithLO.map((s) => s.teachingIndex)),
-          sessionEnd: Math.max(...sessionsWithLO.map((s) => s.teachingIndex)),
-          assertionCount,
+          sessionStart: colIndex,
+          sessionEnd: colIndex,
+          assertionCount: loAssertionCount,
         });
       }
     }
 
-    // 11. Build full journey stops (all entries including structural)
-    const teachingIndexBySession = new Map(
-      genomeSessions.map((s) => [s.session, s.teachingIndex]),
-    );
-    const journeyStops: GenomeJourneyStop[] = entries.map((entry: any) => ({
-      session: entry.session,
-      type: entry.type,
-      label: entry.label || entry.type,
-      teachingIndex: teachingIndexBySession.get(entry.session) ?? null,
+    // 8. Journey stops = modules (simple)
+    const journeyStops: GenomeJourneyStop[] = curriculum.modules.map((mod, i) => ({
+      session: i + 1,
+      type: "module",
+      label: mod.title,
+      teachingIndex: i + 1,
     }));
 
     const data: GenomeData = {
       courseId,
       courseName: playbook.name,
-      teachingSessionCount: teachingEntries.length,
-      totalAssertions: assertionMap.size,
+      teachingSessionCount: curriculum.modules.length,
+      totalAssertions: allAssertions.length,
       modules: genomeModules,
       learningOutcomes: genomeLOs,
       sessions: genomeSessions,
@@ -316,12 +316,4 @@ function emptyGenome(courseId: string, courseName: string): GenomeData {
     learningOutcomes: [],
     sessions: [],
   };
-}
-
-async function resolveSourceIds(subjectIds: string[]): Promise<string[]> {
-  const sources = await prisma.subjectSource.findMany({
-    where: { subjectId: { in: subjectIds } },
-    select: { sourceId: true },
-  });
-  return [...new Set(sources.map((s) => s.sourceId))];
 }

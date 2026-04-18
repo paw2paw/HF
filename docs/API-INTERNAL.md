@@ -5303,7 +5303,7 @@ Runs advisory checks against the course's current lesson plan.
 
 ### `GET` /api/courses/:courseId/genome
 
-Returns hierarchical data for the course genome browser visualization.
+Returns module-based genome data for the course genome browser.
 
 **Auth**: session (VIEWER+) · **Scope**: `courses:read`
 

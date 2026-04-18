@@ -194,7 +194,7 @@ export async function GET(
     const [methodGroups, totalCount, reviewedCount, instructionCount, unassignedContentCount, categoryGroups] = await Promise.all([
       prisma.contentAssertion.groupBy({
         by: ["teachMethod"],
-        where: { sourceId: { in: sourceIds } },
+        where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
         _count: { id: true },
         orderBy: { _count: { id: "desc" } },
       }),
