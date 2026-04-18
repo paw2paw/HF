@@ -78,6 +78,19 @@ type SubjectSourceDetail = {
   linkedSourceName: string | null;
 };
 
+/** Flat source item from /api/courses/:courseId/content-sources (PlaybookSource) */
+type SourceItem = {
+  id: string;
+  name: string;
+  documentType: string;
+  extractorVersion: number | null;
+  assertionCount: number;
+  contentAssertionCount: number;
+  instructionAssertionCount: number;
+  sortOrder: number;
+  tags: string[];
+};
+
 type SubjectSummary = {
   id: string;
   slug: string;
@@ -146,7 +159,9 @@ export default function CourseDetailPage() {
 
   // ── State ──────────────────────────────────────────
   const [detail, setDetail] = useState<PlaybookDetail | null>(null);
-  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
+  const [subjects, setSubjects] = useState<SubjectSummary[]>([]); // Legacy — kept for admin tabs
+  const [courseSources, setCourseSources] = useState<SourceItem[]>([]);
+  const [courseTeachingProfile, setCourseTeachingProfile] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSimModal, setShowSimModal] = useState(false);
@@ -190,7 +205,8 @@ export default function CourseDetailPage() {
   const [postTestMcqPreview, setPostTestMcqPreview] = useState<McqPreviewState>(null);
 
   // Derived: is this a comprehension-led course?
-  const isComprehension = subjects[0]?.teachingProfile === 'comprehension-led';
+  const isComprehension = courseTeachingProfile === 'comprehension-led'
+    || subjects[0]?.teachingProfile === 'comprehension-led';
 
   // Session media map (SessionMediaMap imported from @/lib/lesson-plan/types)
   type MediaRef = SessionMediaRefType & { mimeType: string };
@@ -233,8 +249,9 @@ export default function CourseDetailPage() {
       fetch(`/api/courses/${courseId}/subjects`).then((r) => r.json()),
       fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then((r) => r.json()),
       fetch(`/api/courses/${courseId}/learners`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/courses/${courseId}/content-sources`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([pbData, subData, breakdownData, learnersData]) => {
+      .then(([pbData, subData, breakdownData, learnersData, contentSourcesData]) => {
         if (pbData.ok) {
           setDetail(pbData.playbook);
           pushEntity({
@@ -258,6 +275,10 @@ export default function CourseDetailPage() {
         }
         if (learnersData?.ok && learnersData.joinToken) {
           setJoinToken(learnersData.joinToken);
+        }
+        if (contentSourcesData?.ok) {
+          setCourseSources(contentSourcesData.sources || []);
+          setCourseTeachingProfile(contentSourcesData.course?.teachingProfile || null);
         }
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load'))
@@ -295,14 +316,17 @@ export default function CourseDetailPage() {
     };
   }, [specGroups]);
 
-  const totalTPs = useMemo(() => subjects.reduce((sum, s) => sum + s.assertionCount, 0), [subjects]);
-  const totalSources = useMemo(() => {
-    const seen = new Set<string>();
-    for (const s of subjects) {
-      for (const src of (s.sources ?? [])) seen.add(src.id);
-    }
-    return seen.size || subjects.reduce((sum, s) => sum + s.sourceCount, 0);
-  }, [subjects]);
+  // Prefer PlaybookSource-based counts (no double-counting)
+  const totalTPs = courseSources.length > 0
+    ? courseSources.reduce((sum, s) => sum + s.assertionCount, 0)
+    : subjects.reduce((sum, s) => sum + s.assertionCount, 0);
+  const totalSources = courseSources.length > 0
+    ? courseSources.length
+    : (() => {
+        const seen = new Set<string>();
+        for (const s of subjects) { for (const src of (s.sources ?? [])) seen.add(src.id); }
+        return seen.size || subjects.reduce((sum, s) => sum + s.sourceCount, 0);
+      })();
   const contentOnlyCount = contentTotal - instructionTotal;
 
   const totalSessionDuration = useMemo(() => {
@@ -1331,6 +1355,8 @@ export default function CourseDetailPage() {
           courseId={courseId!}
           detail={detail}
           subjects={subjects}
+          courseSources={courseSources}
+          courseTeachingProfile={courseTeachingProfile}
           contentMethods={contentMethods}
           contentTotal={contentTotal}
           instructionCount={instructionTotal}
@@ -1587,13 +1613,9 @@ export default function CourseDetailPage() {
       {showFullRegen && detail && (
         <FullRegenerateModal
           courseId={courseId}
-          sources={subjects.flatMap((s) => (s.sources || []).map((src) => ({
-            id: src.id,
-            name: src.name,
-            documentType: src.documentType,
-            extractorVersion: src.extractorVersion,
-            assertionCount: src.assertionCount,
-          })))}
+          sources={courseSources.length > 0
+            ? courseSources.map((s) => ({ id: s.id, name: s.name, documentType: s.documentType, extractorVersion: s.extractorVersion, assertionCount: s.assertionCount }))
+            : subjects.flatMap((s) => (s.sources || []).map((src) => ({ id: src.id, name: src.name, documentType: src.documentType, extractorVersion: src.extractorVersion, assertionCount: src.assertionCount })))}
           onClose={() => setShowFullRegen(false)}
           onComplete={() => {
             // Force full page data refresh

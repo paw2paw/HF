@@ -47,6 +47,14 @@ export type CourseWhatTabProps = {
     domain: { id: string; name: string; slug: string };
   };
   subjects: SubjectSummary[];
+  /** Flat source list from PlaybookSource (no double-counting) */
+  courseSources?: Array<{
+    id: string; name: string; documentType: string;
+    extractorVersion: number | null; assertionCount: number;
+    contentAssertionCount: number; instructionAssertionCount: number;
+    sortOrder: number; tags: string[];
+  }>;
+  courseTeachingProfile?: string | null;
   contentMethods: MethodBreakdown[];
   contentTotal: number;
   instructionCount?: number;
@@ -134,7 +142,7 @@ function AssertionList({ items, drawerAssertionId, onSelect }: {
   );
 }
 
-function TeachingPointsInventory({ courseId, subjects }: { courseId: string; subjects: SubjectSummary[] }) {
+function TeachingPointsInventory({ courseId, subjects, contentTotal }: { courseId: string; subjects: SubjectSummary[]; contentTotal: number }) {
   const [allItems, setAllItems] = useState<TPData[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedTP, setExpandedTP] = useState(false);
@@ -176,22 +184,8 @@ function TeachingPointsInventory({ courseId, subjects }: { courseId: string; sub
       .finally(() => setLoading(false));
   }, [fetched, courseId, allItems.length]);
 
-  // Deduplicate source assertion counts across subjects (same source may appear
-  // in multiple subjects via SubjectSource — PlaybookSource eliminates this but
-  // the subjects prop still comes from the old chain).
-  const totalCount = useMemo(() => {
-    const seen = new Set<string>();
-    let sum = 0;
-    for (const s of subjects) {
-      for (const src of (s.sources ?? [])) {
-        if (!seen.has(src.id)) {
-          seen.add(src.id);
-          sum += src.assertionCount ?? 0;
-        }
-      }
-    }
-    return sum || subjects.reduce((acc, s) => acc + s.assertionCount, 0);
-  }, [subjects]);
+  // Use contentTotal (from breakdown API / PlaybookSource) as the gate
+  const totalCount = contentTotal || subjects.reduce((acc, s) => acc + s.assertionCount, 0);
   if (totalCount === 0) return null;
 
   // Split into TPs (content) and TIs (instructions)
@@ -273,6 +267,8 @@ export function CourseWhatTab({
   courseId,
   detail,
   subjects,
+  courseSources,
+  courseTeachingProfile,
   contentMethods,
   contentTotal,
   instructionCount = 0,
@@ -286,24 +282,46 @@ export function CourseWhatTab({
   const [backfilling, setBackfilling] = useState(false);
   const [showReExtract, setShowReExtract] = useState(false);
 
-  // ── Collect sources across all subjects ──
+  // ── Collect sources — prefer PlaybookSource (flat, no dedup needed) ──
   const { courseGuideSources, otherSources } = useMemo(() => {
-    const seen = new Set<string>();
     const guides: SourceDetail[] = [];
     const others: SourceDetail[] = [];
-    for (const sub of subjects) {
-      for (const src of sub.sources || []) {
-        if (seen.has(src.id)) continue;
-        seen.add(src.id);
+
+    if (courseSources && courseSources.length > 0) {
+      // PlaybookSource path: already flat, no duplicates
+      for (const src of courseSources) {
+        const detail: SourceDetail = {
+          id: src.id,
+          name: src.name,
+          documentType: src.documentType,
+          extractorVersion: src.extractorVersion,
+          assertionCount: src.assertionCount,
+          linkedSourceId: null,
+          linkedSourceName: null,
+        };
         if (src.documentType === 'COURSE_REFERENCE') {
-          guides.push(src);
+          guides.push(detail);
         } else {
-          others.push(src);
+          others.push(detail);
+        }
+      }
+    } else {
+      // Legacy: Subject chain with dedup
+      const seen = new Set<string>();
+      for (const sub of subjects) {
+        for (const src of sub.sources || []) {
+          if (seen.has(src.id)) continue;
+          seen.add(src.id);
+          if (src.documentType === 'COURSE_REFERENCE') {
+            guides.push(src);
+          } else {
+            others.push(src);
+          }
         }
       }
     }
     return { courseGuideSources: guides, otherSources: others };
-  }, [subjects]);
+  }, [courseSources, subjects]);
 
   const allSources = useMemo(
     () => [...courseGuideSources, ...otherSources],
@@ -392,7 +410,7 @@ export function CourseWhatTab({
       )}
 
       {/* ── Teaching Points Inventory ─────────────────── */}
-      <TeachingPointsInventory courseId={courseId} subjects={subjects} />
+      <TeachingPointsInventory courseId={courseId} subjects={subjects} contentTotal={contentTotal} />
 
       {/* ── Content Stats ─────────────────────────────── */}
       {contentTotal > 0 && (
