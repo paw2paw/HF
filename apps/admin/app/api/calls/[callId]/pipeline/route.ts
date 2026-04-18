@@ -209,9 +209,9 @@ function buildBatchedCallerPrompt(
 ): string {
   const paramList = measureParams.map(p => `${p.parameterId}:${p.name}`).join("|");
   const learnList = learnActions.map(a => {
-    const hints = a.keyHint ? ` (keys: ${a.keyHint})` : "";
-    return `${a.category}:${a.description}${hints}`;
-  }).join("|");
+    const keys = a.keyHint || `${a.keyPrefix}item`;
+    return `- ${a.category}: ${a.description}. Use keys like: ${keys}`;
+  }).join("\n");
 
   let learningSection = "";
   let learningJsonHint = "";
@@ -223,17 +223,18 @@ function buildBatchedCallerPrompt(
     learningJsonHint = `,"learning":{"moduleId":"${moduleContext.moduleId}","outcomes":{"LO1":0.6},"overallMastery":0.7}`;
   }
 
-  return `Analyze transcript. Score caller 0-1 on params, extract facts.
+  return `Analyze transcript. Score caller 0-1 on params, extract ALL personal facts.
 
-TRANSCRIPT (analyze this):
+TRANSCRIPT (analyze this — read the ENTIRE transcript including the end):
 ${transcript.slice(0, transcriptLimit)}
 
 PARAMS TO SCORE: ${paramList}
 
-FACTS TO FIND: ${learnList}${learningSection}
+FACTS TO EXTRACT (use the suggested keys, extract EVERY fact mentioned including names, pets, family, preferences):
+${learnList}${learningSection}
 
 Return compact JSON:
-{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"FACT","key":"k","val":"v","c":0.9,"e":"exact quote from transcript"},...]${learningJsonHint}}`;
+{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"RELATIONSHIP","key":"family_pet","val":"dog called Fred","c":0.9,"e":"my dog is called Fred"},...]${learningJsonHint}}`;
 }
 
 /**
