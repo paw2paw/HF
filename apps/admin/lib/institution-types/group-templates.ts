@@ -30,8 +30,9 @@ export interface TemplateSet {
 const ukSecondary: TemplateSet = {
   id: "uk-secondary",
   label: "UK Secondary School",
-  description:
-    "12 departments and Year 7-13 year groups for a typical UK secondary school.",
+  get description() {
+    return `${countByType(this.groups, "DEPARTMENT")} departments and Year 7–13 year groups for a typical UK secondary school.`;
+  },
   forTypes: ["school"],
   isDefault: true,
   groups: [
@@ -120,8 +121,9 @@ const ukSecondary: TemplateSet = {
 const ukPrimary: TemplateSet = {
   id: "uk-primary",
   label: "UK Primary School",
-  description:
-    "7 subject areas and Reception through Year 6 for UK primary schools.",
+  get description() {
+    return `${countByType(this.groups, "DEPARTMENT")} subject areas and Reception through Year 6 for UK primary schools.`;
+  },
   forTypes: ["school"],
   groups: [
     {
@@ -172,7 +174,9 @@ const ukPrimary: TemplateSet = {
 const usHigh: TemplateSet = {
   id: "us-high",
   label: "US High School",
-  description: "8 departments and Grades 9-12 for a US high school.",
+  get description() {
+    return `${countByType(this.groups, "DEPARTMENT")} departments and Grades 9–12 for a US high school.`;
+  },
   forTypes: ["school"],
   groups: [
     {
@@ -227,7 +231,9 @@ const usHigh: TemplateSet = {
 const corporateStandard: TemplateSet = {
   id: "corporate-standard",
   label: "Corporate Standard",
-  description: "8 standard corporate divisions for business environments.",
+  get description() {
+    return `${countByType(this.groups, "DIVISION")} standard corporate divisions for business environments.`;
+  },
   forTypes: ["corporate"],
   isDefault: true,
   groups: [
@@ -277,7 +283,9 @@ const corporateStandard: TemplateSet = {
 const corporateSmall: TemplateSet = {
   id: "corporate-small",
   label: "Small Business",
-  description: "3 broad divisions for smaller organizations.",
+  get description() {
+    return `${countByType(this.groups, "DIVISION")} broad divisions for smaller organizations.`;
+  },
   forTypes: ["corporate"],
   groups: [
     {
@@ -303,7 +311,9 @@ const corporateSmall: TemplateSet = {
 const trainingTracks: TemplateSet = {
   id: "training-tracks",
   label: "Training Tracks",
-  description: "5 progressive training tracks for professional development.",
+  get description() {
+    return `${countByType(this.groups, "TRACK")} progressive training tracks for professional development.`;
+  },
   forTypes: ["training"],
   isDefault: true,
   groups: [
@@ -340,7 +350,9 @@ const trainingTracks: TemplateSet = {
 const healthcareClinical: TemplateSet = {
   id: "healthcare-clinical",
   label: "Clinical Departments",
-  description: "6 clinical units for healthcare facilities.",
+  get description() {
+    return `${countByType(this.groups, "DEPARTMENT")} clinical units for healthcare facilities.`;
+  },
   forTypes: ["healthcare"],
   isDefault: true,
   groups: [
@@ -382,7 +394,9 @@ const healthcareClinical: TemplateSet = {
 const coachingStandard: TemplateSet = {
   id: "coaching-standard",
   label: "Coaching Practice",
-  description: "4 coaching tracks for coaching and mentoring practices.",
+  get description() {
+    return `${countByType(this.groups, "TRACK")} coaching tracks for coaching and mentoring practices.`;
+  },
   forTypes: ["coaching"],
   isDefault: true,
   groups: [
@@ -414,7 +428,9 @@ const coachingStandard: TemplateSet = {
 const communityInterest: TemplateSet = {
   id: "community-interest",
   label: "Interest-Based Community",
-  description: "4 interest circles for community organizations.",
+  get description() {
+    return `${countByType(this.groups, "CUSTOM")} interest circles for community organizations.`;
+  },
   forTypes: ["community"],
   isDefault: true,
   groups: [
@@ -440,6 +456,13 @@ const communityInterest: TemplateSet = {
     },
   ],
 };
+
+// ─── Helpers ─────────────────────────────────────────────────
+
+/** Count groups of a specific type within a template. */
+function countByType(groups: GroupTemplate[], type: GroupType): number {
+  return groups.filter((g) => g.groupType === type).length;
+}
 
 // ─── Export ──────────────────────────────────────────────────
 

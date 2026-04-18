@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
-  BookMarked, AlertTriangle, Zap, RefreshCw,
+  BookMarked, AlertTriangle, Zap, RefreshCw, Target,
 } from 'lucide-react';
 import { TeachMethodStats } from '@/components/shared/TeachMethodStats';
 import { getDocTypeInfo } from '@/lib/doc-type-icons';
 import { CONTENT_CATEGORIES, CATEGORY_ORDER } from '@/lib/content-categories';
-import { INSTRUCTION_CATEGORIES } from '@/lib/content-trust/resolve-config';
+import { INSTRUCTION_CATEGORIES, TEACH_METHOD_CONFIG } from '@/lib/content-trust/resolve-config';
 import { ReExtractModal } from './ReExtractModal';
+import { SectionHeader } from './SectionHeader';
+import { AssertionDetailDrawer } from '@/components/shared/AssertionDetailDrawer';
+import { getCategoryStyle } from '@/lib/content-categories';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -64,16 +67,11 @@ export type CourseWhatTabProps = {
   onContentRefresh?: (methods: MethodBreakdown[], total: number, instructionCount?: number, unassignedContentCount?: number) => void;
 };
 
-import { SectionHeader } from './SectionHeader';
+// ── Constants ──────────────────────────────────────────
 
-// ── Main Component ─────────────────────────────────────
+const INSTRUCTION_SET = new Set<string>(INSTRUCTION_CATEGORIES);
 
-// ── Teaching Points Inventory ─────────────────────────
-// Fetches all assertions for the course, grouped by module/LO.
-// Read-only — editing happens in session detail pages.
-
-import { AssertionDetailDrawer } from '@/components/shared/AssertionDetailDrawer';
-import { getCategoryStyle } from '@/lib/content-categories';
+// ── Types (internal) ───────────────────────────────────
 
 type TPData = {
   id: string;
@@ -85,14 +83,14 @@ type TPData = {
   session?: number | null;
 };
 
-const INSTRUCTION_SET = new Set<string>(INSTRUCTION_CATEGORIES);
+// ── AssertionList ──────────────────────────────────────
+// Reusable list of assertions grouped by learningOutcomeRef.
 
 function AssertionList({ items, drawerAssertionId, onSelect }: {
   items: TPData[];
   drawerAssertionId: string | null;
   onSelect: (id: string) => void;
 }) {
-  // Group by learningOutcomeRef
   const grouped = useMemo(() => {
     const groups = new Map<string, TPData[]>();
     for (const tp of items) {
@@ -104,10 +102,10 @@ function AssertionList({ items, drawerAssertionId, onSelect }: {
   }, [items]);
 
   return (
-    <div className="hf-flex-col hf-gap-sm" style={{ maxHeight: 400, overflowY: 'auto' }}>
+    <div className="hf-flex-col hf-gap-sm cwt-expand-scroll">
       {Array.from(grouped.entries()).map(([loRef, groupItems]) => (
         <div key={loRef}>
-          <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-xs" style={{ paddingLeft: 4 }}>
+          <div className="hf-text-xs hf-text-bold hf-text-muted hf-mb-xs hf-pl-xs">
             {loRef}
             <span className="hf-text-placeholder hf-ml-sm">({groupItems.length})</span>
           </div>
@@ -142,16 +140,228 @@ function AssertionList({ items, drawerAssertionId, onSelect }: {
   );
 }
 
-function TeachingPointsInventory({ courseId, subjects, contentTotal }: { courseId: string; subjects: SubjectSummary[]; contentTotal: number }) {
+// ── MethodGroupedList ─────────────────────────────────
+// TPs grouped by teachMethod, rendered when Teaching Methods is expanded.
+
+function MethodGroupedList({ tpsByMethod, drawerAssertionId, onSelect }: {
+  tpsByMethod: Map<string, TPData[]>;
+  drawerAssertionId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  // Render known methods first (in config order), then unassigned
+  const methodKeys = Object.keys(TEACH_METHOD_CONFIG) as Array<keyof typeof TEACH_METHOD_CONFIG>;
+
+  return (
+    <div className="cwt-expand-scroll">
+      {methodKeys.map((method) => {
+        const items = tpsByMethod.get(method);
+        if (!items || items.length === 0) return null;
+        const cfg = TEACH_METHOD_CONFIG[method];
+        return (
+          <div key={method} className="hf-mb-sm">
+            <div className="cwt-method-heading">
+              <span className="hf-text-sm">{cfg.icon}</span>
+              <span className="hf-text-xs hf-text-bold hf-text-secondary">
+                {cfg.label}
+              </span>
+              <span className="hf-text-xs hf-text-placeholder">({items.length})</span>
+            </div>
+            {items.map((tp) => {
+              const cs = getCategoryStyle(tp.category);
+              return (
+                <button
+                  key={tp.id}
+                  type="button"
+                  className={`hf-btn-reset hf-flex hf-items-start hf-gap-xs hf-text-xs cwt-tp-row${drawerAssertionId === tp.id ? ' cwt-tp-row-active' : ''}`}
+                  onClick={() => onSelect(tp.id)}
+                >
+                  <span
+                    className="hf-micro-badge-sm hf-flex-shrink-0 cwt-tp-cat"
+                    style={{ background: cs.color }}
+                  >
+                    {tp.category}
+                  </span>
+                  <span className="hf-flex-1 hf-text-secondary hf-text-left">{tp.assertion}</span>
+                  <span className="hf-text-placeholder hf-flex-shrink-0">[{tp.sourceName}]</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* Unassigned group */}
+      {(() => {
+        const unassigned = tpsByMethod.get('unassigned');
+        if (!unassigned || unassigned.length === 0) return null;
+        return (
+          <div className="hf-mb-sm">
+            <div className="cwt-method-heading">
+              <span className="hf-text-sm">⚠️</span>
+              <span className="hf-text-xs hf-text-bold hf-text-secondary">Unassigned</span>
+              <span className="hf-text-xs hf-text-placeholder">({unassigned.length})</span>
+            </div>
+            {unassigned.map((tp) => {
+              const cs = getCategoryStyle(tp.category);
+              return (
+                <button
+                  key={tp.id}
+                  type="button"
+                  className={`hf-btn-reset hf-flex hf-items-start hf-gap-xs hf-text-xs cwt-tp-row${drawerAssertionId === tp.id ? ' cwt-tp-row-active' : ''}`}
+                  onClick={() => onSelect(tp.id)}
+                >
+                  <span
+                    className="hf-micro-badge-sm hf-flex-shrink-0 cwt-tp-cat"
+                    style={{ background: cs.color }}
+                  >
+                    {tp.category}
+                  </span>
+                  <span className="hf-flex-1 hf-text-secondary hf-text-left">{tp.assertion}</span>
+                  <span className="hf-text-placeholder hf-flex-shrink-0">[{tp.sourceName}]</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── ContentHeroCard ───────────────────────────────────
+// Compact nav strip with clickable stat chips.
+
+function ContentHeroCard({ contentMethods, contentOnlyTotal, instructionCount, unassignedContentCount, onScrollTo }: {
+  contentMethods: MethodBreakdown[];
+  contentOnlyTotal: number;
+  instructionCount: number;
+  unassignedContentCount: number;
+  onScrollTo: (section: 'tm' | 'tp' | 'ti') => void;
+}) {
+  if (contentOnlyTotal === 0 && instructionCount === 0) return null;
+
+  const visibleMethods = contentMethods.filter((m) => m.count > 0);
+
+  return (
+    <div className="cwt-hero hf-mb-lg">
+      <div className="hf-flex hf-gap-sm hf-flex-wrap">
+        {/* Method chips → scroll to Teaching Methods */}
+        {visibleMethods.map((m) => {
+          const cfg = TEACH_METHOD_CONFIG[m.teachMethod as keyof typeof TEACH_METHOD_CONFIG];
+          const icon = cfg?.icon || '?';
+          const label = cfg?.label || m.teachMethod;
+          return (
+            <button
+              key={m.teachMethod}
+              type="button"
+              className="cwt-hero-chip"
+              onClick={() => onScrollTo('tm')}
+            >
+              <span className="hf-text-sm hf-text-bold">{icon} {m.count}</span>
+              <span className="hf-text-xs hf-text-muted">{label}</span>
+            </button>
+          );
+        })}
+
+        {/* Unassigned chip → scroll to Teaching Methods */}
+        {unassignedContentCount > 0 && (
+          <button
+            type="button"
+            className="cwt-hero-chip"
+            onClick={() => onScrollTo('tm')}
+          >
+            <span className="hf-text-sm hf-text-bold">⚠️ {unassignedContentCount}</span>
+            <span className="hf-text-xs hf-text-muted">Unassigned</span>
+          </button>
+        )}
+
+        {/* TP chip → scroll to Teaching Points */}
+        <button
+          type="button"
+          className="cwt-hero-chip"
+          onClick={() => onScrollTo('tp')}
+        >
+          <span className="hf-text-sm hf-text-bold">📚 {contentOnlyTotal}</span>
+          <span className="hf-text-xs hf-text-muted">Teaching Points</span>
+        </button>
+
+        {/* TI chip → scroll to Teaching Instructions */}
+        {instructionCount > 0 && (
+          <button
+            type="button"
+            className="cwt-hero-chip"
+            onClick={() => onScrollTo('ti')}
+          >
+            <span className="hf-text-sm hf-text-bold">⚙️ {instructionCount}</span>
+            <span className="hf-text-xs hf-text-muted">Instructions</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────
+
+export function CourseWhatTab({
+  courseId,
+  detail,
+  subjects,
+  courseSources,
+  courseTeachingProfile,
+  contentMethods,
+  contentTotal,
+  instructionCount = 0,
+  unassignedContentCount = 0,
+  categoryCounts,
+  isOperator,
+  onContentRefresh,
+}: CourseWhatTabProps) {
+  const contentOnlyTotal = contentTotal - instructionCount;
+
+  // ── State ────────────────────────────────────────────
+  const [backfilling, setBackfilling] = useState(false);
+  const [showReExtract, setShowReExtract] = useState(false);
   const [allItems, setAllItems] = useState<TPData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expandedTM, setExpandedTM] = useState(false);
   const [expandedTP, setExpandedTP] = useState(false);
   const [expandedTI, setExpandedTI] = useState(false);
   const [drawerAssertionId, setDrawerAssertionId] = useState<string | null>(null);
 
-  const fetched = expandedTP || expandedTI;
+  // ── Refs for scroll targets ──────────────────────────
+  const tmRef = useRef<HTMLDivElement>(null);
+  const tpRef = useRef<HTMLDivElement>(null);
+  const tiRef = useRef<HTMLDivElement>(null);
 
-  // Arrow key navigation when drawer is open
+  const scrollTo = useCallback((section: 'tm' | 'tp' | 'ti') => {
+    const refMap = { tm: tmRef, tp: tpRef, ti: tiRef };
+    const setterMap = { tm: setExpandedTM, tp: setExpandedTP, ti: setExpandedTI };
+    setterMap[section](true);
+    // Wait for expansion to render, then scroll
+    requestAnimationFrame(() => {
+      refMap[section].current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
+  // ── Lazy fetch assertions ────────────────────────────
+  const anyExpanded = expandedTM || expandedTP || expandedTI;
+
+  useEffect(() => {
+    if (!anyExpanded || allItems.length > 0) return;
+    setLoading(true);
+    fetch(`/api/courses/${courseId}/assertions?limit=500&scope=all`)
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.ok && Array.isArray(res.assertions)) {
+          setAllItems(res.assertions);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [anyExpanded, courseId, allItems.length]);
+
+  // ── Arrow key navigation ─────────────────────────────
   const handleKeyNav = useCallback((e: KeyboardEvent) => {
     if (!drawerAssertionId || allItems.length === 0) return;
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -169,26 +379,7 @@ function TeachingPointsInventory({ courseId, subjects, contentTotal }: { courseI
     return () => document.removeEventListener('keydown', handleKeyNav);
   }, [drawerAssertionId, handleKeyNav]);
 
-  // Only fetch when either section is expanded
-  useEffect(() => {
-    if (!fetched || allItems.length > 0) return;
-    setLoading(true);
-    fetch(`/api/courses/${courseId}/assertions?limit=500&scope=all`)
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.ok && Array.isArray(res.assertions)) {
-          setAllItems(res.assertions);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [fetched, courseId, allItems.length]);
-
-  // Use contentTotal (from breakdown API / PlaybookSource) as the gate
-  const totalCount = contentTotal || subjects.reduce((acc, s) => acc + s.assertionCount, 0);
-  if (totalCount === 0) return null;
-
-  // Split into TPs (content) and TIs (instructions)
+  // ── Derived data ─────────────────────────────────────
   const { tps, tis } = useMemo(() => {
     const content: TPData[] = [];
     const instructions: TPData[] = [];
@@ -202,95 +393,47 @@ function TeachingPointsInventory({ courseId, subjects, contentTotal }: { courseI
     return { tps: content, tis: instructions };
   }, [allItems]);
 
-  // Estimate counts before fetch using categoryCounts not available here — use allItems split
+  const tpsByMethod = useMemo(() => {
+    const groups = new Map<string, TPData[]>();
+    for (const tp of tps) {
+      const key = tp.teachMethod ?? 'unassigned';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(tp);
+    }
+    return groups;
+  }, [tps]);
+
   const tpCount = allItems.length > 0 ? tps.length : null;
   const tiCount = allItems.length > 0 ? tis.length : null;
 
-  return (
-    <div className="hf-mb-lg">
-      {/* ── Teaching Points (content) ── */}
-      <button
-        onClick={() => setExpandedTP(!expandedTP)}
-        className="hf-btn-reset hf-flex hf-items-center hf-gap-sm hf-w-full hf-section-divider hf-mb-sm"
-        style={{ cursor: 'pointer' }}
-      >
-        <BookMarked size={16} className="hf-text-muted" />
-        <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-flex-1" style={{ textAlign: 'left' }}>
-          Teaching Points{tpCount != null ? ` (${tpCount})` : ''}
-        </span>
-        <span className="hf-text-xs hf-text-placeholder">{expandedTP ? '▼' : '▶'}</span>
-      </button>
+  // ── Auto-assign handler ──────────────────────────────
+  const handleBackfill = useCallback(async () => {
+    setBackfilling(true);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/backfill-teach-methods`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok && data.updated > 0) {
+        // Clear cached assertions so next expand re-fetches
+        setAllItems([]);
+        if (onContentRefresh) {
+          const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());
+          if (bd.ok) {
+            onContentRefresh(bd.methods || [], bd.total || 0, bd.instructionCount || 0, bd.unassignedContentCount || 0);
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    setBackfilling(false);
+  }, [courseId, onContentRefresh]);
 
-      {expandedTP && (
-        loading ? (
-          <div className="hf-text-xs hf-text-muted hf-p-sm">Loading...</div>
-        ) : tps.length === 0 ? (
-          <div className="hf-text-xs hf-text-muted hf-p-sm">No teaching points</div>
-        ) : (
-          <AssertionList items={tps} drawerAssertionId={drawerAssertionId} onSelect={setDrawerAssertionId} />
-        )
-      )}
-
-      {/* ── Teaching Instructions ── */}
-      <button
-        onClick={() => setExpandedTI(!expandedTI)}
-        className="hf-btn-reset hf-flex hf-items-center hf-gap-sm hf-w-full hf-section-divider hf-mb-sm"
-        style={{ cursor: 'pointer', marginTop: expandedTP ? 12 : 0 }}
-      >
-        <Zap size={16} className="hf-text-muted" />
-        <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-flex-1" style={{ textAlign: 'left' }}>
-          Teaching Instructions{tiCount != null ? ` (${tiCount})` : ''}
-        </span>
-        <span className="hf-text-xs hf-text-placeholder">{expandedTI ? '▼' : '▶'}</span>
-      </button>
-
-      {expandedTI && (
-        loading ? (
-          <div className="hf-text-xs hf-text-muted hf-p-sm">Loading...</div>
-        ) : tis.length === 0 ? (
-          <div className="hf-text-xs hf-text-muted hf-p-sm">No teaching instructions</div>
-        ) : (
-          <AssertionList items={tis} drawerAssertionId={drawerAssertionId} onSelect={setDrawerAssertionId} />
-        )
-      )}
-
-      <AssertionDetailDrawer
-        courseId={courseId}
-        assertionId={drawerAssertionId}
-        onClose={() => setDrawerAssertionId(null)}
-      />
-    </div>
-  );
-}
-
-export function CourseWhatTab({
-  courseId,
-  detail,
-  subjects,
-  courseSources,
-  courseTeachingProfile,
-  contentMethods,
-  contentTotal,
-  instructionCount = 0,
-  unassignedContentCount = 0,
-  categoryCounts,
-  isOperator,
-  onContentRefresh,
-}: CourseWhatTabProps) {
-  const contentOnlyTotal = contentTotal - instructionCount;
-  // ── Backfill state ────────────────────────────────────
-  const [backfilling, setBackfilling] = useState(false);
-  const [showReExtract, setShowReExtract] = useState(false);
-
-  // ── Collect sources — prefer PlaybookSource (flat, no dedup needed) ──
+  // ── Collect sources ──────────────────────────────────
   const { courseGuideSources, otherSources } = useMemo(() => {
     const guides: SourceDetail[] = [];
     const others: SourceDetail[] = [];
 
     if (courseSources && courseSources.length > 0) {
-      // PlaybookSource path: already flat, no duplicates
       for (const src of courseSources) {
-        const detail: SourceDetail = {
+        const d: SourceDetail = {
           id: src.id,
           name: src.name,
           documentType: src.documentType,
@@ -300,13 +443,12 @@ export function CourseWhatTab({
           linkedSourceName: null,
         };
         if (src.documentType === 'COURSE_REFERENCE') {
-          guides.push(detail);
+          guides.push(d);
         } else {
-          others.push(detail);
+          others.push(d);
         }
       }
     } else {
-      // Legacy: Subject chain with dedup
       const seen = new Set<string>();
       for (const sub of subjects) {
         for (const src of sub.sources || []) {
@@ -327,6 +469,8 @@ export function CourseWhatTab({
     () => [...courseGuideSources, ...otherSources],
     [courseGuideSources, otherSources],
   );
+
+  const allUnassigned = unassignedContentCount === contentOnlyTotal;
 
   return (
     <>
@@ -409,103 +553,155 @@ export function CourseWhatTab({
         </>
       )}
 
-      {/* ── Teaching Points Inventory ─────────────────── */}
-      <TeachingPointsInventory courseId={courseId} subjects={subjects} contentTotal={contentTotal} />
+      {/* ── Content Hero Card ────────────────────────── */}
+      <ContentHeroCard
+        contentMethods={contentMethods}
+        contentOnlyTotal={contentOnlyTotal}
+        instructionCount={instructionCount}
+        unassignedContentCount={unassignedContentCount}
+        onScrollTo={scrollTo}
+      />
 
-      {/* ── Content Stats ─────────────────────────────── */}
-      {contentTotal > 0 && (
-        <div className="hf-flex hf-gap-md hf-mb-lg">
-          <div className="hf-stat-card hf-stat-card-compact">
-            <div className="hf-stat-value-sm">📚 {contentOnlyTotal}</div>
-            <div className="hf-text-xs hf-text-muted">Teaching Points</div>
+      {/* ── Teaching Methods (expandable) ────────────── */}
+      {contentOnlyTotal > 0 && (
+        <div ref={tmRef} className="hf-mb-lg">
+          <button
+            onClick={() => setExpandedTM(!expandedTM)}
+            className="hf-btn-reset hf-flex hf-items-center hf-gap-sm hf-w-full hf-section-divider hf-mb-sm"
+          >
+            <Target size={16} className="hf-text-muted" />
+            <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-flex-1 hf-text-left">
+              Teaching Methods ({contentMethods.filter(m => m.count > 0).length})
+            </span>
+            {!expandedTM && (
+              <TeachMethodStats methods={contentMethods} total={contentOnlyTotal} compact />
+            )}
+            <span className="hf-text-xs hf-text-placeholder">{expandedTM ? '▼' : '▶'}</span>
+          </button>
+
+          {expandedTM && (
+            loading ? (
+              <div className="hf-text-xs hf-text-muted hf-p-sm">Loading...</div>
+            ) : tps.length === 0 ? (
+              <div className="hf-text-xs hf-text-muted hf-p-sm">No teaching points</div>
+            ) : (
+              <MethodGroupedList tpsByMethod={tpsByMethod} drawerAssertionId={drawerAssertionId} onSelect={setDrawerAssertionId} />
+            )
+          )}
+        </div>
+      )}
+
+      {/* ── Teaching Points (expandable) ─────────────── */}
+      {(contentOnlyTotal > 0 || (allItems.length > 0 && tps.length > 0)) && (
+        <div ref={tpRef} className="hf-mb-lg">
+          <button
+            onClick={() => setExpandedTP(!expandedTP)}
+            className="hf-btn-reset hf-flex hf-items-center hf-gap-sm hf-w-full hf-section-divider hf-mb-sm"
+          >
+            <BookMarked size={16} className="hf-text-muted" />
+            <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-flex-1 hf-text-left">
+              Teaching Points ({tpCount ?? contentOnlyTotal})
+            </span>
+            <span className="hf-text-xs hf-text-placeholder">{expandedTP ? '▼' : '▶'}</span>
+          </button>
+
+          {expandedTP && (
+            loading ? (
+              <div className="hf-text-xs hf-text-muted hf-p-sm">Loading...</div>
+            ) : tps.length === 0 ? (
+              <div className="hf-text-xs hf-text-muted hf-p-sm">No teaching points</div>
+            ) : (
+              <AssertionList items={tps} drawerAssertionId={drawerAssertionId} onSelect={setDrawerAssertionId} />
+            )
+          )}
+        </div>
+      )}
+
+      {/* ── Teaching Instructions (expandable) ────────── */}
+      {(instructionCount > 0 || (allItems.length > 0 && tis.length > 0)) && (
+        <div ref={tiRef} className="hf-mb-lg">
+          <button
+            onClick={() => setExpandedTI(!expandedTI)}
+            className="hf-btn-reset hf-flex hf-items-center hf-gap-sm hf-w-full hf-section-divider hf-mb-sm"
+          >
+            <Zap size={16} className="hf-text-muted" />
+            <span className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-flex-1 hf-text-left">
+              Teaching Instructions ({tiCount ?? instructionCount})
+            </span>
+            <span className="hf-text-xs hf-text-placeholder">{expandedTI ? '▼' : '▶'}</span>
+          </button>
+
+          {expandedTI && (
+            loading ? (
+              <div className="hf-text-xs hf-text-muted hf-p-sm">Loading...</div>
+            ) : tis.length === 0 ? (
+              <div className="hf-text-xs hf-text-muted hf-p-sm">No teaching instructions</div>
+            ) : (
+              <AssertionList items={tis} drawerAssertionId={drawerAssertionId} onSelect={setDrawerAssertionId} />
+            )
+          )}
+        </div>
+      )}
+
+      {/* ── Category breakdown pills ─────────────────── */}
+      {categoryCounts && Object.keys(categoryCounts).length > 0 && (
+        <div className="hf-mb-lg">
+          <div className="hf-category-label hf-mb-xs">
+            By Category
           </div>
-          <div className="hf-stat-card hf-stat-card-compact">
-            <div className="hf-stat-value-sm">⚙️ {instructionCount}</div>
-            <div className="hf-text-xs hf-text-muted">Teaching Instructions</div>
+          <div className="hf-flex hf-flex-wrap hf-gap-xs">
+            {CATEGORY_ORDER
+              .filter(cat => (categoryCounts[cat] ?? 0) > 0)
+              .map(cat => {
+                const meta = CONTENT_CATEGORIES[cat];
+                return (
+                  <span
+                    key={cat}
+                    className="hf-badge"
+                    style={{
+                      color: meta.color,
+                      background: meta.bg,
+                    }}
+                  >
+                    {meta.label}
+                    <span className="hf-text-placeholder hf-ml-xs">{categoryCounts[cat]}</span>
+                  </span>
+                );
+              })}
           </div>
         </div>
       )}
 
-      {/* ── Teaching Methods ──────────────────────────── */}
-      {contentMethods.length > 0 && (() => {
-        const allUnassigned = unassignedContentCount === contentOnlyTotal;
-
-        return (
-          <div className="hf-mb-lg">
-            <div className="hf-text-xs hf-text-bold hf-text-muted hf-uppercase hf-mb-sm">
-              Teaching Methods
-            </div>
-
-            {/* Alert banner when content TPs need assignment (excludes TIs) */}
-            {isOperator && unassignedContentCount > 0 && (
-              <div className={`hf-banner ${allUnassigned ? 'hf-banner-warning' : 'hf-banner-info'} hf-mb-sm`}>
-                <div className="hf-flex hf-items-center hf-gap-sm hf-flex-1">
-                  <AlertTriangle size={14} className="hf-flex-shrink-0" />
-                  <span className="hf-text-sm">
-                    {allUnassigned
-                      ? `All ${unassignedContentCount} teaching points need a method assigned`
-                      : `${unassignedContentCount} teaching point${unassignedContentCount === 1 ? '' : 's'} not yet assigned a method`
-                    }
-                  </span>
-                </div>
-                <button
-                  className="hf-btn hf-btn-xs hf-btn-primary hf-flex hf-items-center hf-gap-xs"
-                  disabled={backfilling}
-                  title="Auto-assign teaching methods based on content categories"
-                  onClick={async () => {
-                    setBackfilling(true);
-                    try {
-                      const res = await fetch(`/api/courses/${courseId}/backfill-teach-methods`, { method: 'POST' });
-                      const data = await res.json();
-                      if (data.ok && data.updated > 0 && onContentRefresh) {
-                        const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());
-                        if (bd.ok) {
-                          onContentRefresh(bd.methods || [], bd.total || 0, bd.instructionCount || 0, bd.unassignedContentCount || 0);
-                        }
-                      }
-                    } catch { /* ignore */ }
-                    setBackfilling(false);
-                  }}
-                >
-                  <Zap size={12} />
-                  {backfilling ? 'Assigning\u2026' : 'Auto-assign'}
-                </button>
-              </div>
-            )}
-
-            <TeachMethodStats methods={contentMethods} total={contentOnlyTotal} />
-
-            {/* Category breakdown pills */}
-            {categoryCounts && Object.keys(categoryCounts).length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div className="hf-category-label" style={{ marginBottom: 6 }}>
-                  By Category
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {CATEGORY_ORDER
-                    .filter(cat => (categoryCounts[cat] ?? 0) > 0)
-                    .map(cat => {
-                      const meta = CONTENT_CATEGORIES[cat];
-                      return (
-                        <span
-                          key={cat}
-                          className="hf-badge"
-                          style={{
-                            color: meta.color,
-                            background: meta.bg,
-                          }}
-                        >
-                          {meta.label}
-                          <span style={{ opacity: 0.7, marginLeft: 4 }}>{categoryCounts[cat]}</span>
-                        </span>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
+      {/* ── Unassigned alert + auto-assign ───────────── */}
+      {isOperator && unassignedContentCount > 0 && (
+        <div className={`hf-banner ${allUnassigned ? 'hf-banner-warning' : 'hf-banner-info'} hf-mb-lg`}>
+          <div className="hf-flex hf-items-center hf-gap-sm hf-flex-1">
+            <AlertTriangle size={14} className="hf-flex-shrink-0" />
+            <span className="hf-text-sm">
+              {allUnassigned
+                ? `All ${unassignedContentCount} teaching points need a method assigned`
+                : `${unassignedContentCount} teaching point${unassignedContentCount === 1 ? '' : 's'} not yet assigned a method`
+              }
+            </span>
           </div>
-        );
-      })()}
+          <button
+            className="hf-btn hf-btn-xs hf-btn-primary hf-flex hf-items-center hf-gap-xs"
+            disabled={backfilling}
+            title="Auto-assign teaching methods based on content categories"
+            onClick={handleBackfill}
+          >
+            <Zap size={12} />
+            {backfilling ? 'Assigning\u2026' : 'Auto-assign'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Assertion Detail Drawer ──────────────────── */}
+      <AssertionDetailDrawer
+        courseId={courseId}
+        assertionId={drawerAssertionId}
+        onClose={() => setDrawerAssertionId(null)}
+      />
 
       {/* ── Re-extract Modal ────────────────────────── */}
       {showReExtract && (
@@ -514,7 +710,6 @@ export function CourseWhatTab({
           sources={allSources}
           onClose={() => setShowReExtract(false)}
           onComplete={async () => {
-            // Refresh content breakdown after re-extraction
             if (onContentRefresh) {
               try {
                 const bd = await fetch(`/api/courses/${courseId}/content-breakdown?bySubject=true`).then(r => r.json());

@@ -2,9 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { TEACH_METHOD_CONFIG } from "@/lib/content-trust/resolve-config";
+import { VALID_CATEGORIES } from "@/lib/content-categories";
+import { z } from "zod";
 
-const VALID_CATEGORIES = ["fact", "definition", "threshold", "rule", "process", "example"];
 const VALID_TEACH_METHODS = Object.keys(TEACH_METHOD_CONFIG);
+
+const patchSchema = z.object({
+  assertion: z.string().trim()
+    .min(5, { message: "Assertion text must be 5-5000 characters" })
+    .max(5000, { message: "Assertion text must be 5-5000 characters" })
+    .optional(),
+  category: z.string().refine((v) => VALID_CATEGORIES.includes(v), {
+    message: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}`,
+  }).optional(),
+  tags: z.array(z.string()).max(20).optional(),
+  chapter: z.string().nullable().optional(),
+  section: z.string().nullable().optional(),
+  pageRef: z.string().nullable().optional(),
+  validFrom: z.string().nullable().optional(),
+  validUntil: z.string().nullable().optional(),
+  taxYear: z.string().nullable().optional(),
+  examRelevance: z.number()
+    .min(0, { message: "examRelevance must be between 0.0 and 1.0" })
+    .max(1, { message: "examRelevance must be between 0.0 and 1.0" })
+    .nullable().optional(),
+  learningOutcomeRef: z.string().nullable().optional(),
+  teachMethod: z.string().refine((v) => VALID_TEACH_METHODS.includes(v), {
+    message: `Invalid teachMethod. Must be one of: ${VALID_TEACH_METHODS.join(", ")}`,
+  }).nullable().optional(),
+  markReviewed: z.boolean().optional(),
+}).strict();
 
 /**
  * @api PATCH /api/content-sources/:sourceId/assertions/:assertionId
@@ -52,45 +79,27 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = patchSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { ok: false, error: parsed.error.issues[0]?.message || "Invalid request body" },
+        { status: 400 },
+      );
+    }
+
+    const body = parsed.data;
     const updates: Record<string, any> = {};
 
-    // Validate and collect field updates
-    if (body.assertion !== undefined) {
-      const text = String(body.assertion).trim();
-      if (text.length < 5 || text.length > 5000) {
-        return NextResponse.json(
-          { ok: false, error: "Assertion text must be 5-5000 characters" },
-          { status: 400 }
-        );
-      }
-      updates.assertion = text;
-    }
-
-    if (body.category !== undefined) {
-      if (!VALID_CATEGORIES.includes(body.category)) {
-        return NextResponse.json(
-          { ok: false, error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}` },
-          { status: 400 }
-        );
-      }
-      updates.category = body.category;
-    }
-
+    // Collect field updates from validated body
+    if (body.assertion !== undefined) updates.assertion = body.assertion;
+    if (body.category !== undefined) updates.category = body.category;
     if (body.tags !== undefined) {
-      if (!Array.isArray(body.tags)) {
-        return NextResponse.json(
-          { ok: false, error: "Tags must be an array" },
-          { status: 400 }
-        );
-      }
-      updates.tags = body.tags.map((t: any) => String(t).trim()).filter(Boolean).slice(0, 20);
+      updates.tags = body.tags.map((t) => t.trim()).filter(Boolean).slice(0, 20);
     }
-
     if (body.chapter !== undefined) updates.chapter = body.chapter || null;
     if (body.section !== undefined) updates.section = body.section || null;
     if (body.pageRef !== undefined) updates.pageRef = body.pageRef || null;
-
     if (body.validFrom !== undefined) {
       updates.validFrom = body.validFrom ? new Date(body.validFrom) : null;
     }
@@ -98,35 +107,11 @@ export async function PATCH(
       updates.validUntil = body.validUntil ? new Date(body.validUntil) : null;
     }
     if (body.taxYear !== undefined) updates.taxYear = body.taxYear || null;
-
-    if (body.examRelevance !== undefined) {
-      if (body.examRelevance !== null) {
-        const val = Number(body.examRelevance);
-        if (isNaN(val) || val < 0 || val > 1) {
-          return NextResponse.json(
-            { ok: false, error: "examRelevance must be between 0.0 and 1.0" },
-            { status: 400 }
-          );
-        }
-        updates.examRelevance = val;
-      } else {
-        updates.examRelevance = null;
-      }
-    }
-
+    if (body.examRelevance !== undefined) updates.examRelevance = body.examRelevance;
     if (body.learningOutcomeRef !== undefined) {
       updates.learningOutcomeRef = body.learningOutcomeRef || null;
     }
-
-    if (body.teachMethod !== undefined) {
-      if (body.teachMethod !== null && !VALID_TEACH_METHODS.includes(body.teachMethod)) {
-        return NextResponse.json(
-          { ok: false, error: `Invalid teachMethod. Must be one of: ${VALID_TEACH_METHODS.join(", ")}` },
-          { status: 400 }
-        );
-      }
-      updates.teachMethod = body.teachMethod || null;
-    }
+    if (body.teachMethod !== undefined) updates.teachMethod = body.teachMethod || null;
 
     // Mark as reviewed
     if (body.markReviewed) {

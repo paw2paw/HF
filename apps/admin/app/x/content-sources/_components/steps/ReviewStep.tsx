@@ -1,37 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useErrorCapture } from "@/contexts/ErrorCaptureContext";
+import { getCategoryStyle, CATEGORIES_ARRAY } from "@/lib/content-categories";
+import { useContentAssertions } from "@/hooks/useContentAssertions";
 import type { StepProps } from "../types";
-
-type Assertion = {
-  id: string;
-  assertionText: string;
-  category: string;
-  tags: string[];
-  chapterRef: string | null;
-  sectionRef: string | null;
-  pageRef: string | null;
-  reviewedAt: string | null;
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  fact: "var(--accent-primary)", definition: "var(--accent-secondary, #8b5cf6)", threshold: "var(--status-error-text)",
-  rule: "var(--badge-orange-text, #ea580c)", process: "var(--badge-cyan-text, #0891b2)", example: "var(--status-success-text)",
-  principle: "var(--accent-primary)", formula: "var(--badge-pink-text, #be185d)",
-};
 
 export default function ReviewStep({ setData, getData, onNext, onPrev }: StepProps) {
   const { reportError } = useErrorCapture();
   const sourceId = getData<string>("sourceId");
   const sourceName = getData<string>("sourceName");
 
-  const [assertions, setAssertions] = useState<Assertion[]>([]);
-  const [total, setTotal] = useState(0);
-  const [reviewed, setReviewed] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [questionCount, setQuestionCount] = useState(0);
   const [vocabCount, setVocabCount] = useState(0);
   const [search, setSearch] = useState("");
@@ -39,33 +20,28 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
   const [reviewFilter, setReviewFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(0);
   const [bulkReviewing, setBulkReviewing] = useState(false);
   const limit = 50;
 
-  async function fetchAssertions() {
-    if (!sourceId) return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-      if (search) params.set("search", search);
-      if (categoryFilter) params.set("category", categoryFilter);
-      if (reviewFilter === "reviewed") params.set("reviewed", "true");
-      if (reviewFilter === "pending") params.set("reviewed", "false");
-      const res = await fetch(`/api/content-sources/${sourceId}/assertions?${params}`);
-      const data = await res.json();
-      setAssertions(data.assertions || []);
-      setTotal(data.total || 0);
-      setReviewed(data.reviewedCount || 0);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  }
+  const reviewedParam = useMemo(() => {
+    if (reviewFilter === "reviewed") return "true";
+    if (reviewFilter === "pending") return "false";
+    return undefined;
+  }, [reviewFilter]);
 
-  useEffect(() => {
-    fetchAssertions();
-  }, [sourceId, search, categoryFilter, reviewFilter, offset]);
+  const {
+    assertions,
+    total,
+    reviewedCount: reviewed,
+    loading,
+    refetch,
+  } = useContentAssertions({
+    sourceId,
+    filters: { search, category: categoryFilter, reviewed: reviewedParam },
+    page,
+    pageSize: limit,
+  });
 
   // Fetch Q&V counts on mount
   useEffect(() => {
@@ -80,12 +56,12 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
   }, [sourceId]);
 
   async function handleMarkReviewed(id: string) {
-    await fetch(`/api/content-sources/${sourceId}/assertions/${id}?markReviewed=true`, {
+    await fetch(`/api/content-sources/${sourceId}/assertions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ markReviewed: true }),
     });
-    fetchAssertions();
+    refetch();
   }
 
   async function handleBulkReview() {
@@ -98,7 +74,7 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
         body: JSON.stringify({ assertionIds: Array.from(selected) }),
       });
       setSelected(new Set());
-      fetchAssertions();
+      refetch();
     } finally {
       setBulkReviewing(false);
     }
@@ -162,15 +138,15 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
       {/* Filters */}
       <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
         <input type="text" placeholder="Search assertions..." value={search}
-          onChange={(e) => { setSearch(e.target.value); setOffset(0); }}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13, width: 200 }}
         />
-        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setOffset(0); }}
+        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
           style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13 }}>
           <option value="">All categories</option>
-          {Object.keys(CATEGORY_COLORS).map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
+          {CATEGORIES_ARRAY.map((cat) => (<option key={cat.value} value={cat.value}>{cat.label}</option>))}
         </select>
-        <select value={reviewFilter} onChange={(e) => { setReviewFilter(e.target.value); setOffset(0); }}
+        <select value={reviewFilter} onChange={(e) => { setReviewFilter(e.target.value); setPage(0); }}
           style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--border-default)", backgroundColor: "var(--surface-secondary)", color: "var(--text-primary)", fontSize: 13 }}>
           <option value="">All</option>
           <option value="reviewed">Reviewed</option>
@@ -231,8 +207,8 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
                   />
                   <span style={{
                     display: "inline-block", padding: "2px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600,
-                    color: CATEGORY_COLORS[a.category] || "var(--text-muted)",
-                    background: `color-mix(in srgb, ${CATEGORY_COLORS[a.category] || "var(--text-muted)"} 10%, transparent)`,
+                    color: getCategoryStyle(a.category).color,
+                    background: getCategoryStyle(a.category).bg,
                     textTransform: "uppercase",
                   }}>
                     {a.category}
@@ -241,7 +217,7 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
                     flex: 1, fontSize: 13, color: "var(--text-primary)",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
-                    {a.assertionText.length > 120 ? a.assertionText.slice(0, 120) + "..." : a.assertionText}
+                    {a.assertion.length > 120 ? a.assertion.slice(0, 120) + "..." : a.assertion}
                   </span>
                   <span style={{
                     fontSize: 11, fontWeight: 600, flexShrink: 0,
@@ -253,11 +229,11 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
                 {isExpanded && (
                   <div style={{ padding: "12px 14px 14px 44px", background: "var(--surface-secondary)" }}>
                     <pre style={{ fontSize: 13, color: "var(--text-primary)", whiteSpace: "pre-wrap", margin: "0 0 10px", lineHeight: 1.5 }}>
-                      {a.assertionText}
+                      {a.assertion}
                     </pre>
                     <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-                      {a.chapterRef && <span>Ch: {a.chapterRef}</span>}
-                      {a.sectionRef && <span>Sec: {a.sectionRef}</span>}
+                      {a.chapter && <span>Ch: {a.chapter}</span>}
+                      {a.section && <span>Sec: {a.section}</span>}
                       {a.pageRef && <span>Pg: {a.pageRef}</span>}
                       {a.tags.length > 0 && <span>Tags: {a.tags.join(", ")}</span>}
                     </div>
@@ -282,15 +258,15 @@ export default function ReviewStep({ setData, getData, onNext, onPrev }: StepPro
       {/* Pagination */}
       {total > limit && (
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
-          <button onClick={() => setOffset(Math.max(0, offset - limit))} disabled={offset === 0}
-            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid var(--border-default)", background: "transparent", color: offset === 0 ? "var(--text-muted)" : "var(--text-primary)", fontSize: 12, cursor: offset === 0 ? "default" : "pointer" }}>
+          <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}
+            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid var(--border-default)", background: "transparent", color: page === 0 ? "var(--text-muted)" : "var(--text-primary)", fontSize: 12, cursor: page === 0 ? "default" : "pointer" }}>
             Previous
           </button>
           <span style={{ fontSize: 12, color: "var(--text-muted)", padding: "6px 8px" }}>
-            {offset + 1}-{Math.min(offset + limit, total)} of {total}
+            {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}
           </span>
-          <button onClick={() => setOffset(offset + limit)} disabled={offset + limit >= total}
-            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid var(--border-default)", background: "transparent", color: offset + limit >= total ? "var(--text-muted)" : "var(--text-primary)", fontSize: 12, cursor: offset + limit >= total ? "default" : "pointer" }}>
+          <button onClick={() => setPage(page + 1)} disabled={(page + 1) * limit >= total}
+            style={{ padding: "6px 12px", borderRadius: 4, border: "1px solid var(--border-default)", background: "transparent", color: (page + 1) * limit >= total ? "var(--text-muted)" : "var(--text-primary)", fontSize: 12, cursor: (page + 1) * limit >= total ? "default" : "pointer" }}>
             Next
           </button>
         </div>

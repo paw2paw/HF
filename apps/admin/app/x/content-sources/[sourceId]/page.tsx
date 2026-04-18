@@ -10,6 +10,8 @@ import { EditableTitle } from "@/components/shared/EditableTitle";
 import { ReviewTabBadge } from "./_components/ReviewTabBadge";
 import QuestionsPanel from "./_components/QuestionsPanel";
 import VocabularyPanel from "./_components/VocabularyPanel";
+import { TRUST_LEVELS, CATEGORIES_ARRAY as CATEGORIES } from "@/lib/content-categories";
+import { useContentAssertions } from "@/hooks/useContentAssertions";
 import "./content-source-detail.css";
 
 // ── Types ──────────────────────────────────────────────
@@ -51,72 +53,7 @@ type UsageData = {
   contentStats: { assertions: number; questions: number; vocabulary: number; mediaAssets: number };
 };
 
-type Assertion = {
-  id: string;
-  assertion: string;
-  category: string;
-  tags: string[];
-  chapter: string | null;
-  section: string | null;
-  pageRef: string | null;
-  validFrom: string | null;
-  validUntil: string | null;
-  taxYear: string | null;
-  examRelevance: number | null;
-  learningOutcomeRef: string | null;
-  depth: number | null;
-  topicSlug: string | null;
-  reviewedBy: string | null;
-  reviewedAt: string | null;
-  createdAt: string;
-  reviewer: { id: string; name: string | null; email: string } | null;
-  _count: { children: number };
-};
-
-// ── Constants ──────────────────────────────────────────
-
-const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)" },
-  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)" },
-  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)" },
-];
-
-const CATEGORIES = [
-  // Textbook categories
-  { value: "fact", label: "Fact", color: "var(--accent-primary)", icon: "\u2139\uFE0F" },
-  { value: "definition", label: "Definition", color: "var(--accent-secondary)", icon: "\uD83D\uDCD6" },
-  { value: "threshold", label: "Threshold", color: "var(--status-warning-text)", icon: "\uD83D\uDCCF" },
-  { value: "rule", label: "Rule", color: "var(--status-error-text)", icon: "\u26A0\uFE0F" },
-  { value: "process", label: "Process", color: "var(--status-success-text)", icon: "\u2699\uFE0F" },
-  { value: "example", label: "Example", color: "var(--text-muted)", icon: "\uD83D\uDCC4" },
-  // Worksheet categories
-  { value: "question", label: "Question", color: "var(--accent-primary)", icon: "\u2753" },
-  { value: "true_false", label: "True/False", color: "var(--badge-cyan-text)", icon: "\u2696\uFE0F" },
-  { value: "matching_exercise", label: "Matching", color: "var(--accent-secondary)", icon: "\uD83D\uDD17" },
-  { value: "vocabulary_exercise", label: "Vocabulary", color: "var(--badge-purple-text)", icon: "\uD83D\uDCDA" },
-  { value: "discussion_prompt", label: "Discussion", color: "var(--badge-pink-text)", icon: "\uD83D\uDCAC" },
-  { value: "activity", label: "Activity", color: "var(--status-success-text)", icon: "\u270D\uFE0F" },
-  { value: "information", label: "Information", color: "var(--accent-primary)", icon: "\uD83D\uDCD6" },
-  { value: "reference", label: "Reference", color: "var(--status-warning-text)", icon: "\uD83D\uDCD1" },
-  { value: "answer_key_item", label: "Answer Key", color: "var(--status-success-text)", icon: "\uD83D\uDD11" },
-  // Curriculum categories
-  { value: "learning_outcome", label: "Learning Outcome", color: "var(--accent-primary)", icon: "\uD83C\uDFAF" },
-  { value: "assessment_criterion", label: "Assessment Criterion", color: "var(--status-success-text)", icon: "\uD83D\uDCCB" },
-  { value: "range", label: "Range/Scope", color: "var(--status-warning-text)", icon: "\uD83D\uDCCF" },
-  // Assessment categories
-  { value: "answer", label: "Answer", color: "var(--status-success-text)", icon: "\u2705" },
-  { value: "matching_item", label: "Matching Item", color: "var(--accent-secondary)", icon: "\uD83D\uDD17" },
-  { value: "misconception", label: "Misconception", color: "var(--status-error-text)", icon: "\u274C" },
-  { value: "mark_scheme", label: "Mark Scheme", color: "var(--badge-orange-text)", icon: "\uD83D\uDCDD" },
-  // Example categories
-  { value: "concept", label: "Concept", color: "var(--accent-primary)", icon: "\uD83D\uDCA1" },
-  { value: "observation", label: "Observation", color: "var(--status-success-text)", icon: "\uD83D\uDC41\uFE0F" },
-  { value: "discussion_point", label: "Discussion Point", color: "var(--accent-secondary)", icon: "\uD83D\uDCAC" },
-  { value: "context", label: "Context", color: "var(--text-muted)", icon: "\uD83D\uDCC4" },
-];
+type Assertion = import("@/hooks/useContentAssertions").AssertionRecord;
 
 // Document types now sourced from shared DocTypeBadge (badges.tsx / doc-type-icons.ts)
 
@@ -495,13 +432,6 @@ export default function SourceDetailPage() {
   const [source, setSource] = useState<ContentSource | null>(null);
   const [sourceLoading, setSourceLoading] = useState(true);
 
-  // Assertions data
-  const [assertions, setAssertions] = useState<Assertion[]>([]);
-  const [total, setTotal] = useState(0);
-  const [reviewedCount, setReviewedCount] = useState(0);
-  const [reviewProgress, setReviewProgress] = useState(0);
-  const [assertionsLoading, setAssertionsLoading] = useState(true);
-
   // Filters + pagination
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -509,6 +439,21 @@ export default function SourceDetailPage() {
   const [sortBy, setSortBy] = useState("chapter");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
+
+  // Assertions data via shared hook
+  const {
+    assertions,
+    total,
+    reviewedCount,
+    reviewProgress,
+    loading: assertionsLoading,
+    refetch: fetchAssertions,
+  } = useContentAssertions({
+    sourceId,
+    filters: { search, category: filterCategory, reviewed: filterReview, sortBy, sortDir },
+    page,
+    pageSize: PAGE_SIZE,
+  });
 
   // Selection for bulk actions
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -546,34 +491,6 @@ export default function SourceDetailPage() {
       setSourceLoading(false);
     }
   }, [sourceId]);
-
-  // ── Fetch assertions ──
-  const fetchAssertions = useCallback(async () => {
-    setAssertionsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (filterCategory) params.set("category", filterCategory);
-      if (filterReview) params.set("reviewed", filterReview);
-      params.set("sortBy", sortBy);
-      params.set("sortDir", sortDir);
-      params.set("limit", String(PAGE_SIZE));
-      params.set("offset", String(page * PAGE_SIZE));
-
-      const res = await fetch(`/api/content-sources/${sourceId}/assertions?${params}`);
-      const data = await res.json();
-      if (data.ok) {
-        setAssertions(data.assertions);
-        setTotal(data.total);
-        setReviewedCount(data.reviewed);
-        setReviewProgress(data.reviewProgress);
-      }
-    } catch {
-      // silent
-    } finally {
-      setAssertionsLoading(false);
-    }
-  }, [sourceId, search, filterCategory, filterReview, sortBy, sortDir, page]);
 
   useEffect(() => { fetchSource(); }, [fetchSource]);
   // ── Fetch usage data ──
@@ -648,8 +565,6 @@ export default function SourceDetailPage() {
       return false;
     }
   }, [sourceId]);
-
-  useEffect(() => { fetchAssertions(); }, [fetchAssertions]);
 
   // Reset page when filters change
   useEffect(() => { setPage(0); }, [search, filterCategory, filterReview, sortBy, sortDir]);
@@ -969,12 +884,8 @@ export default function SourceDetailPage() {
                           setFeedback({ type: "success", message: "Marked as reviewed" });
                           fetchAssertions();
                         }}
-                        onCategoryChanged={(assertionId, newCat) => {
-                          setAssertions((prev) =>
-                            prev.map((x) =>
-                              x.id === assertionId ? { ...x, category: newCat } : x
-                            )
-                          );
+                        onCategoryChanged={() => {
+                          fetchAssertions();
                         }}
                         onError={(msg) => setFeedback({ type: "error", message: msg })}
                       />

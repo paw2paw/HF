@@ -1,5 +1,7 @@
 // Constants and helper components for domains page
 
+import { TRUST_LEVELS } from "@/lib/content-categories";
+
 export const STATUSES = ["active", "inactive"] as const;
 
 export const statusColors: Record<string, { bg: string; text: string; icon: string; desc: string }> = {
@@ -13,14 +15,8 @@ export const playbookStatusMap: Record<string, "draft" | "active" | "archived"> 
   ARCHIVED: "archived",
 };
 
-export const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)" },
-  { value: "EXPERT_CURATED", label: "L2 Expert", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)" },
-  { value: "AI_ASSISTED", label: "L1 AI", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)" },
-];
+// Re-export for consumers that imported from constants
+export { TRUST_LEVELS };
 
 export function TrustBadge({ level }: { level: string }) {
   const config = TRUST_LEVELS.find((t) => t.value === level) || TRUST_LEVELS[5];

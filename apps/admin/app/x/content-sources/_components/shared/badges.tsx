@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Pencil, Check } from "lucide-react";
 import { DOC_TYPE_INFO, DOC_TYPE_GROUPS, getDocTypeInfo } from "@/lib/doc-type-icons";
+import { TRUST_LEVELS } from "@/lib/content-categories";
 
 // ── Constants ──────────────────────────────────────
 // Derived from doc-type-icons.ts — single source of truth.
@@ -19,14 +20,8 @@ export const DOCUMENT_TYPES = Object.entries(DOC_TYPE_INFO).map(([value, info]) 
   bg: info.bg,
 }));
 
-export const TRUST_LEVELS = [
-  { value: "REGULATORY_STANDARD", label: "L5 Regulatory Standard", color: "var(--trust-l5-text)", bg: "var(--trust-l5-bg)" },
-  { value: "ACCREDITED_MATERIAL", label: "L4 Accredited Material", color: "var(--trust-l4-text)", bg: "var(--trust-l4-bg)" },
-  { value: "PUBLISHED_REFERENCE", label: "L3 Published Reference", color: "var(--trust-l3-text)", bg: "var(--trust-l3-bg)" },
-  { value: "EXPERT_CURATED", label: "L2 Expert Curated", color: "var(--trust-l2-text)", bg: "var(--trust-l2-bg)" },
-  { value: "AI_ASSISTED", label: "L1 AI Assisted", color: "var(--trust-l1-text)", bg: "var(--trust-l1-bg)" },
-  { value: "UNVERIFIED", label: "L0 Unverified", color: "var(--trust-l0-text)", bg: "var(--trust-l0-bg)" },
-];
+// Re-export for consumers that imported TRUST_LEVELS from badges
+export { TRUST_LEVELS };
 
 // ── Types ──────────────────────────────────────────
 

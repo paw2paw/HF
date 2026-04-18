@@ -67,17 +67,27 @@ export function getCategoryStyle(category: string): CategoryStyle {
   };
 }
 
+// ── Category helpers ────────────────────────────────────
+
+/** Array form of CONTENT_CATEGORIES for iteration (value + style) */
+export const CATEGORIES_ARRAY = Object.entries(CONTENT_CATEGORIES).map(
+  ([value, style]) => ({ value, ...style }),
+);
+
+/** Core textbook categories — used for validation in assertion routes */
+export const VALID_CATEGORIES = CATEGORY_ORDER as readonly string[];
+
 // ── Trust Levels ────────────────────────────────────────
 
-export type TrustLevel = { value: string; label: string; color: string; bg: string };
+export type TrustLevel = { value: string; label: string; color: string; bg: string; level: number };
 
 export const TRUST_LEVELS: TrustLevel[] = [
-  { value: 'REGULATORY_STANDARD', label: 'L5 Regulatory Standard', color: 'var(--trust-l5-text)', bg: 'var(--trust-l5-bg)' },
-  { value: 'ACCREDITED_MATERIAL', label: 'L4 Accredited Material', color: 'var(--trust-l4-text)', bg: 'var(--trust-l4-bg)' },
-  { value: 'PUBLISHED_REFERENCE', label: 'L3 Published Reference', color: 'var(--trust-l3-text)', bg: 'var(--trust-l3-bg)' },
-  { value: 'EXPERT_CURATED',      label: 'L2 Expert Curated',      color: 'var(--trust-l2-text)', bg: 'var(--trust-l2-bg)' },
-  { value: 'AI_ASSISTED',         label: 'L1 AI Assisted',         color: 'var(--trust-l1-text)', bg: 'var(--trust-l1-bg)' },
-  { value: 'UNVERIFIED',          label: 'L0 Unverified',          color: 'var(--trust-l0-text)', bg: 'var(--trust-l0-bg)' },
+  { value: 'REGULATORY_STANDARD', label: 'L5 Regulatory Standard', color: 'var(--trust-l5-text)', bg: 'var(--trust-l5-bg)', level: 5 },
+  { value: 'ACCREDITED_MATERIAL', label: 'L4 Accredited Material', color: 'var(--trust-l4-text)', bg: 'var(--trust-l4-bg)', level: 4 },
+  { value: 'PUBLISHED_REFERENCE', label: 'L3 Published Reference', color: 'var(--trust-l3-text)', bg: 'var(--trust-l3-bg)', level: 3 },
+  { value: 'EXPERT_CURATED',      label: 'L2 Expert Curated',      color: 'var(--trust-l2-text)', bg: 'var(--trust-l2-bg)', level: 2 },
+  { value: 'AI_ASSISTED',         label: 'L1 AI Assisted',         color: 'var(--trust-l1-text)', bg: 'var(--trust-l1-bg)', level: 1 },
+  { value: 'UNVERIFIED',          label: 'L0 Unverified',          color: 'var(--trust-l0-text)', bg: 'var(--trust-l0-bg)', level: 0 },
 ];
 
 /** Lookup trust level by enum value */
