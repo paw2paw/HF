@@ -233,7 +233,7 @@ PARAMS TO SCORE: ${paramList}
 FACTS TO FIND: ${learnList}${learningSection}
 
 Return compact JSON:
-{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"FACT","key":"k","val":"v","c":0.9},...]${learningJsonHint}}`;
+{"scores":{"PARAM-ID":{"s":0.75,"c":0.8},...},"memories":[{"cat":"FACT","key":"k","val":"v","c":0.9,"e":"exact quote from transcript"},...]${learningJsonHint}}`;
 }
 
 /**
@@ -562,6 +562,7 @@ async function runBatchedCallerAnalysis(
           const key = mem.key;
           const value = mem.value || mem.val;
           const confidence = mem.confidence ?? mem.c ?? 0.8;
+          const evidence = mem.evidence || mem.e || "AI extraction";
 
           if (category && key && value) {
             const mappedCategory = mapToMemoryCategory(category);
@@ -591,7 +592,7 @@ async function runBatchedCallerAnalysis(
                 category: mappedCategory,
                 key,
                 value: memValue,
-                evidence: "AI extraction",
+                evidence: String(evidence),
                 confidence,
                 extractedBy: `${engine}_batched_v2`,
               },

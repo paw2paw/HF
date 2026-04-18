@@ -169,11 +169,11 @@ export interface FallbackTranscriptLimits {
 }
 
 export const DEFAULT_TRANSCRIPT_LIMITS: FallbackTranscriptLimits = {
-  "pipeline.measure": 4000,
-  "pipeline.learn": 4000,
-  "pipeline.score_agent": 3000,
-  "pipeline.adapt": 2000,
-  "pipeline.extract_goals": 3000,
+  "pipeline.measure": 8000,
+  "pipeline.learn": 8000,
+  "pipeline.score_agent": 6000,
+  "pipeline.adapt": 4000,
+  "pipeline.extract_goals": 6000,
 };
 
 export async function getTranscriptLimitsFallback(): Promise<FallbackTranscriptLimits> {

@@ -742,15 +742,18 @@ export function CallsPromptsTab({
     if (onCallUpdated) onCallUpdated();
   }, [calls, pipelineStatus, runPipeline, onCallUpdated]);
 
-  // Expose bulk actions to parent (for tab-bar buttons)
+  // Expose bulk actions to parent (for tab-bar buttons).
+  // Use a ref to avoid re-render loops — parent reads via callback, not state.
+  const bulkActionsRef = useRef<BulkActions>({
+    runBulkPipeline,
+    bulkRunning,
+    bulkProgress,
+    hasCalls: entries.length > 0,
+  });
+  bulkActionsRef.current = { runBulkPipeline, bulkRunning, bulkProgress, hasCalls: entries.length > 0 };
   useEffect(() => {
-    onBulkActionsReady?.({
-      runBulkPipeline,
-      bulkRunning,
-      bulkProgress,
-      hasCalls: entries.length > 0,
-    });
-  }, [onBulkActionsReady, runBulkPipeline, bulkRunning, bulkProgress, entries.length]);
+    onBulkActionsReady?.(bulkActionsRef.current);
+  }, [onBulkActionsReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Render

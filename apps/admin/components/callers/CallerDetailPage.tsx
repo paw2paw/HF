@@ -600,10 +600,10 @@ export default function CallerDetailPage() {
               )}
             </div>
           </div>
-          {/* Analyze Button - runs analysis to extract personality & memories */}
+          {/* Analyze Button - runs spec-driven pipeline (prep mode) on all calls */}
           <button
             onClick={async (e) => {
-              if (!confirm("Run analysis on this caller's calls to extract personality traits and memories?\n\nThis will:\n• Extract personality traits (Big 5)\n• Extract memories from conversations\n• Update caller profile")) return;
+              if (!confirm("Run analysis on this caller's calls?\n\nThis uses the spec-driven pipeline to:\n• Score behavioral parameters\n• Extract memories (pets, preferences, facts)\n• Update caller profile")) return;
 
               const btn = e.currentTarget;
               const originalText = btn.textContent;
@@ -612,7 +612,6 @@ export default function CallerDetailPage() {
                 btn.disabled = true;
                 btn.textContent = "Analyzing...";
 
-                // Get all calls for this caller
                 const callsRes = await fetch(`/api/calls?callerId=${callerId}`);
                 const callsData = await callsRes.json();
 
@@ -621,36 +620,36 @@ export default function CallerDetailPage() {
                   return;
                 }
 
-                // Analyze each call
                 let analyzed = 0;
-                for (const call of callsData.calls) {
-                  btn.textContent = `Analyzing ${++analyzed}/${callsData.calls.length}...`;
-
-                  await fetch(`/api/analysis/run`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      transcript: call.transcript,
-                      callId: call.id,
-                      callerId: callerId,
-                      outputTypes: ["MEASURE", "LEARN"],
-                      storeResults: true
-                    })
-                  });
+                let errors = 0;
+                const sorted = [...callsData.calls].sort(
+                  (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+                );
+                for (const call of sorted) {
+                  btn.textContent = `Analyzing ${++analyzed}/${sorted.length}...`;
+                  try {
+                    await fetch(`/api/calls/${call.id}/pipeline`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ callerId, mode: "prep", force: true }),
+                    });
+                  } catch {
+                    errors++;
+                  }
                 }
 
-                alert(`✅ Analysis complete!\n\nAnalyzed ${analyzed} call(s)\nRefreshing page to show results...`);
+                alert(`Analysis complete!\n\nAnalyzed ${analyzed} call(s)${errors > 0 ? `\n${errors} error(s)` : ""}\nRefreshing...`);
                 window.location.reload();
               } catch (err: any) {
-                alert(`❌ Error: ${err.message}`);
+                alert(`Error: ${err.message}`);
                 btn.disabled = false;
-                btn.textContent = originalText || "🧠 Analyze";
+                btn.textContent = originalText || "Analyze";
               }
             }}
-            title="Run personality & memory analysis on this caller's calls"
+            title="Run spec-driven analysis pipeline on all calls"
             className="cdp-btn-analyze"
           >
-            🧠 Analyze
+            Analyze
           </button>
 
           {/* Ask AI Button */}
