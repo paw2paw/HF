@@ -1,0 +1,348 @@
+/* ── Course Intelligence Tab ── ci-* prefix ── */
+
+.ci-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Stat Cards Row ── */
+
+.ci-stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ci-stat-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 16px 20px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ci-stat-card-warn {
+  border-color: color-mix(in srgb, var(--status-warning-text) 40%, var(--border-default));
+}
+
+.ci-stat-number {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.ci-stat-card-warn .ci-stat-number {
+  color: var(--status-warning-text);
+}
+
+.ci-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Two-Column Layout ── */
+
+.ci-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .ci-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ci-sources-panel,
+.ci-category-panel {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ci-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ci-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Source List ── */
+
+.ci-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ci-source-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+}
+
+.ci-source-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+.ci-source-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ci-source-count {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  font-weight: 500;
+}
+
+/* ── Category Proportional Bar ── */
+
+.ci-cat-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ci-cat-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.ci-cat-bar-segment {
+  min-width: 4px;
+  transition: width 0.3s ease;
+}
+
+.ci-cat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.ci-cat-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.ci-cat-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.ci-cat-legend-label {
+  color: var(--text-secondary);
+}
+
+.ci-cat-legend-count {
+  color: var(--text-placeholder);
+  font-weight: 500;
+}
+
+/* ── Segmented Control ── */
+
+.ci-segment-bar {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+}
+
+.ci-segment-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+
+.ci-segment-btn:hover {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--surface-primary) 50%, transparent);
+}
+
+.ci-segment-active {
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+/* ── Segment Content Area ── */
+
+.ci-segment-content {
+  min-height: 200px;
+}
+
+/* ── List Section ── */
+
+.ci-list-section {
+  margin-bottom: 20px;
+}
+
+.ci-list-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Assertion Groups ── */
+
+.ci-assertion-scroll {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.ci-group {
+  margin-bottom: 12px;
+}
+
+.ci-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px 4px;
+}
+
+.ci-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ci-group-count {
+  font-size: 11px;
+  color: var(--text-placeholder);
+}
+
+/* ── Teaching Point Row ── */
+
+.ci-tp-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  line-height: 1.5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.ci-tp-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+.ci-tp-row-active {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.ci-tp-cat {
+  display: inline-block;
+  color: white;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ci-tp-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.ci-tp-source {
+  font-size: 11px;
+  color: var(--text-placeholder);
+  flex-shrink: 0;
+}
+
+.ci-tp-session {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 640px) {
+  .ci-stats-row {
+    gap: 8px;
+  }
+  .ci-stat-card {
+    min-width: 80px;
+    padding: 12px 14px;
+  }
+  .ci-stat-number {
+    font-size: 20px;
+  }
+  .ci-segment-btn span {
+    display: none;
+  }
+}

@@ -153,7 +153,7 @@ export function CourseSummaryCard({
 
         {/* ── Content row ──────────────────────────── */}
         {hasContent && (
-          <SummaryRow icon={BookMarked} onClick={() => onNavigate('content')}>
+          <SummaryRow icon={BookMarked} onClick={() => onNavigate('intelligence')}>
             <div className="csc-row-content">
               <div className="csc-stat-row">
                 {subjectCount > 0 && <StatChip value={subjectCount} label={subjectCount === 1 ? 'subject' : 'subjects'} />}

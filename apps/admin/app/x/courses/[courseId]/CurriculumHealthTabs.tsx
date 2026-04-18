@@ -471,7 +471,7 @@ function SourcesStrip({ scorecard }: { scorecard: CourseLinkageScorecard }) {
         Built from your uploaded documents{extra}
       </span>
       <Link
-        href={`/x/courses/${scorecard.course.id}?tab=content`}
+        href={`/x/courses/${scorecard.course.id}?tab=intelligence`}
         className="hf-link hf-text-xs"
       >
         Manage sources →

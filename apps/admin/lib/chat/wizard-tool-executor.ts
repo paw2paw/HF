@@ -787,23 +787,26 @@ export async function executeWizardTool(
             // Bridge COURSE_REFERENCE sources to the primary subject (existing course path)
             if (existingPbSubject && packSubjectIds?.length) {
               for (const packSubId of packSubjectIds) {
-                const packSources = await prisma.subjectSource.findMany({
-                  where: { subjectId: packSubId },
-                  select: { sourceId: true, source: { select: { documentType: true } } },
-                });
-                for (const ps of packSources) {
-                  if (ps.source.documentType === "COURSE_REFERENCE" || ps.source.documentType === "POLICY_DOCUMENT") {
-                    const existingLink = await prisma.subjectSource.findFirst({
-                      where: { subjectId: existingPbSubject.subjectId, sourceId: ps.sourceId },
-                    });
-                    if (!existingLink) {
-                      await prisma.subjectSource.create({
-                        data: { subjectId: existingPbSubject.subjectId, sourceId: ps.sourceId },
+                // Bridge COURSE_REFERENCE sources — skip when uploadSourceIds handles it
+                if (!uploadSourceIds?.length) {
+                  const packSources = await prisma.subjectSource.findMany({
+                    where: { subjectId: packSubId },
+                    select: { sourceId: true, source: { select: { documentType: true } } },
+                  });
+                  for (const ps of packSources) {
+                    if (ps.source.documentType === "COURSE_REFERENCE" || ps.source.documentType === "POLICY_DOCUMENT") {
+                      const existingLink = await prisma.subjectSource.findFirst({
+                        where: { subjectId: existingPbSubject.subjectId, sourceId: ps.sourceId },
                       });
+                      if (!existingLink) {
+                        await prisma.subjectSource.create({
+                          data: { subjectId: existingPbSubject.subjectId, sourceId: ps.sourceId },
+                        });
+                      }
+                      // Dual-write: PlaybookSource for bridged source
+                      const { upsertPlaybookSource: upsertBridge } = await import("@/lib/knowledge/domain-sources");
+                      await upsertBridge(existingPlaybookId, ps.sourceId);
                     }
-                    // Dual-write: PlaybookSource for bridged source
-                    const { upsertPlaybookSource: upsertBridge } = await import("@/lib/knowledge/domain-sources");
-                    await upsertBridge(existingPlaybookId, ps.sourceId);
                   }
                 }
               }
@@ -1190,24 +1193,27 @@ export async function executeWizardTool(
         // 7b. Bridge COURSE_REFERENCE sources to the primary subject.
         //     LEGACY: Ingest now puts all docs (including pedagogy) on the primary subject.
         //     Kept for backward compatibility with courses that have fragmented subjects.
-        for (const packSubId of subjectIdsToLink) {
-          const packSources = await prisma.subjectSource.findMany({
-            where: { subjectId: packSubId },
-            select: { sourceId: true, source: { select: { documentType: true } } },
-          });
-          for (const ps of packSources) {
-            if (ps.source.documentType === "COURSE_REFERENCE" || ps.source.documentType === "POLICY_DOCUMENT") {
-              const existingLink = await prisma.subjectSource.findFirst({
-                where: { subjectId: subject.id, sourceId: ps.sourceId },
-              });
-              if (!existingLink) {
-                await prisma.subjectSource.create({
-                  data: { subjectId: subject.id, sourceId: ps.sourceId },
+        //     Skip when uploadSourceIds provided — Phase 5 (step 7c) handles all sources directly.
+        if (!uploadSourceIds?.length) {
+          for (const packSubId of subjectIdsToLink) {
+            const packSources = await prisma.subjectSource.findMany({
+              where: { subjectId: packSubId },
+              select: { sourceId: true, source: { select: { documentType: true } } },
+            });
+            for (const ps of packSources) {
+              if (ps.source.documentType === "COURSE_REFERENCE" || ps.source.documentType === "POLICY_DOCUMENT") {
+                const existingLink = await prisma.subjectSource.findFirst({
+                  where: { subjectId: subject.id, sourceId: ps.sourceId },
                 });
+                if (!existingLink) {
+                  await prisma.subjectSource.create({
+                    data: { subjectId: subject.id, sourceId: ps.sourceId },
+                  });
+                }
+                // Dual-write: PlaybookSource for bridged source
+                const { upsertPlaybookSource: upsertBridgeNew } = await import("@/lib/knowledge/domain-sources");
+                await upsertBridgeNew(playbookId, ps.sourceId);
               }
-              // Dual-write: PlaybookSource for bridged source
-              const { upsertPlaybookSource: upsertBridgeNew } = await import("@/lib/knowledge/domain-sources");
-              await upsertBridgeNew(playbookId, ps.sourceId);
             }
           }
         }

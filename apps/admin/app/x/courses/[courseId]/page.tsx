@@ -14,7 +14,7 @@ import { useTerminology } from '@/contexts/TerminologyContext';
 import { INTERACTION_PATTERN_LABELS, TEACHING_MODE_LABELS } from '@/lib/content-trust/resolve-config';
 import { CourseOverviewTab } from './CourseOverviewTab';
 import { OnboardingEditor } from '@/components/shared/OnboardingEditor';
-import { CourseContentTab } from './CourseContentTab';
+import { CourseIntelligenceTab } from './CourseIntelligenceTab';
 import { CourseWhoTab } from './CourseWhoTab';
 import { CourseGoalsTab } from './CourseGoalsTab';
 import { CourseDesignTab } from './CourseDesignTab';
@@ -135,7 +135,7 @@ type SessionTabData = {
 
 import { SectionHeader } from './SectionHeader';
 
-const VALID_TABS = ['design', 'curriculum', 'content', 'learners', 'proof', 'goals', 'settings',
+const VALID_TABS = ['intelligence', 'design', 'curriculum', 'content', 'learners', 'proof', 'goals', 'settings',
   // Legacy tab IDs — redirected in handleTabChange
   'overview', 'journey', 'genome', 'audience',
 ];
@@ -335,9 +335,9 @@ export default function CourseDetailPage() {
   }, [sessions]);
 
   const tabs: TabDefinition[] = useMemo(() => [
+    { id: 'intelligence', label: 'Content', icon: <BookMarked size={14} />, count: totalSources || null },
     { id: 'design', label: 'Design', icon: <Wand2 size={14} /> },
     { id: 'curriculum', label: 'Curriculum', icon: <GraduationCap size={14} /> },
-    { id: 'content', label: 'Content', icon: <BookMarked size={14} />, count: totalSources || null },
     { id: 'learners', label: 'Learners', icon: <Users2 size={14} /> },
     { id: 'proof', label: 'Proof Points', icon: <BarChart3 size={14} /> },
     { id: 'goals', label: 'Goals', icon: <Target size={14} /> },
@@ -358,7 +358,8 @@ export default function CourseDetailPage() {
     // URL compat: redirect retired tab IDs to their new homes
     const TAB_REDIRECTS: Record<string, string> = {
       sessions: 'design', onboarding: 'design', overview: 'design',
-      journey: 'design', genome: 'content', audience: 'design',
+      journey: 'design', genome: 'intelligence', audience: 'design',
+      content: 'intelligence',
     };
     const resolvedTab = TAB_REDIRECTS[tab] ?? tab;
     setActiveTab(resolvedTab);
@@ -1080,7 +1081,7 @@ export default function CourseDetailPage() {
 
       {/* ── Tabs ──────────────────────────────────────── */}
       <DraggableTabs
-        storageKey="course-detail-tabs-v7"
+        storageKey="course-detail-tabs-v8"
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -1348,10 +1349,10 @@ export default function CourseDetailPage() {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
-      {/* CONTENT TAB                                    */}
+      {/* CONTENT INTELLIGENCE TAB                       */}
       {/* ═══════════════════════════════════════════════ */}
-      {activeTab === 'content' && (
-        <CourseContentTab
+      {activeTab === 'intelligence' && (
+        <CourseIntelligenceTab
           courseId={courseId!}
           detail={detail}
           subjects={subjects}

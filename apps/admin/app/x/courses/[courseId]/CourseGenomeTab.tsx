@@ -15,13 +15,20 @@ import { Dna } from "lucide-react";
 
 interface CourseGenomeTabProps {
   courseId: string;
+  /** When provided, assertion clicks delegate to parent (no internal drawer). */
+  onAssertionSelect?: (id: string) => void;
+  /** Active assertion ID from parent — used when onAssertionSelect is provided. */
+  activeAssertionId?: string | null;
 }
 
-export function CourseGenomeTab({ courseId }: CourseGenomeTabProps) {
+export function CourseGenomeTab({ courseId, onAssertionSelect, activeAssertionId: externalActiveId }: CourseGenomeTabProps) {
   const [data, setData] = useState<GenomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAssertionId, setSelectedAssertionId] = useState<string | null>(null);
+
+  const isExternalDrawer = !!onAssertionSelect;
+  const effectiveActiveId = isExternalDrawer ? externalActiveId : selectedAssertionId;
 
   useEffect(() => {
     let cancelled = false;
@@ -88,15 +95,17 @@ export function CourseGenomeTab({ courseId }: CourseGenomeTabProps) {
     <div className="hf-card" style={{ position: "relative" }}>
       <GenomeBrowser
         data={data}
-        onAssertionClick={(id) => setSelectedAssertionId(id)}
-        activeAssertionId={selectedAssertionId}
+        onAssertionClick={(id) => isExternalDrawer ? onAssertionSelect(id) : setSelectedAssertionId(id)}
+        activeAssertionId={effectiveActiveId}
       />
-      <AssertionDetailDrawer
-        courseId={courseId}
-        assertionId={selectedAssertionId}
-        onClose={() => setSelectedAssertionId(null)}
-        onNavigate={(id) => setSelectedAssertionId(id)}
-      />
+      {!isExternalDrawer && (
+        <AssertionDetailDrawer
+          courseId={courseId}
+          assertionId={selectedAssertionId}
+          onClose={() => setSelectedAssertionId(null)}
+          onNavigate={(id) => setSelectedAssertionId(id)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -277,6 +277,10 @@ export default function CoursesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Focus search box on mount
+  useEffect(() => { searchRef.current?.focus(); }, []);
 
   const loadCourses = async () => {
     try {
@@ -525,6 +529,7 @@ export default function CoursesPage() {
         <div className="hf-flex hf-flex-wrap hf-gap-lg hf-items-center">
           {/* Search */}
           <input
+            ref={searchRef}
             type="text"
             placeholder={`Search ${plural('playbook').toLowerCase()}...`}
             value={search}
