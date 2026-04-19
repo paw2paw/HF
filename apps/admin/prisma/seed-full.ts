@@ -10,10 +10,12 @@
  *   SEED_PROFILE=core npx tsx prisma/seed-full.ts     # PROD — specs only
  *   SEED_PROFILE=test npx tsx prisma/seed-full.ts     # TEST — core + e2e fixtures
  *   SEED_PROFILE=full npx tsx prisma/seed-full.ts     # DEV/VM — everything (default)
+ *   SEED_PROFILE=demo npx tsx prisma/seed-full.ts     # DEMO — clean demo data, no e2e junk
  *   SEED_PROFILE=golden npx tsx prisma/seed-full.ts   # Golden path — clean minimal demo data
  *
  * Profiles:
  *   core    — Specs, archetypes, institution types, run configs, dedup (PROD)
+ *   demo    — Core + golden school + demo course + demo logins, NO e2e fixtures
  *   test    — Everything in core + e2e fixtures + demo logins (TEST)
  *   full    — Everything in test + golden school + demo course (DEV/VM)
  *   golden  — Specs + institution types + 1 clean institution (demo golden path)
@@ -42,7 +44,7 @@ import { main as seedGolden } from "./seed-golden";
 import { main as seedIdentityArchetypes } from "./seed-identity-archetypes";
 import { main as seedDemoCourse } from "./seed-demo-course";
 
-type Profile = "core" | "test" | "full" | "golden";
+type Profile = "core" | "demo" | "test" | "full" | "golden";
 
 interface Step {
   name: string;
@@ -57,19 +59,21 @@ const ALL_STEPS: Step[] = [
   { name: "seed-identity-archetypes", fn: seedIdentityArchetypes },
   { name: "seed-institution-types", fn: seedInstitutionTypes },
 
-  // ── Core (runs in core/test/full but NOT golden) ────────
-  { name: "seed-run-configs", fn: seedRunConfigs, profiles: ["core", "test", "full"] },
-  { name: "seed (dedup)", fn: seedDedup, profiles: ["core", "test", "full"] },
+  // ── Core (runs in core/demo/test/full but NOT golden) ───
+  { name: "seed-run-configs", fn: seedRunConfigs, profiles: ["core", "demo", "test", "full"] },
+  { name: "seed (dedup)", fn: seedDedup, profiles: ["core", "demo", "test", "full"] },
 
-  // ── Golden (Abacus Academy — additive when in full, cleanup skipped) ──
-  { name: "seed-golden", fn: seedGolden, profiles: ["golden", "full"] },
+  // ── Golden (Abacus Academy — additive when in full/demo, cleanup skipped) ──
+  { name: "seed-golden", fn: seedGolden, profiles: ["golden", "demo", "full"] },
 
-  // ── Full (demo course with 8 learners) ──────────────────
-  { name: "seed-demo-course", fn: seedDemoCourse, profiles: ["full"] },
+  // ── Demo + Full (demo course with 8 learners) ──────────
+  { name: "seed-demo-course", fn: seedDemoCourse, profiles: ["demo", "full"] },
 
-  // ── Test + Full (e2e fixtures + demo logins) ────────────
+  // ── Test + Full only (e2e fixtures — NOT in demo) ──────
   { name: "seed-e2e", fn: seedE2E, profiles: ["test", "full"] },
-  { name: "seed-demo-logins", fn: seedDemoLogins, profiles: ["test", "full"] },
+
+  // ── Demo + Test + Full (demo logins) ───────────────────
+  { name: "seed-demo-logins", fn: seedDemoLogins, profiles: ["demo", "test", "full"] },
 ];
 
 function getProfile(): Profile {
@@ -92,8 +96,8 @@ async function main() {
   const profile = getProfile();
   const steps = filterSteps(profile);
 
-  // Golden profile forces SEED_MODE=prod so seed-clean skips transcript imports
-  if (profile === "golden" && !process.env.SEED_MODE) {
+  // Golden/demo profiles force SEED_MODE=prod so seed-clean skips transcript imports
+  if ((profile === "golden" || profile === "demo") && !process.env.SEED_MODE) {
     process.env.SEED_MODE = "prod";
   }
 
