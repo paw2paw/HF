@@ -477,6 +477,7 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
     if (!source) {
       source = await prisma.contentSource.create({
         data: {
+          slug: CONTENT_SOURCE.slug,
           name: CONTENT_SOURCE.name,
           description: CONTENT_SOURCE.description,
           documentType: CONTENT_SOURCE.documentType,
