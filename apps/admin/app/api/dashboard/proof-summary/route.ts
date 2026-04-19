@@ -45,7 +45,7 @@ export async function GET(): Promise<NextResponse> {
       prisma.call.count(),
 
       // Average mastery across all module progress records
-      prisma.callerModuleProgress.aggregate({
+      prisma.moduleProgress.aggregate({
         _avg: { mastery: true },
         where: { mastery: { gt: 0 } },
       }),
@@ -54,7 +54,7 @@ export async function GET(): Promise<NextResponse> {
       prisma.callerMemory.count({ where: { supersededById: null } }),
 
       // Modules with mastery >= 0.8
-      prisma.callerModuleProgress.count({
+      prisma.moduleProgress.count({
         where: { status: "COMPLETED" },
       }),
 
@@ -78,7 +78,7 @@ export async function GET(): Promise<NextResponse> {
       prisma.caller.findMany({
         where: {
           archivedAt: null,
-          callerModuleProgress: { some: { mastery: { gt: 0 } } },
+          moduleProgress: { some: { mastery: { gt: 0 } } },
         },
         take: 10,
         select: {
@@ -90,7 +90,7 @@ export async function GET(): Promise<NextResponse> {
               memories: true,
             },
           },
-          callerModuleProgress: {
+          moduleProgress: {
             select: { mastery: true },
             where: { mastery: { gt: 0 } },
           },
@@ -142,9 +142,9 @@ export async function GET(): Promise<NextResponse> {
     const spotlights = spotlightCallers
       .map((c) => {
         const avgMastery =
-          c.callerModuleProgress.length > 0
-            ? c.callerModuleProgress.reduce((sum, p) => sum + p.mastery, 0) /
-              c.callerModuleProgress.length
+          c.moduleProgress.length > 0
+            ? c.moduleProgress.reduce((sum, p) => sum + p.mastery, 0) /
+              c.moduleProgress.length
             : 0;
         return {
           id: c.id,
