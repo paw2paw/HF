@@ -45,7 +45,7 @@ export async function GET(): Promise<NextResponse> {
       prisma.call.count(),
 
       // Average mastery across all module progress records
-      prisma.moduleProgress.aggregate({
+      prisma.callerModuleProgress.aggregate({
         _avg: { mastery: true },
         where: { mastery: { gt: 0 } },
       }),
@@ -54,7 +54,7 @@ export async function GET(): Promise<NextResponse> {
       prisma.callerMemory.count({ where: { supersededById: null } }),
 
       // Modules with mastery >= 0.8
-      prisma.moduleProgress.count({
+      prisma.callerModuleProgress.count({
         where: { status: "COMPLETED" },
       }),
 
