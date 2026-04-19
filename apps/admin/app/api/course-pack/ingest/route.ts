@@ -996,6 +996,27 @@ async function extractSource(
       });
     }
 
+    // MCQ auto-generation (non-blocking) — synthesise MCQs from assertions
+    // when extraction didn't produce any directly (mirrors extract route behaviour)
+    if (totalCreated > 0) {
+      import("@/lib/assessment/generate-mcqs").then(async ({ maybeGenerateMcqs, regenerateSiblingMcqs }) => {
+        const ss = await prisma.subjectSource.findFirst({
+          where: { sourceId: source.id, subjectId },
+          select: { id: true },
+        });
+        maybeGenerateMcqs(source.id, userId, ss?.id).catch((err: unknown) => {
+          console.error(`[course-pack/ingest] MCQ generation failed for ${fileName}:`, err instanceof Error ? err.message : err);
+        });
+        // QB re-trigger: comprehension courses generate MCQs from TUTOR_QUESTIONs
+        // which only exist after the QB is extracted — re-trigger sibling sources
+        if (documentType === "QUESTION_BANK") {
+          regenerateSiblingMcqs(subjectId, source.id, userId).catch((err: unknown) => {
+            console.error(`[course-pack/ingest] Sibling MCQ regen failed for ${fileName}:`, err instanceof Error ? err.message : err);
+          });
+        }
+      });
+    }
+
     // Sync goals + constraints from COURSE_REFERENCE sources (non-blocking)
     if (documentType === "COURSE_REFERENCE" && totalCreated > 0) {
       import("@/lib/goals/sync-goals-from-reference").then(({ syncGoalsFromReference }) => {

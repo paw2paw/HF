@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 
 export type ViewModePreference = "auto" | "simple" | "advanced";
@@ -35,17 +35,17 @@ function resolveAdvanced(preference: ViewModePreference, role: string | undefine
 }
 
 export function ViewModeProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const role = (session?.user as { role?: string } | undefined)?.role;
 
-  const [preference, setPreferenceState] = useState<ViewModePreference>("auto");
+  // Read localStorage synchronously to avoid flash of wrong mode
+  const [preference, setPreferenceState] = useState<ViewModePreference>(getStoredPreference);
 
-  // Initialize from localStorage on mount
-  useEffect(() => {
-    setPreferenceState(getStoredPreference());
-  }, []);
-
-  const isAdvanced = resolveAdvanced(preference, role);
+  // While session is loading and preference is "auto", default to advanced
+  // to avoid layout jump (most users are admin/educator roles)
+  const isAdvanced = status === "loading" && preference === "auto"
+    ? true
+    : resolveAdvanced(preference, role);
 
   const setPreference = useCallback((pref: ViewModePreference) => {
     setPreferenceState(pref);
