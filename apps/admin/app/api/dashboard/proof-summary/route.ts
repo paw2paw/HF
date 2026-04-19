@@ -80,15 +80,14 @@ export async function GET(): Promise<NextResponse> {
           archivedAt: null,
           callerModuleProgress: { some: { mastery: { gt: 0 } } },
         },
-        orderBy: { callerModuleProgress: { _count: "desc" } },
-        take: 5,
+        take: 10,
         select: {
           id: true,
           name: true,
           _count: {
             select: {
               calls: true,
-              memories: { where: { supersededById: null } },
+              memories: true,
             },
           },
           callerModuleProgress: {
