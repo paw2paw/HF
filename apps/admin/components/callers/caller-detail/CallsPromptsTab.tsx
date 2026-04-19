@@ -97,10 +97,14 @@ function buildTimeline(
 
   const bootstrap = prompts.find(p => !p.triggerCallId) ?? null;
 
-  // Map: callId → prompt composed AFTER that call
+  // Map: callId → prompt composed AFTER that call (prefer active over superseded)
   const afterCallMap = new Map<string, ComposedPrompt>();
   for (const p of prompts) {
-    if (p.triggerCallId) afterCallMap.set(p.triggerCallId, p);
+    if (!p.triggerCallId) continue;
+    const existing = afterCallMap.get(p.triggerCallId);
+    if (!existing || (p.status === "active" && existing.status !== "active")) {
+      afterCallMap.set(p.triggerCallId, p);
+    }
   }
 
   // Build chain: Call N's input = Call N-1's promptAfter (or bootstrap for Call 1)
