@@ -481,7 +481,6 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
           name: CONTENT_SOURCE.name,
           description: CONTENT_SOURCE.description,
           documentType: CONTENT_SOURCE.documentType,
-          status: "COMPLETED",
         },
       });
     }
