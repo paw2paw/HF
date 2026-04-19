@@ -175,6 +175,7 @@ export default function CourseDetailPage() {
   const [instructionTotal, setInstructionTotal] = useState(0);
   const [unassignedContentCount, setUnassignedContentCount] = useState(0);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [categoryItems, setCategoryItems] = useState<Record<string, string[]> | undefined>(undefined);
 
   // Tabs — synced to ?tab= URL param for browser back/forward
   const tabFromUrl = searchParams.get('tab');
@@ -272,6 +273,7 @@ export default function CourseDetailPage() {
           setInstructionTotal(breakdownData.instructionCount || 0);
           setUnassignedContentCount(breakdownData.unassignedContentCount || 0);
           setCategoryCounts(breakdownData.categoryCounts || {});
+          setCategoryItems(breakdownData.categoryItems ?? undefined);
         }
         if (learnersData?.ok && learnersData.joinToken) {
           setJoinToken(learnersData.joinToken);
@@ -1009,7 +1011,7 @@ export default function CourseDetailPage() {
               onClick={() => setShowFullRegen(true)}
             >
               <RefreshCw size={14} />
-              Fully Regenerate
+              Rebuild Course
             </button>
           )}
           <button
@@ -1339,6 +1341,7 @@ export default function CourseDetailPage() {
       {activeTab === 'curriculum' && (
         <CourseCurriculumTab
           courseId={courseId!}
+          playbookId={courseId!}
           curriculumId={sessions?.curriculumId ?? null}
           isOperator={isOperator}
           onSwitchTab={(tab) => {
@@ -1363,6 +1366,7 @@ export default function CourseDetailPage() {
           instructionCount={instructionTotal}
           unassignedContentCount={unassignedContentCount}
           categoryCounts={categoryCounts}
+          categoryItems={categoryItems}
           isOperator={isOperator}
           onContentRefresh={(methods, total, instrCount, unassignedContent) => {
             setContentMethods(methods);

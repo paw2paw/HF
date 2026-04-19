@@ -19,11 +19,13 @@ import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import type { CourseLinkageScorecard } from "@/lib/content-trust/validate-lo-linkage";
-import { CurriculumHealthTabs } from "./CurriculumHealthTabs";
+import { CurriculumHealthTabs, type RegenerateActions } from "./CurriculumHealthTabs";
 import "./course-curriculum-tab.css";
 
 interface CourseCurriculumTabProps {
   courseId: string;
+  /** Playbook ID (same as courseId in most cases, needed for MCQ reset) */
+  playbookId?: string;
   /**
    * Optional curriculumId hint from the course page's sessions fetch. The
    * scorecard endpoint resolves its own curriculum-id authoritatively, so
@@ -48,6 +50,7 @@ interface RegenerateResponse {
 
 export function CourseCurriculumTab({
   courseId,
+  playbookId,
   curriculumId: curriculumIdProp,
   isOperator,
   onSwitchTab,
@@ -114,6 +117,41 @@ export function CourseCurriculumTab({
     }
   }, [courseId, regenerating, loadScorecard]);
 
+  // ── Reconcile TPs handler ─────────────────────────────────
+  const handleReconcileTPs = useCallback(async () => {
+    if (!curriculumId) return;
+    const res = await fetch(`/api/curricula/${curriculumId}/reconcile-orphans`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) await loadScorecard();
+  }, [curriculumId, loadScorecard]);
+
+  // ── MCQ regenerate handler ────────────────────────────────
+  const handleRegenerateMcqs = useCallback(async () => {
+    const pid = playbookId || courseId;
+    const res = await fetch(`/api/playbooks/${pid}/reset-mcqs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: true }),
+    });
+    const data = await res.json();
+    if (data.ok) await loadScorecard();
+  }, [playbookId, courseId, loadScorecard]);
+
+  // ── Re-extract instructions handler ───────────────────────
+  const handleReExtractInstructions = useCallback(async () => {
+    const res = await fetch(`/api/courses/${courseId}/re-extract-instructions`, { method: "POST" });
+    const data = await res.json();
+    if (data.ok) await loadScorecard();
+  }, [courseId, loadScorecard]);
+
+  // ── Regenerate actions bundle ─────────────────────────────
+  const regenerateActions: RegenerateActions | undefined = isOperator ? {
+    onRegenerateModules: handleRegenerate,
+    onReconcileTPs: handleReconcileTPs,
+    onRegenerateMcqs: handleRegenerateMcqs,
+    onReExtractInstructions: handleReExtractInstructions,
+  } : undefined;
+
   // ── Render ─────────────────────────────────────────────────
   // Wait for the scorecard fetch before deciding whether a curriculum exists —
   // the scorecard response is the authoritative source. If the scorecard
@@ -146,7 +184,7 @@ export function CourseCurriculumTab({
           courseId={courseId}
           curriculumId={curriculumId}
           isOperator={isOperator}
-          onRegenerate={isOperator ? handleRegenerate : undefined}
+          regenerateActions={regenerateActions}
           regenerating={regenerating}
           onScorecardRefresh={loadScorecard}
         />

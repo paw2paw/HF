@@ -18,11 +18,12 @@
  * upstream input, not downstream artefacts.
  */
 
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   BookOpen,
+  ChevronDown,
   HelpCircle,
   Layers,
   RefreshCw,
@@ -63,11 +64,21 @@ type McqItem = {
   linkedToTp: boolean;
 };
 
+/** Individual regeneration actions passed from parent */
+export interface RegenerateActions {
+  onRegenerateModules?: () => Promise<void>;
+  onReconcileTPs?: () => Promise<void>;
+  onRegenerateMcqs?: () => Promise<void>;
+  onReExtractInstructions?: () => Promise<void>;
+}
+
 interface Props {
   scorecard: CourseLinkageScorecard;
   courseId: string;
   curriculumId: string | null;
   isOperator: boolean;
+  regenerateActions?: RegenerateActions;
+  /** @deprecated Use regenerateActions instead */
   onRegenerate?: () => void;
   regenerating: boolean;
   /**
@@ -77,6 +88,145 @@ interface Props {
   onScorecardRefresh?: () => void;
 }
 
+// ── Regenerate Dropdown ─────────────────────────────────
+
+function RegenerateDropdown({
+  scorecard,
+  actions,
+  onRegenerateFallback,
+  regenerating,
+  onScorecardRefresh,
+}: {
+  scorecard: CourseLinkageScorecard;
+  actions?: RegenerateActions;
+  onRegenerateFallback?: () => void;
+  regenerating: boolean;
+  onScorecardRefresh?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [runningItem, setRunningItem] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const isRunning = regenerating || runningItem !== null;
+
+  const runAction = async (key: string, fn?: () => Promise<void>) => {
+    if (!fn || isRunning) return;
+    setRunningItem(key);
+    try {
+      await fn();
+      onScorecardRefresh?.();
+    } finally {
+      setRunningItem(null);
+    }
+  };
+
+  const runAll = async () => {
+    if (isRunning) return;
+    const steps = [
+      { key: "modules", fn: actions?.onRegenerateModules },
+      { key: "tps", fn: actions?.onReconcileTPs },
+      { key: "mcqs", fn: actions?.onRegenerateMcqs },
+      { key: "instructions", fn: actions?.onReExtractInstructions },
+    ].filter((s) => s.fn);
+    for (const step of steps) {
+      setRunningItem(step.key);
+      try { await step.fn!(); } catch { /* continue */ }
+    }
+    setRunningItem(null);
+    onScorecardRefresh?.();
+  };
+
+  // Badge text for each item
+  const moduleBadge = `${scorecard.structure.activeModules} mods · ${scorecard.structure.learningOutcomes} LOs`;
+  const tpLinked = scorecard.studentContent.linkedToOutcome;
+  const tpTotal = scorecard.studentContent.total;
+  const tpBadgeText = tpTotal === 0 ? "empty" : `${tpLinked} of ${tpTotal}`;
+  const mcqBadgeText = scorecard.questions.total === 0 ? "empty" : `${scorecard.questions.total}`;
+  const instrBadgeText = scorecard.tutorInstructions.total === 0 ? "empty" : `${scorecard.tutorInstructions.total} rules`;
+
+  type Item = { key: string; icon: string; label: string; badge: string; warn: boolean; fn?: () => Promise<void> };
+  const items: Item[] = [
+    { key: "modules", icon: "📦", label: "Modules & LOs", badge: moduleBadge, warn: scorecard.structure.activeModules === 0, fn: actions?.onRegenerateModules },
+    { key: "tps", icon: "🔗", label: "Teaching Point linking", badge: tpBadgeText, warn: tpLinked < tpTotal, fn: actions?.onReconcileTPs },
+    { key: "mcqs", icon: "❓", label: "Questions & MCQs", badge: mcqBadgeText, warn: scorecard.questions.total === 0, fn: actions?.onRegenerateMcqs },
+    { key: "instructions", icon: "📏", label: "Tutor Instructions", badge: instrBadgeText, warn: false, fn: actions?.onReExtractInstructions },
+  ];
+
+  // Fallback: if no actions provided, use the old single button
+  if (!actions) {
+    return (
+      <button
+        type="button"
+        className="hf-btn hf-btn-primary hf-btn-sm"
+        onClick={onRegenerateFallback}
+        disabled={regenerating}
+        title="Rebuild the curriculum from your uploaded content"
+      >
+        {regenerating ? (
+          <><RefreshCw size={13} className="hf-glow-active" /> Regenerating…</>
+        ) : (
+          <><Sparkles size={13} /> Regenerate</>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div className="regen-dropdown" ref={dropdownRef}>
+      <button
+        type="button"
+        className="hf-btn hf-btn-primary hf-btn-sm"
+        onClick={() => setOpen(!open)}
+        disabled={isRunning}
+      >
+        {isRunning ? (
+          <><RefreshCw size={13} className="hf-glow-active" /> Regenerating…</>
+        ) : (
+          <><Sparkles size={13} /> Regenerate… <ChevronDown size={12} /></>
+        )}
+      </button>
+      {open && !isRunning && (
+        <div className="regen-dropdown-menu">
+          {items.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`regen-dropdown-item${item.warn ? " regen-dropdown-item--warn" : ""}`}
+              onClick={() => { setOpen(false); runAction(item.key, item.fn); }}
+              disabled={!item.fn}
+            >
+              <span className="regen-dropdown-icon">{item.icon}</span>
+              <span className="regen-dropdown-label">{item.label}</span>
+              <span className={`regen-dropdown-badge${item.warn ? " regen-dropdown-badge--warn" : ""}`}>{item.badge}</span>
+            </button>
+          ))}
+          <div className="regen-dropdown-divider" />
+          <button
+            type="button"
+            className="regen-dropdown-item regen-dropdown-item--all"
+            onClick={() => { setOpen(false); runAll(); }}
+          >
+            <span className="regen-dropdown-icon">🔄</span>
+            <span className="regen-dropdown-label">Regenerate All</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ───────────────────────────────────────
 
 export function CurriculumHealthTabs({
@@ -84,6 +234,7 @@ export function CurriculumHealthTabs({
   courseId,
   curriculumId,
   isOperator,
+  regenerateActions,
   onRegenerate,
   regenerating,
   onScorecardRefresh,
@@ -257,65 +408,15 @@ export function CurriculumHealthTabs({
           <HealthPill health={scorecard.health} />
           <span className="hf-section-title">Curriculum health</span>
         </div>
-        <div className="hf-flex hf-items-center hf-gap-sm">
-          {isOperator && orphans > 0 && curriculumId && (
-            <button
-              type="button"
-              className="hf-btn hf-btn-secondary hf-btn-sm"
-              onClick={handleReconcile}
-              disabled={reconciling}
-              title="Run semantic similarity to match orphan teaching points to learning outcomes"
-            >
-              {reconciling ? (
-                <>
-                  <RefreshCw size={13} className="hf-glow-active" /> Reconciling…
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={13} /> Reconcile TPs
-                </>
-              )}
-            </button>
-          )}
-          {isOperator && mcqOrphans > 0 && (
-            <button
-              type="button"
-              className="hf-btn hf-btn-secondary hf-btn-sm"
-              onClick={handleReconcileMcqs}
-              disabled={reconcilingMcqs}
-              title="Run semantic similarity to match orphan MCQs to teaching points"
-            >
-              {reconcilingMcqs ? (
-                <>
-                  <RefreshCw size={13} className="hf-glow-active" /> Reconciling…
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={13} /> Reconcile MCQs
-                </>
-              )}
-            </button>
-          )}
-          {onRegenerate && (
-            <button
-              type="button"
-              className="hf-btn hf-btn-primary hf-btn-sm"
-              onClick={onRegenerate}
-              disabled={regenerating}
-              title="Rebuild the curriculum from your uploaded content"
-            >
-              {regenerating ? (
-                <>
-                  <RefreshCw size={13} className="hf-glow-active" /> Regenerating…
-                </>
-              ) : (
-                <>
-                  <Sparkles size={13} /> Regenerate
-                </>
-              )}
-            </button>
-          )}
-        </div>
+        {isOperator && (regenerateActions || onRegenerate) && (
+          <RegenerateDropdown
+            scorecard={scorecard}
+            actions={regenerateActions}
+            onRegenerateFallback={onRegenerate}
+            regenerating={regenerating}
+            onScorecardRefresh={onScorecardRefresh}
+          />
+        )}
       </div>
 
       {/* Reconcile result banner (transient) */}

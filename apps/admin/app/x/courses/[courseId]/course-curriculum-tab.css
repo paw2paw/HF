@@ -496,3 +496,94 @@
   background: color-mix(in srgb, var(--status-error-text) 12%, transparent);
   color: var(--status-error-text);
 }
+
+/* ── Regenerate dropdown ─────────────────────────────── */
+
+.regen-dropdown {
+  position: relative;
+}
+
+.regen-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 280px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-primary) 12%, transparent);
+  padding: 4px;
+  animation: regen-dropdown-fade 0.12s ease;
+}
+
+@keyframes regen-dropdown-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.regen-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.regen-dropdown-item:hover {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.regen-dropdown-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.regen-dropdown-item--warn {
+  color: var(--text-primary);
+}
+
+.regen-dropdown-item--all {
+  font-weight: 600;
+}
+
+.regen-dropdown-icon {
+  font-size: 14px;
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.regen-dropdown-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.regen-dropdown-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+}
+
+.regen-dropdown-badge--warn {
+  color: var(--status-warning-text);
+  background: color-mix(in srgb, var(--status-warning-text) 12%, transparent);
+}
+
+.regen-dropdown-divider {
+  height: 1px;
+  background: var(--border-default);
+  margin: 4px 8px;
+}
