@@ -303,7 +303,7 @@ export const WIZARD_ACTIONS = [
 // ── Quick Actions (replaces wizard CTAs on dashboard) ──────
 
 export const QUICK_ACTIONS = [
-  { label: "New Course", icon: "Plus", href: "/x/courses?action=setup", primary: true },
+  { label: "New Course", icon: "Plus", href: "/x/get-started-v5", primary: true },
   { label: "View Student", icon: "User", href: "/x/callers", primary: false },
   { label: "Try AI Call", icon: "MessageCircle", href: "/x/sim", primary: false },
   { label: "Import", icon: "Download", href: "/x/import", primary: false },
