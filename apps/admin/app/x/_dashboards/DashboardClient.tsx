@@ -6,7 +6,9 @@ import { ChevronRight, Plus } from "lucide-react";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import type { TermKey } from "@/lib/terminology/types";
 import { ICON_MAP } from "@/lib/sidebar/icons";
-import { getCategoryStyle } from "@/lib/content-categories";
+import { CategoryTreemap } from "@/components/shared/CategoryTreemap";
+import "@/components/shared/category-treemap.css";
+import { FancySelect, type FancySelectOption } from "@/components/shared/FancySelect";
 import AskAISearchBar from "@/components/shared/AskAISearchBar";
 import {
   getConfigForRole,
@@ -204,21 +206,22 @@ export default function DashboardClient({ role }: Props): JSX.Element {
         <ProofPointsStrip proof={proofData} />
       )}
 
-      {/* Two-column: Content Mix | Activity Feed */}
-      {config.showProofPoints && proofData && (
-        <div className="dash-two-col">
-          <div className="dash-col">
-            <ContentMixChart contentMix={proofData.contentMix} />
-          </div>
-          <div className="dash-col">
-            <ActivityFeed activities={proofData.recentActivity} />
-          </div>
-        </div>
+      {/* Recent Activity */}
+      {config.showProofPoints && proofData && proofData.recentActivity.length > 0 && (
+        <ActivityFeed activities={proofData.recentActivity} />
       )}
 
       {/* Spotlight Learners */}
       {config.showProofPoints && proofData && proofData.spotlights.length > 0 && (
         <SpotlightLearners spotlights={proofData.spotlights} />
+      )}
+
+      {/* Content Mix — treemap with course picker */}
+      {config.showProofPoints && proofData && Object.keys(proofData.contentMix).length > 0 && (
+        <ContentMixSection
+          contentMix={proofData.contentMix}
+          courses={data?.entities?.playbooks ?? []}
+        />
       )}
 
       {/* Entity Previews */}
@@ -352,39 +355,72 @@ function ProofPointsStrip({ proof }: { proof: ProofSummary }): JSX.Element {
   );
 }
 
-// ── Content Mix Chart ──────────────────────────────────────
+// ── Content Mix Section (treemap + course picker) ──────────
 
-function ContentMixChart({ contentMix }: { contentMix: Record<string, number> }): JSX.Element {
-  const entries = Object.entries(contentMix)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 8);
+function ContentMixSection({
+  contentMix,
+  courses,
+}: {
+  contentMix: Record<string, number>;
+  courses: EntityItem[];
+}): JSX.Element {
+  const [selectedCourse, setSelectedCourse] = useState("all");
+  const [courseContentMix, setCourseContentMix] = useState<Record<string, number> | null>(null);
+  const [loadingCourse, setLoadingCourse] = useState(false);
 
-  const maxValue = entries.length > 0 ? Math.max(...entries.map(([, v]) => v)) : 1;
+  const courseOptions: FancySelectOption[] = [
+    { value: "all", label: "All Courses" },
+    ...courses.map((c) => ({ value: c.id, label: c.name || "Unnamed" })),
+  ];
+
+  // Fetch per-course content mix when a course is selected
+  useEffect(() => {
+    if (selectedCourse === "all") {
+      setCourseContentMix(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCourse(true);
+    fetch(`/api/courses/${selectedCourse}/content-breakdown`)
+      .then((r) => r.json())
+      .then((body) => {
+        if (cancelled) return;
+        if (body.ok && body.categoryCounts) {
+          setCourseContentMix(body.categoryCounts);
+        } else {
+          setCourseContentMix(null);
+        }
+      })
+      .catch(() => { if (!cancelled) setCourseContentMix(null); })
+      .finally(() => { if (!cancelled) setLoadingCourse(false); });
+    return () => { cancelled = true; };
+  }, [selectedCourse]);
+
+  const activeMix = selectedCourse === "all" ? contentMix : (courseContentMix ?? contentMix);
+  const total = Object.values(activeMix).reduce((s, c) => s + c, 0);
 
   return (
-    <div className="dash-content-mix">
-      <h3 className="hf-section-title">Content Mix</h3>
-      {entries.length === 0 ? (
-        <p className="dash-content-mix-empty">No content data yet</p>
+    <div className="dash-content-section">
+      <div className="dash-content-header">
+        <h3 className="hf-section-title">Content Mix</h3>
+        <span className="dash-content-total">{total} teaching points</span>
+        {courses.length > 1 && (
+          <div className="dash-content-picker">
+            <FancySelect
+              value={selectedCourse}
+              onChange={setSelectedCourse}
+              options={courseOptions}
+              placeholder="Filter by course"
+              searchable={courses.length > 5}
+              clearable={false}
+            />
+          </div>
+        )}
+      </div>
+      {loadingCourse ? (
+        <div className="dash-content-loading">Loading...</div>
       ) : (
-        <div className="dash-content-bars">
-          {entries.map(([category, count]) => {
-            const style = getCategoryStyle(category);
-            const widthPct = Math.max((count / maxValue) * 100, 4);
-            return (
-              <div key={category} className="dash-content-bar">
-                <span className="dash-content-bar-label">{style.label}</span>
-                <div className="dash-content-bar-track">
-                  <div
-                    className="dash-content-bar-fill"
-                    style={{ width: `${widthPct}%`, backgroundColor: style.color }}
-                  />
-                </div>
-                <span className="dash-content-bar-count">{count}</span>
-              </div>
-            );
-          })}
-        </div>
+        <CategoryTreemap categoryCounts={activeMix} />
       )}
     </div>
   );
