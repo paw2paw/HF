@@ -183,8 +183,11 @@ export default function EducatorDashboard() {
         const subjectsBody = await subjectsRes.json();
         if (subjectsBody.subjects?.length > 0) {
           const subjects = subjectsBody.subjects as { name: string; teachingProfile?: string | null }[];
+          // Deduplicate by name — same subject can appear across multiple courses
+          const seen = new Set<string>();
           const withProfiles = subjects
             .filter((s) => s.teachingProfile)
+            .filter((s) => { if (seen.has(s.name)) return false; seen.add(s.name); return true; })
             .map((s) => ({
               name: s.name,
               profile: getTeachingProfile(s.teachingProfile)!,

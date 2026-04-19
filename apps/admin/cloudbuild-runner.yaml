@@ -19,7 +19,7 @@ steps:
       - '--target=runner'
       - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:${_TAG}'
       - '--cache=true'
-      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin/cache'
+      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-shared-cache'
       - '--cache-ttl=720h'
       - '--snapshotMode=redo'
       - '--compressed-caching=false'

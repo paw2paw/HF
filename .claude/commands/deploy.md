@@ -82,11 +82,12 @@ Based on the user's choice, walk them through the exact commands step by step. A
 
 Docker is NOT available locally or on the VM. ALL image builds MUST use **Cloud Build** with the permanent configs in `apps/admin/`:
 
-- `cloudbuild-runner.yaml` — runner (production server) image
-- `cloudbuild-seed.yaml` — seed (database seeding) image
-- `cloudbuild-migrate.yaml` — migrate (schema migration) image
+- `cloudbuild-all.yaml` — **Full deploy**: builds migrate + seed + runner in one submission (shared Kaniko cache, seed + runner parallel after migrate warms deps)
+- `cloudbuild-runner.yaml` — **Quick deploy**: runner image only (same shared cache)
+- `cloudbuild-seed.yaml` — seed image only (legacy, prefer cloudbuild-all.yaml)
+- `cloudbuild-migrate.yaml` — migrate image only (legacy, prefer cloudbuild-all.yaml)
 
-All configs use **Kaniko layer caching** — the `deps` layer (npm ci) is cached for 30 days. Code-only changes skip npm ci entirely (~5 min saved per build).
+All configs use a **shared Kaniko cache repo** (`hf-shared-cache`) — the `deps` layer (npm ci) is cached for 30 days and shared across all targets. Code-only changes skip npm ci entirely.
 
 ## PERFORMANCE: Run Cloud Build from VM (not local)
 
@@ -176,12 +177,8 @@ gcloud run deploy $SERVICE \
 For DEV quick deploys, always rebuild the seed image and run the seed job to ensure demo login accounts exist. Skip this step for TEST/PROD.
 
 ```bash
-# Build seed image (on VM — fast, no upload)
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
-  cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-seed.yaml \
-    --project hf-admin-prod --region europe-west2 \
-    --substitutions=_TAG=latest .
-'
+# Build seed image (on VM — uses shared cache, deps already cached from runner build)
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-seed.yaml --project hf-admin-prod --region europe-west2 --substitutions=_TAG=latest ."
 
 # Execute seed job (SEED_PROFILE=full includes demo logins)
 gcloud run jobs update hf-seed-dev \
@@ -192,37 +189,26 @@ gcloud run jobs execute hf-seed-dev --region=europe-west2 --project=hf-admin-pro
 
 ## Full Deploy Steps (option 3)
 
-### With Migrations
+### 1. Version bump + commit + push
 
-**⚠️ Always rebuild the migrate image before running `hf-migrate-*`.** The `:latest` tag in Artifact Registry may be days old and missing new migrations. Running the migrate job against a stale image is a no-op and will leave the guard failure from /deploy's 2026-04-15 incident in place. Rebuild first, always.
+Same as Quick Deploy step 1.
 
-Build + push migrate image via Cloud Build (on VM):
+### 2. Build ALL images in one submission (on VM)
+
+**⚠️ Always rebuild before running migrate/seed jobs.** The `:latest` tags may be stale. `cloudbuild-all.yaml` builds migrate first (warms deps cache), then seed + runner in parallel — one source upload, one npm ci.
+
 ```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
-  cd ~/HF && git pull --rebase &&
-  cd apps/admin && gcloud builds submit --config cloudbuild-migrate.yaml \
-    --project hf-admin-prod --region europe-west2 \
-    --substitutions=_TAG=latest .
-'
+gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- "cd ~/HF && git pull --rebase && cd apps/admin && gcloud builds submit --config cloudbuild-all.yaml --project hf-admin-prod --region europe-west2 --substitutions=_TAG=latest,_APP_ENV=\$APP_ENV ."
 ```
 
-Run the environment-specific migrate job:
+Set `$APP_ENV` from the `_APP_ENV` column in the Environment Map (DEV→`DEV`, TEST→`TEST`, PROD→`LIVE`).
+
+### 3. Run migrate job
 ```bash
 gcloud run jobs execute $MIGRATE_JOB --region=europe-west2 --project=hf-admin-prod --wait
 ```
 
-### With New Specs (seed)
-
-Build + push seed image via Cloud Build (on VM):
-```bash
-gcloud compute ssh hf-dev --zone=europe-west2-a --tunnel-through-iap -- bash -c '
-  cd ~/HF/apps/admin && gcloud builds submit --config cloudbuild-seed.yaml \
-    --project hf-admin-prod --region europe-west2 \
-    --substitutions=_TAG=latest .
-'
-```
-
-Run the environment-specific seed job (set SEED_PROFILE from the Environment Map above):
+### 4. Run seed job
 ```bash
 gcloud run jobs update $SEED_JOB \
   --set-env-vars=SEED_PROFILE=$SEED_PROFILE \
@@ -230,7 +216,13 @@ gcloud run jobs update $SEED_JOB \
 gcloud run jobs execute $SEED_JOB --region=europe-west2 --project=hf-admin-prod --wait
 ```
 
-### Then deploy runner (same as Quick Deploy steps 2-3)
+### 5. Deploy runner to Cloud Run
+```bash
+gcloud run deploy $SERVICE \
+  --image=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:latest \
+  --region=europe-west2 --project=hf-admin-prod \
+  --no-cpu-throttling
+```
 
 ## Rollback Steps (option 4)
 

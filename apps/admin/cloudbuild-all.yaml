@@ -1,0 +1,67 @@
+# Cloud Build config — builds ALL three Docker targets in one submission.
+# Shared Kaniko cache — deps layer (npm ci) built once by migrate step,
+# then cache-hit by seed + runner running in parallel after it.
+#
+# Saves ~30 min on cache-miss full deploys vs three separate builds.
+#
+# Usage:
+#   cd apps/admin
+#   gcloud builds submit --config cloudbuild-all.yaml \
+#     --project hf-admin-prod --region europe-west2 \
+#     --substitutions=_TAG=latest,_APP_ENV=DEV .
+
+substitutions:
+  _TAG: latest
+  _APP_ENV: LIVE
+
+steps:
+  # --- Step 1: migrate (smallest target — warms the shared deps cache) ---
+  - id: migrate
+    name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - '--dockerfile=Dockerfile'
+      - '--context=.'
+      - '--target=migrate'
+      - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:${_TAG}'
+      - '--cache=true'
+      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-shared-cache'
+      - '--cache-ttl=720h'
+      - '--snapshot-mode=redo'
+      - '--compressed-caching=false'
+
+  # --- Step 2: seed (parallel with runner — deps layer cached from step 1) ---
+  - id: seed
+    waitFor: ['migrate']
+    name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - '--dockerfile=Dockerfile'
+      - '--context=.'
+      - '--target=seed'
+      - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-seed:${_TAG}'
+      - '--cache=true'
+      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-shared-cache'
+      - '--cache-ttl=720h'
+      - '--snapshot-mode=redo'
+      - '--compressed-caching=false'
+
+  # --- Step 3: runner (parallel with seed — deps layer cached from step 1) ---
+  - id: runner
+    waitFor: ['migrate']
+    name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - '--dockerfile=Dockerfile'
+      - '--context=.'
+      - '--target=runner'
+      - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-admin:${_TAG}'
+      - '--cache=true'
+      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-shared-cache'
+      - '--cache-ttl=720h'
+      - '--snapshot-mode=redo'
+      - '--compressed-caching=false'
+      - '--build-arg=NEXT_PUBLIC_APP_ENV=${_APP_ENV}'
+      - '--build-arg=NODE_OPTIONS=--max-old-space-size=4096'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 200

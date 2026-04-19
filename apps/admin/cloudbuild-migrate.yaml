@@ -18,7 +18,7 @@ steps:
       - '--target=migrate'
       - '--destination=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate:${_TAG}'
       - '--cache=true'
-      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-migrate/cache'
+      - '--cache-repo=europe-west2-docker.pkg.dev/hf-admin-prod/hf-docker/hf-shared-cache'
       - '--cache-ttl=720h'
       - '--snapshot-mode=redo'
       - '--compressed-caching=false'
