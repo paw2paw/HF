@@ -443,6 +443,9 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
       await prisma.call.deleteMany({ where: { callerId: { in: callerIds } } });
       await prisma.callerPlaybook.deleteMany({ where: { callerId: { in: callerIds } } });
       await prisma.callerCohortMembership.deleteMany({ where: { callerId: { in: callerIds } } });
+      // Delete cohorts owned by demo callers (before deleting callers)
+      await prisma.cohortPlaybook.deleteMany({ where: { cohortGroup: { ownerId: { in: callerIds } } } });
+      await prisma.cohortGroup.deleteMany({ where: { ownerId: { in: callerIds } } });
       await prisma.caller.deleteMany({ where: { id: { in: callerIds } } });
       console.log(`  Cleaned up ${callerIds.length} previous demo callers`);
     }
