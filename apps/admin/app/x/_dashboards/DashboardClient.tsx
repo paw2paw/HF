@@ -270,7 +270,7 @@ function DemoView({
         <div className="dash-demo-icon">👋</div>
         <h1 className="dash-demo-title">{config.title}</h1>
         <p className="dash-demo-desc">{config.subtitle}</p>
-        <Link href="/x/sim" className="dash-demo-cta">
+        <Link href="/x/sim" target="_blank" className="dash-demo-cta">
           <SimIcon size={24} />
           Start a Conversation
         </Link>
@@ -315,6 +315,7 @@ function QuickActionsBar(): JSX.Element {
           <Link
             key={action.href}
             href={action.href}
+            target="_blank"
             className={`dash-action-btn${action.primary ? " dash-action-btn--primary" : ""}`}
           >
             {Icon && <Icon size={16} />}
@@ -410,7 +411,7 @@ function ActivityFeed({
       ) : (
         <div className="dash-feed-list">
           {activities.slice(0, 10).map((activity, i) => (
-            <Link key={`${activity.entityId}-${i}`} href={activity.href} className="dash-feed-row">
+            <Link key={`${activity.entityId}-${i}`} href={activity.href} target="_blank" className="dash-feed-row">
               <div className="dash-feed-left">
                 <div className={`dash-feed-dot ${ACTIVITY_DOT_CLASS[activity.type] ?? ""}`} />
                 <span className="dash-feed-name">{activity.entityName}</span>
@@ -446,7 +447,7 @@ function SpotlightLearners({
           const strokeDashoffset = RING_CIRCUMFERENCE * (1 - s.mastery);
 
           return (
-            <Link key={s.id} href={`/x/callers/${s.id}`} className="dash-spot-card hf-card">
+            <Link key={s.id} href={`/x/callers/${s.id}`} target="_blank" className="dash-spot-card hf-card">
               <div className="dash-spot-ring">
                 <svg viewBox="0 0 64 64" className="dash-spot-svg">
                   <circle
@@ -501,7 +502,7 @@ function ActiveJobsSection({ tasks }: { tasks: ActiveTask[] }): JSX.Element {
           const resumeUrl = RESUME_PATHS[task.taskType]?.(ctx) || "/x/jobs";
 
           return (
-            <Link key={task.id} href={resumeUrl} className="dash-job-row">
+            <Link key={task.id} href={resumeUrl} target="_blank" className="dash-job-row">
               <div className="dash-job-left">
                 <div className="dash-job-step-badge">
                   {task.currentStep}/{task.totalSteps}
@@ -590,7 +591,7 @@ function EntitySection({
   const getItemHref = (item: EntityItem): string => {
     switch (entityKey) {
       case "domains": return `/x/domains?id=${item.id}`;
-      case "playbooks": return `/x/playbooks/${item.id}`;
+      case "playbooks": return `/x/courses/${item.id}`;
       case "callers": return `/x/callers/${item.id}`;
       case "specs": return `/x/specs?id=${item.id}`;
       case "communities": return `/x/communities/${item.id}`;
@@ -609,12 +610,12 @@ function EntitySection({
         <span className="dash-entity-count">{count}</span>
         <div className="dash-entity-actions">
           {canCreate && (
-            <Link href={entityConfig.createHref} className="dash-entity-new-btn">
+            <Link href={entityConfig.createHref} target="_blank" className="dash-entity-new-btn">
               <Plus size={12} />
               New
             </Link>
           )}
-          <Link href={entityConfig.href} className="dash-entity-view-all">
+          <Link href={entityConfig.href} target="_blank" className="dash-entity-view-all">
             View all <ChevronRight size={12} className="dash-entity-view-all-icon" />
           </Link>
         </div>
@@ -626,7 +627,7 @@ function EntitySection({
           <span className="dash-entity-empty-text">
             No {lowerPlural(entityConfig.termKey)} yet.{" "}
             {canCreate && (
-              <Link href={entityConfig.createHref} className="dash-entity-empty-link">
+              <Link href={entityConfig.createHref} target="_blank" className="dash-entity-empty-link">
                 Create one →
               </Link>
             )}
@@ -638,6 +639,7 @@ function EntitySection({
             <Link
               key={item.id}
               href={getItemHref(item)}
+              target="_blank"
               className="dash-entity-row"
             >
               <span className="dash-entity-name">
@@ -707,7 +709,7 @@ function QuickLinksSection({ links }: { links: Array<{ label: string; icon: stri
         {links.map((link) => {
           const Icon = ICON_MAP[link.icon];
           return (
-            <Link key={link.href} href={link.href} className="dash-link-card">
+            <Link key={link.href} href={link.href} target="_blank" className="dash-link-card">
               <div className="dash-link-icon">
                 {Icon && <Icon size={18} />}
               </div>

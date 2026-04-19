@@ -44,8 +44,8 @@ export const ENTITY_CONFIGS: Record<EntityKey, EntityConfig> = {
     key: "playbooks",
     termKey: "playbook",
     icon: "BookOpen",
-    href: "/x/playbooks",
-    createHref: "/x/courses",
+    href: "/x/courses",
+    createHref: "/x/get-started-v5",
     columns: [
       { key: "domainName", type: "text", termKey: "domain" },
       { key: "callerCount", type: "count", termKey: "caller" },
