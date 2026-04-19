@@ -712,6 +712,17 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
     console.log(`  Teacher: ${teacherCaller.name}, Cohort: ${cohort.name}`);
 
     // ── 10. Create Learners + Enrichment ──
+    // Look up real parameter IDs for scoring (created by spec seeds)
+    const scoreParams = await prisma.parameter.findMany({
+      where: { name: { in: ["Engagement", "Comprehension", "Recall"] } },
+      select: { id: true, name: true },
+    });
+    const paramIdMap: Record<string, string> = {};
+    for (const p of scoreParams) {
+      paramIdMap[p.name.toLowerCase()] = p.id;
+    }
+    const hasScoreParams = Object.keys(paramIdMap).length > 0;
+
     let totalCalls = 0;
     let totalScores = 0;
     let totalMemories = 0;
@@ -778,7 +789,7 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
       }
 
       // ── CallScores ──
-      if (callIds.length > 0 && learnerDef.archetype !== "newActive") {
+      if (callIds.length > 0 && learnerDef.archetype !== "newActive" && hasScoreParams) {
         const scoreBatch = [];
         const [minScore, maxScore] = archScoreRange(learnerDef.archetype);
 
@@ -787,12 +798,14 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
           const progressBoost = learnerDef.archetype === "struggling" ? 0 : (c / callIds.length) * 0.10;
 
           for (const paramKey of ["engagement", "comprehension", "recall"]) {
+            const pid = paramIdMap[paramKey];
+            if (!pid) continue; // Skip if parameter doesn't exist
             const baseScore = r2(seededRange(minScore, maxScore, `score-${externalId}-${c}-${paramKey}`));
             const score = r2(Math.min(1, baseScore + progressBoost));
             scoreBatch.push({
               callId: callIds[c],
               callerId: learner.id,
-              parameterId: paramKey,
+              parameterId: pid,
               score,
               confidence: r2(seededRange(0.6, 0.9, `conf-${externalId}-${c}-${paramKey}`)),
               evidence: [`Extracted from psychology discussion`],
@@ -802,8 +815,10 @@ export async function main(externalPrisma?: PrismaClient): Promise<void> {
           }
         }
 
-        await prisma.callScore.createMany({ data: scoreBatch });
-        totalScores += scoreBatch.length;
+        if (scoreBatch.length > 0) {
+          await prisma.callScore.createMany({ data: scoreBatch });
+          totalScores += scoreBatch.length;
+        }
       }
 
       // ── CallerMemory ──
