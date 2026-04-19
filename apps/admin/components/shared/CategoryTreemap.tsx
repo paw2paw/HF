@@ -3,10 +3,17 @@
 /**
  * CategoryTreemap — squarified treemap visualization for content category distribution.
  * Extracted from CourseIntelligenceTab for reuse on the dashboard.
+ *
+ * Features:
+ * - Squarified layout algorithm for optimal aspect ratios
+ * - Consistent category colors from CONTENT_CATEGORIES
+ * - Hover card showing sample teaching points (when categoryItems provided)
  */
 
+import { useState, useRef, useCallback } from "react";
 import { getCategoryStyle } from "@/lib/content-categories";
 import { CONTENT_CATEGORIES } from "@/lib/content-categories";
+import "./category-treemap.css";
 
 // ── Squarify layout ──────────────────────────────────
 
@@ -74,17 +81,90 @@ function squarify(
   return rects;
 }
 
+// ── Hover Card ──────────────────────────────────────
+
+function HoverCard({
+  cat,
+  count,
+  total,
+  items,
+  anchorRect,
+  containerRect,
+}: {
+  cat: string;
+  count: number;
+  total: number;
+  items?: string[];
+  anchorRect: DOMRect;
+  containerRect: DOMRect;
+}): React.ReactElement {
+  const meta = CONTENT_CATEGORIES[cat] ?? getCategoryStyle(cat);
+  const pct = Math.round((count / total) * 100);
+
+  // Position: prefer above the cell, fall back to below
+  const spaceAbove = anchorRect.top - containerRect.top;
+  const showBelow = spaceAbove < 160;
+
+  const left = Math.min(
+    Math.max(anchorRect.left - containerRect.left + anchorRect.width / 2, 120),
+    containerRect.width - 120,
+  );
+
+  const style: React.CSSProperties = {
+    left: `${left}px`,
+    ...(showBelow
+      ? { top: `${anchorRect.bottom - containerRect.top + 8}px` }
+      : { bottom: `${containerRect.bottom - anchorRect.top + 8}px` }),
+  };
+
+  return (
+    <div className="cat-treemap-hover" style={style}>
+      <div className="cat-treemap-hover-header">
+        {meta.icon && <span className="cat-treemap-hover-icon">{meta.icon}</span>}
+        <span className="cat-treemap-hover-label">{meta.label}</span>
+        <span className="cat-treemap-hover-count">{count}</span>
+        <span className="cat-treemap-hover-pct">{pct}%</span>
+      </div>
+      {items && items.length > 0 && (
+        <ul className="cat-treemap-hover-items">
+          {items.map((item, i) => (
+            <li key={i}>{item.length > 80 ? item.slice(0, 77) + "…" : item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Component ────────────────────────────────────────
 
 export function CategoryTreemap({
   categoryCounts,
+  categoryItems,
   className,
 }: {
   categoryCounts: Record<string, number>;
+  categoryItems?: Record<string, string[]>;
   className?: string;
 }): React.ReactElement | null {
   const total = Object.values(categoryCounts).reduce((s, c) => s + c, 0);
   if (total === 0) return null;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState<{
+    cat: string;
+    count: number;
+    anchorRect: DOMRect;
+  } | null>(null);
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent, cat: string, count: number) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setHovered({ cat, count, anchorRect: rect });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHovered(null);
+  }, []);
 
   const entries = Object.entries(categoryCounts)
     .filter(([, c]) => c > 0)
@@ -97,11 +177,13 @@ export function CategoryTreemap({
   );
 
   return (
-    <div className={`cat-treemap-container${className ? ` ${className}` : ""}`}>
+    <div
+      ref={containerRef}
+      className={`cat-treemap-container${className ? ` ${className}` : ""}`}
+    >
       <div className="cat-treemap">
         {rects.map((r) => {
           const meta = CONTENT_CATEGORIES[r.cat] ?? getCategoryStyle(r.cat);
-          const pct = Math.round((r.count / total) * 100);
           const showLabel = r.w > 15 && r.h > 18;
           const showCount = r.w > 10 && r.h > 12;
           return (
@@ -115,7 +197,8 @@ export function CategoryTreemap({
                 height: `${r.h}%`,
                 background: meta.color,
               }}
-              data-label={`${meta.label}: ${r.count} (${pct}%)`}
+              onMouseEnter={(e) => handleMouseEnter(e, r.cat, r.count)}
+              onMouseLeave={handleMouseLeave}
             >
               {showLabel && <span className="cat-treemap-label">{meta.label}</span>}
               {showCount && <span className="cat-treemap-count">{r.count}</span>}
@@ -123,6 +206,18 @@ export function CategoryTreemap({
           );
         })}
       </div>
+
+      {/* Hover card */}
+      {hovered && containerRef.current && (
+        <HoverCard
+          cat={hovered.cat}
+          count={hovered.count}
+          total={total}
+          items={categoryItems?.[hovered.cat]}
+          anchorRect={hovered.anchorRect}
+          containerRect={containerRef.current.getBoundingClientRect()}
+        />
+      )}
     </div>
   );
 }

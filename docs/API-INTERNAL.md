@@ -5897,7 +5897,7 @@ Aggregate proof points for the dashboard — total students, mastery, calls,
 
 **Response** `200`
 ```json
-{ ok: true, totalStudents, totalCalls, avgMastery, memoriesLearned, modulesCompleted, activeThisWeek, contentMix, spotlights, recentActivity }
+{ ok: true, totalStudents, totalCalls, avgMastery, memoriesLearned, modulesCompleted, activeThisWeek, contentMix, contentMixItems, spotlights, recentActivity }
 ```
 
 **Response** `401`

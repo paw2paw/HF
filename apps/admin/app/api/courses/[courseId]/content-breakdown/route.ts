@@ -191,7 +191,7 @@ export async function GET(
     }
 
     // ── Summary mode: counts by teachMethod ───────────
-    const [methodGroups, totalCount, reviewedCount, instructionCount, unassignedContentCount, categoryGroups] = await Promise.all([
+    const [methodGroups, totalCount, reviewedCount, instructionCount, unassignedContentCount, categoryGroups, categorySamples] = await Promise.all([
       prisma.contentAssertion.groupBy({
         by: ["teachMethod"],
         where: { sourceId: { in: sourceIds }, category: { notIn: [...INSTRUCTION_CATEGORIES] } },
@@ -221,11 +221,29 @@ export async function GET(
         _count: { id: true },
         orderBy: { _count: { id: "desc" } },
       }),
+
+      // Sample assertions per category for hover preview
+      prisma.contentAssertion.findMany({
+        where: { sourceId: { in: sourceIds } },
+        take: 100,
+        orderBy: { createdAt: "desc" },
+        select: { category: true, assertion: true },
+      }),
     ]);
 
     const categoryCounts: Record<string, number> = {};
     for (const g of categoryGroups) {
       if (g.category) categoryCounts[g.category] = g._count.id;
+    }
+
+    // Build sample items per category (top 5 each) for hover preview
+    const categoryItems: Record<string, string[]> = {};
+    for (const sample of categorySamples) {
+      const cat = sample.category;
+      if (!categoryItems[cat]) categoryItems[cat] = [];
+      if (categoryItems[cat].length < 5) {
+        categoryItems[cat].push(sample.assertion);
+      }
     }
 
     const methods = methodGroups.map((g) => ({
@@ -312,6 +330,7 @@ export async function GET(
       unassignedContentCount,
       reviewedCount,
       categoryCounts,
+      categoryItems,
       ...(bySubjectData ? { bySubject: bySubjectData } : {}),
     });
   } catch (error: unknown) {

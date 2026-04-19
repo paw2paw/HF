@@ -12,7 +12,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  *   memories learned, content mix, and spotlight learners. Designed for fast loading (SQL
  *   aggregates, no per-caller fetches). Used by the proof-points strip, spotlight cards,
  *   and content mix treemap on the SUPERADMIN/DEMO dashboard.
- * @response 200 { ok: true, totalStudents, totalCalls, avgMastery, memoriesLearned, modulesCompleted, activeThisWeek, contentMix, spotlights, recentActivity }
+ * @response 200 { ok: true, totalStudents, totalCalls, avgMastery, memoriesLearned, modulesCompleted, activeThisWeek, contentMix, contentMixItems, spotlights, recentActivity }
  * @response 401 Unauthorized
  * @response 500 { ok: false, error: "..." }
  */
@@ -33,6 +33,7 @@ export async function GET(): Promise<NextResponse> {
       modulesCompleted,
       activeThisWeek,
       contentMixRaw,
+      contentMixSamples,
       spotlightCallers,
       recentCalls,
       recentPlaybooks,
@@ -72,6 +73,13 @@ export async function GET(): Promise<NextResponse> {
         _count: { _all: true },
         orderBy: { _count: { category: "desc" } },
         take: 12,
+      }),
+
+      // Content mix sample items — top 5 assertion texts per category for hover preview
+      prisma.contentAssertion.findMany({
+        take: 100,
+        orderBy: { createdAt: "desc" },
+        select: { category: true, assertion: true },
       }),
 
       // Spotlight learners — top 5 by mastery with call + memory counts
@@ -136,6 +144,16 @@ export async function GET(): Promise<NextResponse> {
     const contentMix: Record<string, number> = {};
     for (const row of contentMixRaw) {
       contentMix[row.category] = row._count._all;
+    }
+
+    // Build sample items per category (top 5 each) for hover preview
+    const contentMixItems: Record<string, string[]> = {};
+    for (const sample of contentMixSamples) {
+      const cat = sample.category;
+      if (!contentMixItems[cat]) contentMixItems[cat] = [];
+      if (contentMixItems[cat].length < 5) {
+        contentMixItems[cat].push(sample.assertion);
+      }
     }
 
     // Transform spotlights — compute average mastery per caller
@@ -215,6 +233,7 @@ export async function GET(): Promise<NextResponse> {
       modulesCompleted,
       activeThisWeek,
       contentMix,
+      contentMixItems,
       spotlights,
       recentActivity,
     });

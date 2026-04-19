@@ -71,6 +71,7 @@ interface ProofSummary {
   modulesCompleted: number;
   activeThisWeek: number;
   contentMix: Record<string, number>;
+  contentMixItems?: Record<string, string[]>;
   spotlights: Array<{
     id: string;
     name: string;
@@ -220,6 +221,7 @@ export default function DashboardClient({ role }: Props): JSX.Element {
       {config.showProofPoints && proofData && Object.keys(proofData.contentMix).length > 0 && (
         <ContentMixSection
           contentMix={proofData.contentMix}
+          contentMixItems={proofData.contentMixItems}
           courses={data?.entities?.playbooks ?? []}
         />
       )}
@@ -359,13 +361,16 @@ function ProofPointsStrip({ proof }: { proof: ProofSummary }): JSX.Element {
 
 function ContentMixSection({
   contentMix,
+  contentMixItems,
   courses,
 }: {
   contentMix: Record<string, number>;
+  contentMixItems?: Record<string, string[]>;
   courses: EntityItem[];
 }): JSX.Element {
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [courseContentMix, setCourseContentMix] = useState<Record<string, number> | null>(null);
+  const [courseContentItems, setCourseContentItems] = useState<Record<string, string[]> | null>(null);
   const [loadingCourse, setLoadingCourse] = useState(false);
 
   const courseOptions: FancySelectOption[] = [
@@ -377,6 +382,7 @@ function ContentMixSection({
   useEffect(() => {
     if (selectedCourse === "all") {
       setCourseContentMix(null);
+      setCourseContentItems(null);
       return;
     }
     let cancelled = false;
@@ -387,16 +393,19 @@ function ContentMixSection({
         if (cancelled) return;
         if (body.ok && body.categoryCounts) {
           setCourseContentMix(body.categoryCounts);
+          setCourseContentItems(body.categoryItems ?? null);
         } else {
           setCourseContentMix(null);
+          setCourseContentItems(null);
         }
       })
-      .catch(() => { if (!cancelled) setCourseContentMix(null); })
+      .catch(() => { if (!cancelled) { setCourseContentMix(null); setCourseContentItems(null); } })
       .finally(() => { if (!cancelled) setLoadingCourse(false); });
     return () => { cancelled = true; };
   }, [selectedCourse]);
 
   const activeMix = selectedCourse === "all" ? contentMix : (courseContentMix ?? contentMix);
+  const activeItems = selectedCourse === "all" ? contentMixItems : (courseContentItems ?? contentMixItems);
   const total = Object.values(activeMix).reduce((s, c) => s + c, 0);
 
   return (
@@ -420,7 +429,7 @@ function ContentMixSection({
       {loadingCourse ? (
         <div className="dash-content-loading">Loading...</div>
       ) : (
-        <CategoryTreemap categoryCounts={activeMix} />
+        <CategoryTreemap categoryCounts={activeMix} categoryItems={activeItems} />
       )}
     </div>
   );
