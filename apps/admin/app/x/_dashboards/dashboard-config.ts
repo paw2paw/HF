@@ -106,6 +106,8 @@ export interface DashboardRoleConfig {
   showJobs: boolean;
   showSearch: boolean;
   showFooter: boolean;
+  showProofPoints: boolean;
+  showQuickActions: boolean;
   entityKeys: EntityKey[];   // which entity previews to show
   recentCallsLimit: number;
   quickLinks: QuickLink[];
@@ -119,6 +121,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: true,
     showSearch: true,
     showFooter: true,
+    showProofPoints: true,
+    showQuickActions: true,
     entityKeys: ["domains", "playbooks", "callers", "communities", "specs"],
     recentCallsLimit: 8,
     quickLinks: [
@@ -135,6 +139,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: true,
     showSearch: true,
     showFooter: false,
+    showProofPoints: true,
+    showQuickActions: true,
     entityKeys: ["domains", "playbooks", "callers", "communities"],
     recentCallsLimit: 6,
     quickLinks: [
@@ -150,6 +156,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: true,
     showSearch: true,
     showFooter: false,
+    showProofPoints: true,
+    showQuickActions: true,
     entityKeys: ["domains", "playbooks", "callers", "communities"],
     recentCallsLimit: 6,
     quickLinks: [
@@ -164,6 +172,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: false,
     showSearch: false,
     showFooter: false,
+    showProofPoints: false,
+    showQuickActions: false,
     entityKeys: ["callers", "domains"],
     recentCallsLimit: 5,
     quickLinks: [
@@ -178,6 +188,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: false,
     showSearch: false,
     showFooter: false,
+    showProofPoints: false,
+    showQuickActions: false,
     entityKeys: ["callers"],
     recentCallsLimit: 5,
     quickLinks: [
@@ -191,6 +203,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: false,
     showSearch: false,
     showFooter: false,
+    showProofPoints: false,
+    showQuickActions: false,
     entityKeys: ["callers"],
     recentCallsLimit: 5,
     quickLinks: [
@@ -204,6 +218,8 @@ export const DASHBOARD_CONFIGS: Record<string, DashboardRoleConfig> = {
     showJobs: false,
     showSearch: false,
     showFooter: false,
+    showProofPoints: true,
+    showQuickActions: false,
     entityKeys: [],
     recentCallsLimit: 0,
     quickLinks: [],
@@ -283,6 +299,15 @@ export const WIZARD_ACTIONS = [
     primary: false,
   },
 ];
+
+// ── Quick Actions (replaces wizard CTAs on dashboard) ──────
+
+export const QUICK_ACTIONS = [
+  { label: "New Course", icon: "Plus", href: "/x/courses?action=setup", primary: true },
+  { label: "View Student", icon: "User", href: "/x/callers", primary: false },
+  { label: "Try AI Call", icon: "MessageCircle", href: "/x/sim", primary: false },
+  { label: "Import", icon: "Download", href: "/x/import", primary: false },
+] as const;
 
 // ── Helpers ─────────────────────────────────────────────────
 

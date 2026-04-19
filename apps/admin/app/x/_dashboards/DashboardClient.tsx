@@ -6,6 +6,7 @@ import { ChevronRight, Plus } from "lucide-react";
 import { useTerminology } from "@/contexts/TerminologyContext";
 import type { TermKey } from "@/lib/terminology/types";
 import { ICON_MAP } from "@/lib/sidebar/icons";
+import { getCategoryStyle } from "@/lib/content-categories";
 import AskAISearchBar from "@/components/shared/AskAISearchBar";
 import {
   getConfigForRole,
@@ -15,6 +16,7 @@ import {
   RESUME_PATHS,
   FOOTER_LINKS,
   WIZARD_ACTIONS,
+  QUICK_ACTIONS,
   type EntityKey,
 } from "./dashboard-config";
 import "./dashboard.css";
@@ -59,15 +61,44 @@ interface ActiveTask {
   updatedAt: string;
 }
 
+interface ProofSummary {
+  totalStudents: number;
+  totalCalls: number;
+  avgMastery: number | null;
+  memoriesLearned: number;
+  modulesCompleted: number;
+  activeThisWeek: number;
+  contentMix: Record<string, number>;
+  spotlights: Array<{
+    id: string;
+    name: string;
+    mastery: number;
+    callCount: number;
+    memoryCount: number;
+  }>;
+  recentActivity: Array<{
+    type: "call" | "course" | "enrollment";
+    entityName: string;
+    entityId: string;
+    action: string;
+    timestamp: string;
+    href: string;
+  }>;
+}
+
 // ── Main Component ──────────────────────────────────────────
 
 interface Props {
   role: string;
 }
 
-export default function DashboardClient({ role }: Props) {
+// Suppress unused-var lint — WIZARD_ACTIONS is kept for external consumers
+void WIZARD_ACTIONS;
+
+export default function DashboardClient({ role }: Props): JSX.Element {
   const { terms, plural, lower, lowerPlural } = useTerminology();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [proofData, setProofData] = useState<ProofSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,24 +106,50 @@ export default function DashboardClient({ role }: Props) {
   const isDemo = role === "DEMO";
 
   const loadData = useCallback(async () => {
-    if (isDemo) {
-      setLoading(false);
-      return;
-    }
     try {
-      const res = await fetch("/api/dashboard");
-      const body = await res.json();
-      if (body?.ok) {
-        setData(body);
-      } else {
-        setError(body?.error || "Failed to load dashboard");
+      const fetches: Promise<void>[] = [];
+
+      // Main dashboard data (skip for DEMO)
+      if (!isDemo) {
+        fetches.push(
+          fetch("/api/dashboard")
+            .then((res) => res.json())
+            .then((body) => {
+              if (body?.ok) {
+                setData(body);
+              } else {
+                setError(body?.error || "Failed to load dashboard");
+              }
+            }),
+        );
       }
+
+      // Proof summary (parallel fetch)
+      if (config.showProofPoints) {
+        fetches.push(
+          fetch("/api/dashboard/proof-summary")
+            .then((res) => res.json())
+            .then((body) => {
+              if (body?.ok) {
+                setProofData(body);
+              }
+              // Silently ignore proof-summary failures — non-critical
+            })
+            .catch(() => {
+              // Non-critical — proof strip just won't render
+            }),
+        );
+      }
+
+      await Promise.all(fetches);
     } catch {
-      setError("Failed to load dashboard. Check your connection.");
+      if (!isDemo) {
+        setError("Failed to load dashboard. Check your connection.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [isDemo]);
+  }, [isDemo, config.showProofPoints]);
 
   useEffect(() => {
     loadData();
@@ -118,7 +175,7 @@ export default function DashboardClient({ role }: Props) {
 
   // ── Demo ──────────────────────────────────────────────
   if (isDemo) {
-    return <DemoView config={config} />;
+    return <DemoView config={config} proofData={proofData} />;
   }
 
   // ── Main Dashboard ────────────────────────────────────
@@ -139,28 +196,29 @@ export default function DashboardClient({ role }: Props) {
         </div>
       </div>
 
-      {/* Wizard CTAs */}
-      {config.showWizards && (
-        <WizardSection terms={terms} lower={lower} />
+      {/* Quick Actions Bar (replaces Wizard CTAs) */}
+      {config.showQuickActions && <QuickActionsBar />}
+
+      {/* Proof Points Strip */}
+      {config.showProofPoints && proofData && (
+        <ProofPointsStrip proof={proofData} />
       )}
 
-      {/* Explore Demos */}
-      {config.showWizards && (
-        <Link href="/x/demos" className="dash-demos-banner">
-          <div className="dash-demos-banner-icon">
-            {ICON_MAP.Presentation && <ICON_MAP.Presentation size={18} />}
+      {/* Two-column: Content Mix | Activity Feed */}
+      {config.showProofPoints && proofData && (
+        <div className="dash-two-col">
+          <div className="dash-col">
+            <ContentMixChart contentMix={proofData.contentMix} />
           </div>
-          <div className="dash-demos-banner-text">
-            <span className="dash-demos-banner-title">Explore Demos</span>
-            <span className="dash-demos-banner-desc">Interactive walkthroughs of key features</span>
+          <div className="dash-col">
+            <ActivityFeed activities={proofData.recentActivity} />
           </div>
-          <ChevronRight size={16} className="dash-demos-banner-arrow" />
-        </Link>
+        </div>
       )}
 
-      {/* Active Jobs */}
-      {config.showJobs && data && data.activeTasks.length > 0 && (
-        <ActiveJobsSection tasks={data.activeTasks} />
+      {/* Spotlight Learners */}
+      {config.showProofPoints && proofData && proofData.spotlights.length > 0 && (
+        <SpotlightLearners spotlights={proofData.spotlights} />
       )}
 
       {/* Entity Previews */}
@@ -175,9 +233,9 @@ export default function DashboardClient({ role }: Props) {
         />
       )}
 
-      {/* Recent Activity */}
-      {data && data.recentCalls.length > 0 && (
-        <RecentActivitySection calls={data.recentCalls} plural={plural} />
+      {/* Active Jobs */}
+      {config.showJobs && data && data.activeTasks.length > 0 && (
+        <ActiveJobsSection tasks={data.activeTasks} />
       )}
 
       {/* Quick Links */}
@@ -193,7 +251,13 @@ export default function DashboardClient({ role }: Props) {
 
 // ── Demo View ───────────────────────────────────────────────
 
-function DemoView({ config }: { config: ReturnType<typeof getConfigForRole> }) {
+function DemoView({
+  config,
+  proofData,
+}: {
+  config: ReturnType<typeof getConfigForRole>;
+  proofData: ProofSummary | null;
+}): JSX.Element {
   const SimIcon = ICON_MAP.MessageCircle;
   const BrainIcon = ICON_MAP.Brain;
   const BarChartIcon = ICON_MAP.BarChart3;
@@ -201,6 +265,7 @@ function DemoView({ config }: { config: ReturnType<typeof getConfigForRole> }) {
 
   return (
     <div data-tour="welcome" className="dash-page">
+      {/* Hero */}
       <div className="dash-demo-hero">
         <div className="dash-demo-icon">👋</div>
         <h1 className="dash-demo-title">{config.title}</h1>
@@ -209,57 +274,51 @@ function DemoView({ config }: { config: ReturnType<typeof getConfigForRole> }) {
           <SimIcon size={24} />
           Start a Conversation
         </Link>
-        <div className="dash-demo-features">
-          {[
-            { Icon: BrainIcon, title: "Adaptive", description: "AI learns your style" },
-            { Icon: BarChartIcon, title: "Measured", description: "Every interaction counts" },
-            { Icon: TargetIcon, title: "Personal", description: "Tailored to you" },
-          ].map((feature) => (
-            <div key={feature.title} className="dash-demo-feature">
-              <div className="dash-demo-feature-icon">
-                <feature.Icon size={24} />
-              </div>
-              <div className="dash-demo-feature-title">{feature.title}</div>
-              <div className="dash-demo-feature-desc">{feature.description}</div>
+      </div>
+
+      {/* Proof Points Strip */}
+      {proofData && <ProofPointsStrip proof={proofData} />}
+
+      {/* Spotlight Learners */}
+      {proofData && proofData.spotlights.length > 0 && (
+        <SpotlightLearners spotlights={proofData.spotlights} />
+      )}
+
+      {/* Feature cards */}
+      <div className="dash-demo-features">
+        {[
+          { Icon: BrainIcon, title: "Adaptive", description: "AI learns your style" },
+          { Icon: BarChartIcon, title: "Measured", description: "Every interaction counts" },
+          { Icon: TargetIcon, title: "Personal", description: "Tailored to you" },
+        ].map((feature) => (
+          <div key={feature.title} className="dash-demo-feature">
+            <div className="dash-demo-feature-icon">
+              <feature.Icon size={24} />
             </div>
-          ))}
-        </div>
+            <div className="dash-demo-feature-title">{feature.title}</div>
+            <div className="dash-demo-feature-desc">{feature.description}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// ── Wizard Section ──────────────────────────────────────────
+// ── Quick Actions Bar ──────────────────────────────────────
 
-function WizardSection({
-  terms,
-  lower,
-}: {
-  terms: Record<string, string>;
-  lower: (key: TermKey) => string;
-}) {
+function QuickActionsBar(): JSX.Element {
   return (
-    <div className="dash-wizards-grid">
-      {WIZARD_ACTIONS.map((action) => {
+    <div className="dash-actions-bar">
+      {QUICK_ACTIONS.map((action) => {
         const Icon = ICON_MAP[action.icon];
-        const label = action.termKey ? terms[action.termKey as TermKey] || action.label : action.label;
-        const desc = action.termKey
-          ? `Set up a new ${lower(action.termKey as TermKey)}`
-          : action.description;
-
         return (
           <Link
             key={action.href}
             href={action.href}
-            className={`dash-wizard-card${action.primary ? " dash-wizard-card-primary" : ""}`}
+            className={`dash-action-btn${action.primary ? " dash-action-btn--primary" : ""}`}
           >
-            <div className="dash-wizard-icon">
-              {Icon && <Icon size={20} />}
-            </div>
-            <div>
-              <div className="dash-wizard-title">{label}</div>
-              <div className="dash-wizard-desc">{desc}</div>
-            </div>
+            {Icon && <Icon size={16} />}
+            {action.label}
           </Link>
         );
       })}
@@ -267,9 +326,167 @@ function WizardSection({
   );
 }
 
+// ── Proof Points Strip ─────────────────────────────────────
+
+function ProofPointsStrip({ proof }: { proof: ProofSummary }): JSX.Element {
+  const tiles = [
+    { label: "Students", value: String(proof.totalStudents) },
+    {
+      label: "Mastery",
+      value: proof.avgMastery != null ? `${Math.round(proof.avgMastery * 100)}%` : "--",
+    },
+    { label: "Calls", value: String(proof.totalCalls) },
+    { label: "Facts Learned", value: String(proof.memoriesLearned) },
+  ];
+
+  return (
+    <div className="dash-proof-strip">
+      {tiles.map((tile) => (
+        <div key={tile.label} className="dash-proof-tile">
+          <div className="dash-proof-value">{tile.value}</div>
+          <div className="dash-proof-label">{tile.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Content Mix Chart ──────────────────────────────────────
+
+function ContentMixChart({ contentMix }: { contentMix: Record<string, number> }): JSX.Element {
+  const entries = Object.entries(contentMix)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8);
+
+  const maxValue = entries.length > 0 ? Math.max(...entries.map(([, v]) => v)) : 1;
+
+  return (
+    <div className="dash-content-mix">
+      <h3 className="hf-section-title">Content Mix</h3>
+      {entries.length === 0 ? (
+        <p className="dash-content-mix-empty">No content data yet</p>
+      ) : (
+        <div className="dash-content-bars">
+          {entries.map(([category, count]) => {
+            const style = getCategoryStyle(category);
+            const widthPct = Math.max((count / maxValue) * 100, 4);
+            return (
+              <div key={category} className="dash-content-bar">
+                <span className="dash-content-bar-label">{style.label}</span>
+                <div className="dash-content-bar-track">
+                  <div
+                    className="dash-content-bar-fill"
+                    style={{ width: `${widthPct}%`, backgroundColor: style.color }}
+                  />
+                </div>
+                <span className="dash-content-bar-count">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Activity Feed ──────────────────────────────────────────
+
+const ACTIVITY_DOT_CLASS: Record<string, string> = {
+  call: "dash-feed-dot--call",
+  course: "dash-feed-dot--course",
+  enrollment: "dash-feed-dot--enrollment",
+};
+
+function ActivityFeed({
+  activities,
+}: {
+  activities: ProofSummary["recentActivity"];
+}): JSX.Element {
+  return (
+    <div className="dash-feed">
+      <h3 className="hf-section-title">Recent Activity</h3>
+      {activities.length === 0 ? (
+        <p className="dash-feed-empty">No recent activity</p>
+      ) : (
+        <div className="dash-feed-list">
+          {activities.slice(0, 10).map((activity, i) => (
+            <Link key={`${activity.entityId}-${i}`} href={activity.href} className="dash-feed-row">
+              <div className="dash-feed-left">
+                <div className={`dash-feed-dot ${ACTIVITY_DOT_CLASS[activity.type] ?? ""}`} />
+                <span className="dash-feed-name">{activity.entityName}</span>
+                <span className="dash-feed-action">{activity.action}</span>
+              </div>
+              <span className="dash-feed-time">{formatRelativeDate(activity.timestamp)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Spotlight Learners ─────────────────────────────────────
+
+const RING_RADIUS = 28;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+function SpotlightLearners({
+  spotlights,
+}: {
+  spotlights: ProofSummary["spotlights"];
+}): JSX.Element {
+  const UserIcon = ICON_MAP.User;
+
+  return (
+    <div className="dash-spotlights">
+      <h3 className="hf-section-title">Spotlight Learners</h3>
+      <div className="dash-spotlights-grid">
+        {spotlights.slice(0, 3).map((s) => {
+          const pct = Math.round(s.mastery * 100);
+          const strokeDashoffset = RING_CIRCUMFERENCE * (1 - s.mastery);
+
+          return (
+            <Link key={s.id} href={`/x/callers/${s.id}`} className="dash-spot-card hf-card">
+              <div className="dash-spot-ring">
+                <svg viewBox="0 0 64 64" className="dash-spot-svg">
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r={RING_RADIUS}
+                    className="dash-spot-ring-bg"
+                  />
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r={RING_RADIUS}
+                    className="dash-spot-ring-fg"
+                    strokeDasharray={RING_CIRCUMFERENCE}
+                    strokeDashoffset={strokeDashoffset}
+                  />
+                </svg>
+                <span className="dash-spot-pct">{pct}%</span>
+              </div>
+              <div className="dash-spot-name">{s.name}</div>
+              <div className="dash-spot-stats">
+                <span className="dash-spot-stat">
+                  {UserIcon && <UserIcon size={12} />}
+                  {s.callCount} calls
+                </span>
+                <span className="dash-spot-stat">
+                  {s.memoryCount} memories
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Active Jobs Section ─────────────────────────────────────
 
-function ActiveJobsSection({ tasks }: { tasks: ActiveTask[] }) {
+function ActiveJobsSection({ tasks }: { tasks: ActiveTask[] }): JSX.Element {
   return (
     <div className="dash-jobs-section">
       <div className="dash-jobs-header">
@@ -323,7 +540,7 @@ function EntityPreviewsSection({
   role: string;
   plural: (key: TermKey) => string;
   lowerPlural: (key: TermKey) => string;
-}) {
+}): JSX.Element {
   // Filter communities out of domains to avoid duplication
   const filteredKeys = entityKeys.filter((key) => {
     // Only show entity sections we have config for
@@ -363,21 +580,21 @@ function EntitySection({
   role: string;
   plural: (key: TermKey) => string;
   lowerPlural: (key: TermKey) => string;
-}) {
-  const config = ENTITY_CONFIGS[entityKey];
-  const Icon = ICON_MAP[config.icon];
-  const title = plural(config.termKey);
+}): JSX.Element {
+  const entityConfig = ENTITY_CONFIGS[entityKey];
+  const Icon = ICON_MAP[entityConfig.icon];
+  const title = plural(entityConfig.termKey);
   const canCreate = isAdminRole(role);
 
   // Build href for each item
-  const getItemHref = (item: EntityItem) => {
+  const getItemHref = (item: EntityItem): string => {
     switch (entityKey) {
       case "domains": return `/x/domains?id=${item.id}`;
       case "playbooks": return `/x/playbooks/${item.id}`;
       case "callers": return `/x/callers/${item.id}`;
       case "specs": return `/x/specs?id=${item.id}`;
       case "communities": return `/x/communities/${item.id}`;
-      default: return config.href;
+      default: return entityConfig.href;
     }
   };
 
@@ -392,13 +609,13 @@ function EntitySection({
         <span className="dash-entity-count">{count}</span>
         <div className="dash-entity-actions">
           {canCreate && (
-            <Link href={config.createHref} className="dash-entity-new-btn">
+            <Link href={entityConfig.createHref} className="dash-entity-new-btn">
               <Plus size={12} />
               New
             </Link>
           )}
-          <Link href={config.href} className="dash-entity-view-all">
-            View all <ChevronRight size={12} style={{ display: "inline", verticalAlign: "middle" }} />
+          <Link href={entityConfig.href} className="dash-entity-view-all">
+            View all <ChevronRight size={12} className="dash-entity-view-all-icon" />
           </Link>
         </div>
       </div>
@@ -407,9 +624,9 @@ function EntitySection({
       {items.length === 0 ? (
         <div className="dash-entity-empty">
           <span className="dash-entity-empty-text">
-            No {lowerPlural(config.termKey)} yet.{" "}
+            No {lowerPlural(entityConfig.termKey)} yet.{" "}
             {canCreate && (
-              <Link href={config.createHref} className="dash-entity-empty-link">
+              <Link href={entityConfig.createHref} className="dash-entity-empty-link">
                 Create one →
               </Link>
             )}
@@ -428,7 +645,7 @@ function EntitySection({
               </span>
               <div className="dash-entity-meta">
                 {/* Column values based on entity config */}
-                {config.columns.map((col) => {
+                {entityConfig.columns.map((col) => {
                   const value = (item as unknown as Record<string, unknown>)[col.key];
                   if (value == null && col.type !== "badge") return null;
 
@@ -478,52 +695,9 @@ function EntitySection({
   );
 }
 
-// ── Recent Activity Section ─────────────────────────────────
-
-function RecentActivitySection({
-  calls,
-  plural,
-}: {
-  calls: RecentCall[];
-  plural: (key: TermKey) => string;
-}) {
-  return (
-    <div className="dash-activity-section">
-      <div className="dash-activity-header">
-        <h2 className="hf-section-title">Recent Activity</h2>
-        <p className="hf-section-desc">Latest {plural("session").toLowerCase()}</p>
-      </div>
-      <div className="dash-activity-list">
-        {calls.map((call) => (
-          <Link
-            key={call.id}
-            href={call.callerId ? `/x/callers/${call.callerId}?tab=journey` : "#"}
-            className="dash-activity-row"
-          >
-            <div className="dash-activity-left">
-              <div className="dash-activity-dot" />
-              <span className="dash-activity-name">
-                {call.callerName || "Unknown"}
-              </span>
-            </div>
-            <span className="dash-activity-date">
-              {new Date(call.createdAt).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Quick Links Section ─────────────────────────────────────
 
-function QuickLinksSection({ links }: { links: Array<{ label: string; icon: string; href: string; description?: string }> }) {
+function QuickLinksSection({ links }: { links: Array<{ label: string; icon: string; href: string; description?: string }> }): JSX.Element {
   return (
     <div className="dash-links-section">
       <div className="dash-links-header">
@@ -553,7 +727,7 @@ function QuickLinksSection({ links }: { links: Array<{ label: string; icon: stri
 
 // ── Footer Section ──────────────────────────────────────────
 
-function FooterSection() {
+function FooterSection(): JSX.Element {
   return (
     <div className="dash-footer">
       {FOOTER_LINKS.map((link) => {
