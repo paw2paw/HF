@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEntityContext } from "@/contexts";
 import {
   Paperclip,
-  Image,
   Link,
   X,
   Send,
@@ -90,7 +89,6 @@ export function FeedbackSubmitModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens
@@ -287,15 +285,6 @@ export function FeedbackSubmitModal({
           <button
             type="button"
             className="hf-btn hf-btn-secondary"
-            onClick={() => imageInputRef.current?.click()}
-          >
-            <Image size={16} />
-            Screenshot
-          </button>
-
-          <button
-            type="button"
-            className="hf-btn hf-btn-secondary"
             onClick={() => fileInputRef.current?.click()}
           >
             <Paperclip size={16} />
@@ -313,14 +302,6 @@ export function FeedbackSubmitModal({
             </button>
           )}
 
-          {/* Hidden file inputs */}
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            className="fb-hidden-input"
-            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
-          />
           <input
             ref={fileInputRef}
             type="file"
@@ -396,6 +377,7 @@ export function FeedbackSubmitModal({
 
         {/* Actions */}
         <div className="fb-actions">
+          <span className="fb-hint">Cmd+Shift+3 to take a screenshot</span>
           <button
             type="button"
             className="hf-btn hf-btn-secondary"
