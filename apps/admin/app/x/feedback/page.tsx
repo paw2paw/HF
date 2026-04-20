@@ -381,15 +381,26 @@ function FeedbackDetail({
     setEditing(true);
   };
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const handleDelete = async (): Promise<void> => {
-    if (!confirm("Delete this feedback?")) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     setSubmitting(true);
     try {
-      await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" });
-      onUpdate();
+      const res = await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!data.ok) {
+        console.error("[Feedback] Delete failed:", data.error);
+        return;
+      }
       onClose();
+      onUpdate();
     } finally {
       setSubmitting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -494,7 +505,7 @@ function FeedbackDetail({
         )}
         {canDelete && (
           <button className="hf-btn hf-btn-destructive" onClick={handleDelete} disabled={submitting}>
-            Delete
+            {confirmDelete ? "Confirm delete?" : "Delete"}
           </button>
         )}
         <button className="hf-btn hf-btn-secondary" onClick={onClose}>
