@@ -4396,6 +4396,28 @@ html.light {
   line-height: 1;
 }
 
+/* Feedback success toast */
+.hf-status-feedback-toast {
+  position: fixed;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: var(--status-success-text);
+  color: var(--surface-primary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  z-index: 1100;
+  animation: fb-toast-in 0.3s ease-out;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-primary) 20%, transparent);
+}
+
+@keyframes fb-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* Deep logging indicator */
 .hf-status-deep-dot {
   width: 7px;

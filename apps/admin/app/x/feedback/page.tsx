@@ -195,7 +195,7 @@ export default function FeedbackPage(): React.ReactElement {
           <div className="pfb-empty-icon">💬</div>
           <p className="pfb-empty-title">No feedback yet</p>
           <p className="pfb-empty-text">
-            Use the button above to share your thoughts.
+            Spotted a bug? Have an idea? Click &quot;+ New&quot; to let us know — we read every submission.
           </p>
         </div>
       ) : (
@@ -213,6 +213,7 @@ export default function FeedbackPage(): React.ReactElement {
                 <FeedbackDetail
                   ticketId={ticket.id}
                   isOwn={isOwn(ticket)}
+                  canDelete={roleLevel >= 3 || isOwn(ticket)}
                   onClose={() => setExpandedId(null)}
                   onUpdate={refetch}
                 />
@@ -316,11 +317,13 @@ function FeedbackRow({
 function FeedbackDetail({
   ticketId,
   isOwn,
+  canDelete,
   onClose,
   onUpdate,
 }: {
   ticketId: string;
   isOwn: boolean;
+  canDelete: boolean;
   onClose: () => void;
   onUpdate: () => void;
 }): React.ReactElement {
@@ -376,6 +379,18 @@ function FeedbackDetail({
     setEditTitle(ticket.title);
     setEditDesc(ticket.description);
     setEditing(true);
+  };
+
+  const handleDelete = async (): Promise<void> => {
+    if (!confirm("Delete this feedback?")) return;
+    setSubmitting(true);
+    try {
+      await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" });
+      onUpdate();
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading || !ticket) {
@@ -475,6 +490,11 @@ function FeedbackDetail({
         {canEdit && !editing && (
           <button className="hf-btn hf-btn-secondary" onClick={startEdit}>
             Edit
+          </button>
+        )}
+        {canDelete && (
+          <button className="hf-btn hf-btn-destructive" onClick={handleDelete} disabled={submitting}>
+            Delete
           </button>
         )}
         <button className="hf-btn hf-btn-secondary" onClick={onClose}>
