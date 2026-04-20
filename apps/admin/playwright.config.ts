@@ -16,6 +16,9 @@ export default defineConfig({
   /* Global setup for authentication */
   globalSetup: './e2e/global-setup.ts',
 
+  /* Global teardown — clean up e2e-created data */
+  globalTeardown: './e2e/global-teardown.ts',
+
   /* Run tests in files in parallel */
   fullyParallel: true,
 

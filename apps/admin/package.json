@@ -1,6 +1,6 @@
 {
   "name": "admin",
-  "version": "0.7.244",
+  "version": "0.7.245",
   "private": true,
   "scripts": {
     "dev": "next dev",
