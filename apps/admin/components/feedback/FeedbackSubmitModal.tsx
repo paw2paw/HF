@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useEntityContext } from "@/contexts";
 import {
-  Camera,
+  Paperclip,
+  Image,
   Link,
   X,
   Send,
@@ -24,6 +25,13 @@ interface FeedbackSubmitModalProps {
   onSuccess: (ticketNumber: number) => void;
   /** Optional pre-selected category */
   defaultCategory?: Category;
+}
+
+interface Attachment {
+  name: string;
+  type: string;
+  dataUrl: string;
+  sizeKb: number;
 }
 
 const CATEGORIES: {
@@ -58,6 +66,9 @@ const CATEGORIES: {
   },
 ];
 
+const MAX_FILE_SIZE_MB = 5;
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
 export function FeedbackSubmitModal({
   open,
   onClose,
@@ -72,13 +83,15 @@ export function FeedbackSubmitModal({
   );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [capturing, setCapturing] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -86,7 +99,7 @@ export function FeedbackSubmitModal({
       setCategory(defaultCategory ?? null);
       setTitle("");
       setDescription("");
-      setScreenshot(null);
+      setAttachments([]);
       setShowLinkInput(false);
       setLinkUrl("");
       setLinkLabel("");
@@ -109,28 +122,34 @@ export function FeedbackSubmitModal({
       ? breadcrumbs.map((b) => b.label || b.type || "?").join(" → ")
       : pathname || "";
 
-  // Screenshot capture — hide modal, snap, restore
-  const handleScreenshot = useCallback(async () => {
-    setCapturing(true);
-    // Brief delay so the modal can fade / the overlay isn't captured
-    await new Promise((r) => setTimeout(r, 350));
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(document.body, {
-        scale: 1,
-        logging: false,
-        useCORS: true,
-        ignoreElements: (el: Element) =>
-          el.classList.contains("fb-modal-overlay"),
-      });
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-      console.log("[Feedback] Screenshot captured:", dataUrl.length, "chars");
-      setScreenshot(dataUrl);
-    } catch (err) {
-      console.error("[Feedback] Screenshot capture failed:", err);
-    } finally {
-      setCapturing(false);
-    }
+  // File handler — reads file as data URL
+  const handleFiles = useCallback((files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > MAX_FILE_SIZE_MB) {
+        setError(`${file.name} is too large (${sizeMb.toFixed(1)}MB). Max ${MAX_FILE_SIZE_MB}MB.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setAttachments((prev) => [
+          ...prev,
+          {
+            name: file.name,
+            type: file.type,
+            dataUrl,
+            sizeKb: Math.round(file.size / 1024),
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const removeAttachment = useCallback((idx: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   // Submit handler
@@ -157,28 +176,24 @@ export function FeedbackSubmitModal({
       fullDescription += `\n\n[${label}](${linkUrl.trim()})`;
     }
 
+    // Use first image attachment as screenshot
+    const imageAttachment = attachments.find((a) => IMAGE_TYPES.includes(a.type));
+
     setSubmitting(true);
     try {
-      const payload = {
-        title: title.trim(),
-        description: fullDescription,
-        category,
-        pageContext: pageContextStr,
-        screenshot: screenshot ?? undefined,
-      };
-      console.log("[Feedback] Submitting:", {
-        ...payload,
-        screenshot: payload.screenshot ? `${payload.screenshot.length} chars` : "none",
-      });
-
       const res = await fetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          title: title.trim(),
+          description: fullDescription,
+          category,
+          pageContext: pageContextStr,
+          screenshot: imageAttachment?.dataUrl ?? undefined,
+        }),
       });
 
       const data = await res.json();
-      console.log("[Feedback] Response:", { ok: data.ok, screenshotUrl: data.ticket?.screenshotUrl ? "present" : "missing" });
 
       if (!data.ok) {
         setError(data.error || "Something went wrong. Please try again.");
@@ -198,11 +213,13 @@ export function FeedbackSubmitModal({
     linkUrl,
     linkLabel,
     pageContextStr,
-    screenshot,
+    attachments,
     onSuccess,
   ]);
 
   if (!open) return null;
+
+  const isImage = (type: string) => IMAGE_TYPES.includes(type);
 
   return (
     <div className="fb-modal-overlay" onClick={onClose}>
@@ -265,20 +282,24 @@ export function FeedbackSubmitModal({
           <div className="fb-page-context">You&apos;re on: {pageContextStr}</div>
         )}
 
-        {/* Screenshot + Add link row */}
-        <div className="fb-screenshot-row">
+        {/* Attach buttons row */}
+        <div className="fb-attach-row">
           <button
             type="button"
             className="hf-btn hf-btn-secondary"
-            onClick={handleScreenshot}
-            disabled={capturing}
+            onClick={() => imageInputRef.current?.click()}
           >
-            {capturing ? (
-              <Loader2 size={16} className="hf-spinner" />
-            ) : (
-              <Camera size={16} />
-            )}
-            {screenshot ? "Retake" : "Screenshot"}
+            <Image size={16} />
+            Screenshot
+          </button>
+
+          <button
+            type="button"
+            className="hf-btn hf-btn-secondary"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Paperclip size={16} />
+            Attach file
           </button>
 
           {!showLinkInput && (
@@ -292,21 +313,50 @@ export function FeedbackSubmitModal({
             </button>
           )}
 
-          {screenshot && (
-            <div className="fb-screenshot-thumb">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={screenshot} alt="Screenshot preview" />
-              <button
-                type="button"
-                className="fb-screenshot-remove"
-                onClick={() => setScreenshot(null)}
-                aria-label="Remove screenshot"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
+          {/* Hidden file inputs */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="fb-hidden-input"
+            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx"
+            className="fb-hidden-input"
+            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+          />
         </div>
+
+        {/* Attachments preview */}
+        {attachments.length > 0 && (
+          <div className="fb-attachments">
+            {attachments.map((att, idx) => (
+              <div key={idx} className="fb-attachment">
+                {isImage(att.type) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={att.dataUrl} alt={att.name} className="fb-attachment-thumb" />
+                ) : (
+                  <div className="fb-attachment-file">
+                    <Paperclip size={14} />
+                    <span className="fb-attachment-name">{att.name}</span>
+                  </div>
+                )}
+                <span className="fb-attachment-size">{att.sizeKb}KB</span>
+                <button
+                  type="button"
+                  className="fb-attachment-remove"
+                  onClick={() => removeAttachment(idx)}
+                  aria-label="Remove attachment"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Link input */}
         {showLinkInput && (
