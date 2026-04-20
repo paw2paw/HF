@@ -9,7 +9,9 @@
  * Accounts:
  *   admin@test.com     / admin123  → Superadmin (Abacus Academy)
  *   teach@abacus.com   / hff       → School educator (Abacus Academy)
- *   healthcare@hff.com / hff2026  → Healthcare educator (Demo Facility)
+ *   healthcare@hff.com / hff2026   → Healthcare educator (Demo Facility)
+ *   hff@test.com       / admin123  → HFF Partner / Super Tester (Abacus Academy)
+ *   sim@test.com       / admin123  → Market Tester (Abacus Academy)
  *
  * Idempotent: uses upsert on email.
  */
@@ -24,7 +26,7 @@ const ADMIN_PASSWORD = "admin123";
 interface DemoAccount {
   email: string;
   name: string;
-  role: "SUPERADMIN" | "EDUCATOR";
+  role: "SUPERADMIN" | "EDUCATOR" | "SUPER_TESTER" | "TESTER";
   typeSlug: string;
   institutionName: string;
   password?: string;
@@ -34,6 +36,8 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
   { email: "admin@test.com", name: "Test Admin", role: "SUPERADMIN", typeSlug: "school", institutionName: "Abacus Academy", password: ADMIN_PASSWORD },
   { email: "teach@abacus.com", name: "Abacus Teacher", role: "EDUCATOR", typeSlug: "school", institutionName: "Abacus Academy", password: ABACUS_PASSWORD },
   { email: "healthcare@hff.com", name: "Demo Provider", role: "EDUCATOR", typeSlug: "healthcare", institutionName: "Demo Facility" },
+  { email: "hff@test.com", name: "HFF Partner", role: "SUPER_TESTER", typeSlug: "school", institutionName: "Abacus Academy", password: ADMIN_PASSWORD },
+  { email: "sim@test.com", name: "Market Tester", role: "TESTER", typeSlug: "school", institutionName: "Abacus Academy", password: ADMIN_PASSWORD },
 ];
 
 export async function main(externalPrisma?: PrismaClient): Promise<void> {

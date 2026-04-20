@@ -38,7 +38,7 @@
   {
     "id": "launch",
     "title": "Launch",
-    "defaultHiddenFor": ["STUDENT", "EDUCATOR"],
+    "defaultHiddenFor": ["STUDENT", "EDUCATOR", "SUPER_TESTER"],
     "items": [
       { "id": "institution", "href": "/x/institutions/new", "label": "Institution", "icon": "Rocket", "highlighted": true, "wizard": true, "terminologyLabel": "domain" },
       { "id": "new-course", "href": "/x/courses/new", "label": "Course", "icon": "Rocket", "wizard": true, "terminologyLabel": "playbook" },
@@ -55,7 +55,7 @@
     "id": "calls",
     "title": "Calls",
     "href": "/x/sim",
-    "defaultHiddenFor": ["TESTER", "STUDENT", "DEMO", "EDUCATOR"],
+    "defaultHiddenFor": ["TESTER", "SUPER_TESTER", "STUDENT", "DEMO", "EDUCATOR"],
     "items": [
       { "id": "sim", "href": "/x/sim", "label": "Learn", "icon": "MessageCircle" },
       { "id": "analytics", "href": "/x/analytics", "label": "Analytics", "icon": "TrendingUp", "advancedOnly": true },
@@ -94,7 +94,7 @@
   {
     "id": "manage",
     "title": "Manage",
-    "defaultHiddenFor": ["STUDENT", "DEMO", "TESTER", "EDUCATOR"],
+    "defaultHiddenFor": ["STUDENT", "DEMO", "TESTER", "SUPER_TESTER", "EDUCATOR"],
     "items": [
       { "id": "communities", "href": "/x/communities", "label": "Communities", "icon": "Users2", "visibleFor": ["OPERATOR", "ADMIN", "SUPERADMIN"] },
       { "id": "manage-cohorts", "href": "/x/cohorts", "label": "Classrooms", "icon": "School", "terminologyLabel": "cohort_plural", "visibleFor": ["EDUCATOR", "OPERATOR", "ADMIN", "SUPERADMIN"], "roleVariants": { "EDUCATOR": { "href": "/x/educator/classrooms" } } },
@@ -150,6 +150,15 @@
     "title": "Feedback",
     "items": [
       { "id": "feedback", "href": "/x/feedback", "label": "Feedback", "icon": "MessageSquarePlus", "visibleFor": ["TESTER", "SUPER_TESTER", "OPERATOR", "ADMIN", "SUPERADMIN"] }
+    ]
+  },
+  {
+    "id": "tools",
+    "title": "Tools",
+    "defaultHiddenFor": ["TESTER", "DEMO", "STUDENT", "EDUCATOR"],
+    "items": [
+      { "id": "tools-metering", "href": "/x/metering", "label": "AI Metering", "icon": "BarChart3", "visibleFor": ["SUPER_TESTER", "OPERATOR", "ADMIN", "SUPERADMIN"] },
+      { "id": "tools-settings", "href": "/x/settings", "label": "Settings", "icon": "Settings", "visibleFor": ["SUPER_TESTER", "OPERATOR", "ADMIN", "SUPERADMIN"] }
     ]
   },
   {
