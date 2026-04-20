@@ -1,146 +1,172 @@
-# [Course Name] — Course Reference
+# HumanFirst Course Reference Template
+
+> **For course designers.** Upload this document to Claude (or any LLM) and ask it to help you fill out each section for your course. The result is a Course Reference — the document that tells the HumanFirst AI tutor how to teach your course.
+
+## How to use this template
+
+1. Upload this file to your LLM of choice
+2. Say: *"Help me create a Course Reference for [my course]. Interview me section by section."*
+3. The LLM will ask you questions and draft each section based on your answers
+4. Review each section before moving on — you are the expert on your course
+5. When complete, ask for the final document as a clean markdown file
+6. Upload the finished Course Reference to HumanFirst via the course wizard
+
+### Tips
+
+- **Every section is optional.** Fill what serves your course — skip what doesn't apply.
+- **Priority order:** Course Configuration and Course Overview are essential. Skills Framework and Teaching Approach make the biggest difference to tutor quality. Everything else adds nuance.
+- **Be specific.** "Teach through questioning" is weaker than "Ask the student to predict what will happen before revealing the answer — never explain first."
+- **Write for voice.** The tutor delivers via voice call. Avoid instructions that assume a screen, text input, or visual aids unless your course uses them.
+
+### Version tracking
+
+When your Course Reference is complete, include this in the footer:
+
+```
+**Template version:** 4.0
+```
+
+This helps us notify you when the template is updated with new capabilities.
+
+---
 
 ## Course Configuration
 
-> Machine-readable fields — used by HumanFirst to configure the AI tutor automatically.
-> Use exactly one `[x]` per group. Leave blank if unsure — the wizard will ask.
+> These fields auto-configure the AI tutor. Check exactly one box per group. Leave blank if unsure — the setup wizard will ask.
 
 **Course name:** [Full course name]
-**Subject / qualification:** [e.g. GCSE Biology, A-Level Economics, 11+ Comprehension]
+**Subject / qualification:** [e.g. GCSE Biology, A-Level Economics, IELTS Speaking]
 
 ### Teaching approach
+
+How should the tutor interact with the learner?
+
 - [ ] **Socratic** — question-based discovery, guides through questioning
 - [ ] **Directive** — structured, step-by-step instruction
-- [ ] **Advisory** — coaching style, offers guidance
-- [ ] **Coaching** — reflective dialogue, metacognition
-- [ ] **Companion** — supportive peer
-- [ ] **Facilitation** — discussion facilitation
-- [ ] **Reflective** — self-reflection and learning-from-experience
-- [ ] **Open** — flexible, adapts to need
-- [ ] **Conversational Guide** — guided 1:1 topic conversations
+- [ ] **Advisory** — coaching style, offers guidance when asked
+- [ ] **Coaching** — reflective dialogue, builds metacognition
+- [ ] **Companion** — supportive peer, learns alongside
+- [ ] **Facilitation** — guides discussion, draws out ideas
+- [ ] **Reflective** — promotes self-reflection and learning-from-experience
+- [ ] **Open** — flexible, adapts approach to the moment
+- [ ] **Conversational Guide** — guided 1:1 topic exploration
 
 ### Teaching emphasis
-- [ ] **Recall** — retrieval practice; facts, definitions, content
-- [ ] **Comprehension** — understanding through language and reading
-- [ ] **Practice** — skill application through worked examples
-- [ ] **Syllabus** — structured curriculum coverage
+
+What is the primary learning activity?
+
+- [ ] **Recall** — retrieval practice; facts, definitions, content recall
+- [ ] **Comprehension** — understanding through language, reading, listening
+- [ ] **Practice** — skill application through worked examples and exercises
+- [ ] **Syllabus** — structured curriculum coverage, topic by topic
 
 ### Student audience
-- [ ] **Primary** — age 5–11 (KS1–2)
-- [ ] **Secondary** — age 11–16 (KS3–4)
-- [ ] **Sixth Form** — age 16–19 (KS5)
+
+- [ ] **Primary** — age 5–11
+- [ ] **Secondary** — age 11–16
+- [ ] **Sixth Form** — age 16–19
 - [ ] **Higher Education** — age 18–25 (university)
 - [ ] **Professional** — working adults, outcome-focused
 - [ ] **Adult Learner** — adult learners, mixed purposes
 - [ ] **Mixed** — spans multiple age groups
 
 ### Coverage emphasis
-- [ ] **Breadth** — cover more outcomes lightly
+
+How should the tutor balance breadth vs depth?
+
+- [ ] **Breadth** — cover more outcomes, lighter touch on each
 - [ ] **Balanced** — sensible default
-- [ ] **Depth** — fewer outcomes, mastered thoroughly
-
----
-
-## Document Purpose
-
-This document is the course reference for the HumanFirst [Course Name] AI tutor. It is loaded into the tutor's knowledge base and retrieved during call planning, delivery, and post-call processing. It contains everything the tutor needs to know about this specific course — the outcomes being pursued, the content that serves them, how they are taught, how they are assessed, and how the tutor adapts call by call.
-
-> **HumanFirst does not plan sessions in advance.** The teacher declares *outcomes*, *content*, *constraints*, and a *pedagogical preset*. The system decides, call by call, which outcome to cover next and in what mode (teach / review / assess / practise). "Session count" is a live forecast, never a contract. Write this document accordingly — describe the *destination* and the *rules of engagement*, not a fixed session-by-session plan.
-
-This document does NOT contain:
-- General tutoring behaviour (handled by the system prompt)
-- [List any content loaded separately, e.g. reading passages, question banks, worksheets]
-
----
-
-## Course Overview
-
-**Subject:** [e.g. English reading comprehension, GCSE Maths, A-Level Biology]
-**Exam context:** [e.g. 11+ selective entrance, GCSE AQA, no exam — skill development only]
-**Student age:** [e.g. 9–11 (Year 5–6)]
-**Delivery:** [e.g. Voice call, 12–15 minutes per call; WhatsApp for async support]
-**Prerequisite courses:** [e.g. None / Must have completed Course X / Assumes GCSE-level knowledge of Y]
-**Curriculum dependency:** [e.g. None — extracurricular / Aligned to AQA GCSE specification]
-
-**Core proposition:** [One paragraph describing what this course does and how. What is the tutor's fundamental approach? What makes this course distinctive?]
-
----
-
-## Pacing Constraints
-
-> These are the *boundaries* the scheduler respects. They are not a plan. Leave fields blank where they do not apply.
-
-**Call duration:** [e.g. 12–15 minutes per call]
-**Total budget (optional, soft cap):** [e.g. 10 calls for a commercial package / unlimited]
-**Time window (optional):** [e.g. Exam on 2026-06-15; ~8 weeks of calls at 2/week]
-**Imported structure (optional):** [e.g. University module — 12 lectures. Each lecture = one outcome cluster. / None]
-
-**How to think about the budget:** If you declare a soft cap, the system will pace outcome coverage so it is possible to finish within the budget — but it will not invent scores or rush assessments to meet an arbitrary number. If the learner needs more calls, the forecast will say so and the teacher decides whether to extend.
+- [ ] **Depth** — fewer outcomes, mastered thoroughly before moving on
 
 ---
 
 ## Pedagogical Preset
 
-> Pick one. This drives the scheduler's weighting of interleaving, spacing, difficulty, and assessment frequency. Teachers do not tune the weights directly.
+> This controls how the tutor sequences learning — how much it interleaves topics, how often it tests recall, how quickly it increases difficulty. Pick one.
 
 - [ ] **Balanced** — sensible defaults for most courses
-- [ ] **Interleaved** — aggressively mix topics; research-backed for durable transfer
-- [ ] **Comprehension** — reading/listening understanding as the spine; think PIRLS/KS2 model
-- [ ] **Exam prep** — retrieval practice and timed assessments weighted high, spacing around exam date
-- [ ] **Revision** — assume prior exposure; maximise retrieval practice, minimise new teaching
-- [ ] **Confidence-building** — prioritise the learner's ZPD edge, go slow on difficulty jumps
+- [ ] **Interleaved** — aggressively mixes topics across calls; research-backed for long-term retention
+- [ ] **Comprehension** — reading/listening understanding as the spine; builds meaning layer by layer
+- [ ] **Exam prep** — retrieval practice weighted high, timed pressure, spacing around exam date
+- [ ] **Revision** — assumes prior exposure; maximises recall testing, minimises new teaching
+- [ ] **Confidence-building** — stays in the learner's comfort zone, slow difficulty progression
 
-**Rationale:** [One or two sentences on why this preset fits this course.]
+**Rationale:** [One or two sentences on why this preset fits your course.]
+
+---
+
+## Course Overview
+
+**Subject:** [e.g. English reading comprehension, GCSE Maths, IELTS Speaking]
+**Exam context:** [e.g. IELTS Academic Band 6.5–7.5 / GCSE AQA / no exam — skill development only]
+**Student age/level:** [e.g. 9–11 (Year 5–6) / Adults B1+ CEFR / Mixed ability KS3]
+**Delivery:** [e.g. Voice call, 12–15 minutes per call]
+**Prerequisite courses:** [e.g. None / Must have completed Course X / Assumes GCSE-level knowledge of Y]
+**Curriculum dependency:** [e.g. None — extracurricular / Aligned to AQA GCSE specification / Based on Cambridge syllabus]
+
+**Core proposition:** [One paragraph describing what this course does and how. What is the tutor's fundamental approach? What makes this course distinctive from other ways of learning this subject?]
 
 ---
 
 ## What This Course Is
 
-[2–3 paragraphs explaining the course in plain language. What does it develop? How does it work? What is the learning experience like for the student?]
+[2–3 paragraphs explaining the course in plain language. What does it develop? How does it work? What is the learning experience like for the student? Write this as if explaining to a parent or student.]
+
+---
+
+## What This Course Is NOT
+
+[Define boundaries clearly. This prevents the tutor from drifting into adjacent territory.]
+
+This course does NOT:
+
+- [e.g. Teach writing — this is a speaking course only]
+- [e.g. Replace classroom lessons — it supplements them]
+- [e.g. Promise a specific exam score]
+- [e.g. Commit to a fixed number of calls to reach mastery]
+- [Continue...]
+
+**When a student or parent asks "how many calls will this take?":** [Provide a script the tutor should use. Never promise a number.]
 
 ---
 
 ## Learning Outcomes
 
-> Outcomes are the spine of the course. Write each one as a concrete, observable statement — what will the learner actually be able to do? Avoid vague verbs like "understand" or "appreciate". Each outcome must be measurable through conversation, a task, or an assessment event.
+> Outcomes are the spine of the course — what the learner will be able to DO by the end. Write each as a concrete, observable statement. Avoid vague verbs like "understand" or "appreciate". Each outcome must be measurable through conversation.
 
 ### Outcome Graph
 
-Organise outcomes into logical clusters. For each outcome, declare its **prerequisites** (other outcomes that must be reasonably mastered first). The system treats this as a DAG — it will not surface an outcome whose prerequisites are not yet met.
+Organise outcomes into logical clusters. For each outcome, declare what must come before it (prerequisites). The system uses this to decide which outcome to work on next — it will never jump ahead of unsatisfied prerequisites.
 
-#### [Cluster 1, e.g. Core Skill Outcomes]
+#### [Cluster 1, e.g. Foundation Skills]
 
 **OUT-01: [Outcome name]**
-- *The learner can:* [concrete, observable statement]
+- *The learner can:* [concrete, observable statement — what they can actually do]
 - *Prerequisites:* [none / OUT-XX, OUT-YY]
-- *Mastery criterion:* [what evidence counts as mastered — e.g. "answers 3 of 4 inference questions correctly across 2 different passages"]
+- *Mastery criterion:* [what evidence counts — e.g. "correctly answers 3 of 4 inference questions across 2 different passages"]
 
 **OUT-02: [Outcome name]**
 - *The learner can:* [...]
 - *Prerequisites:* [OUT-01]
 - *Mastery criterion:* [...]
 
-[Continue numbering across clusters...]
+[Continue numbering sequentially across all clusters...]
 
-#### [Cluster 2, e.g. Exam-Readiness Outcomes / Practical Application Outcomes]
+#### [Cluster 2, e.g. Application / Exam Readiness]
 
-[Continue OUT-XX numbering]
-
-### How the Tutor Knows the Course Is Working
-
-[Describe the signals that indicate progress across outcomes as a whole. How does the tutor measure improvement through conversation rather than formal testing? What does stagnation look like, and what should it trigger? Note: day-to-day scoring is handled by the pipeline — this section is about the bigger picture a teacher would want to see.]
+[Continue OUT-XX numbering...]
 
 ---
 
 ## Skills Framework
 
-> Skills are orthogonal to outcomes. Outcomes are *what* the learner can do; skills are *how well* they can do it across contexts. Most courses have 3–8 skills. If your course is outcome-only (knowledge acquisition with no transferable skill), you may omit this section.
+> Skills are orthogonal to outcomes. Outcomes describe *what* the learner can do; skills describe *how well* they do it across different contexts. Most courses have 3–8 skills. If your course is purely knowledge-based (no transferable skill), skip this section.
 
 ### Skill Definitions
 
 **SKILL-01: [Skill Name]**
-[One-sentence definition.]
-- Emerging: [What does it look like when the student cannot yet do this?]
+[One-sentence definition of what this skill IS.]
+- Emerging: [What does it look like when the student can barely do this?]
 - Developing: [What does partial competence look like?]
 - Secure: [What does confident, independent performance look like?]
 
@@ -152,43 +178,12 @@ Organise outcomes into logical clusters. For each outcome, declare its **prerequ
 
 [Continue for all skills...]
 
-### Skill Interaction Notes
+### Skill Interactions
 
-[Describe dependencies between skills. Which skills reinforce each other? This helps the scheduler prioritise correctly within the current outcome.]
+[Which skills depend on or reinforce each other? This helps the tutor prioritise.]
 
-- [Skill X] depends on [Skill Y] because [reason]. If [Skill X] is emerging, check [Skill Y] first.
-- [Continue for all meaningful dependencies...]
-
----
-
-## Content Sources
-
-> Each content source must declare the outcomes it serves and an ordering mode. The ordering mode tells the scheduler whether material must be followed in order (a novel, a textbook) or can be drawn from a pool (problem sets, past papers, reading passages).
-
-**[Source 1, e.g. Secret Garden chapters 1–8]:**
-- *Outcomes served:* OUT-01, OUT-02, OUT-05
-- *Ordering mode:* `sequential` — chapters must be read in order
-- *Notes:* [Anything the tutor should know — length, difficulty curve, content warnings]
-
-**[Source 2, e.g. PIRLS-style inference passages]:**
-- *Outcomes served:* OUT-02, OUT-03
-- *Ordering mode:* `pool` — any passage, any order
-- *Notes:* [...]
-
-**[Source 3, e.g. Past paper questions 2019–2024]:**
-- *Outcomes served:* OUT-06, OUT-07
-- *Ordering mode:* `spaced` — use for retrieval practice, rotate with other sources
-- *Notes:* [...]
-
-[Continue for all sources...]
-
-### Content Selection Preferences
-
-> The scheduler decides *which* content to use next based on the preset and the learner's state. This section is for *teacher preferences* the scheduler should respect — not a rigid algorithm.
-
-- [e.g. Do not use the same source for more than two consecutive calls unless the learner explicitly asks to continue]
-- [e.g. Prefer fiction over non-fiction when the learner's engagement drops]
-- [e.g. Hold past papers until OUT-04 is at least "developing"]
+- [Skill X] depends on [Skill Y] because [reason].
+- [Continue for meaningful dependencies...]
 
 ---
 
@@ -196,219 +191,164 @@ Organise outcomes into logical clusters. For each outcome, declare its **prerequ
 
 ### Core Principles
 
-[List the non-negotiable teaching principles for this course. Each should be a short heading followed by 1–2 sentences explaining the principle and why it matters.]
+[List your non-negotiable teaching rules. Each: bold heading + 1–2 sentences explaining WHY this matters. These are the rules the tutor must never break.]
 
-**[Principle 1, e.g. Teach through questioning, not explanation.]** [Explanation]
+**[Principle 1, e.g. Never give the answer — always ask a question first.]** [Why this matters for your course.]
 
-**[Principle 2]** [Explanation]
+**[Principle 2, e.g. One focus per call — do not try to improve everything at once.]** [Why.]
 
 [Continue for all principles...]
 
 ### Call Flow
 
-> A call is a single interaction, not a "session" in a pre-planned sequence. Describe the standard shape of any call on this course. The scheduler picks the outcome and mode; this section tells the tutor how to *run* the call once it has the decision.
+> Every call follows a rhythm. Describe the standard shape — the tutor adapts within this structure.
 
-1. **Opening (~[X] minutes):** [What happens — greeting, orientation, recall of last call]
-2. **Retrieval check (~[X] minutes):** [Quick pull on a previously covered outcome — keeps spacing alive]
-3. **Core exchange (~[X] minutes):** [The outcome + mode the scheduler selected for this call]
-4. **Stretch or consolidate (~[X] minutes):** [If time permits, either push to the next outcome in the frontier or consolidate the current one]
-5. **Close (~[X] minutes):** [Summary, what the learner did well, tiny preview of next call]
+1. **Opening (~[X] min):** [What happens — greeting, recall of last call, orientation]
+2. **Retrieval check (~[X] min):** [Quick test on something from a previous call — keeps memory alive]
+3. **Core exchange (~[X] min):** [The main learning activity for this call]
+4. **Stretch or consolidate (~[X] min):** [If time: push further. If struggling: reinforce.]
+5. **Close (~[X] min):** [Summary, what went well, what's coming next]
 
-[Describe how the tutor balances time between the current outcome, retrieval of previous outcomes, and any stretch goals. What does "done" look like for a single call?]
+### Teaching Techniques by Skill or Outcome
 
-### Teaching Techniques by Outcome or Skill
+[For each skill or outcome cluster, describe HOW the tutor teaches it. Include example questions, common student responses, and how to scaffold when the student is stuck.]
 
-[For each outcome cluster or skill, describe HOW the tutor teaches it. Include example questions or prompts. You do not need to cover every outcome individually — cluster-level guidance is fine.]
+**[Skill/Cluster 1]:** [Techniques, example prompts, scaffolding]
 
-**[Outcome cluster 1 or Skill 1]:** [Techniques, example questions, common student responses, how to scaffold]
-
-**[Outcome cluster 2 or Skill 2]:** [Techniques, example questions, common student responses, how to scaffold]
+**[Skill/Cluster 2]:** [Techniques, example prompts, scaffolding]
 
 [Continue...]
 
 ---
 
-## Course Phases
+## First Call
 
-> Phases mark *qualitative shifts in how the tutor behaves*. They are no longer tied to session numbers. Each phase has entry and exit conditions based on progress events — outcome mastery, retrieval accuracy, engagement, or time elapsed.
+> The first call is unique — the tutor has zero information about the learner. Describe how it differs from a normal call.
 
-### Phase 1: [Name, e.g. Baseline and Rapport]
+### Opening
 
-**Entry condition:** `first_exchange_complete` (i.e. the first call is always Phase 1)
+[Script or near-script for the very first interaction. Include branches: nervous student, eager student, reluctant student.]
 
-**Goal:** [What is this phase trying to achieve?]
+### Exploration
 
-**Tutor behaviour in this phase:**
-- [Specific behaviour 1]
-- [Specific behaviour 2]
-- [Continue...]
+[What is the first call trying to achieve? Typically: calibrate the learner's level, build rapport, set expectations. It does NOT try to teach or master anything.]
 
-**Parent/guardian communication:** [What is communicated, when, in what tone?]
+### Closing
 
-**Exit condition:** [e.g. `outcomes_at_least_emerging ≥ 0.5 × total` AND `rapport_established == true` / `calls_completed ≥ 2`]
-
-### Phase 2: [Name]
-
-**Entry condition:** [Exit condition of Phase 1]
-
-**Goal:** [...]
-
-**Tutor behaviour in this phase:** [...]
-
-**Exit condition:** [e.g. `outcomes_mastered ≥ 0.5 × total`]
-
-### Phase 3: [Name]
-
-**Entry condition:** [Exit condition of Phase 2]
-
-**Goal:** [...]
-
-**Exit condition:** [e.g. `all_outcomes_mastered` OR `budget_exhausted`]
-
-[Add more phases if needed]
-
----
-
-## First Call: Specific Instructions
-
-> The first call is always unique — the tutor has no prior state on the learner. Describe exactly how the first call differs from a standard call. This replaces "Session 1" guidance.
-
-### Pre-Call Setup
-
-[What has the student received before the call? What should they have done to prepare?]
-
-### Opening (~[X] minutes)
-
-[Provide a script or near-script for the opening. Include branches for common scenarios (e.g. student has/hasn't prepared, nervous vs. eager).]
-
-### Guided Exploration (~[X] minutes)
-
-[How does the core of the first call differ from a standard call? What is the tutor prioritising — breadth of assessment? Comfort? Relationship-building? The first call typically does NOT try to master any outcome; it calibrates.]
-
-### Closing (~[X] minutes)
-
-[Provide a script or near-script. What should the tutor say — and NOT say? Do not promise a fixed number of future calls.]
-
-### Post-Call Actions
-
-[What happens immediately after the first call? Messages to send, learner-model seeding, observations to record.]
-
----
-
-## Learner Model
-
-[Describe the persistent data the tutor maintains for each learner.]
-
-### Model Structure
-
-**Outcome mastery:** per outcome — `not_started | emerging | developing | secure | mastered`, plus last-assessed timestamp and evidence count. This is the primary progress signal.
-
-**Skill ratings:** [If the course uses a skill framework, how are skills tracked? Per skill? Per skill per content type?]
-
-**Call history:** [What is recorded per call? At minimum: outcome covered, mode, duration, engagement, scheduler reason.]
-
-**Engagement trajectory:** [How is engagement tracked and what triggers intervention?]
-
-**[Any course-specific tracking]:** [e.g. Voice comfort, confidence level, homework completion]
-
-**Pattern notes:** [Free text observations. Give 3–5 examples of the kind of notes the tutor should write.]
-
-**Readiness flags:** [Boolean flags that gate progression — typically phase-transition gates. List them.]
-- [flag_name]: [What must be true]
-- [Continue...]
-
-**Parent communication log:** [How is parent communication tracked?]
-
----
-
-## Communication
-
-[Describe how the tutor communicates outside of calls. Adapt channels to your course — WhatsApp, email, LMS, etc.]
-
-### To the Student
-
-**Tone:** [e.g. Warm, brief, casual. No exclamation marks unless the student uses them.]
-
-**After every call:** [What is sent? Template or example.]
-
-**[Any other regular communication]:** [Description and example]
-
-### To the Parent/Guardian
-
-**Tone:** [e.g. Professional, reassuring, specific. Never generic praise.]
-
-**Trigger events (not a schedule):** [When are updates sent? Prefer event-based triggers — e.g. "after Phase 1 exit", "on first mastered outcome", "on engagement drop" — over "every 3 sessions".]
-
-**Content formula:** [What should every parent message include?]
-
-**Never include:** [What must be avoided in parent communication?]
-
----
-
-## Assessment Boundaries
-
-[Define what this course does NOT do. This prevents scope creep and sets expectations.]
-
-This course does NOT:
-
-- [Boundary 1, e.g. Prepare for specific exam papers]
-- [Boundary 2, e.g. Teach writing / grammar / spelling]
-- [Boundary 3, e.g. Replace school lessons]
-- [Boundary 4, e.g. Promise specific exam outcomes]
-- [Boundary 5, e.g. Commit to a fixed number of calls to mastery]
-
-[Include a script for how the tutor should respond if a student or parent asks about something outside the boundaries — including "how many calls will this take?"]
+[Script or near-script. What to say — and what NOT to say. Never promise a specific number of future calls.]
 
 ---
 
 ## Edge Cases and Recovery
 
-[Describe specific scenarios the tutor may encounter, with clear recovery instructions.]
+[Describe specific difficult scenarios with clear instructions for the tutor.]
 
-**[Scenario 1, e.g. Student has not prepared]:** [What to do. How to adapt the call. What to record.]
+**[Scenario 1, e.g. Student has not prepared]:** [What to do. How to adapt. What to record.]
 
-**[Scenario 2, e.g. Student is uncommunicative]:** [What to do. How long to wait. When to end the call.]
+**[Scenario 2, e.g. Student is uncommunicative / won't engage]:** [How long to wait. When to end the call early.]
 
-**[Scenario 3, e.g. Student is distressed]:** [What to do. When to stop. Who to contact.]
+**[Scenario 3, e.g. Student is distressed or frustrated]:** [De-escalation. When to stop. Who to contact.]
 
-**[Scenario 4, e.g. Parent intervenes]:** [How to handle. What to say.]
+**[Scenario 4, e.g. Parent/guardian intervenes mid-call]:** [How to handle gracefully.]
 
-**[Scenario 5, e.g. Technical issues]:** [When to reschedule vs persist.]
+**[Scenario 5, e.g. Learner is stuck on the same topic across multiple calls]:** [When to change approach. When to escalate to the teacher.]
 
-**[Scenario 6, e.g. Learner plateau on an outcome]:** [When the scheduler keeps surfacing the same outcome with no progress — when to pivot, when to escalate to the teacher.]
+**[Scenario 6, e.g. Student asks the tutor to just give the answer]:** [Script for redirecting.]
 
 [Add more scenarios relevant to your course...]
 
 ---
 
-## Metrics and Quality Signals
+## Pacing Constraints
 
-[Describe the signals the tutor tracks for quality assurance. These are internal — not shared with the student.]
+> Optional. Declare boundaries on how the course is delivered — these are limits, not a schedule.
 
-**Outcome progression rate:** [How fast are outcomes moving from emerging → mastered? What is healthy?]
+**Call duration:** [e.g. 12–15 minutes per call]
+**Total budget (optional):** [e.g. 10 calls for a commercial package / unlimited]
+**Time window (optional):** [e.g. Exam on 2026-06-15; ~8 weeks of calls at 2/week]
+**External structure (optional):** [e.g. University module — 12 lectures, one outcome cluster per lecture / None]
 
-**Scoring-event fidelity:** [Scores are only written when the scheduler requested assessment or a classifier detects it. Watch for zero-score calls or runaway-scoring calls.]
+---
 
-**Student talk ratio:** [Definition, target range, what too-low/too-high means]
+## Content Sources
 
-**Scaffolding frequency:** [Definition, what the trend should look like]
+> If your course uses specific materials (texts, passages, question banks, videos), list them here with guidance on how the tutor should use them.
 
-**Evidence provision rate:** [Definition, when to start tracking]
+**[Source 1, e.g. Secret Garden chapters 1–8]:**
+- *Outcomes served:* OUT-01, OUT-02, OUT-05
+- *Ordering:* sequential — chapters must be read in order
+- *Notes:* [Length, difficulty, content warnings]
 
-**Forecast drift:** [If the live session-count forecast is climbing fast, the course is harder than expected for this learner — investigate.]
+**[Source 2, e.g. Practice prompts bank]:**
+- *Outcomes served:* OUT-02, OUT-03
+- *Ordering:* any order — draw from pool as needed
+- *Notes:* [...]
+
+**[Source 3, e.g. Past exam questions 2019–2024]:**
+- *Outcomes served:* OUT-06, OUT-07
+- *Ordering:* spaced — rotate for retrieval practice
+- *Notes:* [...]
+
+### Content Preferences
+
+- [e.g. Don't use the same source two calls in a row]
+- [e.g. Hold past papers until the student has at least 3 outcomes at "developing"]
+- [Continue...]
+
+---
+
+## Course Phases
+
+> Optional. If the tutor should behave qualitatively differently at different stages of the course, describe the phases here. Phases are triggered by learner progress, not by call count.
+
+### Phase 1: [Name, e.g. Baseline and Rapport]
+
+**Begins:** First call
+**Goal:** [What this phase achieves]
+**Tutor behaviour:** [How the tutor acts differently in this phase]
+**Ends when:** [Progress-based condition, e.g. "learner has at least 3 outcomes at emerging level"]
+
+### Phase 2: [Name, e.g. Core Development]
+
+**Begins:** [End condition of Phase 1]
+**Goal:** [...]
+**Tutor behaviour:** [...]
+**Ends when:** [...]
+
+### Phase 3: [Name, e.g. Mastery and Independence]
+
+**Begins:** [End condition of Phase 2]
+**Goal:** [...]
+**Ends when:** [All outcomes mastered, or budget reached]
+
+---
+
+## Communication
+
+> Optional. If the tutor should communicate outside of calls (messages, summaries, nudges), describe the rules here.
+
+### To the Student
+
+**Tone:** [e.g. Warm, brief, casual. No exclamation marks unless the student uses them.]
+**After every call:** [What is sent — e.g. "One-sentence summary of what they improved"]
+
+### To the Parent/Guardian
+
+**Tone:** [e.g. Professional, reassuring, specific. Never generic praise.]
+**When to send:** [Event-based — e.g. "after first call", "when a skill reaches Secure", "if engagement drops"]
+**Always include:** [What every message must contain]
+**Never include:** [What to avoid — e.g. scores, comparisons to other students]
 
 ---
 
 ## Document Version
 
-**Version:** 3.0
+**Version:** [e.g. 1.0]
+**Template version:** 4.0
 **Created:** [Date]
 **Course:** [Course name]
-**Status:** [e.g. Draft / Pilot-ready / Live]
+**Status:** [Draft / Pilot-ready / Live]
 **Author:** [Name]
-**Reviewed by:** [Name, if applicable]
 
 **Changelog:**
-- 3.0 — Machine-readable Course Configuration block: teaching approach, emphasis, audience, coverage checkboxes. Positioned before Document Purpose for textSample capture (#179).
-- 2.0 — Outcome-graph pacing model: outcomes + prerequisites as the spine, content tagged to outcomes with ordering modes, pedagogical preset picker, phases keyed to progress events (not session numbers), first-call guidance replaces session-1 guidance, pacing constraints section added.
-- 1.0 — Initial session-indexed template.
+- 1.0 — Initial course reference.

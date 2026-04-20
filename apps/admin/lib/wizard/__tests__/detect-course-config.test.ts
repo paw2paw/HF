@@ -203,6 +203,42 @@ describe("detectCourseConfig", () => {
     }
   });
 
+  // ── Pedagogical preset ───────────────────────────────────
+
+  describe("pedagogicalPreset", () => {
+    const presets = [
+      ["Balanced", "BALANCED"],
+      ["Interleaved", "INTERLEAVED"],
+      ["Comprehension", "COMPREHENSION"],
+      ["Exam prep", "EXAM_PREP"],
+      ["Revision", "REVISION"],
+      ["Confidence-building", "CONFIDENCE_BUILD"],
+    ] as const;
+
+    for (const [label, expected] of presets) {
+      it(`parses [x] **${label}** → "${expected}"`, () => {
+        const text = `## Pedagogical Preset\n\n- [x] **${label}** — description\n\n## Next Section`;
+        const r = detectCourseConfig(text);
+        expect(r.pedagogicalPreset).toBe(expected);
+      });
+    }
+
+    it("does not collide with Coverage emphasis Balanced", () => {
+      // "Balanced" checked in Coverage section should NOT trigger preset
+      const text = `### Coverage emphasis\n- [x] **Balanced** — sensible default\n\n## What This Course Is`;
+      const r = detectCourseConfig(text);
+      expect(r.planEmphasis).toBe("balanced");
+      expect(r.pedagogicalPreset).toBeNull();
+    });
+
+    it("correctly detects both when both are checked", () => {
+      const text = `### Coverage emphasis\n- [x] **Depth** — fewer outcomes\n\n## Pedagogical Preset\n\n- [x] **Interleaved** — aggressively mix topics\n\n## What This Course Is`;
+      const r = detectCourseConfig(text);
+      expect(r.planEmphasis).toBe("depth");
+      expect(r.pedagogicalPreset).toBe("INTERLEAVED");
+    });
+  });
+
   // ── Learning outcomes ────────────────────────────────────
 
   describe("learningOutcomes", () => {
@@ -310,6 +346,7 @@ describe("hasCourseConfig", () => {
     teachingMode: null,
     audience: null,
     planEmphasis: null,
+    pedagogicalPreset: null,
     learningOutcomes: null,
     detectedFrom: [],
   };

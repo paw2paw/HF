@@ -157,6 +157,11 @@ const QUESTION_BANK_SKELETON: DocumentSkeleton = {
   },
 };
 
+// TODO: COURSE_REFERENCE_SKELETON is stale — still uses session-indexed phases
+// (coursePhases.sessions, courseLength) and lacks: Outcome Graph with prerequisites,
+// Pacing Constraints (soft cap, time window), Pedagogical Preset picker,
+// Content Sources with ordering modes (sequential/pool/spaced).
+// Align with a-sample-docs/course-reference-template.md v3.0.
 const COURSE_REFERENCE_SKELETON: DocumentSkeleton = {
   type: "COURSE_REFERENCE",
   label: "Course Reference",

@@ -21,6 +21,7 @@ import {
   type AudienceId,
   AUDIENCE_OPTIONS,
 } from "@/lib/prompt/composition/transforms/audience";
+import type { SchedulerPresetName } from "@/lib/pipeline/scheduler-presets";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export interface DetectedCourseConfig {
   teachingMode: TeachingMode | null;
   audience: AudienceId | null;
   planEmphasis: "breadth" | "balanced" | "depth" | null;
+  pedagogicalPreset: SchedulerPresetName | null;
   learningOutcomes: string[] | null;
   /** Raw text snippets that triggered each detection. */
   detectedFrom: string[];
@@ -85,6 +87,17 @@ const EMPHASIS_LABEL_MAP: Record<string, "breadth" | "balanced" | "depth"> = {
   depth: "depth",
 };
 
+const PRESET_LABEL_MAP: Record<string, SchedulerPresetName> = {
+  balanced: "BALANCED",
+  interleaved: "INTERLEAVED",
+  comprehension: "COMPREHENSION",
+  "exam prep": "EXAM_PREP",
+  revision: "REVISION",
+  "confidence-building": "CONFIDENCE_BUILD",
+};
+
+const VALID_PRESETS = new Set<string>(Object.values(PRESET_LABEL_MAP));
+
 // ── Helpers ────────────────────────────────────────────────
 
 /** Match a checked checkbox: `[x]`, `[X]`, `[ x ]`, `[ X ]` followed by bold label. */
@@ -128,6 +141,7 @@ export function detectCourseConfig(bodyText: string): DetectedCourseConfig {
     teachingMode: null,
     audience: null,
     planEmphasis: null,
+    pedagogicalPreset: null,
     learningOutcomes: null,
     detectedFrom: [],
   };
@@ -209,6 +223,29 @@ export function detectCourseConfig(bodyText: string): DetectedCourseConfig {
     }
   }
 
+  // ── Pedagogical preset (scoped to "## Pedagogical Preset" section to avoid
+  //    "Balanced" collision with the Coverage emphasis section above)
+  const presetHeadingIdx = bodyText.search(/^##\s+Pedagogical Preset/m);
+  if (presetHeadingIdx !== -1) {
+    // Slice from heading to next ## or end-of-document
+    const nextHeading = bodyText.indexOf("\n## ", presetHeadingIdx + 1);
+    const presetSection = nextHeading !== -1
+      ? bodyText.slice(presetHeadingIdx, nextHeading)
+      : bodyText.slice(presetHeadingIdx);
+
+    const presetResult = findCheckedCheckbox(presetSection, PRESET_LABEL_MAP);
+    if (presetResult) {
+      if (VALID_PRESETS.has(presetResult.value)) {
+        result.pedagogicalPreset = presetResult.value as SchedulerPresetName;
+        result.detectedFrom.push(`pedagogicalPreset: "${presetResult.value}"`);
+      } else {
+        result.detectedFrom.push(
+          `pedagogicalPreset REJECTED (invalid): "${presetResult.value}"`,
+        );
+      }
+    }
+  }
+
   // ── Learning outcomes: OUT-XX lines with "The learner can:" statements
   const outcomeRegex =
     /\*\*OUT-\d+:\s*(.+?)\*\*[\s\S]*?\*The learner can:\*\s*(.+)/g;
@@ -240,6 +277,7 @@ export function hasCourseConfig(c: DetectedCourseConfig): boolean {
     c.teachingMode !== null ||
     c.audience !== null ||
     c.planEmphasis !== null ||
+    c.pedagogicalPreset !== null ||
     c.learningOutcomes !== null
   );
 }

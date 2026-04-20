@@ -986,6 +986,12 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
               if (courseConfig.teachingMode) { setData("teachingMode", courseConfig.teachingMode); docKeys.push("teachingMode"); }
               if (courseConfig.audience) { setData("audience", courseConfig.audience); docKeys.push("audience"); }
               if (courseConfig.planEmphasis) { setData("planEmphasis", courseConfig.planEmphasis); docKeys.push("planEmphasis"); }
+              // Merge precise preset detection into coursePedagogy (overrides detect-pedagogy's looser regex)
+              if (courseConfig.pedagogicalPreset) {
+                const existing = (getData("coursePedagogy") ?? {}) as Record<string, unknown>;
+                setData("coursePedagogy", { ...existing, pedagogicalPreset: courseConfig.pedagogicalPreset.toLowerCase() });
+                docKeys.push("pedagogicalPreset");
+              }
               if (courseConfig.learningOutcomes?.length) { setData("learningOutcomes", courseConfig.learningOutcomes); docKeys.push("learningOutcomes"); }
               if (docKeys.length > 0) {
                 setData("_docConfigKeys", docKeys);
