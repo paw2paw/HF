@@ -62,7 +62,7 @@ export async function POST(
   ]);
 
   // Recompose prompt for the new active course
-  autoComposeForCaller(callerId).catch((err) =>
+  autoComposeForCaller(callerId, enrollment.playbookId).catch((err) =>
     console.error(`[student/courses/activate] Auto-compose failed for ${callerId}:`, err.message),
   );
 

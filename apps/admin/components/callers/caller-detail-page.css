@@ -170,6 +170,11 @@
   opacity: 0.7;
 }
 
+.cdp-course-select {
+  min-width: 160px;
+  max-width: 260px;
+}
+
 .cdp-no-domain {
   font-size: 11px;
   color: var(--text-muted);

@@ -7,6 +7,7 @@ import { useEntityContext } from "@/contexts/EntityContext";
 import { DomainPill } from "@/src/components/shared/EntityPill";
 import { User, BookMarked, PlayCircle, Brain, BarChart3, Target, BookOpen, ClipboardCheck, CheckSquare, GitBranch, MessageCircle, Gauge, Archive, SlidersHorizontal, Phone, TrendingUp, Zap, Play } from "lucide-react";
 import { EditableTitle } from "@/components/shared/EditableTitle";
+import { FancySelect, type FancySelectOption } from "@/components/shared/FancySelect";
 import { SectionSelector, useSectionVisibility } from "@/components/shared/SectionSelector";
 import { CallerDomainSection } from "@/components/callers/CallerDomainSection";
 import { SimChat } from "@/components/sim/SimChat";
@@ -97,6 +98,11 @@ export default function CallerDetailPage() {
     memories: true, traits: true, slugs: true, enrollments: true,
   });
   const [enrollmentCount, setEnrollmentCount] = useState(0);
+
+  // Course filter — fetched enrollments + selected playbook
+  type Enrollment = { id: string; playbookId: string; status: string; isDefault: boolean; enrolledAt: string; playbook: { id: string; name: string; status: string } };
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>("all");
   const [progressVis, toggleProgressVis] = useSectionVisibility("caller-progress", {
     scores: true, behaviour: true, goals: true, exam: true,
   });
@@ -317,6 +323,27 @@ export default function CallerDetailPage() {
       })
       .catch((e) => console.warn("[CallerDetail] Failed to load prompts:", e));
 
+    // Fetch enrollments for course filter
+    fetch(`/api/callers/${callerId}/enrollments`)
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.ok) {
+          const active = (result.enrollments || []).filter((e: Enrollment) => e.status === "ACTIVE");
+          setEnrollments(active);
+          setEnrollmentCount(active.length);
+          // Auto-select: 1 course → that course; 2+ → most recent by enrolledAt
+          if (active.length === 1) {
+            setSelectedPlaybookId(active[0].playbookId);
+          } else if (active.length > 1) {
+            const sorted = [...active].sort((a: Enrollment, b: Enrollment) =>
+              new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime()
+            );
+            setSelectedPlaybookId(sorted[0].playbookId);
+          }
+        }
+      })
+      .catch((e) => console.warn("[CallerDetail] Failed to load enrollments:", e));
+
     // Fetch dynamic parameter display configuration (NO HARDCODING)
     fetch("/api/parameters/display-config")
       .then((r) => r.json())
@@ -336,6 +363,27 @@ export default function CallerDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // ── Course filter options + filtered data ──────────────
+  const courseOptions = useMemo((): FancySelectOption[] => {
+    const opts: FancySelectOption[] = [
+      { value: "all", label: "All Courses" },
+    ];
+    for (const e of enrollments) {
+      opts.push({ value: e.playbookId, label: e.playbook.name });
+    }
+    return opts;
+  }, [enrollments]);
+
+  const filteredCalls = useMemo(() => {
+    if (!data?.calls || selectedPlaybookId === "all") return data?.calls || [];
+    return data.calls.filter((c) => c.playbookId === selectedPlaybookId);
+  }, [data?.calls, selectedPlaybookId]);
+
+  const filteredPrompts = useMemo(() => {
+    if (selectedPlaybookId === "all") return composedPrompts;
+    return composedPrompts.filter((p) => p.playbookId === selectedPlaybookId || !p.playbookId);
+  }, [composedPrompts, selectedPlaybookId]);
 
   // ── Processing detection + auto-poll ──────────────
   // A call is "processing" if it's recent (< 5 min) and hasn't been analyzed yet.
@@ -510,6 +558,19 @@ export default function CallerDetailPage() {
                   {showDomainSection ? "▼" : "▶"}
                 </span>
               </div>
+              {/* Course Selector — filter page by enrolled course */}
+              {enrollments.length > 0 && (
+                <div className="cdp-course-select">
+                  <FancySelect
+                    value={selectedPlaybookId}
+                    onChange={setSelectedPlaybookId}
+                    options={courseOptions}
+                    placeholder="Course"
+                    searchable={false}
+                    clearable={false}
+                  />
+                </div>
+              )}
             </div>
             <div className="cdp-contact-row">
               {/* Editable Phone */}
@@ -895,8 +956,8 @@ export default function CallerDetailPage() {
 
       {activeSection === "calls-prompts" && (
         <CallsPromptsTab
-          calls={data.calls}
-          composedPrompts={composedPrompts}
+          calls={filteredCalls}
+          composedPrompts={filteredPrompts}
           callerId={callerId}
           processingCallIds={processingCallIds}
           expandedCall={expandedCall}

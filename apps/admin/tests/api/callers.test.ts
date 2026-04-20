@@ -388,7 +388,7 @@ describe("/api/callers", () => {
       const data = await response.json();
 
       expect(data.ok).toBe(true);
-      expect(enrollCaller).toHaveBeenCalledWith("new-caller-pb", "pb-123", "auto");
+      expect(enrollCaller).toHaveBeenCalledWith("new-caller-pb", "pb-123", "auto", undefined, { skipAutoCompose: false });
     });
 
     it("should use smart single-playbook enrollment when no playbookId", async () => {
@@ -414,7 +414,8 @@ describe("/api/callers", () => {
       const data = await response.json();
 
       expect(data.ok).toBe(true);
-      expect(resolveAndEnrollSingle).toHaveBeenCalledWith("new-caller-fb", "d-1", "auto");
+      expect(resolveAndEnrollSingle).toHaveBeenCalledWith("new-caller-fb", "d-1", "auto", undefined, undefined,
+        { skipAutoCompose: false });
     });
 
     it("should use provided domainId and skip default domain lookup", async () => {

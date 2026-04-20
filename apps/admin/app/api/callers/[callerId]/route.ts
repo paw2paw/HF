@@ -167,6 +167,7 @@ export async function GET(
           createdAt: true,
           endedAt: true,
           callSequence: true,
+          playbookId: true,
           curriculumModuleId: true,
           curriculumModule: {
             select: { slug: true, title: true },
@@ -449,6 +450,7 @@ export async function GET(
       transcript: call.transcript,
       createdAt: call.createdAt,
       callSequence: call.callSequence,
+      playbookId: call.playbookId || null,
       // Analysis status flags
       hasScores: call._count.scores > 0,
       hasMemories: (memoryCountMap.get(call.id) || 0) > 0,

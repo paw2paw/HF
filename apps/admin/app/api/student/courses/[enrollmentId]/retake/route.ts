@@ -182,8 +182,8 @@ export async function POST(
     // 6. Session initialization removed — scheduler handles pacing
   }
 
-  // 7. Recompose prompt
-  autoComposeForCaller(callerId).catch((err) =>
+  // 7. Recompose prompt for this course
+  autoComposeForCaller(callerId, enrollment.playbookId).catch((err) =>
     console.error(`[student/courses/retake] Auto-compose failed for ${callerId}:`, err.message),
   );
 

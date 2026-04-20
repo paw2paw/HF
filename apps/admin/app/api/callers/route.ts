@@ -256,12 +256,16 @@ export async function POST(req: Request) {
     }
 
     // Auto-enroll in playbooks: specific playbook > cohort > smart single resolve
+    // When skipOnboarding is set, defer auto-compose until after onboarding is applied.
+    const deferCompose = !!skipOnboarding;
     if (playbookId) {
-      await enrollCaller(caller.id, playbookId, "auto");
+      await enrollCaller(caller.id, playbookId, "auto", undefined, { skipAutoCompose: deferCompose });
     } else if (cohortGroupId && caller.domainId) {
-      await enrollCallerInCohortPlaybooks(caller.id, cohortGroupId, caller.domainId, "auto");
+      await enrollCallerInCohortPlaybooks(caller.id, cohortGroupId, caller.domainId, "auto",
+        undefined, { skipAutoCompose: deferCompose });
     } else if (caller.domainId) {
-      await resolveAndEnrollSingle(caller.id, caller.domainId, "auto");
+      await resolveAndEnrollSingle(caller.id, caller.domainId, "auto", undefined, undefined,
+        { skipAutoCompose: deferCompose });
     }
 
     // Skip onboarding: mark onboarding complete, mark surveys submitted, init lesson plan
@@ -271,7 +275,6 @@ export async function POST(req: Request) {
     }
 
     // Instantiate goals from playbook config (if any)
-    // Auto-compose first prompt so VAPI calls don't hit the generic fallback
     if (caller.domainId) {
       try {
         await instantiatePlaybookGoals(caller.id, caller.domainId);
@@ -282,9 +285,12 @@ export async function POST(req: Request) {
           { status: 500 },
         );
       }
-      autoComposeForCaller(caller.id).catch((err) => {
-        console.error(`[callers] Auto-compose failed for ${caller.id}:`, err.message);
-      });
+      // If compose was deferred (skipOnboarding), fire it now after onboarding is complete
+      if (deferCompose) {
+        autoComposeForCaller(caller.id).catch((err) => {
+          console.error(`[callers] Auto-compose failed for ${caller.id}:`, err.message);
+        });
+      }
     }
 
     return NextResponse.json({

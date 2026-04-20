@@ -34,6 +34,9 @@ const FRAMEWORK_BLOCKLIST = [
   /\b(emerging|developing|secure)\b.*\b(level|tier|band|stage)\b/i,
   /\baccording to the (skill|assessment|marking)\b/i,
   /\bSKILL-\d{2}\b/,
+  /\b(socratic|teaching\s*approach|teaching\s*method|pedagog)/i,
+  /\bwhat does the acronym\b/i,
+  /\bwhat does ['"]?\w{1,5}['"]? stand for\b/i,
 ];
 
 // ---------------------------------------------------------------------------
@@ -546,10 +549,11 @@ TRUE_FALSE rules:
 - Avoid trivially obvious statements — make the student think
 
 General rules:
-- REMEMBER questions test recall of specific facts
-- UNDERSTAND questions test whether the student can explain or interpret
-- APPLY questions test whether the student can use knowledge in a scenario
-- ANALYZE questions test whether the student can compare, evaluate, or reason
+- REMEMBER questions test recall of USEFUL, ACTIONABLE facts — things a student needs to know to perform well. NEVER test recall of acronyms, jargon definitions, assessment criteria names, or marking scheme terminology. Bad: "What does TR stand for?" Good: "What is the minimum requirement for a well-structured essay argument?"
+- UNDERSTAND questions test whether the student can explain or interpret a concept in their own words
+- APPLY questions test whether the student can use knowledge in a realistic scenario
+- ANALYZE questions test whether the student can compare, evaluate, or reason about trade-offs
+- Frame questions from the LEARNER'S perspective — what would help them improve? Not what would help them pass a quiz about the curriculum.
 - Spread across different topics/chapters
 - Include a brief 1-sentence explanation for the correct answer
 - VARY question stems — NEVER repeat the same opening phrase (e.g. "Which of the following"). Use diverse formats: "What is…", "How would you…", "Why does…", "Calculate…", "A student claims X — is this correct?", scenario-based setups, etc.
@@ -559,7 +563,9 @@ NEVER generate questions about:
 - The structure or design of the curriculum itself
 - How students are assessed or graded
 - Internal skill codes (e.g. SKILL-01, SKILL-02)
-Questions must test the SUBJECT MATTER, not knowledge of the teaching system.
+- Acronyms, abbreviations, or what letters stand for (e.g. "What does TR stand for?")
+- Teaching methods or pedagogical approaches used in the course
+Questions must test the SUBJECT MATTER from the learner's perspective, not knowledge of the teaching system or its terminology.
 
 Return ONLY a JSON array:
 [{

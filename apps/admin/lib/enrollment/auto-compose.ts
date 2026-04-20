@@ -7,7 +7,7 @@ import { executeComposition, loadComposeConfig, persistComposedPrompt } from "@/
 import { renderPromptSummary } from "@/lib/prompt/composition/renderPromptSummary";
 import { prisma } from "@/lib/prisma";
 
-export async function autoComposeForCaller(callerId: string): Promise<void> {
+export async function autoComposeForCaller(callerId: string, playbookId?: string | null): Promise<void> {
   try {
     const { fullSpecConfig, sections, specSlug } = await loadComposeConfig({});
     const composition = await executeComposition(callerId, sections, fullSpecConfig);
@@ -15,7 +15,7 @@ export async function autoComposeForCaller(callerId: string): Promise<void> {
 
     await persistComposedPrompt(composition, promptSummary, {
       callerId,
-      playbookId: null,
+      playbookId: playbookId ?? null,
       triggerType: "enrollment",
       triggerCallId: undefined,
       composeSpecSlug: specSlug,
@@ -27,7 +27,7 @@ export async function autoComposeForCaller(callerId: string): Promise<void> {
       where: { callerId, key: "compose_error", scope: "SYSTEM" },
     }).catch(() => {});
 
-    console.log(`[auto-compose] Composed prompt for caller ${callerId} on enrollment`);
+    console.log(`[auto-compose] Composed prompt for caller ${callerId} (playbook: ${playbookId || "none"}) on enrollment`);
   } catch (err: any) {
     // Persist the failure so it can be surfaced in the UI
     await prisma.callerAttribute.upsert({

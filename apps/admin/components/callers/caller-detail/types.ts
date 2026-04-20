@@ -70,6 +70,7 @@ export type Call = {
   transcript: string;
   createdAt: string;
   callSequence?: number | null;
+  playbookId?: string | null;
   // Analysis status (persistent - from database)
   hasScores?: boolean;
   hasMemories?: boolean;
@@ -259,6 +260,7 @@ export type ComposedPrompt = {
   llmPrompt: Record<string, any> | null;  // LLM-friendly structured JSON version
   triggerType: string;
   triggerCallId: string | null;
+  playbookId: string | null;
   model: string | null;
   status: string;
   composedAt: string;

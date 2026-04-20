@@ -1345,20 +1345,21 @@ export async function executeWizardTool(
           const c = await prisma.caller.create({
             data: { name: callerName, domainId },
           });
-          await enrollCaller(c.id, playbookId, "wizard-v2");
+          await enrollCaller(c.id, playbookId, "wizard-v2", undefined,
+            { skipAutoCompose: skipOnboarding });
 
           // Instantiate Goal rows from playbook.config.goals. Shared helper keeps
           // v5 wizard (course-setup) and chat wizard in lockstep. Re-throw on failure
           // so the wizard reports the broken state instead of pretending success.
           await instantiatePlaybookGoals(c.id, domainId);
 
-          // Skip onboarding: mark complete, mark surveys submitted
+          // Skip onboarding: mark complete, mark surveys submitted, then compose
           if (skipOnboarding) {
             const { applySkipOnboarding } = await import("@/lib/enrollment/skip-onboarding");
             await applySkipOnboarding(c.id, domainId);
 
             const { autoComposeForCaller } = await import("@/lib/enrollment/auto-compose");
-            autoComposeForCaller(c.id).catch(err =>
+            autoComposeForCaller(c.id, playbookId).catch(err =>
               console.error(`[wizard] Auto-compose failed for demo caller ${c.id}:`, err.message));
           }
 

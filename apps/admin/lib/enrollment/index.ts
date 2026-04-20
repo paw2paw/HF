@@ -11,12 +11,16 @@ import type { Prisma, CallerPlaybook, CohortPlaybook } from "@prisma/client";
 /**
  * Enroll a caller in a specific playbook. Upserts — safe to call multiple times.
  * If the caller was previously DROPPED/PAUSED, re-activates the enrollment.
+ *
+ * Auto-composes a bootstrap prompt (prompt 0) for the enrollment when not in a
+ * transaction. Fire-and-forget — failures are logged but don't block enrollment.
  */
 export async function enrollCaller(
   callerId: string,
   playbookId: string,
   source: string,
-  tx?: TxClient
+  tx?: TxClient,
+  opts?: { skipAutoCompose?: boolean }
 ): Promise<CallerPlaybook> {
   const p = db(tx);
   const enrollment = await p.callerPlaybook.upsert({
@@ -47,6 +51,17 @@ export async function enrollCaller(
     enrollment.isDefault = true;
   }
 
+  // Auto-compose bootstrap prompt (prompt 0) for this enrollment.
+  // Only fire outside transactions — callers inside tx compose after commit.
+  // Skip when caller needs post-enrollment setup (e.g. skipOnboarding) before compose.
+  if (!tx && !opts?.skipAutoCompose) {
+    import("./auto-compose").then(({ autoComposeForCaller }) => {
+      autoComposeForCaller(callerId, playbookId).catch((err) => {
+        console.error(`[enrollment] Auto-compose failed for caller ${callerId} playbook ${playbookId}:`, err.message);
+      });
+    });
+  }
+
   return enrollment;
 }
 
@@ -65,11 +80,12 @@ export async function resolveAndEnrollSingle(
   domainId: string,
   source: string,
   explicitPlaybookId?: string | null,
-  tx?: TxClient
+  tx?: TxClient,
+  opts?: { skipAutoCompose?: boolean }
 ): Promise<CallerPlaybook | null> {
   // 1. Explicit takes priority
   if (explicitPlaybookId) {
-    return enrollCaller(callerId, explicitPlaybookId, source, tx);
+    return enrollCaller(callerId, explicitPlaybookId, source, tx, opts);
   }
 
   // 2. Count published playbooks in domain
@@ -81,7 +97,7 @@ export async function resolveAndEnrollSingle(
 
   // Single playbook → auto-select
   if (published.length === 1) {
-    return enrollCaller(callerId, published[0].id, source, tx);
+    return enrollCaller(callerId, published[0].id, source, tx, opts);
   }
 
   // 0 or multiple playbooks → cannot auto-resolve
@@ -258,7 +274,8 @@ export async function enrollCallerInCohortPlaybooks(
   cohortGroupId: string | string[],
   domainId: string,
   source: string,
-  tx?: TxClient
+  tx?: TxClient,
+  opts?: { skipAutoCompose?: boolean }
 ): Promise<CallerPlaybook[]> {
   const cohortIds = Array.isArray(cohortGroupId) ? cohortGroupId : [cohortGroupId];
 
@@ -272,14 +289,14 @@ export async function enrollCallerInCohortPlaybooks(
   if (allPlaybookIds.size > 0) {
     const results: CallerPlaybook[] = [];
     for (const playbookId of allPlaybookIds) {
-      const enrollment = await enrollCaller(callerId, playbookId, source, tx);
+      const enrollment = await enrollCaller(callerId, playbookId, source, tx, opts);
       results.push(enrollment);
     }
     return results;
   }
 
   // Fallback: no cohort playbooks assigned → try smart single enrollment
-  const single = await resolveAndEnrollSingle(callerId, domainId, source, null, tx);
+  const single = await resolveAndEnrollSingle(callerId, domainId, source, null, tx, opts);
   return single ? [single] : [];
 }
 
