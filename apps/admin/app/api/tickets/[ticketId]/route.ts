@@ -226,8 +226,9 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: "Ticket not found" }, { status: 404 });
     }
 
-    // Only allow creator or admin to delete
-    if (ticket.creatorId !== session.user.id && session.user.role !== "ADMIN") {
+    // Only allow creator or ADMIN+ to delete
+    const deleteRoleLevel = ROLE_LEVEL[session.user.role as UserRole] ?? 0;
+    if (ticket.creatorId !== session.user.id && deleteRoleLevel < 4) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
