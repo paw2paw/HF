@@ -19,6 +19,10 @@ export type Ticket = {
   updatedAt: string;
   resolvedAt: string | null;
   closedAt: string | null;
+  pageContext: string | null;
+  screenshotUrl: string | null;
+  githubIssueUrl: string | null;
+  githubIssueNumber: number | null;
   _count?: { comments: number };
   // Detail view only
   comments?: TicketComment[];

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   HelpCircle,
   LogOut,
+  MessageSquarePlus,
   type LucideIcon,
 } from 'lucide-react';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -74,6 +75,16 @@ const ALL_TABS: SimTab[] = [
     label: 'My Stuff',
     icon: Sparkles,
     href: '/x/student/stuff',
+    minLevel: 1,
+    maxLevel: 2,
+  },
+
+  // Feedback (TESTER and SUPER_TESTER — not educators/admins who have sidebar)
+  {
+    id: 'feedback',
+    label: 'Feedback',
+    icon: MessageSquarePlus,
+    href: '/x/sim/feedback',
     minLevel: 1,
     maxLevel: 2,
   },

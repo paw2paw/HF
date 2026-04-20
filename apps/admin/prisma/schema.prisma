@@ -3435,6 +3435,12 @@ model Ticket {
   // Optional tags for flexible categorization
   tags String[]
 
+  // Feedback context (captured on submit)
+  pageContext        String?   // Auto-captured URL + breadcrumbs
+  screenshotUrl      String?   // GCS URL if screenshot attached
+  githubIssueUrl     String?   // Linked GitHub issue URL
+  githubIssueNumber  Int?      // Linked GitHub issue number
+
   // Timestamps
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

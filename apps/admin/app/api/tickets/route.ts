@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
 import { parsePagination } from "@/lib/api-utils";
+import { ROLE_LEVEL } from "@/lib/roles";
+import type { UserRole } from "@prisma/client";
 
 /**
  * @api GET /api/tickets
@@ -9,7 +11,7 @@ import { parsePagination } from "@/lib/api-utils";
  * @scope tickets:list
  * @auth session
  * @tags tickets
- * @description Lists tickets with optional filters, pagination, and sorting. Includes creator/assignee details and comment counts.
+ * @description Lists tickets with optional filters, pagination, and sorting. Includes creator/assignee details and comment counts. TESTER role sees only own tickets.
  * @query status string - Filter by ticket status
  * @query priority string - Filter by priority level
  * @query category string - Filter by category
@@ -25,6 +27,7 @@ export async function GET(req: Request) {
   try {
     const authResult = await requireAuth("VIEWER");
     if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
@@ -41,6 +44,12 @@ export async function GET(req: Request) {
     if (category) where.category = category;
     if (assigneeId) where.assigneeId = assigneeId === "unassigned" ? null : assigneeId;
     if (creatorId) where.creatorId = creatorId;
+
+    // TESTER (level 1) can only see own tickets; SUPER_TESTER+ sees all
+    const roleLevel = ROLE_LEVEL[session.user.role as UserRole] ?? 0;
+    if (roleLevel < 2) {
+      where.creatorId = session.user.id;
+    }
 
     const [tickets, total] = await Promise.all([
       prisma.ticket.findMany({
@@ -85,13 +94,14 @@ export async function GET(req: Request) {
  * @scope tickets:create
  * @auth session
  * @tags tickets
- * @description Creates a new ticket. Validates assignee existence if provided.
+ * @description Creates a new ticket. TESTER+ can create. Validates assignee existence if provided.
  * @body title string - Ticket title (required)
  * @body description string - Ticket description (required)
  * @body priority string - Priority level (default: "MEDIUM")
  * @body category string - Ticket category (default: "OTHER")
  * @body assigneeId string - User ID to assign (optional)
  * @body tags string[] - Tags array (optional)
+ * @body pageContext string - Auto-captured page context (optional)
  * @response 201 { ok: true, ticket: {...} }
  * @response 400 { ok: false, error: "Title is required" | "Description is required" }
  * @response 401 { ok: false, error: "Unauthorized" }
@@ -100,12 +110,12 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const authResult = await requireAuth("OPERATOR");
+    const authResult = await requireAuth("TESTER");
     if (isAuthError(authResult)) return authResult.error;
     const { session } = authResult;
 
     const body = await req.json();
-    const { title, description, priority, category, assigneeId, tags } = body;
+    const { title, description, priority, category, assigneeId, tags, pageContext } = body;
 
     if (!title?.trim()) {
       return NextResponse.json(
@@ -144,6 +154,7 @@ export async function POST(req: Request) {
         category: category || "OTHER",
         assigneeId: assigneeId || null,
         tags: tags || [],
+        ...(pageContext ? { pageContext } : {}),
       },
       include: {
         creator: {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/permissions";
+import { ROLE_LEVEL } from "@/lib/roles";
+import type { UserRole } from "@prisma/client";
 
 /**
  * @api GET /api/tickets/:ticketId
@@ -8,7 +10,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
  * @scope tickets:read
  * @auth session
  * @tags tickets
- * @description Retrieves a single ticket by ID including all comments, creator, and assignee details.
+ * @description Retrieves a single ticket by ID including all comments, creator, and assignee details. Internal comments are hidden from partners (below OPERATOR).
  * @pathParam ticketId string - The ticket ID
  * @response 200 { ok: true, ticket: {...} }
  * @response 401 { ok: false, error: "Unauthorized" }
@@ -22,6 +24,7 @@ export async function GET(
   try {
     const authResult = await requireAuth("VIEWER");
     if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { ticketId } = await params;
 
@@ -49,6 +52,12 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "Ticket not found" }, { status: 404 });
     }
 
+    // Hide internal comments from partners
+    const roleLevel = ROLE_LEVEL[session.user.role as UserRole] ?? 0;
+    if (roleLevel < 3 && ticket.comments) {
+      ticket.comments = ticket.comments.filter((c: any) => !c.isInternal);
+    }
+
     return NextResponse.json({ ok: true, ticket });
   } catch (error) {
     console.error("GET /api/tickets/[ticketId] error:", error);
@@ -65,7 +74,7 @@ export async function GET(
  * @scope tickets:update
  * @auth session
  * @tags tickets
- * @description Updates ticket fields (status, priority, category, assignee, title, description, tags). Manages resolved/closed timestamps automatically.
+ * @description Updates ticket fields. TESTER/SUPER_TESTER can only edit own OPEN tickets (title + description only). OPERATOR+ has full access. Manages resolved/closed timestamps automatically.
  * @pathParam ticketId string - The ticket ID
  * @body status string - New status (OPEN, IN_PROGRESS, WAITING, RESOLVED, CLOSED)
  * @body priority string - New priority
@@ -76,6 +85,7 @@ export async function GET(
  * @body tags string[] - Updated tags
  * @response 200 { ok: true, ticket: {...} }
  * @response 401 { ok: false, error: "Unauthorized" }
+ * @response 403 { ok: false, error: "You can only edit your own feedback" | "Feedback can only be edited while status is New" | "Partners cannot change: ..." }
  * @response 404 { ok: false, error: "Ticket not found" | "Assignee not found or inactive" }
  * @response 500 { ok: false, error: "..." }
  */
@@ -84,8 +94,9 @@ export async function PATCH(
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const authResult = await requireAuth("OPERATOR");
+    const authResult = await requireAuth("TESTER");
     if (isAuthError(authResult)) return authResult.error;
+    const { session } = authResult;
 
     const { ticketId } = await params;
     const body = await req.json();
@@ -93,11 +104,29 @@ export async function PATCH(
 
     const existing = await prisma.ticket.findUnique({
       where: { id: ticketId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, creatorId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ ok: false, error: "Ticket not found" }, { status: 404 });
+    }
+
+    // TESTER/SUPER_TESTER can only edit own tickets while OPEN
+    const roleLevel = ROLE_LEVEL[session.user.role as UserRole] ?? 0;
+    if (roleLevel < 3) {
+      if (existing.creatorId !== session.user.id) {
+        return NextResponse.json({ ok: false, error: "You can only edit your own feedback" }, { status: 403 });
+      }
+      if (existing.status !== "OPEN") {
+        return NextResponse.json({ ok: false, error: "Feedback can only be edited while status is New" }, { status: 403 });
+      }
+      // Partners can only update title and description — not status, priority, assignee, etc.
+      const allowedFields = ["title", "description"];
+      const attemptedFields = Object.keys(body).filter(k => body[k] !== undefined);
+      const disallowed = attemptedFields.filter(f => !allowedFields.includes(f));
+      if (disallowed.length > 0) {
+        return NextResponse.json({ ok: false, error: `Partners cannot change: ${disallowed.join(", ")}` }, { status: 403 });
+      }
     }
 
     // Verify assignee if changing

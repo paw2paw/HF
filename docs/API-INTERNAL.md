@@ -13309,7 +13309,7 @@ text/event-stream
 
 ### `GET` /api/tickets
 
-Lists tickets with optional filters, pagination, and sorting. Includes creator/assignee details and comment counts.
+Lists tickets with optional filters, pagination, and sorting. Includes creator/assignee details and comment counts. TESTER role sees only own tickets.
 
 **Auth**: Session · **Scope**: `tickets:list`
 
@@ -13342,7 +13342,7 @@ Lists tickets with optional filters, pagination, and sorting. Includes creator/a
 
 ### `POST` /api/tickets
 
-Creates a new ticket. Validates assignee existence if provided.
+Creates a new ticket. TESTER+ can create. Validates assignee existence if provided.
 
 **Auth**: Session · **Scope**: `tickets:create`
 
@@ -13353,6 +13353,7 @@ Creates a new ticket. Validates assignee existence if provided.
 | priority | body | string | No | Priority level (default: "MEDIUM") |
 | category | body | string | No | Ticket category (default: "OTHER") |
 | assigneeId | body | string | No | User ID to assign (optional) |
+| pageContext | body | string | No | Auto-captured page context (optional) |
 
 **Response** `201`
 ```json
@@ -13420,7 +13421,7 @@ Deletes a ticket. Only the ticket creator or an admin can delete.
 
 ### `GET` /api/tickets/:ticketId
 
-Retrieves a single ticket by ID including all comments, creator, and assignee details.
+Retrieves a single ticket by ID including all comments, creator, and assignee details. Internal comments are hidden from partners (below OPERATOR).
 
 **Auth**: Session · **Scope**: `tickets:read`
 
@@ -13452,7 +13453,7 @@ Retrieves a single ticket by ID including all comments, creator, and assignee de
 
 ### `PATCH` /api/tickets/:ticketId
 
-Updates ticket fields (status, priority, category, assignee, title, description, tags). Manages resolved/closed timestamps automatically.
+Updates ticket fields. TESTER/SUPER_TESTER can only edit own OPEN tickets (title + description only). OPERATOR+ has full access. Manages resolved/closed timestamps automatically.
 
 **Auth**: Session · **Scope**: `tickets:update`
 
@@ -13476,6 +13477,11 @@ Updates ticket fields (status, priority, category, assignee, title, description,
 { ok: false, error: "Unauthorized" }
 ```
 
+**Response** `403`
+```json
+{ ok: false, error: "You can only edit your own feedback" | "Feedback can only be edited while status is New" | "Partners cannot change: ..." }
+```
+
 **Response** `404`
 ```json
 { ok: false, error: "Ticket not found" | "Assignee not found or inactive" }
@@ -13490,7 +13496,7 @@ Updates ticket fields (status, priority, category, assignee, title, description,
 
 ### `GET` /api/tickets/:ticketId/comments
 
-Lists comments for a ticket with pagination. Includes author details.
+Lists comments for a ticket with pagination. Includes author details. Internal comments are hidden from partners (below OPERATOR).
 
 **Auth**: Session · **Scope**: `tickets:comments-list`
 
@@ -13524,7 +13530,7 @@ Lists comments for a ticket with pagination. Includes author details.
 
 ### `POST` /api/tickets/:ticketId/comments
 
-Adds a comment to a ticket and updates the ticket's updatedAt timestamp.
+Adds a comment to a ticket and updates the ticket's updatedAt timestamp. TESTER+ can comment on own tickets. Partners cannot create internal comments.
 
 **Auth**: Session · **Scope**: `tickets:comments-create`
 
@@ -13547,6 +13553,11 @@ Adds a comment to a ticket and updates the ticket's updatedAt timestamp.
 **Response** `401`
 ```json
 { ok: false, error: "Unauthorized" }
+```
+
+**Response** `403`
+```json
+{ ok: false, error: "You can only comment on your own feedback" | "Internal comments are not available" }
 ```
 
 **Response** `404`

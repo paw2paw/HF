@@ -1,0 +1,193 @@
+/* Feedback Submit Modal — fb- namespace */
+
+.fb-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--text-primary) 50%, transparent);
+}
+
+.fb-modal {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--text-primary) 20%, transparent);
+}
+
+.fb-modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.fb-modal-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+
+/* Category card grid */
+.fb-category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.fb-category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 2px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.fb-category-card:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+}
+
+.fb-category-card[data-selected="true"] {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+.fb-category-card-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fb-category-card-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fb-category-card-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Form fields */
+.fb-field {
+  margin-bottom: 16px;
+}
+
+.fb-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.fb-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.fb-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+/* Page context line */
+.fb-page-context {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding: 8px 10px;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+}
+
+/* Screenshot section */
+.fb-screenshot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.fb-screenshot-thumb {
+  position: relative;
+  width: 80px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.fb-screenshot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fb-screenshot-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--text-primary) 70%, transparent);
+  color: var(--surface-primary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Link input */
+.fb-link-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fb-link-row .hf-input {
+  flex: 1;
+}
+
+/* Error message */
+.fb-error {
+  font-size: 0.8125rem;
+  color: var(--status-error-text);
+  margin-bottom: 12px;
+}
+
+/* Footer actions */
+.fb-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}

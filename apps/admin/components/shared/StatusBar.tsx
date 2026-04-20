@@ -20,7 +20,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Building2, VenetianMask, Bug, Cog, Phone, User, FileText } from 'lucide-react';
+import { Building2, VenetianMask, Bug, Cog, Phone, User, FileText, MessageSquarePlus } from 'lucide-react';
+import { FeedbackSubmitModal } from '@/components/feedback/FeedbackSubmitModal';
 import { ROLE_LEVEL } from '@/lib/roles';
 import { useBranding } from '@/contexts/BrandingContext';
 import { useMasquerade } from '@/contexts/MasqueradeContext';
@@ -95,6 +96,7 @@ export function StatusBar() {
   const [logsPopupOpen, setLogsPopupOpen] = useState(false);
   const [logsOverlayOpen, setLogsOverlayOpen] = useState(false);
   const [versionPopupOpen, setVersionPopupOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
   // ── Data states ──
   // System health — full result for HealthPopup (ADMIN+ only, polls every 120s)
@@ -114,6 +116,7 @@ export function StatusBar() {
   const roleLevel = ROLE_LEVEL[realRole] ?? 0;
   const isAdmin = roleLevel >= 4;
   const isOperator = roleLevel >= 3;
+  const isTesterPlus = roleLevel >= 1;
 
   // ── Close all popups (only one open at a time) ──
   const closeAllPopups = useCallback(() => {
@@ -433,6 +436,18 @@ export function StatusBar() {
           </span>
         )}
 
+        {/* Feedback trigger (TESTER+, not shown for OPERATOR+ who use Bug Report) */}
+        {isTesterPlus && !isOperator && (
+          <span
+            className="hf-status-item hf-status-clickable"
+            onClick={() => setFeedbackModalOpen(true)}
+            title="Share feedback"
+          >
+            <MessageSquarePlus size={13} />
+            <span>Feedback</span>
+          </span>
+        )}
+
         {/* Bug Report trigger (OPERATOR+) */}
         {isOperator && (
           <span
@@ -480,6 +495,17 @@ export function StatusBar() {
           </span>
         )}
       </div>
+
+      {/* Feedback submit modal (TESTER+) */}
+      {isTesterPlus && (
+        <FeedbackSubmitModal
+          open={feedbackModalOpen}
+          onClose={() => setFeedbackModalOpen(false)}
+          onSuccess={() => {
+            setFeedbackModalOpen(false);
+          }}
+        />
+      )}
 
       {/* ── Popups (rendered outside clusters, position: fixed, z-index: 100) ── */}
       {isMasq && (

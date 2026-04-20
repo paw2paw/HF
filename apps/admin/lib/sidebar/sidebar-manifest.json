@@ -146,6 +146,13 @@
     ]
   },
   {
+    "id": "feedback",
+    "title": "Feedback",
+    "items": [
+      { "id": "feedback", "href": "/x/feedback", "label": "Feedback", "icon": "MessageSquarePlus", "visibleFor": ["TESTER", "SUPER_TESTER", "OPERATOR", "ADMIN", "SUPERADMIN"] }
+    ]
+  },
+  {
     "id": "admin",
     "title": "Administration",
     "href": "/x/system/access-control",
