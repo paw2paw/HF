@@ -34,17 +34,10 @@ const PUBLIC_PAGES = new Set([
   "/x/account",
   // Home section (no requiredRole)
   "/x/quick-launch",
-  "/x/jobs",
   "/x/demos",
   "/x/tickets",
-  // Calls section (no requiredRole)
-  "/x/callers",
-  "/x/caller-graph",
-  "/x/sim",
-  "/x/analytics",
   // Educator section (no requiredRole — scoped by educator-access)
   "/x/educator",
-  "/x/cohorts",
   // Student section (no requiredRole — scoped by student-access)
   "/x/student",
   // Goals — removed standalone page, now a tab on course detail
