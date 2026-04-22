@@ -472,7 +472,7 @@ export function useSidebarLayout({
   );
   const visibleSections = useMemo(
     () => sections.filter(
-      (s) => !hiddenSectionIds.includes(s.id) && !deletedSectionIds.includes(s.id)
+      (s) => !hiddenSectionIds.includes(s.id) && !deletedSectionIds.includes(s.id) && s.items.length > 0
     ),
     [sections, hiddenSectionIds, deletedSectionIds]
   );

@@ -11,6 +11,7 @@ import { registerBugReportOpener, unregisterBugReportOpener, STATUS_BAR_HEIGHT }
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { buildBugContext, bugContextToMarkdown } from "@/lib/buildBugContext";
 import { ROLE_LEVEL } from "@/lib/roles";
+import { FeedbackSubmitModal } from "@/components/feedback/FeedbackSubmitModal";
 import type { UserRole } from "@prisma/client";
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
@@ -33,6 +34,7 @@ export function BugReportButton() {
   const [capturingScreenshot, setCapturingScreenshot] = useState(false);
   const { copied, copy: copyToClipboard } = useCopyToClipboard();
   const [disabledByUser, setDisabledByUser] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -249,12 +251,20 @@ export function BugReportButton() {
               <Camera size={13} />
             </button>
             <button
+              onClick={() => setShowFeedbackModal(true)}
+              className="hf-bug-action-btn hf-bug-action-accent"
+              title="Create a feedback ticket with bug context"
+            >
+              <Send size={13} />
+              <span>Create Feedback</span>
+            </button>
+            <button
               onClick={() => copyToClipboard(buildFullContext())}
               className={`hf-bug-action-btn ${copied ? "hf-bug-action-success" : "hf-bug-action-accent"}`}
               title={copied ? "Copied!" : "Copy full context for Claude Code"}
             >
               {copied ? <Check size={13} /> : <Copy size={13} />}
-              <span>{copied ? "Copied" : "Copy Context"}</span>
+              <span>{copied ? "Copied" : "Copy"}</span>
             </button>
             {(response || conversationHistory.length > 0) && (
               <button
@@ -399,6 +409,18 @@ export function BugReportButton() {
           </div>
         </div>
       </div>
+
+      {showFeedbackModal && (
+        <FeedbackSubmitModal
+          open={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          onSuccess={() => setShowFeedbackModal(false)}
+          defaultCategory="BUG"
+          defaultTitle={description.trim() || undefined}
+          defaultDescription={buildFullContext()}
+          defaultScreenshot={screenshot || undefined}
+        />
+      )}
     </div>
   );
 }

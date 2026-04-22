@@ -24,6 +24,12 @@ interface FeedbackSubmitModalProps {
   onSuccess: (ticketNumber: number) => void;
   /** Optional pre-selected category */
   defaultCategory?: Category;
+  /** Pre-fill title (e.g. from bug reporter) */
+  defaultTitle?: string;
+  /** Pre-fill description (e.g. bug context markdown) */
+  defaultDescription?: string;
+  /** Pre-fill screenshot as data URL */
+  defaultScreenshot?: string;
 }
 
 interface Attachment {
@@ -73,6 +79,9 @@ export function FeedbackSubmitModal({
   onClose,
   onSuccess,
   defaultCategory,
+  defaultTitle,
+  defaultDescription,
+  defaultScreenshot,
 }: FeedbackSubmitModalProps): React.ReactElement | null {
   const pathname = usePathname();
   const entityContext = useEntityContext();
@@ -95,15 +104,19 @@ export function FeedbackSubmitModal({
   useEffect(() => {
     if (open) {
       setCategory(defaultCategory ?? null);
-      setTitle("");
-      setDescription("");
-      setAttachments([]);
+      setTitle(defaultTitle ?? "");
+      setDescription(defaultDescription ?? "");
+      setAttachments(
+        defaultScreenshot
+          ? [{ name: "screenshot.jpg", type: "image/jpeg", dataUrl: defaultScreenshot, sizeKb: Math.round(defaultScreenshot.length / 1024) }]
+          : [],
+      );
       setShowLinkInput(false);
       setLinkUrl("");
       setLinkLabel("");
       setError(null);
     }
-  }, [open, defaultCategory]);
+  }, [open, defaultCategory, defaultTitle, defaultDescription, defaultScreenshot]);
 
   // Dismiss with Escape
   useEffect(() => {
