@@ -66,18 +66,19 @@ export async function buildSystemPrompt(
   const baseContext = await buildEntityContext(entityContext);
 
   switch (mode) {
-    case "DATA": {
-      const dataPrompt = await getPromptSpec(config.specs.chatDataHelper, DATA_SYSTEM_PROMPT);
-      return { prompt: dataPrompt + termBlock + `\n\n${baseContext}` };
+    case "DATA":
+    case "TUNING": {
+      // Unified mode: DATA tools + TUNING parameter/contract catalogue
+      const [dataPrompt, tuningContext] = await Promise.all([
+        getPromptSpec(config.specs.chatDataHelper, DATA_SYSTEM_PROMPT),
+        buildTuningSystemPrompt(),
+      ]);
+      return { prompt: dataPrompt + "\n\n" + tuningContext + termBlock + `\n\n${baseContext}` };
     }
     case "CALL":
       return await buildCallSimPrompt(entityContext, terms, termBlock);
     case "BUG":
       return { prompt: await buildBugDiagnosisPrompt(entityContext, bugContext, termBlock) };
-    case "TUNING": {
-      const tuningPrompt = await buildTuningSystemPrompt();
-      return { prompt: tuningPrompt + termBlock + `\n\n${baseContext}` };
-    }
   }
 }
 

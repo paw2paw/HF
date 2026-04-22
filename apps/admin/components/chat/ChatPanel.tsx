@@ -3,11 +3,20 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useChatContext, MODE_CONFIG, type ChatMode } from "@/contexts/ChatContext";
+import { useChatContext, MODE_CONFIG } from "@/contexts/ChatContext";
 import { useEntityContext, ENTITY_COLORS, EntityBreadcrumb } from "@/contexts/EntityContext";
 import { useEntityDetection } from "@/hooks/useEntityDetection";
 import { AIModelBadge } from "@/components/shared/AIModelBadge";
 import "./chat-panel.css";
+
+// User-facing labels for entity types (internal names → educator language)
+const ENTITY_LABELS: Record<string, string> = {
+  playbook: "Course",
+  domain: "Institution",
+  caller: "Learner",
+  spec: "Spec",
+  call: "Session",
+};
 
 // Sub-components
 function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[] }) {
@@ -43,7 +52,7 @@ function ChatBreadcrumbStripe({ breadcrumbs }: { breadcrumbs: EntityBreadcrumb[]
               }}
               title={`Click to clear context after ${crumb.label}`}
             >
-              {crumb.type}: {crumb.label}
+              {ENTITY_LABELS[crumb.type] || crumb.type}: {crumb.label}
             </button>
           </React.Fragment>
         );
@@ -206,16 +215,25 @@ function ChatInput() {
 }
 
 export function ChatPanel() {
-  const { isOpen, closePanel, mode, setMode, chatLayout, setChatLayout } = useChatContext();
+  const { isOpen, closePanel, mode, chatLayout, setChatLayout } = useChatContext();
   const { breadcrumbs } = useEntityContext();
 
   // Cmd+K shortcut is registered by GlobalAssistant (avoids double-toggle)
+
+  // Esc key closes the panel
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closePanel();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, closePanel]);
 
   // Auto-detect entities from URL
   useEntityDetection();
 
   const modeConfig = MODE_CONFIG[mode];
-  const allModes = Object.keys(MODE_CONFIG) as ChatMode[];
 
   const layoutLabels: Record<string, { icon: string; title: string }> = {
     vertical: { icon: "│", title: "Vertical (sidebar)" },
@@ -251,23 +269,6 @@ export function ChatPanel() {
             </div>
           </div>
           <div className="chat-header-actions">
-            {/* Mode selector */}
-            <div className="chat-mode-selector">
-              {allModes.map((m) => {
-                const mc = MODE_CONFIG[m];
-                return (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    className={`chat-mode-btn${m === mode ? " chat-mode-btn--active" : ""}`}
-                    title={mc.description}
-                  >
-                    <span className="chat-mode-btn-icon">{mc.icon}</span>
-                    <span className="chat-mode-btn-label">{mc.label}</span>
-                  </button>
-                );
-              })}
-            </div>
             <button
               onClick={cycleLayout}
               className="chat-header-btn chat-header-btn--layout"

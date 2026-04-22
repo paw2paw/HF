@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { useSession } from "next-auth/react";
 import { EntityBreadcrumb, useEntityContext } from "./EntityContext";
 
-export type ChatMode = "DATA" | "TUNING";
+export type ChatMode = "DATA";
 export type ChatLayout = "vertical" | "horizontal" | "popout";
 
 export interface ChatMessage {
@@ -67,16 +67,10 @@ function getSettingsKey(userId: string | undefined): string {
 // Mode display configuration
 export const MODE_CONFIG: Record<ChatMode, { label: string; icon: string; color: string; description: string }> = {
   DATA: {
-    label: "Data",
-    icon: "📊",
-    color: "var(--status-success-text)",
-    description: "Context-aware data exploration",
-  },
-  TUNING: {
-    label: "Tuner",
-    icon: "🔧",
+    label: "Assistant",
+    icon: "✦",
     color: "var(--accent-primary)",
-    description: "Course parameter guidance",
+    description: "Context-aware assistant with tools and parameter knowledge",
   },
 };
 
@@ -87,7 +81,6 @@ function generateId(): string {
 function createEmptyMessages(): Record<ChatMode, ChatMessage[]> {
   return {
     DATA: [],
-    TUNING: [],
   };
 }
 
