@@ -11,7 +11,6 @@ import { registerBugReportOpener, unregisterBugReportOpener, STATUS_BAR_HEIGHT }
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { buildBugContext, bugContextToMarkdown } from "@/lib/buildBugContext";
 import { ROLE_LEVEL } from "@/lib/roles";
-import { FeedbackSubmitModal } from "@/components/feedback/FeedbackSubmitModal";
 import type { UserRole } from "@prisma/client";
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
@@ -34,7 +33,8 @@ export function BugReportButton() {
   const [capturingScreenshot, setCapturingScreenshot] = useState(false);
   const { copied, copy: copyToClipboard } = useCopyToClipboard();
   const [disabledByUser, setDisabledByUser] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [creatingFeedback, setCreatingFeedback] = useState(false);
+  const [feedbackResult, setFeedbackResult] = useState<{ ok: boolean; ticketNumber?: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -144,6 +144,7 @@ export function BugReportButton() {
     setConversationHistory([]);
     setShowContext(false);
     setScreenshot(null);
+    setFeedbackResult(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -189,6 +190,36 @@ export function BugReportButton() {
     });
     return bugContextToMarkdown(ctx, conversationHistory, description, response);
   }, [pathname, entityContext.breadcrumbs, getRecentErrors, userRole, screenshot, conversationHistory, description, response]);
+
+  // Create feedback ticket directly
+  const handleCreateFeedback = useCallback(async () => {
+    if (creatingFeedback) return;
+    setCreatingFeedback(true);
+    setFeedbackResult(null);
+
+    const contextMarkdown = buildFullContext();
+    const title = description.trim() || `Bug report — ${pathname || "unknown page"}`;
+
+    try {
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description: contextMarkdown,
+          category: "BUG",
+          pageContext: pathname || "",
+          screenshot: screenshot || undefined,
+        }),
+      });
+      const data = await res.json();
+      setFeedbackResult({ ok: data.ok, ticketNumber: data.ticket?.ticketNumber });
+    } catch {
+      setFeedbackResult({ ok: false });
+    } finally {
+      setCreatingFeedback(false);
+    }
+  }, [creatingFeedback, buildFullContext, description, pathname, screenshot]);
 
   // Auto-scroll response area
   useEffect(() => {
@@ -251,12 +282,13 @@ export function BugReportButton() {
               <Camera size={13} />
             </button>
             <button
-              onClick={() => setShowFeedbackModal(true)}
-              className="hf-bug-action-btn hf-bug-action-accent"
-              title="Create a feedback ticket with bug context"
+              onClick={handleCreateFeedback}
+              disabled={creatingFeedback}
+              className={`hf-bug-action-btn ${feedbackResult?.ok ? "hf-bug-action-success" : "hf-bug-action-accent"}`}
+              title={feedbackResult?.ok ? `Created #${feedbackResult.ticketNumber}` : "Create a feedback ticket with bug context"}
             >
-              <Send size={13} />
-              <span>Create Feedback</span>
+              {creatingFeedback ? <Loader2 size={13} className="hf-spinner" /> : feedbackResult?.ok ? <Check size={13} /> : <Send size={13} />}
+              <span>{creatingFeedback ? "Creating..." : feedbackResult?.ok ? `#${feedbackResult.ticketNumber}` : "Create Feedback"}</span>
             </button>
             <button
               onClick={() => copyToClipboard(buildFullContext())}
@@ -410,17 +442,6 @@ export function BugReportButton() {
         </div>
       </div>
 
-      {showFeedbackModal && (
-        <FeedbackSubmitModal
-          open={showFeedbackModal}
-          onClose={() => setShowFeedbackModal(false)}
-          onSuccess={() => setShowFeedbackModal(false)}
-          defaultCategory="BUG"
-          defaultTitle={description.trim() || undefined}
-          defaultDescription={buildFullContext()}
-          defaultScreenshot={screenshot || undefined}
-        />
-      )}
     </div>
   );
 }
