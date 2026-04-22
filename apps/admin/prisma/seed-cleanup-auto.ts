@@ -24,10 +24,9 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// ── Seeded domain slugs (comprehensive) ──────────────────
-const SEEDED_DOMAIN_SLUGS = [
-  // seed-golden + seed-demo-course
-  "abacus-academy",
+// ── Seeded domain slugs — DELETE these entirely ──────────
+// NOTE: abacus-academy is KEPT (has manual courses like "Secret Garden 1001")
+const SEEDED_DOMAIN_SLUGS_TO_DELETE = [
   // seed-e2e
   "e2e-test-domain",
   // seed-holographic-demo
@@ -44,9 +43,16 @@ const SEEDED_DOMAIN_SLUGS = [
   "harbour-languages",
 ];
 
+// ── Seeded playbook names — DELETE these specifically ─────
+// (targets seeded playbooks on kept domains like abacus-academy)
+const SEEDED_PLAYBOOK_NAMES = [
+  "Introduction to Psychology",  // seed-demo-course
+  "E2E Adaptive v1",             // seed-e2e
+];
+
 // ── Seeded institution slugs ─────────────────────────────
+// NOTE: abacus-academy is KEPT (has manual courses)
 const SEEDED_INSTITUTION_SLUGS = [
-  "abacus-academy",
   "aldermoor-college",
   "curiosity-circle",
   "greenfield-academy",
@@ -77,19 +83,44 @@ async function main(): Promise<void> {
     console.log("🗑️  EXECUTING cleanup — this will delete seeded data\n");
   }
 
-  // ── 1. Find seeded domains ──
-  const seededDomains = await prisma.domain.findMany({
-    where: { slug: { in: SEEDED_DOMAIN_SLUGS } },
+  // ── 1. Find domains to DELETE entirely ──
+  const domainsToDelete = await prisma.domain.findMany({
+    where: { slug: { in: SEEDED_DOMAIN_SLUGS_TO_DELETE } },
     select: { id: true, slug: true, name: true },
   });
-  const domainIds = seededDomains.map((d) => d.id);
+  const domainIdsToDelete = domainsToDelete.map((d) => d.id);
 
-  console.log(`Seeded domains found: ${seededDomains.length}`);
-  for (const d of seededDomains) {
+  console.log(`Domains to DELETE entirely: ${domainsToDelete.length}`);
+  for (const d of domainsToDelete) {
     console.log(`  - ${d.slug} (${d.name})`);
   }
 
-  // ── 2. Find seeded callers ──
+  // ── 2. Find specific seeded playbooks to DELETE (on kept domains) ──
+  const namedPlaybooks = await prisma.playbook.findMany({
+    where: { name: { in: SEEDED_PLAYBOOK_NAMES } },
+    select: { id: true, name: true, domain: { select: { slug: true } } },
+  });
+  // Also grab all playbooks on domains being deleted
+  const domainPlaybooks = await prisma.playbook.findMany({
+    where: { domainId: { in: domainIdsToDelete } },
+    select: { id: true, name: true, domain: { select: { slug: true } } },
+  });
+  // Merge and dedupe
+  const allPlaybooksToDelete = [...namedPlaybooks, ...domainPlaybooks];
+  const seenPbIds = new Set<string>();
+  const playbooksToDelete = allPlaybooksToDelete.filter((p) => {
+    if (seenPbIds.has(p.id)) return false;
+    seenPbIds.add(p.id);
+    return true;
+  });
+  const playbookIds = playbooksToDelete.map((p) => p.id);
+
+  console.log(`\nPlaybooks to DELETE: ${playbooksToDelete.length}`);
+  for (const p of playbooksToDelete) {
+    console.log(`  - ${p.name} (on ${p.domain?.slug ?? "no domain"})`);
+  }
+
+  // ── 3. Find seeded callers ──
   const seededCallers = await prisma.caller.findMany({
     where: {
       OR: SEEDED_CALLER_PREFIXES.map((prefix) => ({
@@ -112,7 +143,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // ── 3. Find seeded institutions ──
+  // ── 4. Find seeded institutions ──
   const seededInstitutions = await prisma.institution.findMany({
     where: { slug: { in: SEEDED_INSTITUTION_SLUGS } },
     select: { id: true, slug: true, name: true },
@@ -121,18 +152,6 @@ async function main(): Promise<void> {
   console.log(`\nSeeded institutions found: ${seededInstitutions.length}`);
   for (const i of seededInstitutions) {
     console.log(`  - ${i.slug} (${i.name})`);
-  }
-
-  // ── 4. Find playbooks on seeded domains ──
-  const seededPlaybooks = await prisma.playbook.findMany({
-    where: { domainId: { in: domainIds } },
-    select: { id: true, name: true },
-  });
-  const playbookIds = seededPlaybooks.map((p) => p.id);
-
-  console.log(`\nPlaybooks on seeded domains: ${seededPlaybooks.length}`);
-  for (const p of seededPlaybooks) {
-    console.log(`  - ${p.name}`);
   }
 
   // ── 5. Find calls from seeded callers ──
@@ -214,24 +233,24 @@ async function main(): Promise<void> {
     del("Playbook", (await prisma.playbook.deleteMany({ where: { id: { in: playbookIds } } })).count);
   }
 
-  // 6e. Domain-linked tables
-  if (domainIds.length > 0) {
+  // 6e. Domain-linked tables (only for domains being fully deleted)
+  if (domainIdsToDelete.length > 0) {
     const del = async (model: string, count: number) => {
       if (count > 0) console.log(`  ✓ ${model}: ${count} deleted`);
     };
 
-    // Subjects on seeded domains
-    del("Subject", (await prisma.subject.deleteMany({ where: { domainId: { in: domainIds } } })).count);
+    // Subjects on deleted domains
+    del("Subject", (await prisma.subject.deleteMany({ where: { domainId: { in: domainIdsToDelete } } })).count);
     // Content assertions created by demo seeds
     del("ContentAssertion (demo)", (await prisma.contentAssertion.deleteMany({ where: { createdBy: "demo-course-seed" } })).count);
-    // Analysis profiles on seeded domains
-    del("AnalysisProfile", (await prisma.analysisProfile.deleteMany({ where: { domainId: { in: domainIds } } })).count);
-    // Knowledge docs on seeded domains
-    del("KnowledgeDoc", (await prisma.knowledgeDoc.deleteMany({ where: { domainId: { in: domainIds } } })).count);
+    // Analysis profiles on deleted domains
+    del("AnalysisProfile", (await prisma.analysisProfile.deleteMany({ where: { domainId: { in: domainIdsToDelete } } })).count);
+    // Knowledge docs on deleted domains
+    del("KnowledgeDoc", (await prisma.knowledgeDoc.deleteMany({ where: { domainId: { in: domainIdsToDelete } } })).count);
     // Domain spec items
-    del("DomainSpecItem", (await prisma.domainSpecItem.deleteMany({ where: { domainId: { in: domainIds } } })).count);
+    del("DomainSpecItem", (await prisma.domainSpecItem.deleteMany({ where: { domainId: { in: domainIdsToDelete } } })).count);
     // Domains
-    del("Domain", (await prisma.domain.deleteMany({ where: { id: { in: domainIds } } })).count);
+    del("Domain", (await prisma.domain.deleteMany({ where: { id: { in: domainIdsToDelete } } })).count);
   }
 
   // 6f. Institutions (last — domains FK to these)
