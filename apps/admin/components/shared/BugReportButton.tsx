@@ -10,6 +10,8 @@ import ReactMarkdown from "react-markdown";
 import { registerBugReportOpener, unregisterBugReportOpener, STATUS_BAR_HEIGHT } from "./StatusBar";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { buildBugContext, bugContextToMarkdown } from "@/lib/buildBugContext";
+import { ROLE_LEVEL } from "@/lib/roles";
+import type { UserRole } from "@prisma/client";
 
 const BUG_REPORTER_KEY = "ui.bugReporter";
 
@@ -50,10 +52,11 @@ export function BugReportButton() {
   }, []);
 
   const userRole = session?.user?.role;
+  const roleLevel = ROLE_LEVEL[(userRole as UserRole) ?? "VIEWER"] ?? 0;
   const isHidden =
     disabledByUser ||
     !userRole ||
-    !["OPERATOR", "ADMIN", "SUPERADMIN"].includes(userRole as string) ||
+    roleLevel < 3 ||
     pathname?.startsWith("/x/sim") ||
     pathname?.startsWith("/login");
 

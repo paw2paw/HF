@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 
 // Entity types that can be tracked in breadcrumbs
 export type EntityType = "caller" | "call" | "spec" | "playbook" | "domain" | "transcript" | "memory" | "flow" | "subject" | "source";
@@ -65,6 +66,10 @@ function persistContext(breadcrumbs: EntityBreadcrumb[]): void {
 }
 
 export function EntityProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+  const lastUserIdRef = useRef<string | undefined>(undefined);
+
   const [breadcrumbs, setBreadcrumbs] = useState<EntityBreadcrumb[]>([]);
   const [pageContext, setPageContextState] = useState<PageContext>({ page: "", params: {} });
   const [initialized, setInitialized] = useState(false);
@@ -75,6 +80,17 @@ export function EntityProvider({ children }: { children: React.ReactNode }) {
     setBreadcrumbs(persisted);
     setInitialized(true);
   }, []);
+
+  // Reset entity context when user changes (login/logout/switch)
+  useEffect(() => {
+    if (session === undefined) return; // session still loading
+    if (lastUserIdRef.current !== undefined && userId !== lastUserIdRef.current) {
+      setBreadcrumbs([]);
+      setPageContextState({ page: "", params: {} });
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+    lastUserIdRef.current = userId;
+  }, [userId, session]);
 
   // Persist context when breadcrumbs change
   useEffect(() => {
