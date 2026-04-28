@@ -335,7 +335,7 @@ export const WIZARD_GRAPH_NODES: WizardGraphNode[] = [
     priority: 4,
     dependsOn: [],
     resolvedBy: ["auto-default"],
-    promptHint: "Whether students take baseline MCQs before their first session. Default: off (unless curriculum content has been uploaded). Part of the student welcome flow.",
+    promptHint: "Whether students take baseline MCQs before their first session AND whether the AI probes prior knowledge with open-ended questions in the first call. Default: off (unless curriculum content has been uploaded). Part of the student welcome flow.",
     mutablePostScaffold: true,
     affinityTags: ["experience", "assessment"],
   },

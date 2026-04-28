@@ -89,7 +89,7 @@ interface WelcomePhase {
 const WELCOME_PHASES: WelcomePhase[] = [
   { key: 'goals', label: 'Goals', description: 'Students set their learning goals', icon: <Target size={14} /> },
   { key: 'aboutYou', label: 'About You', description: 'Confidence + motivation check', icon: <MessageSquare size={14} /> },
-  { key: 'knowledgeCheck', label: 'Knowledge Check', description: 'Baseline MCQs from curriculum', icon: <ClipboardCheck size={14} /> },
+  { key: 'knowledgeCheck', label: 'Knowledge Check', description: 'Baseline MCQs from curriculum. Also gates the open-ended "what do you already know?" probe in the first call.', icon: <ClipboardCheck size={14} /> },
   { key: 'aiIntroCall', label: 'AI Introduction', description: 'Warm-up voice/chat call', icon: <Sparkles size={14} /> },
 ];
 
