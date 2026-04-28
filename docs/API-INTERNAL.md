@@ -5625,6 +5625,33 @@ Unauthorized
 
 ---
 
+### `POST` /api/courses/:courseId/test-learner
+
+Create a fresh test learner enrolled in this course. Random
+
+**Auth**: OPERATOR · **Scope**: `courses:write`
+
+| Parameter | In | Type | Required | Description |
+|-----------|-----|------|----------|-------------|
+| courseId | path | string | Yes | Playbook UUID |
+
+**Response** `200`
+```json
+{ ok: true, callerId, callerName }
+```
+
+**Response** `400`
+```json
+{ ok: false, error } - Course has no curriculum modules yet
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Course not found" }
+```
+
+---
+
 ### `GET` /api/courses/[courseId]/media
 
 List media assets (extracted images, uploaded files) across all subjects
@@ -14131,8 +14158,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 434 |
-| Files with annotations | 433 |
+| Route files found | 435 |
+| Files with annotations | 434 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 

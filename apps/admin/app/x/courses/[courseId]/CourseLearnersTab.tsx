@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Users2, TrendingUp, Phone, Target,
-  Copy, RefreshCw, Send, RotateCcw, ExternalLink,
+  Copy, RefreshCw, Send, RotateCcw, ExternalLink, FlaskConical,
 } from 'lucide-react';
 import { CohortLearningAggregate } from './CohortLearningAggregate';
 import { ClassProgressSection } from '@/components/shared/ClassProgressSection';
@@ -84,6 +85,9 @@ export function CourseLearnersTab({ courseId, initialJoinToken, studentProgress 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [search, setSearch] = useState('');
+  const [creatingTestLearner, setCreatingTestLearner] = useState(false);
+  const [testLearnerError, setTestLearnerError] = useState<string | null>(null);
+  const router = useRouter();
 
   // ── Proof-points data for aggregate cards + progress table ──
   const [proofData, setProofData] = useState<{
@@ -178,6 +182,29 @@ export function CourseLearnersTab({ courseId, initialJoinToken, studentProgress 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [joinUrl]);
+
+  // ── Create test learner (#211) ──
+
+  const handleCreateTestLearner = useCallback(async () => {
+    if (creatingTestLearner) return;
+    setCreatingTestLearner(true);
+    setTestLearnerError(null);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/test-learner`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        router.push(`/x/callers/${data.callerId}?section=ai-call`);
+      } else {
+        setTestLearnerError(data.error || 'Failed to create test learner');
+        setCreatingTestLearner(false);
+      }
+    } catch {
+      setTestLearnerError('Network error');
+      setCreatingTestLearner(false);
+    }
+  }, [courseId, creatingTestLearner, router]);
 
   // ── Send invites ──
 
@@ -342,6 +369,30 @@ export function CourseLearnersTab({ courseId, initialJoinToken, studentProgress 
           </div>
         </div>
       )}
+
+      {/* Test learner — quick way to verify config changes against a fresh prompt (#211) */}
+      <div className="hf-card cl-section">
+        <div className="cl-section-header">
+          <FlaskConical size={14} />
+          <span>Spin up a test learner to try this course end-to-end</span>
+        </div>
+        <div className="cl-invite-actions">
+          {testLearnerError && (
+            <span className="cl-msg-error">{testLearnerError}</span>
+          )}
+          <button
+            className="hf-btn hf-btn-primary hf-btn-sm"
+            onClick={handleCreateTestLearner}
+            disabled={creatingTestLearner}
+          >
+            {creatingTestLearner ? (
+              <><div className="hf-spinner" style={{ width: 14, height: 14 }} /> Creating…</>
+            ) : (
+              '+ New test learner'
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Invite by email */}
       <div className="hf-card cl-section">
