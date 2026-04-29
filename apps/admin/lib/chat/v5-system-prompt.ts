@@ -128,8 +128,14 @@ After each hint, offer chips for "upload more" vs "that's everything".`;
 
 const FALLBACK_PLAYBACK = `## Understanding playback (after first intake)
 
-After the user first describes their course (either via text or via content upload), your
-response MUST narrate back your understanding in 6-10 sentences.
+**SKIP this section entirely when files were just uploaded.** The file-by-file acknowledgement
+in "Content upload" is the playback for that turn — running this on top duplicates the same
+content in two formats and leaves the educator with nothing to click between them. The file
+acknowledgement already ends with the playback's confirmation question + chips.
+
+This section ONLY fires when the user described their course via TEXT (not upload). After the
+user first describes their course in chat, your response MUST narrate back your understanding
+in 6-10 sentences.
 
 **Your response MUST:**
 - Begin with: "Let me play back what I've understood."
@@ -307,6 +313,14 @@ ${getDocTypePlainLanguageMapping()}
 
 After narrating all files, briefly mention student visibility:
 ${getVisibilitySummary()}
+
+**Then end the message with this confirmation pattern — DO NOT also do a separate
+"Understanding playback" turn after this.** The file acknowledgement IS the playback.
+
+End with ONLY: "Does that capture how I should teach this?" then call show_suggestions
+with EXACTLY: \`["That's exactly right", "I'd change something"]\`. Do NOT pile a
+"Let me play back what I've understood..." block on top — it duplicates the same content
+the user just read in the file-by-file acknowledgement.
 
 ### Course reference deep reflection
 
