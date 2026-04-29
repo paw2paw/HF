@@ -71,6 +71,11 @@ interface RowSpec {
   status: Status;
   details: { label: string; value: React.ReactNode }[] | null;
   editable: boolean;
+  /** When set, the badge becomes an interactive Apple-style toggle. */
+  toggle?: {
+    on: boolean;
+    onChange: (next: boolean) => void;
+  };
 }
 
 type DrawerKind = null | "mode";
@@ -87,6 +92,7 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerKind>(null);
+  const [savingToggle, setSavingToggle] = useState<string | null>(null);
 
   const refetch = useCallback(() => {
     setLoading(true);
@@ -113,6 +119,64 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
     setDrawer(null);
   };
 
+  /**
+   * Toggle one intake flag. Sends the FULL intake object so the resolver
+   * doesn't drop sibling toggles during merge.
+   */
+  const toggleIntake = useCallback(
+    async (key: "goals" | "aboutYou" | "knowledgeCheck" | "aiIntroCall", next: boolean, rowId: string) => {
+      if (!data || !data.ok) return;
+      const currentIntake = data.sessionFlow.intake;
+      const updatedIntake = {
+        goals: { enabled: currentIntake.goals.enabled },
+        aboutYou: { enabled: currentIntake.aboutYou.enabled },
+        knowledgeCheck: {
+          enabled: currentIntake.knowledgeCheck.enabled,
+          deliveryMode: currentIntake.knowledgeCheck.deliveryMode ?? "mcq" as const,
+        },
+        aiIntroCall: { enabled: currentIntake.aiIntroCall.enabled },
+      };
+      if (key === "knowledgeCheck") {
+        updatedIntake.knowledgeCheck.enabled = next;
+      } else {
+        updatedIntake[key].enabled = next;
+      }
+
+      // Optimistic update — flip immediately so the UI feels instant.
+      const optimistic: ApiResponse = {
+        ...data,
+        sessionFlow: {
+          ...data.sessionFlow,
+          intake: { ...data.sessionFlow.intake, [key]: { ...data.sessionFlow.intake[key], enabled: next } },
+        },
+      };
+      setData(optimistic);
+      setSavingToggle(rowId);
+
+      try {
+        const res = await fetch(`/api/courses/${courseId}/session-flow`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionFlow: { intake: updatedIntake } }),
+        });
+        const json = (await res.json()) as ApiResponse;
+        if (!json.ok) {
+          setError(json.error);
+          // Roll back on failure.
+          setData(data);
+        } else {
+          setData(json);
+        }
+      } catch (e) {
+        setError((e as Error).message);
+        setData(data);
+      } finally {
+        setSavingToggle(null);
+      }
+    },
+    [data, courseId],
+  );
+
   if (loading) return <div className="sft-loading">Loading Session Flow…</div>;
   if (error) return <div className="sft-error">Could not load Session Flow: {error}</div>;
   if (!data || !data.ok) return null;
@@ -138,8 +202,32 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
       details: welcomeMessageDetails(sessionFlow),
       editable: false,
     },
-    rowToggle("goals", "Goals question", "First call asks learner about their goals", sessionFlow.intake.goals.enabled, <Target size={16} />),
-    rowToggle("about-you", "About You", "Motivation + confidence check", sessionFlow.intake.aboutYou.enabled, <HelpCircle size={16} />),
+    {
+      id: "goals",
+      icon: <Target size={16} />,
+      label: "Goals question",
+      summary: "First call asks learner about their goals",
+      status: sessionFlow.intake.goals.enabled ? "enabled" : "disabled",
+      details: null,
+      editable: false,
+      toggle: {
+        on: sessionFlow.intake.goals.enabled,
+        onChange: (next) => toggleIntake("goals", next, "goals"),
+      },
+    },
+    {
+      id: "about-you",
+      icon: <HelpCircle size={16} />,
+      label: "About You",
+      summary: "Motivation + confidence check",
+      status: sessionFlow.intake.aboutYou.enabled ? "enabled" : "disabled",
+      details: null,
+      editable: false,
+      toggle: {
+        on: sessionFlow.intake.aboutYou.enabled,
+        onChange: (next) => toggleIntake("aboutYou", next, "about-you"),
+      },
+    },
     {
       id: "knowledge-check",
       icon: <ClipboardCheck size={16} />,
@@ -148,8 +236,24 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
       status: sessionFlow.intake.knowledgeCheck.enabled ? "enabled" : "disabled",
       details: knowledgeCheckDetails(sessionFlow),
       editable: false,
+      toggle: {
+        on: sessionFlow.intake.knowledgeCheck.enabled,
+        onChange: (next) => toggleIntake("knowledgeCheck", next, "knowledge-check"),
+      },
     },
-    rowToggle("ai-intro-call", "AI Intro Call", "Separate intro session before teaching", sessionFlow.intake.aiIntroCall.enabled, <Sparkles size={16} />),
+    {
+      id: "ai-intro-call",
+      icon: <Sparkles size={16} />,
+      label: "AI Intro Call",
+      summary: "Separate intro session before teaching",
+      status: sessionFlow.intake.aiIntroCall.enabled ? "enabled" : "disabled",
+      details: null,
+      editable: false,
+      toggle: {
+        on: sessionFlow.intake.aiIntroCall.enabled,
+        onChange: (next) => toggleIntake("aiIntroCall", next, "ai-intro-call"),
+      },
+    },
     ...sessionFlow.stops.filter(isPreTest).map((s): RowSpec => ({
       id: s.id,
       icon: <ClipboardCheck size={16} />,
@@ -234,9 +338,9 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
           </div>
         </header>
 
-        <Section title="BEFORE" rows={before} expandedId={expandedId} onToggle={toggleRow} onEdit={handleEdit} />
-        <Section title="DURING" rows={during} expandedId={expandedId} onToggle={toggleRow} onEdit={handleEdit} />
-        <Section title="AFTER" rows={after} expandedId={expandedId} onToggle={toggleRow} onEdit={handleEdit} />
+        <Section title="BEFORE" rows={before} expandedId={expandedId} onToggle={toggleRow} onEdit={handleEdit} savingToggle={savingToggle} />
+        <Section title="DURING" rows={during} expandedId={expandedId} onToggle={toggleRow} onEdit={handleEdit} savingToggle={savingToggle} />
+        <Section title="AFTER" rows={after} expandedId={expandedId} onToggle={toggleRow} onEdit={handleEdit} savingToggle={savingToggle} />
       </div>
 
       {drawer === "mode" && (
@@ -255,13 +359,14 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
 // ── Sub-components ──────────────────────────────────────────────
 
 function Section({
-  title, rows, expandedId, onToggle, onEdit,
+  title, rows, expandedId, onToggle, onEdit, savingToggle,
 }: {
   title: string;
   rows: RowSpec[];
   expandedId: string | null;
   onToggle: (id: string) => void;
   onEdit: (id: string) => void;
+  savingToggle: string | null;
 }) {
   return (
     <div className="sft-section">
@@ -274,6 +379,7 @@ function Section({
             expanded={expandedId === row.id}
             onToggle={() => onToggle(row.id)}
             onEdit={() => onEdit(row.id)}
+            saving={savingToggle === row.id}
           />
         ))}
       </ul>
@@ -282,12 +388,13 @@ function Section({
 }
 
 function Row({
-  row, expanded, onToggle, onEdit,
+  row, expanded, onToggle, onEdit, saving,
 }: {
   row: RowSpec;
   expanded: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  saving: boolean;
 }) {
   const expandable = !!row.details && row.details.length > 0;
   const classes = [
@@ -296,6 +403,24 @@ function Row({
     expandable ? "sft-row--expandable" : "",
     expanded ? "sft-row--expanded" : "",
   ].filter(Boolean).join(" ");
+
+  // Render the right-hand control: toggle > edit-btn > chevron.
+  const rightControl = row.toggle ? (
+    <Toggle on={row.toggle.on} onChange={row.toggle.onChange} saving={saving} ariaLabel={row.label} />
+  ) : row.editable ? (
+    <button
+      className="sfe-edit-btn"
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onEdit(); }}
+      title="Edit"
+    >
+      <Pencil size={12} /> <span>Edit</span>
+    </button>
+  ) : (
+    <span className="sft-row-chevron">
+      {expandable ? <ChevronRight size={14} /> : <span style={{ width: 14, display: "inline-block" }} />}
+    </span>
+  );
 
   return (
     <li className={classes}>
@@ -309,21 +434,12 @@ function Row({
         <span className="sft-row-icon">{statusIcon(row.status, row.icon)}</span>
         <span className="sft-row-label">{row.label}</span>
         <span className="sft-row-summary">{row.summary}</span>
-        <span className={`sft-row-badge sft-row-badge--${row.status}`}>{statusLabel(row.status)}</span>
-        {row.editable ? (
-          <button
-            className="sfe-edit-btn"
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            title="Edit"
-          >
-            <Pencil size={12} /> <span>Edit</span>
-          </button>
-        ) : (
-          <span className="sft-row-chevron">
-            {expandable ? <ChevronRight size={14} /> : <span style={{ width: 14, display: "inline-block" }} />}
-          </span>
+        {/* When the row has a toggle, the badge is replaced by the toggle. */}
+        {!row.toggle && (
+          <span className={`sft-row-badge sft-row-badge--${row.status}`}>{statusLabel(row.status)}</span>
         )}
+        {row.toggle && <span style={{ display: "inline-block", width: 0 }} />}
+        {rightControl}
       </div>
       {expanded && row.details && (
         <div className="sft-row-body">
@@ -338,6 +454,40 @@ function Row({
         </div>
       )}
     </li>
+  );
+}
+
+// ── Apple-style toggle ──────────────────────────────────────────────
+
+function Toggle({
+  on, onChange, saving, ariaLabel,
+}: {
+  on: boolean;
+  onChange: (next: boolean) => void;
+  saving: boolean;
+  ariaLabel: string;
+}) {
+  const classes = [
+    "sfe-toggle",
+    on ? "sfe-toggle--on" : "",
+    saving ? "sfe-toggle--saving" : "",
+  ].filter(Boolean).join(" ");
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
+      className={classes}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (saving) return;
+        onChange(!on);
+      }}
+      disabled={saving}
+    >
+      <span className="sfe-toggle-knob" />
+    </button>
   );
 }
 
@@ -482,18 +632,6 @@ function Drawer({
 }
 
 // ── Helpers ──────────────────────────────────────────────
-
-function rowToggle(id: string, label: string, summary: string, enabled: boolean, icon: React.ReactNode): RowSpec {
-  return {
-    id,
-    icon,
-    label,
-    summary,
-    status: enabled ? "enabled" : "disabled",
-    details: null,
-    editable: false,
-  };
-}
 
 function onboardingDetails(sf: SessionFlowResolved) {
   return [

@@ -4,6 +4,62 @@
 .sfe-row-head {
   grid-template-columns: 24px auto 1fr auto auto;
 }
+
+/* ── Apple-style toggle ──────────────────── */
+
+.sfe-toggle {
+  --sfe-toggle-w: 36px;
+  --sfe-toggle-h: 22px;
+  --sfe-toggle-pad: 2px;
+
+  position: relative;
+  width: var(--sfe-toggle-w);
+  height: var(--sfe-toggle-h);
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-tertiary);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.18s ease;
+  flex-shrink: 0;
+}
+.sfe-toggle:hover {
+  background: color-mix(in srgb, var(--text-muted) 30%, var(--surface-tertiary));
+}
+.sfe-toggle--on {
+  background: var(--accent-primary);
+}
+.sfe-toggle--on:hover {
+  background: var(--accent-primary-hover, var(--accent-primary));
+}
+.sfe-toggle:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.sfe-toggle-knob {
+  position: absolute;
+  top: var(--sfe-toggle-pad);
+  left: var(--sfe-toggle-pad);
+  width: calc(var(--sfe-toggle-h) - var(--sfe-toggle-pad) * 2);
+  height: calc(var(--sfe-toggle-h) - var(--sfe-toggle-pad) * 2);
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sfe-toggle--on .sfe-toggle-knob {
+  transform: translateX(calc(var(--sfe-toggle-w) - var(--sfe-toggle-h)));
+}
+
+.sfe-toggle--saving {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.sfe-toggle--error {
+  outline: 2px solid var(--status-error-text, #dc2626);
+  outline-offset: 2px;
+}
 .sfe-edit-btn {
   display: inline-flex;
   align-items: center;
