@@ -30,6 +30,7 @@
   - [Analysis Specs](#analysis-specs)
   - [Analytics](#analytics)
   - [Auth](#auth)
+  - [Caller](#caller)
   - [Callers](#callers)
   - [Calls](#calls)
   - [Chat](#chat)
@@ -2155,6 +2156,26 @@ Validates a superadmin bearer token and returns access credentials. Used for pro
 **Response** `500`
 ```json
 { error: "Server misconfigured" }
+```
+
+---
+
+## Caller
+
+### `GET` /api/callers/[callerId]/session-flow-progress
+
+Returns the resolved Session Flow for the caller's active
+
+**Auth**: session (OPERATOR+) · **Scope**: `caller:read`
+
+**Response** `200`
+```json
+{ ok, sessionFlow: SessionFlowResolved, mode, progress }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Caller has no active enrolment" }
 ```
 
 ---
@@ -14176,8 +14197,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 436 |
-| Files with annotations | 435 |
+| Route files found | 437 |
+| Files with annotations | 436 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 
