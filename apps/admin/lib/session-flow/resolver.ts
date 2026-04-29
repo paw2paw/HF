@@ -125,20 +125,24 @@ function resolveOnboarding(
   domain: DomainLike | null | undefined,
   onboardingSpec: OnboardingSpecLike | null | undefined,
 ): { value: OnboardingFlowPhases; source: SessionFlowResolved["source"]["onboarding"] } {
-  const sfPhases = sf.onboarding?.phases;
-  if (sfPhases?.length) {
-    return { value: { phases: sfPhases }, source: "new-shape" };
+  // Truthy-object check (not phase-length) matches the legacy cascade
+  // `playbookFlow || domainFlow || initFlow` in pedagogy.ts. Required for
+  // byte-equal output during dual-read window.
+  if (sf.onboarding) {
+    return {
+      value: { phases: sf.onboarding.phases ?? [] },
+      source: "new-shape",
+    };
   }
-  const pbPhases = pbConfig.onboardingFlowPhases;
-  if (pbPhases?.phases?.length) {
-    return { value: pbPhases, source: "playbook-legacy" };
+  if (pbConfig.onboardingFlowPhases) {
+    return { value: pbConfig.onboardingFlowPhases, source: "playbook-legacy" };
   }
   const domainPhases = domain?.onboardingFlowPhases as OnboardingFlowPhases | null | undefined;
-  if (domainPhases?.phases?.length) {
+  if (domainPhases) {
     return { value: domainPhases, source: "domain" };
   }
   const initFlow = onboardingSpec?.config?.firstCallFlow;
-  if (initFlow?.phases?.length) {
+  if (initFlow) {
     return { value: initFlow, source: "init001" };
   }
   return { value: { phases: [] }, source: "init001" };
