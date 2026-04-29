@@ -208,7 +208,11 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
       label: "Goals question",
       summary: "First call asks learner about their goals",
       status: sessionFlow.intake.goals.enabled ? "enabled" : "disabled",
-      details: null,
+      details: [
+        { label: "Captures", value: "Open answer about what the learner wants to get out of the course." },
+        { label: "Stored as", value: "CallerAttribute scope=PRE key=goal_text" },
+        { label: "Used by", value: "AI prompt context — referenced in greeting + adaptive guidance." },
+      ],
       editable: false,
       toggle: {
         on: sessionFlow.intake.goals.enabled,
@@ -221,7 +225,11 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
       label: "About You",
       summary: "Motivation + confidence check",
       status: sessionFlow.intake.aboutYou.enabled ? "enabled" : "disabled",
-      details: null,
+      details: [
+        { label: "Captures", value: "Confidence (1–5), prior knowledge level, optional motivation text." },
+        { label: "Stored as", value: "CallerAttribute scope=PRE key=confidence / prior_knowledge / concern_text" },
+        { label: "Used by", value: "Personalisation — adjusts pace, scaffolding, and tone." },
+      ],
       editable: false,
       toggle: {
         on: sessionFlow.intake.aboutYou.enabled,
@@ -247,7 +255,11 @@ export function SessionFlowEditor({ courseId }: SessionFlowEditorProps) {
       label: "AI Intro Call",
       summary: "Separate intro session before teaching",
       status: sessionFlow.intake.aiIntroCall.enabled ? "enabled" : "disabled",
-      details: null,
+      details: [
+        { label: "Behaviour", value: "Runs a short warm-up call before any curriculum content. The learner meets the AI tutor first, no quizzing or teaching." },
+        { label: "When to use", value: "Anxious or first-time learners; courses where rapport matters more than pacing." },
+        { label: "Status", value: "Configurable; runtime delivery in development." },
+      ],
       editable: false,
       toggle: {
         on: sessionFlow.intake.aiIntroCall.enabled,
@@ -404,10 +416,14 @@ function Row({
     expanded ? "sft-row--expanded" : "",
   ].filter(Boolean).join(" ");
 
-  // Render the right-hand control: toggle > edit-btn > chevron.
-  const rightControl = row.toggle ? (
+  // The status column shows either the Apple toggle or the static badge.
+  // The action column shows the Edit button, an expand chevron, or empty.
+  const statusControl = row.toggle ? (
     <Toggle on={row.toggle.on} onChange={row.toggle.onChange} saving={saving} ariaLabel={row.label} />
-  ) : row.editable ? (
+  ) : (
+    <span className={`sft-row-badge sft-row-badge--${row.status}`}>{statusLabel(row.status)}</span>
+  );
+  const actionControl = row.editable ? (
     <button
       className="sfe-edit-btn"
       type="button"
@@ -434,12 +450,8 @@ function Row({
         <span className="sft-row-icon">{statusIcon(row.status, row.icon)}</span>
         <span className="sft-row-label">{row.label}</span>
         <span className="sft-row-summary">{row.summary}</span>
-        {/* When the row has a toggle, the badge is replaced by the toggle. */}
-        {!row.toggle && (
-          <span className={`sft-row-badge sft-row-badge--${row.status}`}>{statusLabel(row.status)}</span>
-        )}
-        {row.toggle && <span style={{ display: "inline-block", width: 0 }} />}
-        {rightControl}
+        {statusControl}
+        {actionControl}
       </div>
       {expanded && row.details && (
         <div className="sft-row-body">
