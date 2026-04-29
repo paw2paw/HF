@@ -8,6 +8,7 @@
 import { registerTransform } from "../TransformRegistry";
 import type { AssembledContext } from "../types";
 import { config } from "@/lib/config";
+import { detectPersonalisationMode } from "./quickstart";
 
 /**
  * Compute session pedagogy plan (flow, review, new material, principles).
@@ -72,21 +73,26 @@ registerTransform("computeSessionPedagogy", (
     const source = playbookFlow ? `Playbook ${primaryPlaybook?.name}` : domainFlow ? `Domain ${domain?.slug}` : config.specs.onboarding;
 
     if (fcFlow?.phases) {
-      // The discovery phase is a coarse-grained block that probes name / goals /
-      // prior knowledge. Drop it from the flow ONLY when the educator has switched
-      // off ALL THREE welcome phases (`welcome.goals`, `welcome.aboutYou`,
-      // `welcome.knowledgeCheck`) — there is nothing left to discover. Partial
-      // opt-outs are handled by per-phase guidance in `discovery_guidance`.
-      // Each toggle defaults to `true` for legacy playbooks with no welcome config.
+      // Drop the discovery phase from the first-call flow when in-call
+      // discovery is redundant. Two cases:
+      //   - OPT_OUT: educator turned off all three welcome phases — nothing to ask
+      //   - PRE_LOADED: learner already submitted goals/about-you before the call
+      // COLD_START keeps the discovery phase (AI asks in-call to fill the gap).
       //
       // Match BOTH "discover" (verb, used in INIT-001 + COACH-001 seed JSONs) and
       // "discovery" (noun, used in fallback-settings.ts DEFAULT_FLOW_PHASES). The
       // regex avoids accidental hits on hypothetical names like "discoverable-state".
       const pbWelcome = primaryPlaybook?.config?.welcome;
-      const askGoals = pbWelcome?.goals?.enabled ?? true;
-      const askAboutYou = pbWelcome?.aboutYou?.enabled ?? true;
-      const askKnowledge = pbWelcome?.knowledgeCheck?.enabled ?? true;
-      const dropDiscovery = !askGoals && !askAboutYou && !askKnowledge;
+      const toggles = {
+        askGoals: pbWelcome?.goals?.enabled ?? true,
+        askAboutYou: pbWelcome?.aboutYou?.enabled ?? true,
+        askKnowledge: pbWelcome?.knowledgeCheck?.enabled ?? true,
+      };
+      const mode = detectPersonalisationMode(
+        context.loadedData.callerAttributes ?? [],
+        toggles,
+      );
+      const dropDiscovery = mode === "OPT_OUT" || mode === "PRE_LOADED";
       const DISCOVERY_PHASE_RE = /^discover(y)?$/i;
       const allPhases = fcFlow.phases as any[];
       const filteredPhases = dropDiscovery
@@ -112,7 +118,7 @@ registerTransform("computeSessionPedagogy", (
 
       console.log(`[pedagogy] Using ${source} first-call flow with ${filteredPhases.length} phases`);
       if (removedCount > 0) {
-        console.log(`[pedagogy] Filtered ${removedCount} discovery phase(s) — welcome flow fully disabled`);
+        console.log(`[pedagogy] Filtered ${removedCount} discovery phase(s) — personalisation mode = ${mode}`);
       }
     } else {
       // Fallback to default first-call flow.
