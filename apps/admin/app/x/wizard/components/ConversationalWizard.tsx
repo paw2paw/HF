@@ -1500,7 +1500,11 @@ export function ConversationalWizard({ initialContext, userRole, wizardVersion =
 
             if (msg.role === "assistant") {
               const isLast = !isForeground && suggestions.items.length === 0 && !welcomeSuggestion && msg.id === lastAssistantId;
-              const parsed = isLast ? parseOptionsFromText(msg.content) : [];
+              // Skip text-parsed chips when the welcome-flow checklist is active.
+              // The proposal prose has bold bullet items that parseOptionsFromText
+              // scrapes into chips (e.g. **Goals**, **About You**) — those would
+              // duplicate the checklist's own decision surface.
+              const parsed = (isLast && !welcomeChecklistActive) ? parseOptionsFromText(msg.content) : [];
               // Fallback: if no chips from show_suggestions or text parsing,
               // ALWAYS show default chips on the last assistant message.
               // The AI must never leave the user with no visible next action.
