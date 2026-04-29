@@ -5107,6 +5107,24 @@ Save student experience design config (welcome flow phases + NPS settings).
 
 ---
 
+### `GET` /api/courses/[courseId]/session-flow
+
+Returns the resolved Session Flow shape for a course — the
+
+**Auth**: session (OPERATOR+) · **Scope**: `course:read`
+
+**Response** `200`
+```json
+{ ok, sessionFlow: SessionFlowResolved, mode: "continuous"|"structured", teachingMode?: string, sessionCount?: number }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Course not found" }
+```
+
+---
+
 ## Course Pack
 
 ### `POST` /api/course-pack/analyze
@@ -14158,8 +14176,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 435 |
-| Files with annotations | 434 |
+| Route files found | 436 |
+| Files with annotations | 435 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 
