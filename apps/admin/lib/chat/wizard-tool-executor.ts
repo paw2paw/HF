@@ -25,7 +25,7 @@
  * @param contextLabel string used in observability warnings ("create_course (existing)" etc.)
  * @param entityId    playbookId / courseId for observability
  */
-function applyStudentExperienceConfig(
+export function applyStudentExperienceConfig(
   setupData: Record<string, unknown> | undefined,
   configUpdate: Record<string, unknown>,
   contextLabel: string,
