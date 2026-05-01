@@ -314,6 +314,16 @@ export interface PlaybookConfig {
     preTest?: { enabled: boolean; questionCount: number };
     postTest?: { enabled: boolean };
   };
+  /**
+   * Whether the AI may share course materials (PDFs, reference docs) with
+   * students during sessions. Default: true (preserves existing reading-
+   * comprehension course behaviour). Set to false for voice-only courses
+   * (IELTS Speaking, conversation practice) where document delivery is
+   * pedagogically wrong (turns speaking practice into reading exercise) or
+   * technically meaningless (voice channel can't render PDFs).
+   * @see https://github.com/WANDERCOLTD/HF/issues/234
+   */
+  shareMaterials?: boolean;
   [key: string]: any;
 }
 

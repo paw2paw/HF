@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import type { AITool, AIToolUse } from "@/lib/ai/client";
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 // =====================================================
 // TOOL DEFINITIONS
@@ -111,6 +112,26 @@ async function handleShareContent(
     };
   }
 
+  // #234: Block sharing for voice-only / no-share courses. Defence-in-depth —
+  // buildContentCatalog already suppresses the catalog so the AI shouldn't
+  // know about media IDs in the first place, but if it tries anyway (e.g. via
+  // a stale prompt or a hallucinated UUID) we refuse at execution time.
+  const sharePlaybookId = await resolvePlaybookId(ctx.callerId);
+  if (sharePlaybookId) {
+    const sharePlaybook = await prisma.playbook.findUnique({
+      where: { id: sharePlaybookId },
+      select: { config: true },
+    });
+    const sharePlaybookConfig = (sharePlaybook?.config as PlaybookConfig | null) ?? null;
+    if (sharePlaybookConfig?.shareMaterials === false) {
+      return {
+        tool_use_id: toolUse.id,
+        content: `Cannot share materials in this course — it is configured as voice-only / no document delivery. Continue the conversation without sharing.`,
+        is_error: true,
+      };
+    }
+  }
+
   // Don't create a separate CallMessage here — the client will persist the
   // assistant message with mediaId via the observer relay. Creating a message
   // here caused duplicates: one from the tool + one from the streamed response.
@@ -157,6 +178,18 @@ export async function buildContentCatalog(callerId: string, callId?: string, llm
   let subjectIds: string[];
   const playbookId = await resolvePlaybookId(callerId);
   if (playbookId) {
+    // #234: Check the course's shareMaterials flag BEFORE building the catalog.
+    // When a course is voice-only / no-share, we return null so the AI never
+    // sees any media UUIDs and never gets the "share it proactively" instruction.
+    const playbook = await prisma.playbook.findUnique({
+      where: { id: playbookId },
+      select: { config: true },
+    });
+    const playbookConfig = (playbook?.config as PlaybookConfig | null) ?? null;
+    if (playbookConfig?.shareMaterials === false) {
+      return null;
+    }
+
     const playbookSubjects = await prisma.playbookSubject.findMany({
       where: { playbookId },
       select: { subjectId: true },
