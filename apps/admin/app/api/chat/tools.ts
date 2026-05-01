@@ -10,6 +10,7 @@ import type { AITool, AIToolUse } from "@/lib/ai/client";
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { isStudentVisibleDefault } from "@/lib/doc-type-icons";
 import type { PlaybookConfig } from "@/lib/types/json-fields";
+import { channelSupportsRichMedia, type ContentChannel } from "@/lib/channels/capabilities";
 
 // =====================================================
 // TOOL DEFINITIONS
@@ -46,6 +47,12 @@ export const CHAT_TOOLS: AITool[] = [
 export interface ToolContext {
   callerId: string;
   callId: string;
+  /**
+   * The live channel of the conversation (#235). When the channel can't
+   * render rich media (voice, plain SMS), share_content is rejected
+   * regardless of course config.
+   */
+  channel?: ContentChannel;
 }
 
 export interface ToolResult {
@@ -112,6 +119,17 @@ async function handleShareContent(
     };
   }
 
+  // #235: Channel-capability gate — refuse if the live conversation channel
+  // can't render rich media (voice calls, plain SMS). Layered with the
+  // course-intent gate below; either layer can suppress.
+  if (ctx.channel && !channelSupportsRichMedia(ctx.channel)) {
+    return {
+      tool_use_id: toolUse.id,
+      content: `Cannot share materials over the ${ctx.channel} channel — it does not support rich media delivery. Continue the conversation without sharing.`,
+      is_error: true,
+    };
+  }
+
   // #234: Block sharing for voice-only / no-share courses. Defence-in-depth —
   // buildContentCatalog already suppresses the catalog so the AI shouldn't
   // know about media IDs in the first place, but if it tries anyway (e.g. via
@@ -157,7 +175,19 @@ async function handleShareContent(
  * For first calls, annotates media with phase assignments from the domain's
  * onboardingFlowPhases config (phases[].content[].mediaId).
  */
-export async function buildContentCatalog(callerId: string, callId?: string, llmPrompt?: unknown): Promise<string | null> {
+export async function buildContentCatalog(
+  callerId: string,
+  callId?: string,
+  llmPrompt?: unknown,
+  channel?: ContentChannel,
+): Promise<string | null> {
+  // #235: Channel-capability gate — channels that can't render rich media
+  // (voice, plain SMS) get an empty catalog regardless of course config.
+  // No catalog → no media UUIDs in prompt → AI never knows what to share.
+  if (channel && !channelSupportsRichMedia(channel)) {
+    return null;
+  }
+
   const caller = await prisma.caller.findUnique({
     where: { id: callerId },
     select: {

@@ -485,6 +485,153 @@ describe("chat tools", () => {
     });
   });
 
+  // #235: channel-capability gate (compose with #234 course-intent gate)
+  describe("buildContentCatalog — channel capability (#235)", () => {
+    it("returns null when channel is voice (cannot render rich media)", async () => {
+      mockPrisma.caller.findUnique.mockResolvedValue({
+        id: "caller-1",
+        domainId: "domain-1",
+        domain: { onboardingFlowPhases: null, subjects: [{ subjectId: "sub-1" }] },
+      });
+
+      const { buildContentCatalog } = await import("@/app/api/chat/tools");
+      const catalog = await buildContentCatalog("caller-1", undefined, undefined, "voice");
+
+      expect(catalog).toBeNull();
+      // Channel gate fires before any DB lookup
+      expect(mockPrisma.caller.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("returns null when channel is sms (no rich media)", async () => {
+      const { buildContentCatalog } = await import("@/app/api/chat/tools");
+      const catalog = await buildContentCatalog("caller-1", undefined, undefined, "sms");
+      expect(catalog).toBeNull();
+    });
+
+    it("proceeds when channel is web-chat (rich media supported)", async () => {
+      mockPrisma.callerPlaybook.findFirst.mockResolvedValue({ playbookId: "pb-1" });
+      mockPrisma.playbook.findUnique.mockResolvedValue({ config: {} });
+      mockPrisma.playbookSubject.findMany.mockResolvedValue([{ subjectId: "sub-1" }]);
+      mockPrisma.caller.findUnique.mockResolvedValue({
+        id: "caller-1",
+        domainId: "domain-1",
+        domain: { onboardingFlowPhases: null, subjects: [{ subjectId: "sub-1" }] },
+      });
+      mockPrisma.onboardingSession.findUnique.mockResolvedValue({ isComplete: true });
+      mockPrisma.subjectMedia.findMany.mockResolvedValue([
+        {
+          media: {
+            id: "m1", fileName: "a.png", mimeType: "image/png", title: "A",
+            description: null, tags: [],
+            source: { documentType: "READING_PASSAGE" },
+          },
+        },
+      ]);
+
+      const { buildContentCatalog } = await import("@/app/api/chat/tools");
+      const catalog = await buildContentCatalog("caller-1", undefined, undefined, "web-chat");
+      expect(catalog).toContain("A");
+    });
+
+    it("channel layer wins over course-intent: voice + shareMaterials=true → still blocked", async () => {
+      mockPrisma.caller.findUnique.mockResolvedValue({
+        id: "caller-1",
+        domainId: "domain-1",
+        domain: { onboardingFlowPhases: null, subjects: [{ subjectId: "sub-1" }] },
+      });
+      mockPrisma.callerPlaybook.findFirst.mockResolvedValue({ playbookId: "pb-1" });
+      mockPrisma.playbook.findUnique.mockResolvedValue({
+        config: { shareMaterials: true },
+      });
+
+      const { buildContentCatalog } = await import("@/app/api/chat/tools");
+      const catalog = await buildContentCatalog("caller-1", undefined, undefined, "voice");
+
+      expect(catalog).toBeNull();
+    });
+
+    it("course-intent layer wins over channel: web-chat + shareMaterials=false → blocked", async () => {
+      mockPrisma.caller.findUnique.mockResolvedValue({
+        id: "caller-1",
+        domainId: "domain-1",
+        domain: { onboardingFlowPhases: null, subjects: [{ subjectId: "sub-1" }] },
+      });
+      mockPrisma.callerPlaybook.findFirst.mockResolvedValue({ playbookId: "pb-voice" });
+      mockPrisma.playbook.findUnique.mockResolvedValue({
+        config: { shareMaterials: false },
+      });
+
+      const { buildContentCatalog } = await import("@/app/api/chat/tools");
+      const catalog = await buildContentCatalog("caller-1", undefined, undefined, "web-chat");
+
+      expect(catalog).toBeNull();
+    });
+  });
+
+  describe("handleShareContent — channel capability (#235)", () => {
+    it("rejects share_content when channel is voice", async () => {
+      mockPrisma.mediaAsset.findUnique.mockResolvedValue({
+        id: "media-1",
+        fileName: "doc.pdf",
+        mimeType: "application/pdf",
+        title: "Doc",
+        source: { documentType: "REFERENCE" },
+      });
+      mockPrisma.caller.findUnique.mockResolvedValue({ role: "LEARNER" });
+
+      const { executeToolCall } = await import("@/app/api/chat/tools");
+      const result = await executeToolCall(
+        { id: "tu", name: "share_content", input: { media_id: "media-1" } },
+        { callerId: "caller-1", callId: "call-1", channel: "voice" }
+      );
+
+      expect(result.is_error).toBe(true);
+      expect(result.content).toMatch(/voice channel|does not support rich/i);
+    });
+
+    it("rejects share_content when channel is sms", async () => {
+      mockPrisma.mediaAsset.findUnique.mockResolvedValue({
+        id: "media-1",
+        fileName: "doc.pdf",
+        mimeType: "application/pdf",
+        title: "Doc",
+        source: { documentType: "READING_PASSAGE" },
+      });
+      mockPrisma.caller.findUnique.mockResolvedValue({ role: "LEARNER" });
+
+      const { executeToolCall } = await import("@/app/api/chat/tools");
+      const result = await executeToolCall(
+        { id: "tu", name: "share_content", input: { media_id: "media-1" } },
+        { callerId: "caller-1", callId: "call-1", channel: "sms" }
+      );
+
+      expect(result.is_error).toBe(true);
+      expect(result.content).toMatch(/sms channel|does not support rich/i);
+    });
+
+    it("allows share_content on web-chat with default config", async () => {
+      mockPrisma.mediaAsset.findUnique.mockResolvedValue({
+        id: "media-1",
+        fileName: "passage.png",
+        mimeType: "image/png",
+        title: "Passage",
+        source: { documentType: "READING_PASSAGE" },
+      });
+      mockPrisma.caller.findUnique.mockResolvedValue({ role: "LEARNER" });
+      mockPrisma.callerPlaybook.findFirst.mockResolvedValue({ playbookId: "pb-1" });
+      mockPrisma.playbook.findUnique.mockResolvedValue({ config: {} });
+
+      const { executeToolCall } = await import("@/app/api/chat/tools");
+      const result = await executeToolCall(
+        { id: "tu", name: "share_content", input: { media_id: "media-1" } },
+        { callerId: "caller-1", callId: "call-1", channel: "web-chat" }
+      );
+
+      expect(result.is_error).toBeFalsy();
+      expect(result.sharedMedia?.id).toBe("media-1");
+    });
+  });
+
   // #234: defence-in-depth at the execution site
   describe("handleShareContent — shareMaterials gate", () => {
     it("rejects share_content when playbook has shareMaterials: false", async () => {

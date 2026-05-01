@@ -413,7 +413,9 @@ async function handleCallModeWithTools(
   llmPrompt?: unknown,
 ): Promise<Response> {
   // Check if there's any content to share (scoped to current session when lesson plan exists)
-  const catalog = await buildContentCatalog(callerId, callId, llmPrompt);
+  // #235: This route serves the live SIM chat (browser-rendered) — channel is "web-chat"
+  // which supports rich media. Other transports (voice, sms) live behind different routes.
+  const catalog = await buildContentCatalog(callerId, callId, llmPrompt, "web-chat");
 
   // No content available — fall back to standard streaming (no tools needed)
   if (!catalog) {
@@ -461,7 +463,8 @@ async function handleCallModeWithTools(
   const loopMessages: AIMessage[] = [...messages];
   let toolCallCount = 0;
   let finalContent = "";
-  const toolCtx = { callerId, callId };
+  // #235: same channel reasoning as buildContentCatalog above — sim chat = web-chat.
+  const toolCtx = { callerId, callId, channel: "web-chat" as const };
   const sharedMediaItems: Array<{ id: string; fileName: string; mimeType: string; title: string | null }> = [];
   const sharedMediaIds = new Set<string>(); // Dedup within a single turn
 
