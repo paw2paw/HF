@@ -38,7 +38,7 @@ vi.mock("@/lib/permissions", () => ({
 }));
 
 // Import AFTER mocks
-import { POST } from "@/app/api/courses/[courseId]/import-modules/route";
+import { GET, POST } from "@/app/api/courses/[courseId]/import-modules/route";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -241,5 +241,77 @@ describe("POST /api/courses/[courseId]/import-modules — persistence", () => {
     expect(idError).toBeDefined();
     // Still persisted — caller decides whether to surface as blocker
     expect(body.persisted).toBe(true);
+  });
+});
+
+// ── GET handler ─────────────────────────────────────────────────
+
+function makeGetReq(): NextRequest {
+  return new NextRequest("http://localhost:3000/api/courses/c1/import-modules");
+}
+
+describe("GET /api/courses/[courseId]/import-modules", () => {
+  it("returns the auth error when requireAuth fails", async () => {
+    const errorResponse = NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    mockRequireAuth.mockResolvedValue({ error: errorResponse });
+    mockIsAuthError.mockReturnValue(true);
+
+    const res = await GET(makeGetReq(), { params });
+    expect(res.status).toBe(401);
+    expect(mockPrisma.playbook.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the playbook does not exist", async () => {
+    mockPrisma.playbook.findUnique.mockResolvedValue(null);
+    const res = await GET(makeGetReq(), { params });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toBe("Course not found");
+  });
+
+  it("returns empty state when no authored modules persisted yet", async () => {
+    mockPrisma.playbook.findUnique.mockResolvedValue({
+      id: "playbook-1",
+      config: { lessonPlanMode: "continuous" },
+    });
+    const res = await GET(makeGetReq(), { params });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.modulesAuthored).toBeNull();
+    expect(body.modules).toEqual([]);
+    expect(body.moduleDefaults).toEqual({});
+    expect(body.moduleSource).toBeNull();
+    expect(body.moduleSourceRef).toBeNull();
+    expect(body.hasErrors).toBe(false);
+  });
+
+  it("returns persisted modules + warnings + hasErrors", async () => {
+    mockPrisma.playbook.findUnique.mockResolvedValue({
+      id: "playbook-1",
+      config: {
+        modulesAuthored: true,
+        moduleSource: "authored",
+        moduleSourceRef: { docId: "doc-9", version: "2.2" },
+        modules: [
+          { id: "m1", label: "Module One", learnerSelectable: true, mode: "tutor",
+            duration: "Student-led", scoringFired: "LR + GRA only", voiceBandReadout: false,
+            sessionTerminal: false, frequency: "repeatable", outcomesPrimary: [],
+            prerequisites: [] },
+        ],
+        moduleDefaults: { mode: "tutor" },
+        validationWarnings: [
+          { code: "MODULE_FIELD_DEFAULTED", message: "x", severity: "warning" },
+          { code: "MODULE_ID_INVALID", message: "y", severity: "error" },
+        ],
+      },
+    });
+    const res = await GET(makeGetReq(), { params });
+    const body = await res.json();
+    expect(body.modulesAuthored).toBe(true);
+    expect(body.modules).toHaveLength(1);
+    expect(body.moduleSource).toBe("authored");
+    expect(body.moduleSourceRef).toEqual({ docId: "doc-9", version: "2.2" });
+    expect(body.validationWarnings).toHaveLength(2);
+    expect(body.hasErrors).toBe(true);
   });
 });

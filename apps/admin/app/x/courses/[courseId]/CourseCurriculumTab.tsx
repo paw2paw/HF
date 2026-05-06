@@ -20,6 +20,7 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import type { CourseLinkageScorecard } from "@/lib/content-trust/validate-lo-linkage";
 import { CurriculumHealthTabs, type RegenerateActions } from "./CurriculumHealthTabs";
+import { AuthoredModulesPanel } from "./_components/AuthoredModulesPanel";
 import "./course-curriculum-tab.css";
 
 interface CourseCurriculumTabProps {
@@ -165,11 +166,20 @@ export function CourseCurriculumTab({
   }
 
   if (!curriculumId) {
+    // Authored modules live on Playbook.config and don't depend on a
+    // generated curriculum, so we still surface the panel here. The
+    // "no curriculum" empty state lives below the panel.
     return (
-      <div className="hf-empty">
-        <p className="hf-text-sm hf-text-muted">
-          No curriculum yet. Upload content on the Content tab to generate one.
-        </p>
+      <div className="hf-stack-md">
+        <AuthoredModulesPanel
+          courseId={playbookId ?? courseId}
+          isOperator={isOperator}
+        />
+        <div className="hf-empty">
+          <p className="hf-text-sm hf-text-muted">
+            No curriculum yet. Upload content on the Content tab to generate one.
+          </p>
+        </div>
       </div>
     );
   }
@@ -183,6 +193,11 @@ export function CourseCurriculumTab({
   return (
     <div className="hf-stack-md">
       {error && <div className="hf-banner hf-banner-error">{error}</div>}
+
+      <AuthoredModulesPanel
+        courseId={playbookId ?? courseId}
+        isOperator={isOperator}
+      />
 
       {hasZeroModules && (
         <div className="hf-banner hf-banner-warning">

@@ -1,0 +1,201 @@
+/* ═══════════════════════════════════════════════════════
+   Authored Modules panel — Module Catalogue read-only view
+   + import dialog. Issue #236 PR3.
+   ═══════════════════════════════════════════════════════ */
+
+.authored-modules-panel__title {
+  margin: 0;
+  flex: 1;
+}
+
+.authored-modules-panel__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Catalogue table ────────────────────────────────────── */
+
+.authored-modules-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.authored-modules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.authored-modules-table th,
+.authored-modules-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.authored-modules-table thead th {
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+}
+
+.authored-modules-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.authored-modules-table__center {
+  text-align: center;
+}
+
+.authored-modules-table code {
+  font-size: 12px;
+  background: var(--surface-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ── Status strip ───────────────────────────────────────── */
+
+.authored-modules-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.authored-modules-status__icon--ok {
+  color: var(--status-success-text);
+}
+
+.authored-modules-status__icon--warn {
+  color: var(--status-error-text);
+}
+
+/* ── Defaults row ───────────────────────────────────────── */
+
+.authored-modules-defaults {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-default);
+  margin-top: 8px;
+}
+
+.authored-modules-defaults__label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.authored-modules-defaults__sep {
+  color: var(--text-muted);
+}
+
+.authored-modules-defaults__key {
+  color: var(--text-muted);
+}
+
+.authored-modules-defaults__val {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ── Validation list ────────────────────────────────────── */
+
+.authored-modules-warnings {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.authored-modules-warnings__item {
+  display: grid;
+  grid-template-columns: minmax(160px, auto) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.authored-modules-warnings__item--warn {
+  background: color-mix(in srgb, var(--status-error-text) 8%, transparent);
+}
+
+.authored-modules-warnings__item--error {
+  background: color-mix(in srgb, var(--status-error-text) 16%, transparent);
+}
+
+.authored-modules-warnings__code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.authored-modules-warnings__msg {
+  color: var(--text-primary);
+}
+
+.authored-modules-warnings__path {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Import dialog ──────────────────────────────────────── */
+
+.authored-modules-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--text-primary) 50%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.authored-modules-dialog {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.authored-modules-dialog__title {
+  margin: 0;
+  flex: 1;
+}
+
+.authored-modules-dialog__close {
+  flex-shrink: 0;
+  padding: 4px 8px;
+}
+
+.authored-modules-dialog__textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+}
+
+.authored-modules-dialog__file-hidden {
+  display: none;
+}
+
+.authored-modules-dialog__sourceref {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.authored-modules-dialog__actions {
+  justify-content: flex-end;
+}
