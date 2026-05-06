@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { SurveyStep } from '@/components/student/ChatSurvey';
 import type { SurveyStepConfig } from '@/lib/types/json-fields';
 import { SURVEY_SCOPES, POST_SURVEY_KEYS } from '@/lib/learner/survey-keys';
@@ -137,6 +138,12 @@ function buildPostSteps(configs: SurveyStepConfig[]): SurveyStep[] {
 // ---------------------------------------------------------------------------
 
 export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJourneyChatOptions): UseJourneyChatResult {
+  // #242 Slice 4: navigate to the picker when journey-position returns
+  // module_picker. Skipped when ?requestedModuleId=… is already in the URL
+  // (treated as "already picked, proceed to teaching") so we don't loop.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [items, setItems] = useState<ChatItem[]>([]);
   const [state, setState] = useState<JourneyState>('loading');
   const [activeSurveyStep, setActiveSurveyStep] = useState<SurveyStep | null>(null);
@@ -479,7 +486,20 @@ export function useJourneyChat({ callerId, forceFirstCall, callerRole }: UseJour
 
       const stopType = data.nextStop.type;
 
-      if (stopType === 'post_survey') {
+      if (stopType === 'module_picker') {
+        // #242 Slice 4: route real learners to the picker before each session.
+        // Skip when the URL already has requestedModuleId — that means the
+        // learner has just picked, came back via returnTo, and is ready to
+        // teach. Without this guard the picker → SIM round-trip loops.
+        const alreadyPicked = !!searchParams?.get('requestedModuleId');
+        if (alreadyPicked) {
+          setState('teaching');
+        } else if (data.nextStop.redirect) {
+          router.push(data.nextStop.redirect);
+        } else {
+          setState('teaching');
+        }
+      } else if (stopType === 'post_survey') {
         await loadPostSurvey();
       } else if (stopType === 'onboarding') {
         // Fetch WelcomeConfig to decide which pre-course phases to show

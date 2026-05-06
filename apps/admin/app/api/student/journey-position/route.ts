@@ -202,11 +202,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       // State 4: COMPLETE or LEARNING
+      // #242 Slice 4: when the course has author-declared modules, route the
+      // learner to the picker before each session instead of straight to /x/sim.
+      // returnTo includes the caller's specific conversation so the learner
+      // lands back in their SIM session with ?requestedModuleId=… preserved.
+      const learningRedirect = pbConfig.modulesAuthored === true
+        ? {
+            type: "module_picker",
+            session: 1,
+            redirect: `/x/student/${enrollment.playbook.id}/modules?returnTo=${encodeURIComponent(`/x/sim/${callerId}`)}`,
+          }
+        : { type: "continuous", session: 1, redirect: "/x/sim" };
+
       return NextResponse.json({
         ok: true,
         nextStop: pct >= 100
           ? { type: "complete", session: 1, redirect: "/x/student/progress" }
-          : { type: "continuous", session: 1, redirect: "/x/sim" },
+          : learningRedirect,
         journey: journeyData,
       });
     }
@@ -270,10 +282,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // ── Default: onboarding gate then teaching ──
+    // #242 Slice 4: structured-mode courses with author-declared modules also
+    // route through the picker before each session. Onboarding still gates
+    // upstream — learners only reach the picker once onboarding is done.
+    const teachingRedirect = pbConfig.modulesAuthored === true
+      ? {
+          type: "module_picker" as const,
+          session: 1,
+          redirect: `/x/student/${enrollment.playbook.id}/modules?returnTo=${encodeURIComponent(`/x/sim/${callerId}`)}`,
+        }
+      : { type: "teaching" as const, session: 1, redirect: "/x/sim" };
+
     return NextResponse.json({
       ok: true,
       nextStop: onboardingComplete
-        ? { type: "teaching", session: 1, redirect: "/x/sim" }
+        ? teachingRedirect
         : { type: "onboarding", session: 1, redirect: "/x/sim" },
       journey: { totalStops: 0, completedStops: onboardingComplete ? 1 : 0, currentPosition: 0 },
     });
