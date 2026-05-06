@@ -22,6 +22,7 @@ import type {
   ValidationWarning,
 } from "@/lib/types/json-fields";
 import { LearnerModulePicker } from "@/app/x/courses/[courseId]/_components/LearnerModulePicker";
+import { useStudentCallerId } from "@/hooks/useStudentCallerId";
 import "@/app/x/courses/[courseId]/_components/authored-modules-panel.css";
 
 interface ModulesPayload {
@@ -33,6 +34,18 @@ interface ModulesPayload {
   validationWarnings: ValidationWarning[];
   hasErrors: boolean;
   lessonPlanMode: "structured" | "continuous" | null;
+}
+
+interface ProgressRow {
+  moduleId: string;
+  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  completedAt: string | null;
+  module: { id: string; slug: string; title: string; sortOrder: number };
+}
+
+interface ProgressPayload {
+  ok: boolean;
+  progress: ProgressRow[];
 }
 
 export default function StudentModulePickerPage() {
@@ -56,8 +69,10 @@ function PickerContent() {
   const { courseId } = useParams<{ courseId: string }>();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const { buildUrl } = useStudentCallerId();
 
   const [data, setData] = useState<ModulesPayload | null>(null);
+  const [progress, setProgress] = useState<ProgressRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingTerminal, setPendingTerminal] = useState<AuthoredModule | null>(null);
@@ -67,13 +82,32 @@ function PickerContent() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch(`/api/courses/${courseId}/import-modules`);
-        if (!res.ok) {
-          if (!cancelled) setError(res.status === 404 ? "Course not found" : "Failed to load modules");
+        const [modulesRes, progressRes] = await Promise.all([
+          fetch(`/api/courses/${courseId}/import-modules`),
+          fetch(buildUrl("/api/student/module-progress")),
+        ]);
+
+        if (!modulesRes.ok) {
+          if (!cancelled) setError(modulesRes.status === 404 ? "Course not found" : "Failed to load modules");
           return;
         }
-        const json = (await res.json()) as ModulesPayload;
-        if (!cancelled) setData(json);
+        const modulesJson = (await modulesRes.json()) as ModulesPayload;
+
+        // Progress is a soft dependency — picker still renders without it.
+        let progressRows: ProgressRow[] = [];
+        if (progressRes.ok) {
+          try {
+            const progressJson = (await progressRes.json()) as ProgressPayload;
+            if (progressJson.ok) progressRows = progressJson.progress;
+          } catch {
+            // swallow — picker stays ungrouped if progress fetch malforms
+          }
+        }
+
+        if (!cancelled) {
+          setData(modulesJson);
+          setProgress(progressRows);
+        }
       } catch {
         if (!cancelled) setError("Failed to load modules");
       } finally {
@@ -84,7 +118,7 @@ function PickerContent() {
     return () => {
       cancelled = true;
     };
-  }, [courseId]);
+  }, [courseId, buildUrl]);
 
   // Fall-through guard: course has no authored modules → bounce back.
   // `null` (never imported) and `false` (explicitly off) both hide the picker;
@@ -106,6 +140,26 @@ function PickerContent() {
     if (data) data.modules.forEach((mod) => m.set(mod.id, mod));
     return m;
   }, [data]);
+
+  // Map progress rows (keyed by CurriculumModule.slug) to AuthoredModule.id sets.
+  // The slug-vs-id match works when authored module ids equal curriculum module
+  // slugs — the convention used in the v2.2 IELTS reference. Module IDs without
+  // a matching CurriculumModule row simply have no progress yet (which is fine
+  // until the dual-write path covers authored-module sources).
+  const { completedIds, inProgressIds } = useMemo(() => {
+    const completed: string[] = [];
+    const inProgress: string[] = [];
+    if (data) {
+      const authoredIds = new Set(data.modules.map((m) => m.id));
+      for (const row of progress) {
+        const match = authoredIds.has(row.module.slug) ? row.module.slug : null;
+        if (!match) continue;
+        if (row.status === "COMPLETED") completed.push(match);
+        else if (row.status === "IN_PROGRESS") inProgress.push(match);
+      }
+    }
+    return { completedIds: completed, inProgressIds: inProgress };
+  }, [data, progress]);
 
   const launchSelected = useCallback(
     (moduleId: string) => {
@@ -192,6 +246,8 @@ function PickerContent() {
         <LearnerModulePicker
           modules={data.modules}
           lessonPlanMode={data.lessonPlanMode}
+          completedModuleIds={completedIds}
+          inProgressModuleIds={inProgressIds}
           onSelect={handleSelect}
         />
 

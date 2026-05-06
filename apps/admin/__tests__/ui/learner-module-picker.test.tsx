@@ -11,6 +11,8 @@
  * - Renders "Ends session" badge for sessionTerminal modules
  * - Renders "Spoken bands" badge for voiceBandReadout modules
  * - In preview mode (no onSelect), tiles are <div>s, not <button>s
+ * - Tile sectioning when progress data is supplied (Slice 3 of #242)
+ * - In-progress badge on rail + tiles (Slice 3 of #242)
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -219,5 +221,127 @@ describe("LearnerModulePicker — null lessonPlanMode", () => {
     );
     expect(container.querySelector(".learner-picker--tiles")).not.toBeNull();
     expect(container.querySelector(".learner-picker--rail")).toBeNull();
+  });
+});
+
+// ── Progress sectioning (Slice 3) ──────────────────────────────────
+
+describe("LearnerModulePicker — tile sections (progress data supplied)", () => {
+  const PROGRESS_MODULES: AuthoredModule[] = [
+    mod({ id: "part1", label: "Part 1" }),
+    mod({ id: "part2", label: "Part 2" }),
+    mod({ id: "part3", label: "Part 3" }),
+  ];
+
+  it("groups tiles into Up next / In progress / Completed when progress is supplied", () => {
+    const { container } = render(
+      <LearnerModulePicker
+        modules={PROGRESS_MODULES}
+        lessonPlanMode="continuous"
+        completedModuleIds={["part1"]}
+        inProgressModuleIds={["part2"]}
+      />,
+    );
+
+    const sections = container.querySelectorAll(".learner-picker__section");
+    expect(sections.length).toBe(3);
+
+    const titles = Array.from(
+      container.querySelectorAll(".learner-picker__section-title"),
+    ).map((el) => el.textContent);
+    expect(titles).toEqual(["Up next", "In progress", "Completed"]);
+  });
+
+  it("omits sections that would be empty", () => {
+    const { container } = render(
+      <LearnerModulePicker
+        modules={PROGRESS_MODULES}
+        lessonPlanMode="continuous"
+        completedModuleIds={["part1", "part2", "part3"]}
+      />,
+    );
+
+    const titles = Array.from(
+      container.querySelectorAll(".learner-picker__section-title"),
+    ).map((el) => el.textContent);
+    // Only "Completed" — no Up next, no In progress
+    expect(titles).toEqual(["Completed"]);
+  });
+
+  it("renders an ungrouped grid when no progress data supplied", () => {
+    const { container } = render(
+      <LearnerModulePicker
+        modules={PROGRESS_MODULES}
+        lessonPlanMode="continuous"
+      />,
+    );
+    expect(container.querySelectorAll(".learner-picker__section").length).toBe(0);
+    expect(container.querySelectorAll(".learner-picker__tile").length).toBe(3);
+  });
+
+  it("hides `frequency: once` completed modules even within sections", () => {
+    const modules = [
+      mod({ id: "baseline", label: "Baseline", frequency: "once" }),
+      mod({ id: "part1", label: "Part 1" }),
+    ];
+    render(
+      <LearnerModulePicker
+        modules={modules}
+        lessonPlanMode="continuous"
+        completedModuleIds={["baseline"]}
+      />,
+    );
+    expect(screen.queryByText("Baseline")).not.toBeInTheDocument();
+    expect(screen.getByText("Part 1")).toBeInTheDocument();
+  });
+
+  it("shows In progress badge on tiles in the in-progress section", () => {
+    const { container } = render(
+      <LearnerModulePicker
+        modules={PROGRESS_MODULES}
+        lessonPlanMode="continuous"
+        inProgressModuleIds={["part2"]}
+      />,
+    );
+    // Section title + badge both say "In progress" — count both surfaces
+    const matches = screen.getAllByText(/In progress/i);
+    expect(matches.length).toBe(2);
+    // At least one is the badge inside a tile
+    expect(
+      container.querySelector(".learner-picker__badge--progress"),
+    ).not.toBeNull();
+  });
+});
+
+describe("LearnerModulePicker — in-progress badge on rail", () => {
+  const SEQUENTIAL: AuthoredModule[] = [
+    mod({ id: "ch1", label: "Chapter 1", position: 1 }),
+    mod({ id: "ch2", label: "Chapter 2", position: 2 }),
+  ];
+
+  it("shows In progress pill alongside Done", () => {
+    render(
+      <LearnerModulePicker
+        modules={SEQUENTIAL}
+        lessonPlanMode="structured"
+        completedModuleIds={["ch1"]}
+        inProgressModuleIds={["ch2"]}
+      />,
+    );
+    expect(screen.getByText(/In progress/i)).toBeInTheDocument();
+    expect(screen.getByText(/Done/i)).toBeInTheDocument();
+  });
+
+  it("collapses Done to win when a module is both in-progress and completed (data race)", () => {
+    render(
+      <LearnerModulePicker
+        modules={[mod({ id: "ch1", label: "Chapter 1", position: 1 })]}
+        lessonPlanMode="structured"
+        completedModuleIds={["ch1"]}
+        inProgressModuleIds={["ch1"]}
+      />,
+    );
+    expect(screen.getByText(/Done/i)).toBeInTheDocument();
+    expect(screen.queryByText(/In progress/i)).not.toBeInTheDocument();
   });
 });
