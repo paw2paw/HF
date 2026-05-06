@@ -425,8 +425,12 @@ button.learner-picker__rail-card:hover {
   border-color: var(--accent-primary);
 }
 
-.learner-picker__rail-card[data-complete] {
+.learner-picker__rail-card[data-progress="completed"] {
   background: color-mix(in srgb, var(--status-success-text) 4%, var(--surface-primary));
+}
+
+.learner-picker__rail-card[data-progress="in-progress"] {
+  border-color: color-mix(in srgb, var(--status-warning-text, var(--accent-primary)) 35%, var(--border-default));
 }
 
 .learner-picker__rail-card[data-terminal] {

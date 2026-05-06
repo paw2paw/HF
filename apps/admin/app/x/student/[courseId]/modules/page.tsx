@@ -84,7 +84,9 @@ function PickerContent() {
       try {
         const [modulesRes, progressRes] = await Promise.all([
           fetch(`/api/courses/${courseId}/import-modules`),
-          fetch(buildUrl("/api/student/module-progress")),
+          // courseId scopes progress to this Playbook's curricula — prevents
+          // module-slug collisions across the caller's other enrolments.
+          fetch(buildUrl("/api/student/module-progress", { courseId })),
         ]);
 
         if (!modulesRes.ok) {

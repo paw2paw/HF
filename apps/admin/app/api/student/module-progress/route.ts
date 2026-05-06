@@ -6,16 +6,25 @@
  * @description Returns the resolved caller's `CallerModuleProgress` rows joined
  *   with `CurriculumModule` (id, slug, title). Used by the learner module
  *   picker (#242 Slice 3) to derive `completedModuleIds` and
- *   `inProgressModuleIds` for the authenticated learner without a path param.
+ *   `inProgressModuleIds`.
  *
- *   Mirror of `/api/callers/[callerId]/module-progress` for the student-scoped
- *   path family — STUDENT users have no path callerId, so they fetch via the
- *   session-resolving helper.
+ *   Optional `?courseId=` filter scopes results to a specific course
+ *   (Playbook). Without the filter, returns progress across ALL curricula
+ *   the caller has touched — risk: same module slug across two courses
+ *   bleeds completion state. Pass `courseId` whenever the caller is on a
+ *   single-course context.
  *
+ *   Mirror of `/api/callers/[callerId]/module-progress` for the student-
+ *   scoped path family — STUDENT users have no path callerId, so they fetch
+ *   via the session-resolving helper.
+ *
+ * @query courseId? — Playbook id; when present, results filtered to modules
+ *   whose Curriculum's `playbookId` matches.
  * @response 200 { ok, progress: [{ moduleId, status, completedAt, module: { id, slug, title, sortOrder } }] }
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 
@@ -24,9 +33,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isStudentAuthError(auth)) return auth.error;
 
   const { callerId } = auth;
+  const courseId = request.nextUrl.searchParams.get("courseId");
+
+  const where: Prisma.CallerModuleProgressWhereInput = courseId
+    ? { callerId, module: { curriculum: { playbookId: courseId } } }
+    : { callerId };
 
   const progress = await prisma.callerModuleProgress.findMany({
-    where: { callerId },
+    where,
     include: {
       module: {
         select: {

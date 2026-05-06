@@ -271,8 +271,7 @@ function RailLayout({
               type={onSelect ? "button" : undefined}
               className="learner-picker__rail-card"
               onClick={onSelect ? () => onSelect(m.id) : undefined}
-              data-complete={isComplete || undefined}
-              data-in-progress={isInProgress || undefined}
+              data-progress={isComplete ? "completed" : isInProgress ? "in-progress" : undefined}
               data-terminal={m.sessionTerminal || undefined}
             >
               <ModeIcon mode={m.mode} />
