@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import StudentModulePickerPage from "@/app/x/student/[courseId]/modules/page";
 import type { AuthoredModule } from "@/lib/types/json-fields";
@@ -50,10 +50,6 @@ describe("StudentModulePickerPage", () => {
     pushMock.mockReset();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("renders the picker when modulesAuthored=true", async () => {
     global.fetch = mockFetch({
       modulesAuthored: true,
@@ -103,7 +99,6 @@ describe("StudentModulePickerPage", () => {
   });
 
   it("non-terminal pick navigates to returnTo with requestedModuleId", async () => {
-    vi.useFakeTimers();
     global.fetch = mockFetch({
       modulesAuthored: true,
       modules: MODULES,
@@ -117,15 +112,18 @@ describe("StudentModulePickerPage", () => {
     fireEvent.click(tile);
 
     expect(screen.getByText("Starting session…")).toBeInTheDocument();
-    vi.runAllTimers();
 
-    expect(pushMock).toHaveBeenCalledWith(
-      "/x/sim/caller-1?requestedModuleId=part1",
+    await waitFor(
+      () => {
+        expect(pushMock).toHaveBeenCalledWith(
+          "/x/sim/caller-1?requestedModuleId=part1",
+        );
+      },
+      { timeout: 1500 },
     );
   });
 
   it("terminal pick shows confirm dialog before launching", async () => {
-    vi.useFakeTimers();
     global.fetch = mockFetch({
       modulesAuthored: true,
       modules: MODULES,
@@ -144,10 +142,14 @@ describe("StudentModulePickerPage", () => {
     expect(pushMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByLabelText(/Start Baseline/));
-    vi.runAllTimers();
 
-    expect(pushMock).toHaveBeenCalledWith(
-      "/x/sim/caller-1?requestedModuleId=baseline",
+    await waitFor(
+      () => {
+        expect(pushMock).toHaveBeenCalledWith(
+          "/x/sim/caller-1?requestedModuleId=baseline",
+        );
+      },
+      { timeout: 1500 },
     );
   });
 
