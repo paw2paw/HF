@@ -24,6 +24,7 @@ import {
   Pencil,
   Layers,
   CircleDot,
+  CircleDashed,
   AlertCircle,
 } from "lucide-react";
 import type { AuthoredModule } from "@/lib/types/json-fields";
@@ -35,11 +36,18 @@ interface LearnerModulePickerProps {
   /** "continuous" → tiles, "structured" → rail. Null defaults to tiles. */
   lessonPlanMode: "structured" | "continuous" | null;
   /**
-   * If supplied, these IDs are treated as completed. Used by the rail layout
-   * to show position progress and by the tiles layout to suppress repeats
-   * for `frequency: once` modules (e.g. Baseline). Empty array = first session.
+   * If supplied, these IDs are treated as completed. Tiles for `frequency: once`
+   * modules in this set are hidden; tiles for repeatable modules surface in
+   * the "Completed" section. Rail cards get a "Done" badge.
    */
   completedModuleIds?: string[];
+  /**
+   * If supplied, these IDs are treated as in-progress. Tiles in this set
+   * surface in the "In progress" section; rail cards get an "In progress"
+   * pill alongside the existing "Done" badge. Empty/omitted with no
+   * completed data = no progress sections (single ungrouped grid).
+   */
+  inProgressModuleIds?: string[];
   /**
    * If supplied, the picker calls this on tile/row activation. When omitted
    * (preview mode), tiles render as `<div>` rather than `<button>` and the
@@ -52,6 +60,7 @@ export function LearnerModulePicker({
   modules,
   lessonPlanMode,
   completedModuleIds = [],
+  inProgressModuleIds = [],
   onSelect,
 }: LearnerModulePickerProps) {
   const visible = modules.filter((m) => m.learnerSelectable !== false);
@@ -67,6 +76,7 @@ export function LearnerModulePicker({
   }
 
   const completed = new Set(completedModuleIds);
+  const inProgress = new Set(inProgressModuleIds);
   const layout: PickerLayout = lessonPlanMode === "structured" ? "rail" : "tiles";
 
   return (
@@ -75,12 +85,14 @@ export function LearnerModulePicker({
         <RailLayout
           modules={visible}
           completed={completed}
+          inProgress={inProgress}
           onSelect={onSelect}
         />
       ) : (
         <TilesLayout
           modules={visible}
           completed={completed}
+          inProgress={inProgress}
           onSelect={onSelect}
         />
       )}
@@ -93,53 +105,128 @@ export function LearnerModulePicker({
 function TilesLayout({
   modules,
   completed,
+  inProgress,
   onSelect,
 }: {
   modules: AuthoredModule[];
   completed: Set<string>;
+  inProgress: Set<string>;
   onSelect?: (id: string) => void;
 }) {
-  return (
-    <div className="learner-picker__tiles">
-      {modules.map((m) => {
-        const isOnce = m.frequency === "once";
-        const isHidden = isOnce && completed.has(m.id);
-        if (isHidden) return null;
+  // Hide `frequency: once` modules already completed (e.g. Baseline).
+  // Repeatable + completed stays visible so learners can retake.
+  const eligible = modules.filter(
+    (m) => !(m.frequency === "once" && completed.has(m.id)),
+  );
 
-        const Tag = onSelect ? "button" : "div";
-        return (
-          <Tag
-            key={m.id}
-            type={onSelect ? "button" : undefined}
-            className="learner-picker__tile"
-            onClick={onSelect ? () => onSelect(m.id) : undefined}
-            data-terminal={m.sessionTerminal || undefined}
-          >
-            <ModeIcon mode={m.mode} />
-            <div className="learner-picker__tile-body">
-              <div className="learner-picker__tile-label">{m.label}</div>
-              <div className="learner-picker__tile-meta">
-                <span>{m.duration}</span>
-                <span className="learner-picker__sep">·</span>
-                <span>{describeFrequency(m.frequency)}</span>
-              </div>
-              <div className="learner-picker__tile-badges">
-                {m.sessionTerminal && (
-                  <span className="learner-picker__badge learner-picker__badge--warn">
-                    Ends session
-                  </span>
-                )}
-                {m.voiceBandReadout && (
-                  <span className="learner-picker__badge">
-                    <Mic size={10} aria-hidden="true" /> Spoken bands
-                  </span>
-                )}
-              </div>
-            </div>
-          </Tag>
-        );
-      })}
-    </div>
+  // No progress data → single ungrouped grid (preserves pre-Slice-3 layout).
+  const hasProgressData = inProgress.size > 0 || completed.size > 0;
+  if (!hasProgressData) {
+    return (
+      <div className="learner-picker__tiles">
+        {eligible.map((m) => (
+          <Tile key={m.id} mod={m} inProgress={false} completed={false} onSelect={onSelect} />
+        ))}
+      </div>
+    );
+  }
+
+  const inProgressMods = eligible.filter((m) => inProgress.has(m.id));
+  const completedMods = eligible.filter(
+    (m) => completed.has(m.id) && !inProgress.has(m.id),
+  );
+  const upNextMods = eligible.filter(
+    (m) => !inProgress.has(m.id) && !completed.has(m.id),
+  );
+
+  return (
+    <>
+      {upNextMods.length > 0 && (
+        <Section title="Up next">
+          {upNextMods.map((m) => (
+            <Tile key={m.id} mod={m} inProgress={false} completed={false} onSelect={onSelect} />
+          ))}
+        </Section>
+      )}
+      {inProgressMods.length > 0 && (
+        <Section title="In progress">
+          {inProgressMods.map((m) => (
+            <Tile key={m.id} mod={m} inProgress completed={false} onSelect={onSelect} />
+          ))}
+        </Section>
+      )}
+      {completedMods.length > 0 && (
+        <Section title="Completed">
+          {completedMods.map((m) => (
+            <Tile key={m.id} mod={m} inProgress={false} completed onSelect={onSelect} />
+          ))}
+        </Section>
+      )}
+    </>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="learner-picker__section">
+      <h3 className="learner-picker__section-title">{title}</h3>
+      <div className="learner-picker__tiles">{children}</div>
+    </section>
+  );
+}
+
+function Tile({
+  mod,
+  inProgress,
+  completed,
+  onSelect,
+}: {
+  mod: AuthoredModule;
+  inProgress: boolean;
+  completed: boolean;
+  onSelect?: (id: string) => void;
+}) {
+  const Tag = onSelect ? "button" : "div";
+  return (
+    <Tag
+      type={onSelect ? "button" : undefined}
+      className="learner-picker__tile"
+      onClick={onSelect ? () => onSelect(mod.id) : undefined}
+      data-terminal={mod.sessionTerminal || undefined}
+      data-progress={inProgress ? "in-progress" : completed ? "completed" : undefined}
+    >
+      <ModeIcon mode={mod.mode} />
+      <div className="learner-picker__tile-body">
+        <div className="learner-picker__tile-label">{mod.label}</div>
+        <div className="learner-picker__tile-meta">
+          <span>{mod.duration}</span>
+          <span className="learner-picker__sep">·</span>
+          <span>{describeFrequency(mod.frequency)}</span>
+        </div>
+        <div className="learner-picker__tile-badges">
+          {inProgress && (
+            <span className="learner-picker__badge learner-picker__badge--progress">
+              <CircleDashed size={10} aria-hidden="true" /> In progress
+            </span>
+          )}
+          {completed && (
+            <span className="learner-picker__badge learner-picker__badge--ok">
+              <CircleDot size={10} aria-hidden="true" /> Done
+            </span>
+          )}
+          {mod.sessionTerminal && (
+            <span className="learner-picker__badge learner-picker__badge--warn">
+              Ends session
+            </span>
+          )}
+          {mod.voiceBandReadout && (
+            <span className="learner-picker__badge">
+              <Mic size={10} aria-hidden="true" /> Spoken bands
+            </span>
+          )}
+        </div>
+      </div>
+    </Tag>
   );
 }
 
@@ -148,10 +235,12 @@ function TilesLayout({
 function RailLayout({
   modules,
   completed,
+  inProgress,
   onSelect,
 }: {
   modules: AuthoredModule[];
   completed: Set<string>;
+  inProgress: Set<string>;
   onSelect?: (id: string) => void;
 }) {
   // Sort by `position` if provided, otherwise preserve catalogue order.
@@ -165,6 +254,7 @@ function RailLayout({
     <ol className="learner-picker__rail">
       {ordered.map((m, i) => {
         const isComplete = completed.has(m.id);
+        const isInProgress = inProgress.has(m.id) && !isComplete;
         const Tag = onSelect ? "button" : "div";
         const prereqsUnmet = m.prerequisites.filter((p) => !completed.has(p));
         const advisoryHint =
@@ -182,12 +272,18 @@ function RailLayout({
               className="learner-picker__rail-card"
               onClick={onSelect ? () => onSelect(m.id) : undefined}
               data-complete={isComplete || undefined}
+              data-in-progress={isInProgress || undefined}
               data-terminal={m.sessionTerminal || undefined}
             >
               <ModeIcon mode={m.mode} />
               <div className="learner-picker__rail-body">
                 <div className="learner-picker__rail-label">
                   {m.label}
+                  {isInProgress && (
+                    <span className="learner-picker__badge learner-picker__badge--progress">
+                      <CircleDashed size={10} aria-hidden="true" /> In progress
+                    </span>
+                  )}
                   {isComplete && (
                     <span className="learner-picker__badge learner-picker__badge--ok">
                       <CircleDot size={10} aria-hidden="true" /> Done
