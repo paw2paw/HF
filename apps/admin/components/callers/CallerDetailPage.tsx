@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEntityContext } from "@/contexts/EntityContext";
 import { DomainPill } from "@/src/components/shared/EntityPill";
@@ -46,6 +46,7 @@ import { SessionFlowProgress } from "@/components/session-flow/SessionFlowProgre
 export default function CallerDetailPage() {
   const params = useParams();
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const callerId = params.callerId as string;
   const { pushEntity } = useEntityContext();
@@ -106,6 +107,10 @@ export default function CallerDetailPage() {
   type Enrollment = { id: string; playbookId: string; status: string; isDefault: boolean; enrolledAt: string; playbook: { id: string; name: string; status: string } };
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [selectedPlaybookId, setSelectedPlaybookId] = useState<string>("all");
+  // #253-follow-up: surface "Pick module" header button when the active
+  // playbook has authored modules. Mirrors /x/sim/[callerId] wiring.
+  const [modulesAuthored, setModulesAuthored] = useState<boolean>(false);
+  const requestedModuleId = searchParams.get("requestedModuleId") || undefined;
   const [progressVis, toggleProgressVis] = useSectionVisibility("caller-progress", {
     scores: true, behaviour: true, goals: true, exam: true,
   });
@@ -387,6 +392,44 @@ export default function CallerDetailPage() {
     if (selectedPlaybookId === "all") return composedPrompts;
     return composedPrompts.filter((p) => p.playbookId === selectedPlaybookId || !p.playbookId);
   }, [composedPrompts, selectedPlaybookId]);
+
+  // #253-follow-up: load `modulesAuthored` from the active playbook's config
+  // so the SimChat header shows the "Pick module" button when authored
+  // modules exist for this course. Mirrors /x/sim/[callerId] wiring.
+  useEffect(() => {
+    if (!selectedPlaybookId || selectedPlaybookId === "all") {
+      setModulesAuthored(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/playbooks/${selectedPlaybookId}`)
+      .then((r) => r.json())
+      .then((pbData) => {
+        if (cancelled || !pbData?.ok) return;
+        const cfg = (pbData.playbook?.config as Record<string, unknown> | null) ?? {};
+        setModulesAuthored(cfg.modulesAuthored === true);
+      })
+      .catch(() => {
+        if (!cancelled) setModulesAuthored(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlaybookId]);
+
+  const handlePickModule = useCallback(() => {
+    if (selectedPlaybookId === "all" || !selectedPlaybookId) return;
+    const sp = new URLSearchParams();
+    // Strip requestedModuleId from the carry-over so the banner doesn't
+    // double-fire when the learner returns from the picker.
+    const carryParams = new URLSearchParams(searchParams.toString());
+    carryParams.delete("requestedModuleId");
+    sp.set(
+      "returnTo",
+      `/x/callers/${callerId}${carryParams.toString() ? `?${carryParams.toString()}` : ""}`,
+    );
+    router.push(`/x/student/${selectedPlaybookId}/modules?${sp.toString()}`);
+  }, [callerId, router, searchParams, selectedPlaybookId]);
 
   // ── Processing detection + auto-poll ──────────────
   // A call is "processing" if it's recent (< 5 min) and hasn't been analyzed yet.
@@ -1114,6 +1157,12 @@ export default function CallerDetailPage() {
               fetchPrompts();
             }}
             onNewCall={() => setCallSession(prev => prev + 1)}
+            onPickModule={
+              modulesAuthored && selectedPlaybookId && selectedPlaybookId !== "all"
+                ? handlePickModule
+                : undefined
+            }
+            requestedModuleId={requestedModuleId}
           />
         </div>
       )}
