@@ -12,6 +12,15 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("returnTo=/x/sim/caller-1"),
 }));
 
+vi.mock("@/hooks/useStudentCallerId", () => ({
+  useStudentCallerId: () => ({
+    callerId: null,
+    isAdmin: false,
+    hasSelection: true,
+    buildUrl: (base: string) => base,
+  }),
+}));
+
 function mod(over: Partial<AuthoredModule>): AuthoredModule {
   return {
     id: "m",
@@ -34,14 +43,33 @@ const MODULES: AuthoredModule[] = [
   mod({ id: "part1", label: "Part 1" }),
 ];
 
-function mockFetch(payload: object, status = 200) {
-  return vi.fn(() =>
-    Promise.resolve({
-      ok: status === 200,
-      status,
-      json: () => Promise.resolve({ ok: status === 200, ...payload }),
-    } as Response),
-  );
+interface FetchOptions {
+  modulesPayload?: object;
+  modulesStatus?: number;
+  progress?: Array<{
+    moduleId: string;
+    status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+    completedAt: string | null;
+    module: { id: string; slug: string; title: string; sortOrder: number };
+  }>;
+}
+
+function mockFetch({ modulesPayload, modulesStatus = 200, progress = [] }: FetchOptions) {
+  return vi.fn((url: string) => {
+    if (typeof url === "string" && url.includes("/api/student/module-progress")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ok: true, progress }),
+      } as Response);
+    }
+    return Promise.resolve({
+      ok: modulesStatus === 200,
+      status: modulesStatus,
+      json: () =>
+        Promise.resolve({ ok: modulesStatus === 200, ...(modulesPayload ?? {}) }),
+    } as Response);
+  });
 }
 
 describe("StudentModulePickerPage", () => {
@@ -52,11 +80,13 @@ describe("StudentModulePickerPage", () => {
 
   it("renders the picker when modulesAuthored=true", async () => {
     global.fetch = mockFetch({
-      modulesAuthored: true,
-      modules: MODULES,
-      lessonPlanMode: "continuous",
-      validationWarnings: [],
-      hasErrors: false,
+      modulesPayload: {
+        modulesAuthored: true,
+        modules: MODULES,
+        lessonPlanMode: "continuous",
+        validationWarnings: [],
+        hasErrors: false,
+      },
     }) as typeof fetch;
 
     render(<StudentModulePickerPage />);
@@ -68,11 +98,13 @@ describe("StudentModulePickerPage", () => {
 
   it("redirects to returnTo when modulesAuthored=false", async () => {
     global.fetch = mockFetch({
-      modulesAuthored: false,
-      modules: [],
-      lessonPlanMode: null,
-      validationWarnings: [],
-      hasErrors: false,
+      modulesPayload: {
+        modulesAuthored: false,
+        modules: [],
+        lessonPlanMode: null,
+        validationWarnings: [],
+        hasErrors: false,
+      },
     }) as typeof fetch;
 
     render(<StudentModulePickerPage />);
@@ -84,11 +116,13 @@ describe("StudentModulePickerPage", () => {
 
   it("redirects when modulesAuthored=null (never imported)", async () => {
     global.fetch = mockFetch({
-      modulesAuthored: null,
-      modules: [],
-      lessonPlanMode: null,
-      validationWarnings: [],
-      hasErrors: false,
+      modulesPayload: {
+        modulesAuthored: null,
+        modules: [],
+        lessonPlanMode: null,
+        validationWarnings: [],
+        hasErrors: false,
+      },
     }) as typeof fetch;
 
     render(<StudentModulePickerPage />);
@@ -100,11 +134,13 @@ describe("StudentModulePickerPage", () => {
 
   it("non-terminal pick navigates to returnTo with requestedModuleId", async () => {
     global.fetch = mockFetch({
-      modulesAuthored: true,
-      modules: MODULES,
-      lessonPlanMode: "continuous",
-      validationWarnings: [],
-      hasErrors: false,
+      modulesPayload: {
+        modulesAuthored: true,
+        modules: MODULES,
+        lessonPlanMode: "continuous",
+        validationWarnings: [],
+        hasErrors: false,
+      },
     }) as typeof fetch;
 
     render(<StudentModulePickerPage />);
@@ -125,11 +161,13 @@ describe("StudentModulePickerPage", () => {
 
   it("terminal pick shows confirm dialog before launching", async () => {
     global.fetch = mockFetch({
-      modulesAuthored: true,
-      modules: MODULES,
-      lessonPlanMode: "continuous",
-      validationWarnings: [],
-      hasErrors: false,
+      modulesPayload: {
+        modulesAuthored: true,
+        modules: MODULES,
+        lessonPlanMode: "continuous",
+        validationWarnings: [],
+        hasErrors: false,
+      },
     }) as typeof fetch;
 
     render(<StudentModulePickerPage />);
@@ -155,11 +193,13 @@ describe("StudentModulePickerPage", () => {
 
   it("terminal cancel closes the dialog without launching", async () => {
     global.fetch = mockFetch({
-      modulesAuthored: true,
-      modules: MODULES,
-      lessonPlanMode: "continuous",
-      validationWarnings: [],
-      hasErrors: false,
+      modulesPayload: {
+        modulesAuthored: true,
+        modules: MODULES,
+        lessonPlanMode: "continuous",
+        validationWarnings: [],
+        hasErrors: false,
+      },
     }) as typeof fetch;
 
     render(<StudentModulePickerPage />);
@@ -175,8 +215,44 @@ describe("StudentModulePickerPage", () => {
   });
 
   it("shows an error message on 404", async () => {
-    global.fetch = mockFetch({}, 404) as typeof fetch;
+    global.fetch = mockFetch({ modulesStatus: 404 }) as typeof fetch;
     render(<StudentModulePickerPage />);
     expect(await screen.findByText("Course not found")).toBeInTheDocument();
+  });
+
+  it("renders sectioned tiles when progress contains COMPLETED + IN_PROGRESS", async () => {
+    global.fetch = mockFetch({
+      modulesPayload: {
+        modulesAuthored: true,
+        modules: MODULES,
+        lessonPlanMode: "continuous",
+        validationWarnings: [],
+        hasErrors: false,
+      },
+      progress: [
+        {
+          moduleId: "uuid-baseline",
+          status: "COMPLETED",
+          completedAt: "2026-05-01T00:00:00Z",
+          module: { id: "uuid-baseline", slug: "baseline", title: "Baseline", sortOrder: 0 },
+        },
+        {
+          moduleId: "uuid-part1",
+          status: "IN_PROGRESS",
+          completedAt: null,
+          module: { id: "uuid-part1", slug: "part1", title: "Part 1", sortOrder: 1 },
+        },
+      ],
+    }) as typeof fetch;
+
+    const { container } = render(<StudentModulePickerPage />);
+
+    // Wait for both fetches to settle
+    await screen.findByText("Part 1");
+    // Baseline is `frequency: once` + COMPLETED → still hidden
+    expect(screen.queryByText("Baseline")).not.toBeInTheDocument();
+    // Section title and tile badge both render — at least one of each
+    expect(container.querySelector(".learner-picker__section-title")).not.toBeNull();
+    expect(container.querySelector(".learner-picker__badge--progress")).not.toBeNull();
   });
 });

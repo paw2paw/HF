@@ -9954,6 +9954,19 @@ Analyse the diff between a current and desired prompt, returning
 
 ---
 
+### `GET` /api/student/module-progress
+
+Returns the resolved caller's `CallerModuleProgress` rows joined
+
+**Auth**: STUDENT (own caller) | OPERATOR+ (with ?callerId=) · **Scope**: `student:read`
+
+**Response** `200`
+```json
+{ ok, progress: [{ moduleId, status, completedAt, module: { id, slug, title, sortOrder } }] }
+```
+
+---
+
 ### `GET` /api/student/notifications
 
 **Auth**: STUDENT | OPERATOR+ (with callerId param)
@@ -14261,8 +14274,8 @@ orchestration between services) and are never exposed externally.
 
 | Metric | Value |
 |--------|-------|
-| Route files found | 438 |
-| Files with annotations | 437 |
+| Route files found | 439 |
+| Files with annotations | 438 |
 | Files missing annotations | 1 |
 | Coverage | 99.8% |
 
