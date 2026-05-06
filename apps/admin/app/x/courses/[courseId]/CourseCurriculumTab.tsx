@@ -63,6 +63,11 @@ export function CourseCurriculumTab({
   const [regenerating, setRegenerating] = useState(false);
   const [regenResult, setRegenResult] = useState<RegenerateResponse | null>(null);
 
+  // #253-follow-up: when authored modules are the source of truth, the
+  // derived/regen catalogue is noise — hide it. AuthoredModulesPanel signals
+  // its loaded state so we know which view to render.
+  const [modulesAuthored, setModulesAuthored] = useState<boolean | null>(null);
+
   // Authoritative curriculum id comes from the scorecard response. Until that
   // loads, fall back to the hint passed in by the course page.
   const curriculumId = scorecard?.curriculumId ?? curriculumIdProp ?? null;
@@ -197,6 +202,7 @@ export function CourseCurriculumTab({
       <AuthoredModulesPanel
         courseId={playbookId ?? courseId}
         isOperator={isOperator}
+        onModulesAuthoredChange={setModulesAuthored}
       />
 
       {hasZeroModules && (
@@ -220,7 +226,8 @@ export function CourseCurriculumTab({
         </div>
       )}
 
-      {scorecard && (
+      {/* Derived/regen view — hidden when authored modules are the source */}
+      {scorecard && modulesAuthored !== true && (
         <CurriculumHealthTabs
           scorecard={scorecard}
           courseId={courseId}
