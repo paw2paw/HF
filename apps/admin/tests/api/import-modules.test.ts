@@ -17,15 +17,25 @@ import { NextRequest, NextResponse } from "next/server";
 // vi.mock() is hoisted above all imports and `const` declarations.
 // Use vi.hoisted() so the mock instances exist by the time vi.mock factories run.
 
-const { mockPrisma, mockRequireAuth, mockIsAuthError } = vi.hoisted(() => ({
+const { mockPrisma, mockRequireAuth, mockIsAuthError, mockSyncAuthored } = vi.hoisted(() => ({
   mockPrisma: {
     playbook: {
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    // #245: import-modules POST now wraps the playbook update + module sync
+    // in a transaction. The mock invokes the callback with a tx that proxies
+    // playbook.update so existing assertions still see the call.
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        playbook: { update: mockPrisma.playbook.update },
+      };
+      return fn(tx);
+    }),
   },
   mockRequireAuth: vi.fn(),
   mockIsAuthError: vi.fn(),
+  mockSyncAuthored: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -35,6 +45,12 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/permissions", () => ({
   requireAuth: (...args: unknown[]) => mockRequireAuth(...args),
   isAuthError: (...args: unknown[]) => mockIsAuthError(...args),
+}));
+
+// #245: sync helper mocked so route tests stay focused on routing/persistence.
+// The helper has its own dedicated unit test file.
+vi.mock("@/lib/wizard/sync-authored-modules-to-curriculum", () => ({
+  syncAuthoredModulesToCurriculum: (...args: unknown[]) => mockSyncAuthored(...args),
 }));
 
 // Import AFTER mocks
@@ -89,9 +105,16 @@ beforeEach(() => {
   mockIsAuthError.mockReset();
   mockPrisma.playbook.findUnique.mockReset();
   mockPrisma.playbook.update.mockReset();
+  mockSyncAuthored.mockReset();
 
   mockRequireAuth.mockResolvedValue(passingAuth);
   mockIsAuthError.mockReturnValue(false);
+  mockSyncAuthored.mockResolvedValue({
+    curriculumId: "curr-1",
+    created: 0,
+    updated: 0,
+    orphaned: 0,
+  });
 });
 
 // ── Auth ─────────────────────────────────────────────────────────
@@ -241,6 +264,50 @@ describe("POST /api/courses/[courseId]/import-modules — persistence", () => {
     expect(idError).toBeDefined();
     // Still persisted — caller decides whether to surface as blocker
     expect(body.persisted).toBe(true);
+    // No modules to sync (all rejected as invalid)
+    expect(mockSyncAuthored).not.toHaveBeenCalled();
+  });
+
+  // ── #245 sync ─────────────────────────────────────────────────────
+
+  it("calls syncAuthoredModulesToCurriculum when modules are persisted", async () => {
+    mockPrisma.playbook.findUnique.mockResolvedValue({ id: "playbook-1", config: {} });
+    mockPrisma.playbook.update.mockResolvedValue({});
+    mockSyncAuthored.mockResolvedValue({
+      curriculumId: "curr-1",
+      created: 2,
+      updated: 0,
+      orphaned: 0,
+    });
+
+    const res = await POST(makeReq({ markdown: SMALL_AUTHORED_DOC }), { params });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+
+    expect(mockSyncAuthored).toHaveBeenCalledOnce();
+    const call = mockSyncAuthored.mock.calls[0];
+    expect(call[1]).toBe("playbook-1");
+    expect(call[2]).toHaveLength(2);
+    expect(body.curriculumSync).toEqual({
+      curriculumId: "curr-1",
+      created: 2,
+      updated: 0,
+      orphaned: 0,
+    });
+  });
+
+  it("skips sync when markdown opts out of authored modules (modulesAuthored=false)", async () => {
+    mockPrisma.playbook.findUnique.mockResolvedValue({ id: "playbook-1", config: {} });
+    mockPrisma.playbook.update.mockResolvedValue({});
+
+    const NO_DOC = `## Modules\n\n**Modules authored:** No\n`;
+    const res = await POST(makeReq({ markdown: NO_DOC }), { params });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.modulesAuthored).toBe(false);
+    expect(body.persisted).toBe(true);
+    // Decision is recorded, but no modules to sync
+    expect(mockSyncAuthored).not.toHaveBeenCalled();
   });
 });
 
