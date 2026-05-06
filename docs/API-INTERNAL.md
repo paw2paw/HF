@@ -9518,6 +9518,24 @@ List all classrooms (cohort groups) assigned to a course (playbook).
 
 ---
 
+### `GET` /api/courses/[courseId]/import-modules
+
+Read the current authored-modules state from PlaybookConfig.
+
+**Auth**: session (VIEWER+) · **Scope**: `course:read`
+
+**Response** `200`
+```json
+{ ok, modulesAuthored, modules, moduleDefaults, moduleSource, moduleSourceRef, validationWarnings, hasErrors }
+```
+
+**Response** `404`
+```json
+{ ok: false, error: "Course not found" }
+```
+
+---
+
 ### `POST` /api/courses/[courseId]/import-modules
 
 Parse a Course Reference markdown body for an author-declared

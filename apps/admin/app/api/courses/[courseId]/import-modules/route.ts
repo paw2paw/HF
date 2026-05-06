@@ -42,6 +42,51 @@ const BodySchema = z.object({
 type Body = z.infer<typeof BodySchema>;
 
 /**
+ * @api GET /api/courses/[courseId]/import-modules
+ * @visibility internal
+ * @scope course:read
+ * @auth session (VIEWER+)
+ * @description Read the current authored-modules state from PlaybookConfig.
+ *   Used by the Authored Modules panel in the Curriculum tab to render the
+ *   catalogue without re-parsing the source document. Returns nulls/empties
+ *   when no authored modules exist yet (derived path is in use).
+ * @response 200 { ok, modulesAuthored, modules, moduleDefaults, moduleSource, moduleSourceRef, validationWarnings, hasErrors }
+ * @response 404 { ok: false, error: "Course not found" }
+ */
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ courseId: string }> },
+): Promise<NextResponse> {
+  const auth = await requireAuth("VIEWER");
+  if (isAuthError(auth)) return auth.error;
+
+  const { courseId } = await params;
+  const playbook = await prisma.playbook.findUnique({
+    where: { id: courseId },
+    select: { id: true, config: true },
+  });
+  if (!playbook) {
+    return NextResponse.json(
+      { ok: false, error: "Course not found" },
+      { status: 404 },
+    );
+  }
+
+  const cfg = (playbook.config ?? {}) as PlaybookConfig;
+  const warnings = cfg.validationWarnings ?? [];
+  return NextResponse.json({
+    ok: true,
+    modulesAuthored: cfg.modulesAuthored ?? null,
+    modules: cfg.modules ?? [],
+    moduleDefaults: cfg.moduleDefaults ?? {},
+    moduleSource: cfg.moduleSource ?? null,
+    moduleSourceRef: cfg.moduleSourceRef ?? null,
+    validationWarnings: warnings,
+    hasErrors: warnings.some((w) => w.severity === "error"),
+  });
+}
+
+/**
  * @api POST /api/courses/[courseId]/import-modules
  * @visibility internal
  * @scope course:write
