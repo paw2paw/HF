@@ -150,8 +150,10 @@ async function main() {
   }
 
   // 4. Update Call with full transcript text
+  // Use "User:" / "Assistant:" prefixes — CallsPromptsTab's parseTranscript()
+  // splits on these exact strings to render the transcript card.
   const fullTranscript = history
-    .map((m) => `${m.role === "user" ? "Learner" : "Tutor"}: ${m.content}`)
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
     .join("\n\n");
   await prisma.call.update({
     where: { id: call.id },
