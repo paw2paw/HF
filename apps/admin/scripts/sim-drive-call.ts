@@ -103,11 +103,11 @@ async function main() {
   const call = await prisma.call.create({
     data: {
       source: "sim",
-      callerId,
-      playbookId,
       transcript: "",
-      requestedModuleId: moduleSlug,
-      activePromptId: composed.id,
+      caller: { connect: { id: callerId } },
+      playbook: { connect: { id: playbookId } },
+      usedPrompt: { connect: { id: composed.id } },
+      ...(moduleSlug ? { requestedModuleId: moduleSlug } : {}),
     },
     select: { id: true },
   });
@@ -155,7 +155,7 @@ async function main() {
     .join("\n\n");
   await prisma.call.update({
     where: { id: call.id },
-    data: { transcript: fullTranscript },
+    data: { transcript: fullTranscript, endedAt: new Date() },
   });
   console.log(`\nCall transcript written (${fullTranscript.length} chars).`);
 
