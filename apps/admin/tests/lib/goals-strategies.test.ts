@@ -20,11 +20,15 @@ vi.mock("@prisma/client", async (importOriginal) => {
   };
 });
 
-const mockPrisma = {
-  callScore: { findMany: vi.fn() },
-  analysisSpec: { findFirst: vi.fn() },
-  parameter: { findMany: vi.fn() },
-};
+// `vi.mock` factories are hoisted above any top-level `const`. Declare the
+// mock prisma inside `vi.hoisted` so it exists when the factory runs.
+const { mockPrisma } = vi.hoisted(() => ({
+  mockPrisma: {
+    callScore: { findMany: vi.fn() },
+    analysisSpec: { findFirst: vi.fn() },
+    parameter: { findMany: vi.fn() },
+  },
+}));
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
