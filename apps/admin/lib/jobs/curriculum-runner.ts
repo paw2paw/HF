@@ -100,15 +100,46 @@ async function runCurriculumGeneration(
   const assertionIdByIndexObj: Record<string, string> = {};
   assertions.forEach((a, i) => { assertionIdByIndexObj[String(i + 1)] = a.id; });
 
-  // Prefer playbook.config.subjectDiscipline over subject.name for AI prompt
+  // Prefer playbook.config.subjectDiscipline over subject.name for AI prompt.
+  // ALSO: #469 — short-circuit when the playbook has authored modules. The
+  // wizard's applyProjection() path (via syncAuthoredModulesToCurriculum) is
+  // the correct write path for authored catalogues; the LLM generator would
+  // produce spurious clusters from QUESTION_BANK assertions instead.
   let disciplineName = subjectName;
+  let modulesAuthored = false;
+  let playbookId: string | undefined;
   const pbSubject = await prisma.playbookSubject.findFirst({
     where: { subjectId },
-    select: { playbook: { select: { config: true } } },
+    orderBy: { createdAt: "asc" },
+    select: { playbookId: true, playbook: { select: { config: true } } },
   });
   if (pbSubject?.playbook?.config) {
     const pbConfig = pbSubject.playbook.config as Record<string, unknown>;
     if (pbConfig.subjectDiscipline) disciplineName = pbConfig.subjectDiscipline as string;
+    modulesAuthored = pbConfig.modulesAuthored === true;
+    playbookId = pbSubject.playbookId;
+  }
+
+  if (modulesAuthored) {
+    console.log(
+      `[curriculum-runner] Skipping AI generation — authored modules present on playbook ${playbookId}. ` +
+      `applyProjection() owns the CurriculumModule write path for this playbook.`,
+    );
+    await updateTaskProgress(taskId, {
+      currentStep: 3,
+      context: {
+        outputKind: "authored-passthrough",
+        persisted: false,
+        persistedAt: null,
+        playbookId,
+        summary: {
+          subject: { id: subjectId, name: subjectName },
+          reason: "Playbook.config.modulesAuthored === true — AI generation skipped",
+        },
+      },
+    });
+    await completeTask(taskId);
+    return;
   }
 
   const result = await extractCurriculumFromAssertions(
