@@ -240,64 +240,70 @@ export async function executeWizardTool(
           console.log(`[wizard-tools] update_setup auto-corrected: ${c.from} → ${c.to} (${c.reason})`);
         }
       }
+      // #468: collect rejection notes instead of early-returning. The
+      // resolution logic (institution / course / subject) and the valid
+      // sibling fields all still get processed. The AI is told about both
+      // the saved fields AND the rejected ones in the final response.
+      const rejectionNotes: string[] = [];
+      const rejectedFields: Record<string, unknown> = {};
+
       if (fieldErrors.length > 0) {
         const summary = fieldErrors
           .map((e) => `"${e.key}"${e.suggestion ? ` (did you mean "${e.suggestion}"?)` : ""}`)
           .join(", ");
         console.warn(`[wizard-tools] update_setup REJECTED unknown fields: ${summary}`);
-        return {
-          ...base,
-          content: JSON.stringify({
-            ok: false,
-            error:
-              `Unknown setup field(s): ${summary}. ` +
-              `Use canonical wizard keys only — read the field's "key" property in the graph, not its label. ` +
-              `Retry update_setup with the corrected key name.`,
-            unknownKeys: fieldErrors.map((e) => e.key),
-            suggestions: fieldErrors.reduce<Record<string, string | null>>((acc, e) => {
-              acc[e.key] = e.suggestion;
-              return acc;
-            }, {}),
-          }),
-          is_error: true,
-        };
+        for (const e of fieldErrors) {
+          rejectedFields[e.key] = rawFields[e.key];
+        }
+        rejectionNotes.push(
+          `Unknown setup field(s) NOT saved: ${summary}. Use canonical wizard keys (the "key" in the graph, not the label).`,
+        );
       }
+
       let keys = Object.keys(fields);
 
       // ── #398 — progressionMode is NEVER writable via update_setup ──
       // ...unless the field is ALREADY set in setupData (idempotent re-affirm).
-      // Without the idempotent gate the AI gets stuck in a loop: it tries
-      // update_setup({progressionMode}) → REJECTED → calls show_options →
-      // user clicks → setData writes value → next turn AI re-tries update_setup
-      // (verbose "confirmation") → REJECTED again → show_options refires →
-      // repeat. The reject's only purpose is to force the picker; once the
-      // chip click has set the field, redundant AI writes are harmless.
+      // The reject's only purpose is to force the chip-click picker. Once
+      // the chip click has set the field, redundant AI writes are harmless.
       const alreadySet =
         setupData?.progressionMode !== undefined &&
         setupData?.progressionMode !== null &&
         setupData?.progressionMode !== "";
       if ("progressionMode" in fields && !alreadySet) {
         const attempted = fields.progressionMode;
+        rejectedFields.progressionMode = attempted;
         delete fields.progressionMode;
         keys = Object.keys(fields);
         console.warn(
-          `[wizard-tools] update_setup REJECTED progressionMode="${String(attempted)}" — AI cannot write this field. Must use show_options with dataKey:"progressionMode" so the chip click writes setData() client-side. (Other fields in this call were also not saved: ${keys.join(", ") || "(none)"}.)`,
+          `[wizard-tools] update_setup REJECTED progressionMode="${String(attempted)}" — AI cannot write this field. Must use show_options with dataKey:"progressionMode" so the chip click writes setData() client-side. (Other fields in this call ARE saved: ${keys.join(", ") || "(none)"}.)`,
         );
+        rejectionNotes.push(
+          `progressionMode NOT saved — call show_options with dataKey:"progressionMode" instead. The chip click writes setupData client-side. Options: { value: "ai-led", label: "AI directs the sequence" } and { value: "learner-picks", label: "Let learners pick from a menu" }.`,
+        );
+      }
+
+      // If after rejection there are no valid fields left, return an
+      // explicit error so the AI knows nothing landed and can retry.
+      if (keys.length === 0 && rejectionNotes.length > 0) {
         return {
           ...base,
           content: JSON.stringify({
             ok: false,
-            error:
-              `progressionMode CANNOT be set via update_setup. It is the educator's deliberate choice and must come from a chip click. ` +
-              `Call show_options instead: { question: "How should learners progress through this course?", dataKey: "progressionMode", mode: "radio", options: [ { value: "ai-led", label: "AI directs the sequence", recommended: <true if curriculumPath !== "authored"> }, { value: "learner-picks", label: "Let learners pick from a menu", recommended: <true if curriculumPath === "authored"> } ] }. ` +
-              `The chip click will write setupData.progressionMode directly client-side — no further update_setup needed for this field. ` +
-              `Any other fields in this call were NOT saved either; retry them in a separate update_setup call without progressionMode.`,
-            rejected: { progressionMode: attempted },
-            otherFieldsNotSaved: keys,
+            saved: [],
+            rejected: rejectedFields,
+            error: rejectionNotes.join(" "),
           }),
           is_error: true,
         };
       }
+
+      // Helper to append rejection notes to any success-path content string.
+      // Used to thread partial-rejection info through every return below.
+      const withRejections = (content: string): string =>
+        rejectionNotes.length === 0
+          ? content
+          : `${content} ALSO REJECTED FROM THIS CALL: ${rejectionNotes.join(" ")}`;
 
       // ── Institution resolution ──────────────────────────
       if (fields.institutionName && typeof fields.institutionName === "string") {
@@ -383,7 +389,7 @@ export async function executeWizardTool(
             return {
               ...base,
               autoInjectFields: institutionAutoFields,
-              content:
+              content: withRejections(
                 `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
                 `AUTO-COMMIT INSTITUTION: "${resolved.name}" ` +
                 `(type: ${resolved.typeSlug || "unknown"}, institutionId: ${resolved.institutionId}, ` +
@@ -391,6 +397,7 @@ export async function executeWizardTool(
                 `Call update_setup now with: ${resolvedFields} — ` +
                 `tell the user what you found and skip to the next unanswered field.` +
                 subjectContext,
+              ),
             };
           }
 
@@ -399,7 +406,7 @@ export async function executeWizardTool(
           return {
             ...base,
             autoInjectFields: institutionAutoFields,
-            content:
+            content: withRejections(
               `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
               `AUTO-COMMIT INSTITUTION (partial match): "${resolved.name}" ` +
               `(type: ${resolved.typeSlug || "unknown"}, institutionId: ${resolved.institutionId}, ` +
@@ -408,6 +415,7 @@ export async function executeWizardTool(
               `Call update_setup with: ${resolvedFields}. ` +
               `Tell the user: "Found ${resolved.name} — using your existing organisation."` +
               subjectContext,
+            ),
           };
         }
 
@@ -424,11 +432,12 @@ export async function executeWizardTool(
               defaultDomainKind: created.domainKind,
               ...(typeSlug ? { typeSlug } : {}),
             },
-            content:
+            content: withRejections(
               `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
               `No existing institution — created "${fields.institutionName}" ` +
               `(type: ${typeSlug || "general"}, domainId: ${created.domainId}). ` +
               `Proceed to the next unanswered field.`,
+            ),
           };
         }
         // ensureInstitutionAndDomain returned null — fall through, safety nets in show_upload/create_course will catch it
@@ -450,7 +459,7 @@ export async function executeWizardTool(
                 draftPlaybookId: pb.id,
                 ...(pb.interactionPattern ? { interactionPattern: pb.interactionPattern } : {}),
               },
-              content:
+              content: withRejections(
                 `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
                 `AUTO-COMMIT COURSE: "${pb.name}" (playbookId: ${pb.id}` +
                 `${pb.interactionPattern ? `, interactionPattern: ${pb.interactionPattern}` : ""}). ` +
@@ -458,6 +467,7 @@ export async function executeWizardTool(
                 `${pb.interactionPattern ? `, interactionPattern: "${pb.interactionPattern}"` : ""} }. ` +
                 `Tell the user: "Found ${pb.name} — using your existing course." ` +
                 `Skip teaching approach if already set. Move to next uncollected field.`,
+              ),
             };
           }
           // Multiple matches — show options
@@ -466,21 +476,23 @@ export async function executeWizardTool(
           ).join("\n");
           return {
             ...base,
-            content:
+            content: withRejections(
               `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
               `MULTIPLE COURSE MATCHES:\n${optionLines}\n` +
               `Show as show_options for courseName (radio mode) with "Create new course" at the end.`,
+            ),
           };
         }
         // No DB match — this is a brand-new course name. Tell the AI to advance.
         // Without this, the AI may respond with a dead-end (no chips/suggestions).
         return {
           ...base,
-          content:
+          content: withRejections(
             `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
             `NEW COURSE: "${fields.courseName}" — no existing match. This is a new course. ` +
             `Confirm to the user and advance to the next priority per the graph. ` +
             `You MUST call show_suggestions or show_options — do NOT end with just a statement.`,
+          ),
         };
       }
 
@@ -537,11 +549,12 @@ export async function executeWizardTool(
                 courseName: sub.courses[0].name,
                 ...(sub.courses[0].interactionPattern ? { interactionPattern: sub.courses[0].interactionPattern } : {}),
               } : undefined,
-              content:
+              content: withRejections(
                 `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
                 `AUTO-COMMIT SUBJECT: "${sub.name}" (subjectId: ${sub.id}). ` +
                 `Tell the user: "Found ${sub.name}."` +
                 courseContext,
+              ),
             };
           }
           // Multiple subject matches — show options
@@ -550,10 +563,11 @@ export async function executeWizardTool(
           ).join("\n");
           return {
             ...base,
-            content:
+            content: withRejections(
               `Saved ${keys.length} field(s): ${keys.join(", ")}. ` +
               `MULTIPLE SUBJECT MATCHES:\n${optionLines}\n` +
               `Show as show_options for subjectDiscipline (radio mode) with "Add new subject" at the end.`,
+            ),
           };
         }
       }
@@ -574,7 +588,7 @@ export async function executeWizardTool(
         }
       }
 
-      return { ...base, content: `Saved ${keys.length} field(s): ${keys.join(", ")}. Advance to the next graph priority. You MUST call show_suggestions or show_options — do NOT end with just a statement.` };
+      return { ...base, content: withRejections(`Saved ${keys.length} field(s): ${keys.join(", ")}. Advance to the next graph priority. You MUST call show_suggestions or show_options — do NOT end with just a statement.`) };
     }
 
     case "show_options": {
