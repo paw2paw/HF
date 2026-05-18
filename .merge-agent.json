@@ -1,0 +1,16 @@
+{
+  "disabled": false,
+  "gate": {
+    "command": "cd apps/admin && bash scripts/deploy-gate.sh dev",
+    "runOn": "local",
+    "timeoutSeconds": 1200
+  },
+  "ratchet": {
+    "file": "apps/admin/.ratchet.json",
+    "lockCommand": "cd apps/admin && bash scripts/check-ratchet.sh lock",
+    "commitMessage": "chore: ratchet update after merge"
+  },
+  "branchProtection": "off",
+  "lockFile": ".merge-agent.lock",
+  "lockTtlSeconds": 1800
+}
