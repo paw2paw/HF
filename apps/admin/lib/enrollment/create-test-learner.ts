@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { randomFakeName } from "@/lib/fake-names";
 import { enrollCaller } from "@/lib/enrollment";
 import { instantiatePlaybookGoals } from "@/lib/enrollment/instantiate-goals";
+import { instantiatePlaybookTargets } from "@/lib/enrollment/instantiate-targets";
 
 export interface CreateTestLearnerResult {
   callerId: string;
@@ -75,6 +76,14 @@ export async function createTestLearnerForPlaybook(
   await enrollCaller(caller.id, playbookId, source);
 
   await instantiatePlaybookGoals(caller.id);
+
+  // Pre-create CallerTarget placeholders for per-skill BehaviorTargets so the
+  // ACHIEVE banding UI has rows to render before call #1. Non-fatal — goals
+  // are the load-bearing artifact; targets are a UI affordance.
+  await instantiatePlaybookTargets(caller.id).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[create-test-learner] Target instantiation failed for ${caller.id}: ${message}`);
+  });
 
   return { callerId: caller.id, callerName };
 }

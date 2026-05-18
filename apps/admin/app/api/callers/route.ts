@@ -4,6 +4,7 @@ import { requireAuth, isAuthError } from "@/lib/permissions";
 import { requireEntityAccess, isEntityAuthError, buildScopeFilter } from "@/lib/access-control";
 import { enrollCaller, enrollCallerInCohortPlaybooks, resolveAndEnrollSingle } from "@/lib/enrollment";
 import { instantiatePlaybookGoals } from "@/lib/enrollment/instantiate-goals";
+import { instantiatePlaybookTargets } from "@/lib/enrollment/instantiate-targets";
 import { autoComposeForCaller } from "@/lib/enrollment/auto-compose";
 import { applySkipOnboarding } from "@/lib/enrollment/skip-onboarding";
 import { parsePagination } from "@/lib/api-utils";
@@ -285,6 +286,11 @@ export async function POST(req: Request) {
           { status: 500 },
         );
       }
+      // Pre-create CallerTarget placeholders. Non-fatal — see instantiate-targets.ts.
+      await instantiatePlaybookTargets(caller.id).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(`[callers] Target instantiation failed for ${caller.id}: ${message}`);
+      });
       // If compose was deferred (skipOnboarding), fire it now after onboarding is complete
       if (deferCompose) {
         autoComposeForCaller(caller.id).catch((err) => {

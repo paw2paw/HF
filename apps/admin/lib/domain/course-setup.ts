@@ -16,6 +16,7 @@ import { loadPersonaFlowPhases, loadPersonaArchetype, loadPersonaWelcomeTemplate
 import { applyBehaviorTargets } from "@/lib/domain/agent-tuning";
 import { enrollCaller, enrollCallerInDomainPlaybooks } from "@/lib/enrollment";
 import { instantiatePlaybookGoals } from "@/lib/enrollment/instantiate-goals";
+import { instantiatePlaybookTargets } from "@/lib/enrollment/instantiate-targets";
 import { suggestTeachingProfile } from "@/lib/content-trust/teaching-profiles";
 import { updateTaskProgress, completeTask, failTask } from "@/lib/ai/task-guidance";
 import type { ProgressEvent, ProgressCallback } from "./types";
@@ -690,6 +691,11 @@ const stepExecutors: Record<string, (ctx: CourseSetupContext, step: CourseSetupS
           // caller has no reward signal and the adapt loop cannot progress.
           await instantiatePlaybookGoals(callerId, domainId).catch((err) => {
             ctx.results.warnings!.push(`Goal instantiation (caller ${callerId}): ${err.message}`);
+          });
+          // Pre-create CallerTarget placeholders. Non-fatal — see instantiate-targets.ts.
+          await instantiatePlaybookTargets(callerId).catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            ctx.results.warnings!.push(`Target instantiation (caller ${callerId}): ${message}`);
           });
           invitationCount++;
         } catch (err) {
