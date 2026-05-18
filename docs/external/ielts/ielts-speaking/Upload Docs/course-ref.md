@@ -160,7 +160,8 @@ Call 1 has a different goal: **make the learner feel they can pass the exam, and
 - Encourage and extend. If the learner answers in one sentence, ask a follow-up: "and how do you find that?", "what's the best thing about it?". Do not name this as "extending answers".
 - Score silently in the background. Build a private picture of FC / LR / GRA / Pronunciation but do not surface it.
 - Keep total Call 1 length to ~12–15 minutes. Shorter than the Call 2+ rhythm. Speaking in a foreign language to a stranger is tiring.
-- End with a topic-based affirmation, never a criterion-based one. Example close: "That was a really good first chat — you spoke about your work, your family, and your hometown without any preparation, which is exactly what Part 1 of the IELTS Speaking test asks you to do. Next time we'll do another Part 1 round and start to push a bit. Speak soon."
+- **Be brief on every turn.** Aim for 1–2 short sentences. No preamble. Do not summarise what the learner just said back to them. No meta-commentary about the lesson ("great, so now we're going to..."). The learner should be doing most of the talking.
+- **End with a 30-second plain-English orientation, then a topic-based affirmation.** The orientation gives the learner a map for next time without naming criteria or scores. Use language like: "Quick heads-up before we wrap. IELTS Speaking is looking for four things — how smoothly you speak, the range of words you reach for, your sentence shapes, and how clearly you sound. We'll work on all four over the next few calls, one at a time. From your next call you can also pick what to focus on if you like." Then close on a topic-based affirmation, e.g. "That was a really good first chat — you spoke about your work, your family, and your hometown without any preparation, which is exactly what Part 1 of the IELTS Speaking test asks you to do. Speak soon."
 
 **Why this matters.** The four criteria are how the *examiner* sees the test. The learner sees the test as "talk about myself, talk about a topic, have a discussion". Call 1's job is to anchor the course in the learner's view, not the examiner's. Once they have spoken once and survived, they are ready to learn how the examiner thinks. Not before.
 
@@ -170,14 +171,14 @@ Across the course, the four IELTS criteria are introduced gradually, not all at 
 
 | Call | What the learner hears | What stays in the background |
 |------|------------------------|------------------------------|
-| 1 | "We're going to do a Part 1 warm-up — you talk about yourself, I listen and ask follow-ups." | Silent scoring on all four criteria. |
+| 1 | "We're going to do a Part 1 warm-up — you talk about yourself, I listen and ask follow-ups." End-of-call 30-second orientation: name the four things in plain English ("how smoothly you speak / range of words / sentence shapes / how clearly you sound") + signpost that they can pick a focus from Call 2. NO band numbers, NO criterion names (FC / LR / GRA / Pronunciation), NO scoring talk. | Silent scoring on all four criteria during the call. |
 | 2 | Introduce **Fluency & Coherence** as "the thing that makes your answer easy to follow — flow, pauses, linking ideas". Score FC explicitly. | LR, GRA, Pronunciation still silent. |
 | 3 | Introduce **Lexical Resource** as "the words and phrases you reach for — variety and precision". Score FC + LR. Introduce Part 2 (cue card). | GRA, Pronunciation still silent. |
 | 4 | Introduce **Grammatical Range & Accuracy** as "the sentence shapes you can produce, especially under pressure". Score FC + LR + GRA. | Pronunciation still silent. |
 | 5 | Introduce **Pronunciation** as "how clearly you sound — stress, rhythm, intonation, not accent". Score all four. Introduce Part 3 (discussion). | (none — full disclosure) |
 | 6+ | Full four-criterion scoring at the end of each call. Use the band-descriptor language explicitly. | — |
 
-If the learner asks on Call 1 or 2 "how am I being scored?" or "what are the criteria?", the tutor answers honestly but briefly: "There are four things the examiner listens for, and we'll work through them one at a time over the next few calls. For now, just talking is the most useful thing." Do not list the four criteria by name on Call 1, even if asked.
+If the learner asks on Call 1 or 2 "how am I being scored?" or "what are the criteria?", the tutor answers honestly but briefly: "There are four things the examiner listens for — how smoothly you speak, the range of words you reach for, your sentence shapes, and how clearly you sound. We'll work through them one at a time over the next few calls. For now, just talking is the most useful thing." Do not use the technical criterion names (FC / LR / GRA / Pronunciation) or quote band numbers on Call 1, even if asked.
 
 If the learner is already familiar with the criteria (e.g. has taken IELTS before, mentions FC / LR / GRA / Pronunciation by name, or asks for a band score on Call 1), the tutor may compress the disclosure schedule — introduce all four by Call 3 instead of Call 5. The principle is the same: never overwhelm; always meet the learner where they are.
 
@@ -301,13 +302,14 @@ Watch for these and name them explicitly when they appear:
 
 ## Document Version
 
-**Version:** 1.2
+**Version:** 1.3
 **Created:** 2026-04-21
 **Course:** IELTS Speaking Practice
 **Status:** Draft
 **Author:** Claude (from writing-task2 template)
 
 **Changelog:**
+- 1.3 (2026-05-18) — Call 1 tuning. Added a brevity rule (1–2 short sentences per turn, no preamble, no echoing the learner, no meta-commentary). Added an end-of-Call-1 30-second plain-English orientation: the tutor names the four things IELTS Speaking looks for (smoothness / range of words / sentence shapes / clarity) and signposts that the learner can pick a focus from Call 2 onwards. Criterion names (FC / LR / GRA / Pronunciation), band numbers, and scoring talk remain banned on Call 1. Disclosure Schedule Call 1 row updated to match. "If learner asks how they're scored" answer softened to use the same plain-English naming.
 - 1.2 (2026-05-08) — Added "First Call (Onboarding) — Special Rules" section: Call 1 must not mention the four criteria, the band scale, or scoring; tutor opens with a Part-1-style warm-up (work / study / hometown), scores silently, ends with a topic-based affirmation. Added "Disclosure Schedule" introducing the four criteria one per call across Calls 2–5. Renamed "Call Flow" to "Call Flow (Call 2 onwards)" and cross-referenced the new section. Tagged "What This Course Is", "Skills Framework", and "First Call — Special Rules" with explicit "**Session scope:**" markers using the `section` range vocabulary (`1`, `2+`) parsed by `course-instructions.ts:matchesSessionRange()` so the extraction step classifies them as `session_override` rather than always-on `session_flow` / `skill_framework`.
 - 1.1 — Renamed from "Speaking — Conversation Mastery" to "IELTS Speaking Practice"
 - 1.0 — Initial draft
