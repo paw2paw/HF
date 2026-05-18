@@ -56,6 +56,27 @@ export async function checkAutoTriggerCurriculum(
     return null; // Nothing to generate from
   }
 
+  // 3b. #469 — skip auto-trigger when the playbook has authored modules.
+  // applyProjection() (run from create_course + republish) owns the
+  // CurriculumModule write path for authored catalogues. Firing the LLM
+  // generator here would compete with that path and produce spurious
+  // modules from QUESTION_BANK assertions.
+  const pbSubject = await prisma.playbookSubject.findFirst({
+    where: { subjectId },
+    orderBy: { createdAt: "asc" },
+    select: { playbookId: true, playbook: { select: { config: true } } },
+  });
+  if (pbSubject?.playbook?.config) {
+    const pbConfig = pbSubject.playbook.config as Record<string, unknown>;
+    if (pbConfig.modulesAuthored === true) {
+      console.log(
+        `[auto-trigger] Skipping curriculum generation — playbook ${pbSubject.playbookId} has authored modules. ` +
+        `applyProjection() owns the CurriculumModule write path for this playbook.`,
+      );
+      return null;
+    }
+  }
+
   // 4. Look up subject name
   const subject = await prisma.subject.findUnique({
     where: { id: subjectId },
