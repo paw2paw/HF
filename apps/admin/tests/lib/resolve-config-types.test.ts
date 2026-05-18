@@ -142,6 +142,34 @@ describe("resolveExtractionConfig", () => {
     expect(cfg.structuring.levels[0].label).toBe("topic");
     expect(cfg.structuring.levels[1].label).toBe("term");
   });
+
+  it("COURSE_REFERENCE_ASSESSOR_RUBRIC restricts categories to calibration-only (#447)", async () => {
+    const cfg = await resolveExtractionConfig(undefined, "COURSE_REFERENCE_ASSESSOR_RUBRIC");
+
+    const categoryIds = cfg.extraction.categories.map((c) => c.id);
+    // Calibration-only — instruction categories the MEASURE spec consumes.
+    expect(categoryIds).toEqual(
+      expect.arrayContaining([
+        "skill_framework",
+        "skill_description",
+        "assessment_approach",
+        "assessment_guidance",
+      ]),
+    );
+    // Crucially: no learner-facing categories from the finance-flavoured
+    // DEFAULT_CONFIG fallback. Rubric content must never land here.
+    expect(categoryIds).not.toContain("fact");
+    expect(categoryIds).not.toContain("definition");
+    expect(categoryIds).not.toContain("rule");
+    expect(categoryIds).not.toContain("process");
+    expect(categoryIds).not.toContain("example");
+    expect(categoryIds).not.toContain("threshold");
+
+    // Structuring reflects rubric shape: skill -> tier -> descriptor
+    expect(cfg.structuring.levels[0].label).toBe("skill_group");
+    expect(cfg.structuring.levels[1].label).toBe("tier");
+    expect(cfg.structuring.levels[2].label).toBe("descriptor");
+  });
 });
 
 describe("getMaxDepth", () => {

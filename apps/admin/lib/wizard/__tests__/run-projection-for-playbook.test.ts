@@ -216,6 +216,21 @@ describe("runProjectionForPlaybook", () => {
     }
   });
 
+  it("excludes COURSE_REFERENCE_ASSESSOR_RUBRIC from the documentType filter (#447)", async () => {
+    mockPrismaState.playbookSource.findMany.mockResolvedValue([]);
+
+    const { runProjectionForPlaybook } = await import("../run-projection-for-playbook");
+    await runProjectionForPlaybook(PLAYBOOK_ID);
+
+    expect(mockPrismaState.playbookSource.findMany).toHaveBeenCalledTimes(1);
+    const args = mockPrismaState.playbookSource.findMany.mock.calls[0][0];
+    const inList = args.where.source.documentType.in as string[];
+    expect(inList).toContain("COURSE_REFERENCE");
+    expect(inList).toContain("COURSE_REFERENCE_CANONICAL");
+    expect(inList).toContain("COURSE_REFERENCE_TUTOR_BRIEFING");
+    expect(inList).not.toContain("COURSE_REFERENCE_ASSESSOR_RUBRIC");
+  });
+
   it("applies multiple COURSE_REFERENCE sources in order, accumulating results", async () => {
     mockPrismaState.playbookSource.findMany.mockResolvedValue([
       {

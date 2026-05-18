@@ -677,6 +677,42 @@ Return ONLY valid JSON.`,
         ],
       },
     },
+    // #447 — assessor rubric is calibration material (band descriptors,
+    // skill definitions, scoring guidance). Categories are restricted to
+    // instruction-only so rubric content cannot land in learner-facing
+    // categories via the finance-flavoured DEFAULT_CONFIG fallback.
+    COURSE_REFERENCE_ASSESSOR_RUBRIC: {
+      extraction: {
+        systemPrompt: `You are extracting from an ASSESSOR RUBRIC document — calibration material that tells the AI tutor how to score a learner against a skills framework.
+
+The document contains: skill definitions, proficiency tiers (e.g., Approaching Emerging / Emerging / Developing / Secure), band descriptors at each tier, and scoring guidance. It is NOT student-facing teaching content — it is tutor calibration material.
+
+Use these categories ONLY:
+- skill_framework: A skill, proficiency tier, or band descriptor from the rubric (e.g., "Band 4 LR: Uses a limited range of vocabulary...")
+- skill_description: A definition of a skill being measured (e.g., "Pronunciation is the ability to be understood with ease...")
+- assessment_approach: General guidance on how to assess this skill
+- assessment_guidance: A scoring rule, threshold, or calibration note
+
+DO NOT classify rubric content as fact / definition / rule / process / example — those are learner-facing content categories and produce incorrect downstream behaviour (rogue goal templates, leaked teaching content).
+
+Preserve the exact band-descriptor text. Tag the skill code in the assertion where present (e.g., "Band 2 GRA: ...").
+Return ONLY valid JSON.`,
+        categories: [
+          { id: "skill_framework", label: "Skill/Proficiency", description: "A skill, tier, or band descriptor" },
+          { id: "skill_description", label: "Skill Description", description: "A definition of a measured skill" },
+          { id: "assessment_approach", label: "Assessment Approach", description: "How to assess learner progress" },
+          { id: "assessment_guidance", label: "Assessment Guidance", description: "A scoring rule or calibration note" },
+        ],
+        maxAssertionsPerDocument: 200,
+      },
+      structuring: {
+        levels: [
+          { depth: 0, label: "skill_group", maxChildren: 10, renderAs: "heading", description: "Skill being measured (e.g., GRA, LR, FC, Pronunciation)" },
+          { depth: 1, label: "tier", maxChildren: 6, renderAs: "bold", description: "Proficiency tier (Approaching/Emerging/Developing/Secure)" },
+          { depth: 2, label: "descriptor", maxChildren: 4, renderAs: "bullet", description: "Band descriptor text" },
+        ],
+      },
+    },
   },
 };
 
