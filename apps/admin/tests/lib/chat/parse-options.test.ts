@@ -190,6 +190,38 @@ describe("parseOptionsFromText", () => {
     expect(stripParameterTags(text)).toBe("Here is your setup.\n\nReady?");
   });
 
+  // ── <thinking> / <scratchpad> stripping (#467) ─────
+
+  it("strips well-formed <thinking> blocks", () => {
+    const text = `<thinking>\nLet me check the rules...\n</thinking>\nHere are your options.`;
+    expect(stripParameterTags(text)).toBe("Here are your options.");
+  });
+
+  it("strips multi-paragraph <thinking> blocks", () => {
+    const text = `<thinking>\nPara 1.\n\nPara 2 with "quotes".\n\n- list\n- item\n</thinking>\n\nReady?`;
+    expect(stripParameterTags(text)).toBe("Ready?");
+  });
+
+  it("strips orphan <thinking> opening tag (truncated mid-block)", () => {
+    const text = `<thinking>\nFirst save all the`;
+    expect(stripParameterTags(text)).toBe("");
+  });
+
+  it("strips orphan </thinking> closing tag", () => {
+    const text = `Stray content.\n</thinking>\nAfter.`;
+    expect(stripParameterTags(text)).toBe("Stray content.\n\nAfter.");
+  });
+
+  it("strips <scratchpad> blocks", () => {
+    const text = `<scratchpad>internal notes</scratchpad>\nFinal answer.`;
+    expect(stripParameterTags(text)).toBe("Final answer.");
+  });
+
+  it("case-insensitive on thinking/scratchpad tags", () => {
+    const text = `<Thinking>foo</Thinking>\n<SCRATCHPAD>bar</SCRATCHPAD>\nClean.`;
+    expect(stripParameterTags(text)).toBe("Clean.");
+  });
+
   // ── Label truncation ────────────────────────────────
 
   it("truncates very long labels", () => {
