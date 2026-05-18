@@ -223,8 +223,15 @@ function parseParameterTagOptions(text: string): ParsedOption[] | null {
 
 /**
  * Strip hallucinated XML tags from AI response text so they don't render as raw markup.
- * Handles <parameter>, <invoke>, and </invoke> tags that the AI sometimes outputs
- * in its text content instead of using proper tool_use blocks.
+ * Handles <parameter>, <invoke>, </invoke>, <thinking>, and <scratchpad> tags
+ * that the AI sometimes outputs in its text content instead of using proper
+ * tool_use / extended-thinking blocks.
+ *
+ * Note: real Anthropic extended-thinking blocks (`type: "thinking"`) are
+ * extracted server-side in `lib/ai/client.ts` and never reach this function.
+ * What this strips is hallucinated literal `<thinking>` XML in text content
+ * — observed leaking into the wizard UI on 2026-05-18 (#467).
+ *
  * Returns the cleaned text (safe for ReactMarkdown).
  */
 export function stripParameterTags(text: string): string {
@@ -232,6 +239,14 @@ export function stripParameterTags(text: string): string {
     .replace(/<parameter\s+name="[^"]*">\s*[\s\S]*?\s*<\/parameter>/g, "")
     .replace(/<invoke\s+name="[^"]*">\s*[\s\S]*?\s*<\/invoke>/g, "")
     .replace(/<\/?invoke[^>]*>/g, "")
+    .replace(/<thinking[^>]*>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/<scratchpad[^>]*>[\s\S]*?<\/scratchpad>/gi, "")
+    // Unclosed opening tag (model truncated mid-block) — strip from tag to end.
+    .replace(/<thinking[^>]*>[\s\S]*$/i, "")
+    .replace(/<scratchpad[^>]*>[\s\S]*$/i, "")
+    // Stray closing tags without a matching opener.
+    .replace(/<\/thinking[^>]*>/gi, "")
+    .replace(/<\/scratchpad[^>]*>/gi, "")
     .trim();
 }
 
