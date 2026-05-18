@@ -59,18 +59,22 @@ export async function loadGoalProgressSpec(): Promise<GoalProgressSpec> {
   try {
     const spec = await prisma.analysisSpec.findFirst({
       where: { slug: { in: ["GOAL-PROGRESS-001", "goal-progress-001"] }, isActive: true },
-      include: { parameters: true },
+      select: { config: true },
     });
     if (!spec) {
       _cached = { value: DEFAULT_SPEC, loadedAt: Date.now() };
       return DEFAULT_SPEC;
     }
-    const param = spec.parameters.find((p) => p.parameterId === "goal_progress_strategies");
-    const config = (param?.config ?? {}) as Partial<GoalProgressSpec>;
+    // Same shape as SKILL-AGG-001 etc. — spec.config holds a parameters[]
+    // array; the entry with `goal_progress_strategies` id carries the rule
+    // list under its own .config block.
+    const specConfig = (spec.config ?? {}) as { parameters?: Array<{ id?: string; config?: Partial<GoalProgressSpec> }> };
+    const param = (specConfig.parameters ?? []).find((p) => p.id === "goal_progress_strategies");
+    const ruleConfig = (param?.config ?? {}) as Partial<GoalProgressSpec>;
     const value: GoalProgressSpec = {
-      defaultStrategy: config.defaultStrategy ?? "manual_only",
-      rules: (config.rules ?? []).slice().sort((a, b) => b.priority - a.priority),
-      strategyConfig: config.strategyConfig ?? {},
+      defaultStrategy: ruleConfig.defaultStrategy ?? "manual_only",
+      rules: (ruleConfig.rules ?? []).slice().sort((a, b) => b.priority - a.priority),
+      strategyConfig: ruleConfig.strategyConfig ?? {},
     };
     _cached = { value, loadedAt: Date.now() };
     return value;

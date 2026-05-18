@@ -173,22 +173,22 @@ describe("loadGoalProgressSpec", () => {
 
   it("sorts rules by priority descending", async () => {
     mockPrisma.analysisSpec.findFirst.mockResolvedValue({
-      id: "s1",
-      slug: "GOAL-PROGRESS-001",
-      parameters: [
-        {
-          parameterId: "goal_progress_strategies",
-          config: {
-            defaultStrategy: "manual_only",
-            rules: [
-              { priority: 50, match: {}, strategy: "low" },
-              { priority: 100, match: {}, strategy: "high" },
-              { priority: 75, match: {}, strategy: "mid" },
-            ],
-            strategyConfig: {},
+      config: {
+        parameters: [
+          {
+            id: "goal_progress_strategies",
+            config: {
+              defaultStrategy: "manual_only",
+              rules: [
+                { priority: 50, match: {}, strategy: "low" },
+                { priority: 100, match: {}, strategy: "high" },
+                { priority: 75, match: {}, strategy: "mid" },
+              ],
+              strategyConfig: {},
+            },
           },
-        },
-      ],
+        ],
+      },
     });
     const spec = await loadGoalProgressSpec();
     expect(spec.rules.map((r) => r.strategy)).toEqual(["high", "mid", "low"]);
