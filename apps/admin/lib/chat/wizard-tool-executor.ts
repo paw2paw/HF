@@ -1037,6 +1037,13 @@ export async function executeWizardTool(
             const { instantiatePlaybookGoals: instantiateGoalsExisting } = await import("@/lib/enrollment/instantiate-goals");
             await instantiateGoalsExisting(caller.id, resolvedDomainId);
 
+            // Pre-create CallerTarget placeholders. Non-fatal — see instantiate-targets.ts.
+            const { instantiatePlaybookTargets: instantiateTargetsExisting } = await import("@/lib/enrollment/instantiate-targets");
+            await instantiateTargetsExisting(caller.id).catch((err: unknown) => {
+              const message = err instanceof Error ? err.message : String(err);
+              console.warn(`[wizard] Target instantiation failed for ${caller.id}: ${message}`);
+            });
+
             // Resolve primary subject for the existing playbook
             const existingPbSubject = await prisma.playbookSubject.findFirst({
               where: { playbookId: existingPlaybookId },
@@ -1680,6 +1687,7 @@ export async function executeWizardTool(
 
         // 9b. Create TWO test callers: demo (skips onboarding) + full (normal journey)
         const { instantiatePlaybookGoals } = await import("@/lib/enrollment/instantiate-goals");
+        const { instantiatePlaybookTargets } = await import("@/lib/enrollment/instantiate-targets");
 
         async function createTestCaller(callerName: string, skipOnboarding: boolean) {
           const c = await prisma.caller.create({
@@ -1692,6 +1700,12 @@ export async function executeWizardTool(
           // v5 wizard (course-setup) and chat wizard in lockstep. Re-throw on failure
           // so the wizard reports the broken state instead of pretending success.
           await instantiatePlaybookGoals(c.id, domainId);
+
+          // Pre-create CallerTarget placeholders. Non-fatal — see instantiate-targets.ts.
+          await instantiatePlaybookTargets(c.id).catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            console.warn(`[wizard] Target instantiation failed for ${c.id}: ${message}`);
+          });
 
           // Skip onboarding: mark complete, mark surveys submitted, then compose
           if (skipOnboarding) {
