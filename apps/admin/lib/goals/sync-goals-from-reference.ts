@@ -39,14 +39,18 @@ export async function syncGoalsFromReference(
     where: { id: sourceId },
     select: { id: true, documentType: true },
   });
-  // #385 Slice 1 Phase 3 — accept all four COURSE_REFERENCE* values.
+  // #447 — exclude COURSE_REFERENCE_ASSESSOR_RUBRIC. Rubric docs carry
+  // band-descriptor calibration material that the AI classifies as
+  // `assessment_approach`; turning those into ACHIEVE goal templates
+  // produces rows like "Band 2 LR: Only produces isolated words..."
+  // on the caller's What tab. Rubric stays in ContentAssertion for the
+  // MEASURE spec to consume.
   if (
     !source ||
     !(
       source.documentType === "COURSE_REFERENCE" ||
       source.documentType === "COURSE_REFERENCE_CANONICAL" ||
-      source.documentType === "COURSE_REFERENCE_TUTOR_BRIEFING" ||
-      source.documentType === "COURSE_REFERENCE_ASSESSOR_RUBRIC"
+      source.documentType === "COURSE_REFERENCE_TUTOR_BRIEFING"
     )
   ) return result;
 

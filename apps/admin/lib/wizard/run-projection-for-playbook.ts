@@ -39,16 +39,17 @@ export interface RunProjectionResult {
  * Throws only on truly unexpected DB errors.
  */
 export async function runProjectionForPlaybook(playbookId: string): Promise<RunProjectionResult> {
-  // #385 Slice 1 Phase 3 — accept legacy COURSE_REFERENCE + the three
-  // subtypes emitted by the classifier in Phase 2. The projection logic
-  // itself is agnostic to which subtype the source carries; projection
-  // runs the same parsers against any course-reference-family doc.
+  // #447 — exclude COURSE_REFERENCE_ASSESSOR_RUBRIC: rubric docs are
+  // scoring calibration material, consumed by the MEASURE spec via
+  // ContentAssertion (category=assessment_approach + skill_framework).
+  // Feeding them to projection turned band-descriptor lines into rogue
+  // LEARN/ACHIEVE goal templates.
   const links = await prisma.playbookSource.findMany({
     where: {
       playbookId,
       source: {
         documentType: {
-          in: ["COURSE_REFERENCE", "COURSE_REFERENCE_CANONICAL", "COURSE_REFERENCE_TUTOR_BRIEFING", "COURSE_REFERENCE_ASSESSOR_RUBRIC"],
+          in: ["COURSE_REFERENCE", "COURSE_REFERENCE_CANONICAL", "COURSE_REFERENCE_TUTOR_BRIEFING"],
         },
       },
     },
