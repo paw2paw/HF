@@ -29,10 +29,18 @@ export interface StudentModuleProgress {
 
 /**
  * #493 Slice 5.3 — populated by E2 ADAPT after a Mock call. Null until then.
+ * Module IDs from the writer are resolved at the API boundary into
+ * `{id, slug, title}` triples so the panel can render titles directly.
  */
+export interface StudentModuleRef {
+  id: string;
+  slug: string;
+  title: string;
+}
+
 export interface StudentDiagnosticFromMock {
-  focusModules: string[];
-  strengthModule: string | null;
+  focusModules: StudentModuleRef[];
+  strengthModule: StudentModuleRef | null;
   weakSkill: string | null;
   summary: string;
   fromCallId: string;

@@ -1,9 +1,24 @@
 'use client';
 
 import { useEffect, type JSX } from 'react';
-import { ArrowLeft, X, Target, BookOpen, Lightbulb, Phone, TrendingUp, CheckCircle2, Circle, PlayCircle } from 'lucide-react';
+import { ArrowLeft, X, Target, BookOpen, Lightbulb, Phone, TrendingUp, CheckCircle2, Circle, PlayCircle, Award } from 'lucide-react';
 import { useStudentProgress } from '@/hooks/useStudentProgress';
 import { useJourneyPosition } from '@/hooks/useJourneyPosition';
+
+/** #493 Slice 5.4 — humanise the completion mode into educator-friendly copy. */
+function describeCompletionMode(mode: 'all-modules' | 'terminal-only' | 'any'): string {
+  if (mode === 'terminal-only') return 'You finished the final module of this course.';
+  if (mode === 'all-modules') return 'You mastered every module.';
+  return 'You completed your first module — keep going to master the rest.';
+}
+
+/** #493 Slice 5.4 — format an ISO date with `Intl.DateTimeFormat`, medium style. */
+function formatCompletedAt(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(d);
+}
 
 interface SimProgressPanelProps {
   onClose: () => void;
@@ -51,6 +66,28 @@ export function SimProgressPanel({ onClose, callerId }: SimProgressPanelProps): 
 
         {!loading && !error && data && (
           <>
+            {/* #493 Slice 5.4 — Course Complete hero. Rendered FIRST when the
+                course-completion predicate returns complete=true. Educator-
+                friendly copy varies by completionMode (terminal-only is the
+                IELTS-style default; all-modules covers strict-mastery courses;
+                any covers open-ended / exploratory courses). */}
+            {data.courseComplete?.complete && (
+              <div className="wa-progress-course-complete">
+                <div className="wa-progress-course-complete-icon">
+                  <Award size={28} />
+                </div>
+                <div className="wa-progress-course-complete-title">Course complete!</div>
+                {data.courseComplete.completedAt && (
+                  <div className="wa-progress-course-complete-subtitle">
+                    You completed this course on {formatCompletedAt(data.courseComplete.completedAt)}.
+                  </div>
+                )}
+                <div className="wa-progress-course-complete-desc">
+                  {describeCompletionMode(data.courseComplete.mode)}
+                </div>
+              </div>
+            )}
+
             {/* Journey progress */}
             {position && position.totalStops > 0 && (
               <div className="wa-progress-section">
@@ -75,6 +112,40 @@ export function SimProgressPanel({ onClose, callerId }: SimProgressPanelProps): 
                     }
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* #493 Slice 5.3 — Focus areas section. Higher signal than the
+                module roster post-Mock, so rendered ABOVE Modules. Shows the
+                summary sentence, then a strength/focus-next/weak-skill list.
+                Each item is conditional — strength + weak skill may be null on
+                the very first Mock when there's no prior evidence. */}
+            {data.diagnosticFromMock && (
+              <div className="wa-progress-section wa-progress-focus-section">
+                <div className="wa-progress-section-title">Focus areas</div>
+                {data.diagnosticFromMock.summary && (
+                  <div className="wa-progress-empty">
+                    {data.diagnosticFromMock.summary}
+                  </div>
+                )}
+                {data.diagnosticFromMock.strengthModule && (
+                  <div className="wa-progress-focus-row wa-progress-focus-strength">
+                    <CheckCircle2 size={14} className="wa-progress-focus-icon" />
+                    <span>{data.diagnosticFromMock.strengthModule.title}</span>
+                  </div>
+                )}
+                {data.diagnosticFromMock.focusModules.map((m) => (
+                  <div key={m.id} className="wa-progress-focus-row wa-progress-focus-next">
+                    <PlayCircle size={14} className="wa-progress-focus-icon" />
+                    <span>{m.title}</span>
+                  </div>
+                ))}
+                {data.diagnosticFromMock.weakSkill && (
+                  <div className="wa-progress-focus-row wa-progress-focus-weak">
+                    <Lightbulb size={14} className="wa-progress-focus-icon" />
+                    <span>{data.diagnosticFromMock.weakSkill}</span>
+                  </div>
+                )}
               </div>
             )}
 

@@ -1831,6 +1831,83 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* #493 Slice 5.3 — Focus areas (post-Mock diagnostic). Rendered above the
+   Modules section. One row per signal — strength (green), focus-next (amber),
+   weak-skill (muted). Each row reuses the section gap + 8/6 padding so it
+   visually rhymes with module rows. */
+.wa-progress-focus-section {
+  gap: 8px;
+}
+
+.wa-progress-focus-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 6%, transparent);
+  font-size: 13px;
+  color: var(--wa-text-primary);
+}
+
+.wa-progress-focus-icon {
+  flex-shrink: 0;
+}
+
+.wa-progress-focus-strength .wa-progress-focus-icon {
+  color: var(--wa-green-primary);
+}
+
+.wa-progress-focus-next .wa-progress-focus-icon {
+  color: var(--wa-amber);
+}
+
+.wa-progress-focus-weak .wa-progress-focus-icon {
+  color: var(--wa-text-secondary);
+}
+
+/* #493 Slice 5.4 — Course Complete hero. Rendered FIRST in the panel when
+   the completion predicate flips. Green-tinted card with celebratory icon +
+   title + subtitle + plain-English description of the completion mode. */
+.wa-progress-course-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--wa-green-primary) 12%, transparent);
+  text-align: center;
+}
+
+.wa-progress-course-complete-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--wa-green-primary);
+  color: var(--surface-primary);
+  margin-bottom: 4px;
+}
+
+.wa-progress-course-complete-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--wa-text-primary);
+}
+
+.wa-progress-course-complete-subtitle {
+  font-size: 13px;
+  color: var(--wa-text-primary);
+}
+
+.wa-progress-course-complete-desc {
+  font-size: 12px;
+  color: var(--wa-text-secondary);
+}
+
 /* Stats grid */
 .wa-progress-stat-grid {
   display: grid;
