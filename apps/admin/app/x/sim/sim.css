@@ -1777,6 +1777,60 @@
   transition: width 0.4s ease;
 }
 
+/* #493 Slice 5.2 — Modules section. One row per module with status icon +
+   title + call-count chip. Status drives icon colour: mastered green,
+   in-progress amber, not-started muted. */
+.wa-progress-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wa-progress-module-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--wa-text-secondary) 6%, transparent);
+}
+
+.wa-progress-module-icon {
+  flex-shrink: 0;
+}
+
+.wa-progress-module-mastered .wa-progress-module-icon {
+  color: var(--wa-green-primary);
+}
+
+.wa-progress-module-in-progress .wa-progress-module-icon {
+  color: var(--wa-amber);
+}
+
+.wa-progress-module-not-started .wa-progress-module-icon {
+  color: color-mix(in srgb, var(--wa-text-secondary) 50%, transparent);
+}
+
+.wa-progress-module-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--wa-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-progress-module-mastered .wa-progress-module-title {
+  font-weight: 600;
+}
+
+.wa-progress-module-meta {
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Stats grid */
 .wa-progress-stat-grid {
   display: grid;

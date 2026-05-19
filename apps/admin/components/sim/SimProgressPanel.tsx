@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, type JSX } from 'react';
-import { ArrowLeft, X, Target, BookOpen, Lightbulb, Phone, TrendingUp } from 'lucide-react';
+import { ArrowLeft, X, Target, BookOpen, Lightbulb, Phone, TrendingUp, CheckCircle2, Circle, PlayCircle } from 'lucide-react';
 import { useStudentProgress } from '@/hooks/useStudentProgress';
 import { useJourneyPosition } from '@/hooks/useJourneyPosition';
 
@@ -74,6 +74,41 @@ export function SimProgressPanel({ onClose, callerId }: SimProgressPanelProps): 
                       : `${position.completedStops} of ${position.totalStops} sessions complete`
                     }
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* #493 Slice 5.2 — Modules section. Per-module status from
+                CallerModuleProgress. Inserted between Journey and Goals so the
+                learner sees module structure first, then per-goal % progress.
+                Status icons: CheckCircle2 (mastered) / PlayCircle (in progress)
+                / Circle (not started). LOCKED is presentation-only (E4 picker
+                computes it from prereqs); the API never returns it. */}
+            {data.modules && data.modules.length > 0 && (
+              <div className="wa-progress-section">
+                <div className="wa-progress-section-title">
+                  Modules ({data.modules.length})
+                </div>
+                <div className="wa-progress-modules">
+                  {data.modules.map(m => {
+                    const StatusIcon =
+                      m.status === 'MASTERED' ? CheckCircle2
+                      : m.status === 'IN_PROGRESS' ? PlayCircle
+                      : Circle;
+                    const statusClass =
+                      m.status === 'MASTERED' ? 'wa-progress-module-mastered'
+                      : m.status === 'IN_PROGRESS' ? 'wa-progress-module-in-progress'
+                      : 'wa-progress-module-not-started';
+                    return (
+                      <div key={m.id} className={`wa-progress-module-row ${statusClass}`}>
+                        <StatusIcon size={14} className="wa-progress-module-icon" />
+                        <span className="wa-progress-module-title">{m.title}</span>
+                        <span className="wa-progress-module-meta">
+                          {m.callCount > 0 ? `${m.callCount} call${m.callCount === 1 ? '' : 's'}` : '—'}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
