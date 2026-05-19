@@ -16,7 +16,8 @@ export const runtime = "nodejs";
  * @pathParam domainId string - The domain ID to check readiness for
  * @queryParam callerId string - Test caller ID (for prompt composition check)
  * @queryParam sourceId string - Content source ID (for assertion review link)
- * @queryParam subjectId string - Subject ID (for lesson plan link)
+ * @queryParam playbookId string - Playbook (course) ID — for lesson plan link
+ * @queryParam subjectId string - DEPRECATED (#486): historical Subject-scoped link. Accepted with a server log; remove caller use in favour of playbookId.
  * @response 200 { ok: true, domainId, ready, score, level, checks[], criticalPassed, criticalTotal, recommendedPassed, recommendedTotal }
  * @response 500 { ok: false, error: string }
  */
@@ -32,7 +33,13 @@ export async function GET(
     const url = new URL(request.url);
     const callerId = url.searchParams.get("callerId") || undefined;
     const sourceId = url.searchParams.get("sourceId") || undefined;
-    const subjectId = url.searchParams.get("subjectId") || undefined;
+    const playbookId = url.searchParams.get("playbookId") || undefined;
+    const subjectIdLegacy = url.searchParams.get("subjectId") || undefined;
+    if (subjectIdLegacy) {
+      console.warn(
+        `[course-readiness] deprecated subjectId query param received (#486) — caller should pass playbookId instead. domainId=${domainId} subjectId=${subjectIdLegacy}`,
+      );
+    }
 
     // Detect domain kind to select the right readiness spec
     const domain = await prisma.domain.findUnique({
@@ -44,7 +51,7 @@ export async function GET(
       : config.specs.courseReady;
 
     const result = await checkCourseReadiness(
-      { domainId, callerId, sourceId, subjectId },
+      { domainId, callerId, sourceId, playbookId, subjectId: subjectIdLegacy },
       specSlug,
     );
 

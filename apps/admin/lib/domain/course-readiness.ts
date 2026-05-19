@@ -55,8 +55,10 @@ export interface CourseReadinessContext {
   domainId: string;
   callerId?: string;
   sourceId?: string;
-  subjectId?: string;
+  playbookId?: string;
   curriculumId?: string;
+  /** @deprecated #486 — use playbookId. Retained to avoid runtime breakage during the dual-read window; do not add new callers. */
+  subjectId?: string;
 }
 
 // =====================================================
@@ -104,7 +106,7 @@ export async function loadCourseReadinessChecks(specSlug?: string): Promise<Cour
       description: "Check the generated curriculum structure",
       severity: "recommended",
       query: "lesson_plan",
-      fixAction: { label: "Review Plan", hrefTemplate: "/x/subjects?id=${subjectId}" },
+      fixAction: { label: "Review Plan", hrefTemplate: "/x/courses/${playbookId}?tab=curriculum" },
     },
     {
       id: "onboarding_configured",

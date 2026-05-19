@@ -706,7 +706,7 @@ export default function QuickLaunchPage() {
     setChecksLoading(true);
     try {
       const params = new URLSearchParams({ callerId: result.callerId });
-      if (result.subjectId) params.set("subjectId", result.subjectId);
+      if (result.playbookId) params.set("playbookId", result.playbookId);
       const res = await fetch(`/api/domains/${result.domainId}/course-readiness?${params}`);
       const data = await res.json();
       if (data.ok) {
