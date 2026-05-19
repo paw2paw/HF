@@ -29,6 +29,7 @@
   --wa-teacher-bg: #fffbeb;
   --wa-teacher-border: #fcd34d;
   --wa-teacher-shadow: color-mix(in srgb, #d97706 10%, transparent);
+  --wa-amber: #f5a623;
   --wa-toast-bg: #323232;
   --wa-tooltip-bg: #1f2937;
   --wa-avatar-bg: #DFE5E7;
@@ -62,6 +63,7 @@
   --wa-teacher-bg: #451a03;
   --wa-teacher-border: #92400e;
   --wa-teacher-shadow: color-mix(in srgb, #92400e 15%, transparent);
+  --wa-amber: #fbbf24;
   --wa-toast-bg: #1a1a1a;
   --wa-tooltip-bg: #374151;
   --wa-avatar-bg: #2A3942;
