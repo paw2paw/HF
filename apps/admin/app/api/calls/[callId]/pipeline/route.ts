@@ -37,6 +37,7 @@ import { updateCurriculumProgress, getCurriculumProgress, completeModule, update
 // initializeLessonPlanSession removed — scheduler replaces session tracking
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { resolveCurriculumIdForPlaybook, resolveModuleByLogicalId } from "@/lib/curriculum/resolve-module";
+import { computeModuleMastery } from "@/lib/curriculum/compute-mastery";
 import { ContractRegistry } from "@/lib/contracts/registry";
 import { loadPipelineStages, PipelineStage } from "@/lib/pipeline/config";
 
@@ -1223,6 +1224,123 @@ export async function incrementModuleEvidence(
     status: nextStatus,
   });
   return { callCount: updated.callCount, created: false, skipped: false };
+}
+
+/**
+ * #494 E2 Slice 2.2 — Recompute `CallerModuleProgress.mastery` from the
+ * EMA over `CallScore` rows for (callerId, moduleId) and flip status to
+ * COMPLETED when the threshold is crossed.
+ *
+ * Called after `incrementModuleEvidence` for every module credited by the
+ * current call (Slice 1.3 bound module + Slice 1.4 coversModules fan-out).
+ * The mastery value becomes the canonical store — legacy
+ * `CallerAttribute mastery:*` writes are deprecated and will be removed
+ * in Slice 2.1.
+ *
+ * Idempotency: only writes when `mastery` or `status` actually change
+ * relative to the existing row. Re-running the pipeline on the same call
+ * with no new CallScore rows produces zero DB writes here.
+ *
+ * No-op when the row does not exist (caller never had a CallScore for
+ * this module). `incrementModuleEvidence` already created the row when a
+ * call's bound moduleId arrives; this helper is safe to call before that
+ * row exists — it simply skips.
+ *
+ * Per-call overrides (passed in from AGGREGATE):
+ *   - `masteryThreshold` — `CurriculumModule.masteryThreshold` if set, else 0.7.
+ *   - `emaHalfLifeDays`  — `Playbook.config.skillScoringEmaHalfLifeDays`.
+ *   - `minCallsToFull`   — `Playbook.config.skillMinCallsToFull`.
+ */
+export async function writeModuleMastery(
+  callerId: string,
+  moduleId: string,
+  options: {
+    masteryThreshold?: number;
+    emaHalfLifeDays?: number;
+    minCallsToFull?: number;
+  },
+  log: PipelineLogger,
+): Promise<{
+  mastery: number;
+  evidenceCount: number;
+  statusFlipped: boolean;
+  skipped: boolean;
+}> {
+  const existing = await prisma.callerModuleProgress.findUnique({
+    where: { callerId_moduleId: { callerId, moduleId } },
+    select: { id: true, mastery: true, status: true, completedAt: true },
+  });
+
+  if (!existing) {
+    // No progress row yet — caller has never had a call attributed here.
+    // `incrementModuleEvidence` creates the row when a call is attributed
+    // to this module, but is itself a no-op when `Call.curriculumModuleId`
+    // is null. Either way, there is nothing to update.
+    log.debug("writeModuleMastery skipped: no CallerModuleProgress row", {
+      callerId,
+      moduleId,
+    });
+    return { mastery: 0, evidenceCount: 0, statusFlipped: false, skipped: true };
+  }
+
+  const { mastery, evidenceCount, shouldMarkCompleted } =
+    await computeModuleMastery(prisma, {
+      callerId,
+      moduleId,
+      masteryThreshold: options.masteryThreshold,
+      emaHalfLifeDays: options.emaHalfLifeDays,
+      minCallsToFull: options.minCallsToFull,
+    });
+
+  // Idempotency: only write when mastery or status actually changes. The
+  // pipeline re-runs the AGGREGATE stage on every force=true call; without
+  // this guard each re-run would burn a write even when the EMA over the
+  // same CallScore rows produced an identical mastery value.
+  const shouldFlipToCompleted =
+    shouldMarkCompleted && existing.status !== "COMPLETED";
+  const masteryUnchanged = existing.mastery === mastery;
+
+  if (masteryUnchanged && !shouldFlipToCompleted) {
+    log.debug("writeModuleMastery skipped: no change", {
+      callerId,
+      moduleId,
+      mastery,
+      evidenceCount,
+      status: existing.status,
+    });
+    return {
+      mastery,
+      evidenceCount,
+      statusFlipped: false,
+      skipped: true,
+    };
+  }
+
+  await prisma.callerModuleProgress.update({
+    where: { id: existing.id },
+    data: {
+      mastery,
+      ...(shouldFlipToCompleted
+        ? { status: "COMPLETED", completedAt: new Date() }
+        : {}),
+    },
+  });
+
+  log.info("CallerModuleProgress mastery updated", {
+    callerId,
+    moduleId,
+    mastery,
+    evidenceCount,
+    statusFlipped: shouldFlipToCompleted,
+    previousStatus: existing.status,
+  });
+
+  return {
+    mastery,
+    evidenceCount,
+    statusFlipped: shouldFlipToCompleted,
+    skipped: false,
+  };
 }
 
 /**
@@ -2583,6 +2701,84 @@ const stageExecutors: Record<string, StageExecutor> = {
       });
     }
 
+    // 4. #494 E2 Slice 2.2 — recompute CallerModuleProgress.mastery as the
+    // EMA over CallScore rows for each credited module and flip status to
+    // COMPLETED when the per-module threshold is crossed AND minCallsToFull
+    // pieces of evidence have accumulated. CallerModuleProgress.mastery is
+    // the canonical store from this slice forward — legacy CallerAttribute
+    // mastery:* writes are deprecated (reconcile + remove in Slice 2.1).
+    //
+    // Load per-module masteryThreshold + playbook config once for the call,
+    // not per credited module — every credited module shares the same
+    // playbook + curriculum (coversModules can only fan out within the
+    // bound module's curriculum). The threshold IS per-module though, so
+    // fetch each row's value.
+    let masteryResults: Array<{
+      moduleId: string;
+      mastery: number;
+      evidenceCount: number;
+      statusFlipped: boolean;
+      skipped: boolean;
+    }> = [];
+    if (moduleEvidenceTargets.length > 0) {
+      // Playbook config drives EMA tuning. `ctx.call.playbookId` may be null
+      // for self-serve / unenrolled SIM callers — fall back to module-level
+      // defaults in that case. The keys mirror `aggregate-runner.ts` so the
+      // skill-EMA and module-mastery paths stay in lockstep.
+      let emaHalfLifeDays: number | undefined;
+      let minCallsToFull: number | undefined;
+      if (ctx.call.playbookId) {
+        const pb = await prisma.playbook.findUnique({
+          where: { id: ctx.call.playbookId },
+          select: { config: true },
+        });
+        const pbCfg = (pb?.config ?? {}) as Record<string, unknown>;
+        if (typeof pbCfg.skillScoringEmaHalfLifeDays === "number") {
+          emaHalfLifeDays = pbCfg.skillScoringEmaHalfLifeDays;
+        }
+        if (typeof pbCfg.skillMinCallsToFull === "number") {
+          minCallsToFull = pbCfg.skillMinCallsToFull;
+        }
+      }
+
+      // Per-module threshold lookup. `masteryThreshold` is a real column on
+      // CurriculumModule today; the `(m as any)` cast is defensive because
+      // older Prisma client builds in transit may not expose it.
+      const moduleRows = await prisma.curriculumModule.findMany({
+        where: { id: { in: moduleEvidenceTargets } },
+        select: { id: true, masteryThreshold: true },
+      });
+      const thresholdById = new Map<string, number | null>(
+        moduleRows.map((m) => [m.id, (m as any).masteryThreshold ?? null]),
+      );
+
+      masteryResults = await Promise.all(
+        moduleEvidenceTargets.map(async (moduleId) => {
+          const moduleThreshold = thresholdById.get(moduleId) ?? null;
+          const result = await writeModuleMastery(
+            ctx.callerId,
+            moduleId,
+            {
+              masteryThreshold:
+                typeof moduleThreshold === "number" ? moduleThreshold : undefined,
+              emaHalfLifeDays,
+              minCallsToFull,
+            },
+            ctx.log,
+          );
+          return { moduleId, ...result };
+        }),
+      );
+    }
+
+    const primaryMastery = masteryResults[0] ?? {
+      mastery: 0,
+      evidenceCount: 0,
+      statusFlipped: false,
+      skipped: true,
+    };
+    const masteryFlippedCount = masteryResults.filter((r) => r.statusFlipped).length;
+
     return {
       personalityObservationCreated: personalityResult.observationCreated,
       personalityProfileUpdated: personalityResult.profileUpdated,
@@ -2593,6 +2789,10 @@ const stageExecutors: Record<string, StageExecutor> = {
       moduleEvidenceSkipped: primaryEvidence.skipped,
       moduleEvidenceCreditedCount: moduleEvidenceTargets.length,
       moduleEvidenceCreditedModuleIds: moduleEvidenceTargets,
+      moduleMastery: primaryMastery.mastery,
+      moduleMasteryEvidenceCount: primaryMastery.evidenceCount,
+      moduleMasteryStatusFlipped: primaryMastery.statusFlipped,
+      moduleMasteryFlippedCount: masteryFlippedCount,
     };
   },
 
