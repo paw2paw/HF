@@ -9,6 +9,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStudentOrAdmin, isStudentAuthError } from "@/lib/student-access";
 import { SURVEY_SCOPES } from "@/lib/learner/survey-keys";
+import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
+import { resolveCurriculumIdForPlaybook } from "@/lib/curriculum/resolve-module";
+import { isCourseComplete } from "@/lib/curriculum/is-course-complete";
+import type { PlaybookConfig } from "@/lib/types/json-fields";
 
 const SURVEY_ATTR_SCOPES = [
   SURVEY_SCOPES.PERSONALITY, SURVEY_SCOPES.PRE, SURVEY_SCOPES.POST,
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
   // we surface those for the panel to render coloured chips per module.
   // Module status is mapped at this boundary: DB "COMPLETED" → presentational
   // "MASTERED" (E5 vocabulary); other statuses pass through verbatim.
-  const [profile, goals, callCount, caller, memorySummary, keyFactCount, surveyAttrs, moduleProgress] = await Promise.all([
+  const [profile, goals, callCount, caller, memorySummary, keyFactCount, surveyAttrs, moduleProgress, diagnosticAttr] = await Promise.all([
     prisma.callerPersonalityProfile.findUnique({
       where: { callerId },
       select: { parameterValues: true, lastUpdatedAt: true, callsUsed: true },
@@ -105,6 +109,13 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { module: { sortOrder: "asc" } },
     }),
+    // #493 Slice 5.3 — latest diagnosticFromMock written by E2 AGGREGATE.
+    // Sorted by updatedAt so the most recent Mock's diagnostic wins.
+    prisma.callerAttribute.findFirst({
+      where: { callerId, scope: "DIAGNOSTIC", key: "fromMock" },
+      orderBy: { updatedAt: "desc" },
+      select: { stringValue: true, updatedAt: true },
+    }),
   ]);
 
   // ── Build survey buckets ──
@@ -148,6 +159,18 @@ export async function GET(request: NextRequest) {
   // Prefer join table memberships, fall back to legacy FK
   const primaryCohort = caller?.cohortMemberships?.[0]?.cohortGroup ?? caller?.cohortGroup;
 
+  // #493 Slice 5.3 — parse the latest DIAGNOSTIC/fromMock attribute, then
+  // resolve its module IDs into `{id, slug, title}` triples so the panel can
+  // render titles directly. The writer stores just IDs (see
+  // `generateDiagnosticFromMock` in lib/curriculum/diagnostic-from-mock.ts);
+  // resolution lives at this API boundary to keep the writer cheap.
+  const diagnosticFromMock = await resolveDiagnosticFromMock(diagnosticAttr);
+
+  // #493 Slice 5.4 — compute course-complete verdict using the learner's
+  // resolved playbook → curriculum. Works uniformly for authored + AI-generated
+  // routes because both write `CurriculumModule` + `CallerModuleProgress` rows.
+  const courseComplete = await resolveCourseComplete(callerId);
+
   return NextResponse.json({
     ok: true,
     profile: profile
@@ -186,9 +209,132 @@ export async function GET(request: NextRequest) {
     },
     // #493 Slice 5.1 — per-module progress for SimProgressPanel Modules section
     modules,
-    // #493 Slice 5.3 — populated by E2 once diagnosticFromMock lands. Null until then.
-    diagnosticFromMock: null,
-    // #493 Slice 5.4 — populated by E2 once isCourseComplete() lands. Null until then.
-    courseComplete: null,
+    // #493 Slice 5.3 — latest diagnostic written by E2 AGGREGATE after a Mock call.
+    diagnosticFromMock,
+    // #493 Slice 5.4 — current course-complete verdict from isCourseComplete().
+    courseComplete,
   });
+}
+
+interface ModuleRef {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+interface DiagnosticFromMockResponse {
+  focusModules: ModuleRef[];
+  strengthModule: ModuleRef | null;
+  weakSkill: string | null;
+  summary: string;
+  fromCallId: string;
+  generatedAt: string;
+}
+
+/**
+ * Parse the latest DIAGNOSTIC/fromMock CallerAttribute and resolve its
+ * module IDs into `{id, slug, title}` triples. Returns null when:
+ *   - no row exists yet (no Mock call has completed); or
+ *   - the stored JSON is malformed (logged warn — defensive).
+ *
+ * Deleted modules are silently dropped from focusModules (UI shouldn't crash);
+ * a deleted strengthModule becomes null.
+ */
+async function resolveDiagnosticFromMock(
+  attr: { stringValue: string | null; updatedAt: Date } | null,
+): Promise<DiagnosticFromMockResponse | null> {
+  if (!attr || !attr.stringValue) return null;
+
+  let parsed: {
+    focusModules?: unknown;
+    strengthModule?: unknown;
+    weakSkill?: unknown;
+    summary?: unknown;
+    fromCallId?: unknown;
+    generatedAt?: unknown;
+  };
+  try {
+    parsed = JSON.parse(attr.stringValue);
+  } catch (err) {
+    console.warn(
+      "[student/progress] Failed to parse DIAGNOSTIC/fromMock stringValue as JSON",
+      (err as Error).message,
+    );
+    return null;
+  }
+
+  const focusIds = Array.isArray(parsed.focusModules)
+    ? parsed.focusModules.filter((v): v is string => typeof v === "string")
+    : [];
+  const strengthId =
+    typeof parsed.strengthModule === "string" ? parsed.strengthModule : null;
+  const allIds = [...focusIds];
+  if (strengthId) allIds.push(strengthId);
+
+  // Resolve module IDs → {id, slug, title}. Missing rows (deleted modules)
+  // simply don't appear in the map → dropped from focus list.
+  const modulesRefs = allIds.length
+    ? await prisma.curriculumModule.findMany({
+        where: { id: { in: allIds } },
+        select: { id: true, slug: true, title: true },
+      })
+    : [];
+  const byId = new Map<string, ModuleRef>(modulesRefs.map((m) => [m.id, m]));
+
+  const focusModules = focusIds
+    .map((id) => byId.get(id))
+    .filter((m): m is ModuleRef => m !== undefined);
+  const strengthModule = strengthId ? byId.get(strengthId) ?? null : null;
+
+  return {
+    focusModules,
+    strengthModule,
+    weakSkill: typeof parsed.weakSkill === "string" ? parsed.weakSkill : null,
+    summary: typeof parsed.summary === "string" ? parsed.summary : "",
+    fromCallId:
+      typeof parsed.fromCallId === "string" ? parsed.fromCallId : "",
+    generatedAt:
+      typeof parsed.generatedAt === "string"
+        ? parsed.generatedAt
+        : attr.updatedAt.toISOString(),
+  };
+}
+
+interface CourseCompleteResponse {
+  complete: boolean;
+  mode: "all-modules" | "terminal-only" | "any";
+  completedAt: string | null;
+}
+
+/**
+ * Resolve the caller's playbook → curriculum → completion verdict. Returns null
+ * when the caller has no resolved playbook or curriculum yet (new learner who
+ * hasn't enrolled, or a course that hasn't been synced to CurriculumModule).
+ */
+async function resolveCourseComplete(
+  callerId: string,
+): Promise<CourseCompleteResponse | null> {
+  const playbookId = await resolvePlaybookId(callerId);
+  if (!playbookId) return null;
+
+  const curriculumId = await resolveCurriculumIdForPlaybook(playbookId);
+  if (!curriculumId) return null;
+
+  const playbook = await prisma.playbook.findUnique({
+    where: { id: playbookId },
+    select: { config: true },
+  });
+  const playbookConfig = (playbook?.config ?? null) as PlaybookConfig | null;
+
+  const verdict = await isCourseComplete(prisma, {
+    callerId,
+    curriculumId,
+    playbookConfig,
+  });
+  // Drop triggeringModuleIds from the API surface — UI only needs the hero.
+  return {
+    complete: verdict.complete,
+    mode: verdict.mode,
+    completedAt: verdict.completedAt,
+  };
 }
