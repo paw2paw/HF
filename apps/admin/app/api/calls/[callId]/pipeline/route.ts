@@ -582,9 +582,34 @@ async function runPerSegmentScoring(
       );
 
       const { parsed: segParsed } = recoverBrokenJson(segResult.content, "pipeline:extract-segment");
-      if (!segParsed?.scores) continue;
+      if (!segParsed?.scores) {
+        log.warn("Per-part MEASURE: AI returned no scores object for segment", {
+          segmentSlug: segment.slug,
+        });
+        continue;
+      }
 
+      // Validate parameter IDs against the param set we asked the AI
+      // to score. The AI occasionally returns a parameter NAME (or a
+      // bare slug like "selection_strategy") as the JSON key instead
+      // of the parameter ID. Without this guard those garbage rows
+      // land in `CallScore` with FKs the join layer cannot resolve.
+      const allowedParamIds = new Set(measureParams.map((p) => p.parameterId));
+      const validEntries: Array<[string, any]> = [];
+      const rejectedKeys: string[] = [];
       for (const [parameterId, scoreData] of Object.entries(segParsed.scores as Record<string, any>)) {
+        if (allowedParamIds.has(parameterId)) validEntries.push([parameterId, scoreData]);
+        else rejectedKeys.push(parameterId);
+      }
+      if (rejectedKeys.length > 0) {
+        log.warn("Per-part MEASURE: rejected AI-returned parameter IDs not in whitelist", {
+          segmentSlug: segment.slug,
+          rejectedCount: rejectedKeys.length,
+          sampleRejected: rejectedKeys.slice(0, 5),
+        });
+      }
+
+      for (const [parameterId, scoreData] of validEntries) {
         const score = Math.max(0, Math.min(1, scoreData.score ?? scoreData.s ?? 0.5));
         const confidence = Math.max(0, Math.min(1, scoreData.confidence ?? scoreData.c ?? 0.7));
         const reasoning: string | undefined = scoreData.reasoning ?? scoreData.r ?? undefined;
