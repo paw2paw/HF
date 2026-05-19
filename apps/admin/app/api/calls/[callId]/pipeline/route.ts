@@ -37,6 +37,7 @@ import { updateCurriculumProgress, getCurriculumProgress, completeModule, update
 // initializeLessonPlanSession removed — scheduler replaces session tracking
 import { resolvePlaybookId } from "@/lib/enrollment/resolve-playbook";
 import { resolveCurriculumIdForPlaybook, resolveModuleByLogicalId } from "@/lib/curriculum/resolve-module";
+import { segmentMockTranscript } from "@/lib/curriculum/segment-mock-transcript";
 import { computeModuleMastery } from "@/lib/curriculum/compute-mastery";
 import { generateDiagnosticFromMock } from "@/lib/curriculum/diagnostic-from-mock";
 import { ContractRegistry } from "@/lib/contracts/registry";
@@ -465,6 +466,173 @@ Return compact JSON:
 }
 
 /**
+ * Per-part MEASURE pass for multi-attribute modules (#491 Slice 1.5).
+ *
+ * When the call's bound `CurriculumModule.coversModules` is non-empty
+ * (e.g. an IELTS Full Mock that walks the learner through Part 1,
+ * Part 2, Part 3 in a single call), this helper segments the
+ * transcript and runs one extra MEASURE AI call per segment. Each
+ * resulting `CallScore` row is tagged with the sub-part's
+ * `CurriculumModule.id` — that's what gives educators per-part bands
+ * instead of one Mock-level score.
+ *
+ * Augments the bound-module MEASURE scores already written by the
+ * caller — does NOT replace them. Mock-level rows stay so the
+ * existing `weakSkill` / `diagnostic-from-mock` readers keep working;
+ * the per-part rows feed the new per-part display + EMA per
+ * sub-module.
+ *
+ * Returns the count of NEW per-segment `CallScore` rows created.
+ * Returns `0` when segmentation does not apply, fails, or produces
+ * zero usable segments.
+ *
+ * Safe to call unconditionally with `skipMeasure: false` — internal
+ * guards short-circuit when this call's bound module has no
+ * `coversModules` declared.
+ */
+async function runPerSegmentScoring(
+  call: { id: string; transcript: string | null; curriculumModuleId?: string | null },
+  callerId: string,
+  measureParams: Array<{ parameterId: string; name: string; definition: string | null }>,
+  engine: AIEngine,
+  transcriptLimit: number,
+  log: PipelineLogger,
+  userName?: string,
+): Promise<number> {
+  if (engine === "mock") return 0; // mock engine writes random scores via the bound path only
+  if (!call.curriculumModuleId) return 0;
+  if (measureParams.length === 0) return 0;
+  const transcript = call.transcript || "";
+  if (transcript.trim().length === 0) return 0;
+
+  const boundModule = await prisma.curriculumModule.findUnique({
+    where: { id: call.curriculumModuleId },
+    select: { coversModules: true, curriculumId: true, slug: true },
+  });
+  if (!boundModule || boundModule.coversModules.length === 0) return 0;
+
+  // Resolve each declared slug → CurriculumModule.id, scoped to the
+  // bound module's curriculum (#407 — never a global slug lookup).
+  const slugToId = new Map<string, string>();
+  for (const slug of boundModule.coversModules) {
+    const resolved = await resolveModuleByLogicalId(boundModule.curriculumId, slug);
+    if (resolved) slugToId.set(slug, resolved.id);
+    else log.warn("Per-part MEASURE: coversModules slug not found in curriculum", {
+      slug,
+      curriculumId: boundModule.curriculumId,
+      boundSlug: boundModule.slug,
+    });
+  }
+  if (slugToId.size === 0) return 0;
+
+  const segments = await segmentMockTranscript({
+    transcript,
+    coversModuleSlugs: boundModule.coversModules.filter((s) => slugToId.has(s)),
+    engine,
+    log,
+  });
+  if (segments.length === 0) {
+    log.info("Per-part MEASURE: segmentation returned no segments, skipping", {
+      callId: call.id,
+      boundSlug: boundModule.slug,
+    });
+    return 0;
+  }
+
+  log.info("Per-part MEASURE: running per-segment scoring", {
+    callId: call.id,
+    boundSlug: boundModule.slug,
+    segments: segments.map((s) => ({ slug: s.slug, len: s.text.length, method: s.method })),
+  });
+
+  const timeouts = await getAITimeoutSettings();
+  let segmentScoresCreated = 0;
+
+  for (const segment of segments) {
+    const segmentModuleId = slugToId.get(segment.slug);
+    if (!segmentModuleId) continue;
+
+    // Reuse the existing MEASURE prompt builder with the segment text.
+    // No LEARN actions (memories were handled in the parent batched
+    // call) and no moduleContext (learning assessment runs once on
+    // the full transcript, not per segment).
+    const segPrompt = buildBatchedCallerPrompt(
+      segment.text,
+      measureParams,
+      [],
+      transcriptLimit,
+      null,
+      null,
+    );
+
+    try {
+      // @ai-call pipeline.measure-segment — Per-part MEASURE for multi-attribute modules | config: /x/ai-config
+      const segResult = await getConfiguredMeteredAICompletion(
+        {
+          callPoint: "pipeline.measure-segment",
+          engineOverride: engine,
+          messages: [
+            { role: "system", content: "You are an expert behavioral analyst. Always respond with valid JSON." },
+            { role: "user", content: segPrompt },
+          ],
+          maxTokens: Math.max(1024, measureParams.length * 100),
+          timeoutMs: timeouts.pipelineTimeoutMs,
+        },
+        { callId: call.id, callerId, sourceOp: "pipeline:extract-segment", userName },
+      );
+
+      const { parsed: segParsed } = recoverBrokenJson(segResult.content, "pipeline:extract-segment");
+      if (!segParsed?.scores) continue;
+
+      for (const [parameterId, scoreData] of Object.entries(segParsed.scores as Record<string, any>)) {
+        const score = Math.max(0, Math.min(1, scoreData.score ?? scoreData.s ?? 0.5));
+        const confidence = Math.max(0, Math.min(1, scoreData.confidence ?? scoreData.c ?? 0.7));
+        const reasoning: string | undefined = scoreData.reasoning ?? scoreData.r ?? undefined;
+
+        const existing = await prisma.callScore.findFirst({
+          where: { callId: call.id, parameterId, moduleId: segmentModuleId },
+        });
+        if (existing) {
+          await prisma.callScore.update({
+            where: { id: existing.id },
+            data: {
+              score,
+              confidence,
+              reasoning,
+              evidence: [`Segment: ${segment.slug}`],
+              scoredBy: `${engine}_segment_v1`,
+              scoredAt: new Date(),
+            },
+          });
+        } else {
+          await prisma.callScore.create({
+            data: {
+              callId: call.id,
+              callerId,
+              parameterId,
+              moduleId: segmentModuleId,
+              score,
+              confidence,
+              reasoning,
+              evidence: [`Segment: ${segment.slug}`],
+              scoredBy: `${engine}_segment_v1`,
+            },
+          });
+          segmentScoresCreated++;
+        }
+      }
+    } catch (err: any) {
+      log.warn("Per-part MEASURE failed for segment", {
+        segmentSlug: segment.slug,
+        error: err?.message ?? "unknown",
+      });
+    }
+  }
+
+  return segmentScoresCreated;
+}
+
+/**
  * Run batched caller analysis (MEASURE + LEARN)
  */
 async function runBatchedCallerAnalysis(
@@ -773,6 +941,33 @@ async function runBatchedCallerAnalysis(
             });
           }
           scoresCreated++;
+        }
+      }
+
+      // #491 Slice 1.5 — per-part MEASURE for multi-attribute modules.
+      // When this call's bound module (typically the IELTS Mock)
+      // declares `coversModules: [part1, part2, part3]`, segment the
+      // transcript and run a per-segment MEASURE so each part gets its
+      // own `CallScore` rows. Augments (does not replace) the
+      // bound-module scores written above — Mock-level rows remain so
+      // existing readers (`weakSkill`, diagnostic) keep working, and
+      // per-part rows feed the new per-part view + EMA per sub-module.
+      if (!skipMeasure) {
+        try {
+          const segmentScores = await runPerSegmentScoring(
+            call,
+            callerId,
+            measureParams,
+            engine,
+            transcriptLimit,
+            log,
+            userName,
+          );
+          scoresCreated += segmentScores;
+        } catch (err: any) {
+          log.warn("Per-part MEASURE pass failed (non-blocking)", {
+            error: err?.message ?? "unknown",
+          });
         }
       }
 
