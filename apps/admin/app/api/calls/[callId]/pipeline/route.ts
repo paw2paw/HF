@@ -619,11 +619,6 @@ async function runPerSegmentScoring(
         });
       }
 
-      console.info("[per-part-debug] write loop entered", {
-        segmentSlug: segment.slug,
-        segmentModuleId,
-        validEntriesCount: validEntries.length,
-      });
       for (const [parameterId, scoreData] of validEntries) {
         // The IELTS prompt asks for `band` (4-9). Convert via
         // bandToScore. Legacy `score`/`s` are still honoured as a
@@ -642,46 +637,36 @@ async function runPerSegmentScoring(
         const confidence = Math.max(0, Math.min(1, scoreData?.confidence ?? scoreData?.c ?? 0.7));
         const reasoning: string | undefined = scoreData?.reasoning ?? scoreData?.r ?? undefined;
 
-        try {
-          const existing = await prisma.callScore.findFirst({
-            where: { callId: call.id, parameterId, moduleId: segmentModuleId },
+        const existing = await prisma.callScore.findFirst({
+          where: { callId: call.id, parameterId, moduleId: segmentModuleId },
+        });
+        if (existing) {
+          await prisma.callScore.update({
+            where: { id: existing.id },
+            data: {
+              score,
+              confidence,
+              reasoning,
+              evidence: [`Segment: ${segment.slug}`],
+              scoredBy: `${engine}_segment_v1`,
+              scoredAt: new Date(),
+            },
           });
-          if (existing) {
-            await prisma.callScore.update({
-              where: { id: existing.id },
-              data: {
-                score,
-                confidence,
-                reasoning,
-                evidence: [`Segment: ${segment.slug}`],
-                scoredBy: `${engine}_segment_v1`,
-                scoredAt: new Date(),
-              },
-            });
-          } else {
-            await prisma.callScore.create({
-              data: {
-                callId: call.id,
-                callerId,
-                parameterId,
-                moduleId: segmentModuleId,
-                score,
-                confidence,
-                reasoning,
-                evidence: [`Segment: ${segment.slug}`],
-                scoredBy: `${engine}_segment_v1`,
-              },
-            });
-            segmentScoresCreated++;
-          }
-        } catch (writeErr: any) {
-          console.error("[per-part-debug] CallScore write failed", {
-            segmentSlug: segment.slug,
-            parameterId,
-            segmentModuleId,
-            errorMessage: writeErr?.message,
-            errorCode: writeErr?.code,
+        } else {
+          await prisma.callScore.create({
+            data: {
+              callId: call.id,
+              callerId,
+              parameterId,
+              moduleId: segmentModuleId,
+              score,
+              confidence,
+              reasoning,
+              evidence: [`Segment: ${segment.slug}`],
+              scoredBy: `${engine}_segment_v1`,
+            },
           });
+          segmentScoresCreated++;
         }
       }
     } catch (err: any) {
