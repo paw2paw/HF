@@ -96,8 +96,9 @@ export async function POST(
         },
       });
 
-      // Dual-write: PlaybookSource — scope to specific playbook if provided,
-      // otherwise fan-out to all playbooks teaching this subject (legacy path).
+      // Dual-write: PlaybookSource — ONLY when scoped to a specific playbook.
+      // Pre-#484 the no-playbookId branch fanned out to every linked playbook
+      // — that was the cross-course leak vector (#478).
       if (playbookId) {
         await prisma.playbookSource.upsert({
           where: { playbookId_sourceId: { playbookId, sourceId: existingId } },
@@ -105,14 +106,9 @@ export async function POST(
           update: {},
         });
       } else {
-        const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-        for (const pb of pbLinks) {
-          await prisma.playbookSource.upsert({
-            where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: existingId } },
-            create: { playbookId: pb.playbookId, sourceId: existingId, tags, trustLevelOverride: trustLevelOverride as any ?? undefined },
-            update: {},
-          });
-        }
+        console.warn(
+          `[subjects/${subjectId}/upload] dedup-match without playbookId — SubjectSource updated but PlaybookSource fan-out skipped (#484). sourceId=${existingId}`,
+        );
       }
 
       // Link existing media to subject (idempotent)
@@ -263,7 +259,8 @@ export async function POST(
       },
     });
 
-    // Dual-write: PlaybookSource — scope to specific playbook if provided.
+    // Dual-write: PlaybookSource — ONLY when scoped to a specific playbook
+    // (fan-out removed #484; was a cross-course leak vector — see #478).
     if (playbookId) {
       await prisma.playbookSource.upsert({
         where: { playbookId_sourceId: { playbookId, sourceId: source.id } },
@@ -271,14 +268,9 @@ export async function POST(
         update: {},
       });
     } else {
-      const pbLinksNew = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-      for (const pb of pbLinksNew) {
-        await prisma.playbookSource.upsert({
-          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: source.id } },
-          create: { playbookId: pb.playbookId, sourceId: source.id, tags: finalTags, trustLevelOverride: trustLevelOverride as any ?? undefined },
-          update: {},
-        });
-      }
+      console.warn(
+        `[subjects/${subjectId}/upload] new-upload without playbookId — SubjectSource written but no PlaybookSource fan-out (#484). sourceId=${source.id}`,
+      );
     }
 
     // ── Store file in storage backend + create MediaAsset ──

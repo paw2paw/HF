@@ -123,8 +123,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Dual-write: PlaybookSource — scope to specific playbook if provided,
-    // otherwise fan-out to all playbooks teaching this subject (legacy path).
+    // Dual-write: PlaybookSource — ONLY when scoped to a specific playbook.
+    // Pre-#484 this fanned out to every playbook teaching the subject when no
+    // playbookId was provided — that was the cross-course leak vector (#478).
+    // SubjectSource above stays as the structural FK target for
+    // ContentAssertion.subjectSourceId (invariant I1); the leak only happened
+    // through the PlaybookSource fan-out.
     if (body.playbookId) {
       await prisma.playbookSource.upsert({
         where: { playbookId_sourceId: { playbookId: body.playbookId, sourceId } },
@@ -132,14 +136,9 @@ export async function POST(req: NextRequest, { params }: Params) {
         update: {},
       });
     } else {
-      const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-      for (const pb of pbLinks) {
-        await prisma.playbookSource.upsert({
-          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId } },
-          create: { playbookId: pb.playbookId, sourceId, tags, sortOrder: body.sortOrder || 0 },
-          update: {},
-        });
-      }
+      console.warn(
+        `[subjects/${subjectId}/sources] POST without playbookId — SubjectSource written but NOT propagated to any PlaybookSource (fan-out removed #484). Caller should pass playbookId for course-scoped uploads. sourceId=${sourceId}`,
+      );
     }
 
     return NextResponse.json({ subjectSource, source }, { status: 201 });
@@ -204,7 +203,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Dual-write: PlaybookSource — scope to specific playbook if provided.
+    // Dual-write: PlaybookSource — ONLY when scoped to a specific playbook
+    // (fan-out removed #484; was a cross-course leak vector — see #478).
     if (body.playbookId) {
       await prisma.playbookSource.upsert({
         where: { playbookId_sourceId: { playbookId: body.playbookId, sourceId: body.sourceId } },
@@ -212,14 +212,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         update: { tags: body.tags },
       });
     } else {
-      const pbLinksUpsert = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-      for (const pb of pbLinksUpsert) {
-        await prisma.playbookSource.upsert({
-          where: { playbookId_sourceId: { playbookId: pb.playbookId, sourceId: body.sourceId } },
-          create: { playbookId: pb.playbookId, sourceId: body.sourceId, tags: body.tags },
-          update: {},
-        });
-      }
+      console.warn(
+        `[subjects/${subjectId}/sources] PATCH without playbookId — SubjectSource updated but PlaybookSource tags NOT propagated (fan-out removed #484). sourceId=${body.sourceId}`,
+      );
     }
 
     return NextResponse.json({ ok: true, subjectSource });
@@ -263,18 +258,20 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Clean up PlaybookSource — remove from specific playbook or all playbooks for this subject.
+    // Clean up PlaybookSource — only when scoped to a specific playbook.
+    // Pre-#484 unscoped DELETEs fanned out across every playbook teaching
+    // the subject — the reverse leak (removing a subject-level link would
+    // silently drop the source from courses that depended on it via the
+    // direct PlaybookSource link). Skip the fan-out; caller must pass
+    // playbookId for course-scoped detach.
     if (body.playbookId) {
       await prisma.playbookSource.deleteMany({
         where: { playbookId: body.playbookId, sourceId: body.sourceId },
       });
     } else {
-      const pbLinks = await prisma.playbookSubject.findMany({ where: { subjectId }, select: { playbookId: true } });
-      for (const pb of pbLinks) {
-        await prisma.playbookSource.deleteMany({
-          where: { playbookId: pb.playbookId, sourceId: body.sourceId },
-        });
-      }
+      console.warn(
+        `[subjects/${subjectId}/sources] DELETE without playbookId — SubjectSource removed but PlaybookSource fan-out NOT applied (#484). sourceId=${body.sourceId}`,
+      );
     }
 
     return NextResponse.json({ ok: true });
