@@ -352,7 +352,24 @@ export async function GET(
       }).then(results => results.length),
       prisma.conversationArtifact.count({ where: { callerId: callerId } }),
       prisma.callAction.count({ where: { callerId: callerId, status: { in: ["PENDING", "IN_PROGRESS"] } } }),
-      prisma.conversationArtifact.count({ where: { callerId: callerId, type: "KEY_FACT" } }),
+      // #456: count CallerMemory.FACT — mirrors how Topics Discussed reads
+      // CallerMemory.TOPIC, so the two tiles stay consistent. The previous
+      // source (ConversationArtifact.KEY_FACT) is a separate artifact-
+      // delivery system that IELTS / most current playbooks do not emit,
+      // so the tile read 0 even when extraction populated CallerMemory.
+      // Apply the same supersededById / expiresAt filters as memoryCount to
+      // avoid double-counting expired or replaced rows.
+      prisma.callerMemory.count({
+        where: {
+          callerId: callerId,
+          category: "FACT",
+          supersededById: null,
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+      }),
     ]);
 
     // Get behavior targets count for this caller
