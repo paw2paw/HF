@@ -225,8 +225,14 @@ export async function updateCurriculumProgress(
             updates.callId,
             loScoresForThisModule,
           );
-        } catch {
-          // Non-fatal — CallerModuleProgress is supplementary during transition
+        } catch (err: any) {
+          // CallerModuleProgress is supplementary — keep non-fatal but
+          // surface the error. Silently swallowing here masked #558 for
+          // weeks: a slug-resolution failure or per-LO upsert conflict
+          // would leave loScoresJson=null with no signal.
+          console.warn(
+            `[track-progress] updateModuleMastery failed for ${specSlug}:${moduleId} — ${err?.message ?? err}`,
+          );
         }
       }
     }

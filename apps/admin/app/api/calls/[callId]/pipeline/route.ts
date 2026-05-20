@@ -1097,6 +1097,30 @@ async function runBatchedCallerAnalysis(
             outcomes[key] = Math.max(0, Math.min(1, Number(value) || 0));
           }
         }
+        // #558: if the AI returned a `learning` block with overallMastery
+        // but no per-LO outcomes, degrade to overall-mastery-per-LO so the
+        // CallerModuleProgress.loScoresJson row still gets populated.
+        // Observed in 2026-05-20 sim runs against module-bound calls:
+        // calls launched with --module=part2/--module=mock had the right
+        // moduleContext.learningOutcomes refs in the prompt, but the AI
+        // omitted the `outcomes` field in its response. Without this
+        // fallback the row stays loScoresJson=null and per-LO progress
+        // tracking is silently lost. Logged at WARN so we can spot AI
+        // regressions in observability rather than failing silent.
+        if (
+          Object.keys(outcomes).length === 0 &&
+          moduleContext.learningOutcomes.length > 0
+        ) {
+          for (const ref of moduleContext.learningOutcomes) outcomes[ref] = overallMastery;
+          log.warn(
+            "AI learning.outcomes missing — synthesised from overallMastery (#558)",
+            {
+              moduleId: moduleContext.moduleId,
+              overallMastery,
+              loRefCount: moduleContext.learningOutcomes.length,
+            },
+          );
+        }
         learningAssessment = {
           specSlug: moduleContext.specSlug,
           moduleId: learning.moduleId || moduleContext.moduleId,
