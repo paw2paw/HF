@@ -170,8 +170,9 @@ export async function GET(
           callSequence: true,
           playbookId: true,
           curriculumModuleId: true,
+          requestedModuleId: true,
           curriculumModule: {
-            select: { slug: true, title: true },
+            select: { id: true, slug: true, title: true, coversModules: true },
           },
           _count: {
             select: {
@@ -214,19 +215,27 @@ export async function GET(
           id: true,
           callId: true,
           parameterId: true,
+          moduleId: true,
           score: true,
           confidence: true,
           evidence: true,
           reasoning: true,
+          // #566 Step 1 — surface scorer's evidence judgement to UI surfaces.
+          hasLearnerEvidence: true,
+          evidenceQuality: true,
           scoredBy: true,
           scoredAt: true,
           analysisSpecId: true,
           createdAt: true,
           parameter: {
             select: {
+              parameterId: true,
               name: true,
               definition: true,
             },
+          },
+          curriculumModule: {
+            select: { id: true, slug: true, title: true },
           },
           analysisSpec: {
             select: {
@@ -245,6 +254,9 @@ export async function GET(
       }),
 
       // CallerTargets - personalized behavior targets computed by ADAPT specs
+      // Includes currentScore (skill EMA — #417) + Parameter.config so the
+      // caller-detail UI can render BandChip + band-descriptor drawers
+      // without extra queries (#564 / #575).
       prisma.callerTarget.findMany({
         where: { callerId: callerId },
         orderBy: { updatedAt: "desc" },
@@ -252,19 +264,23 @@ export async function GET(
           id: true,
           parameterId: true,
           targetValue: true,
+          currentScore: true,
           callsUsed: true,
           confidence: true,
           decayHalfLife: true,
           lastUpdatedAt: true,
+          lastScoredAt: true,
           createdAt: true,
           updatedAt: true,
           parameter: {
             select: {
+              parameterId: true,
               name: true,
               definition: true,
               interpretationLow: true,
               interpretationHigh: true,
               domainGroup: true,
+              config: true,
             },
           },
         },

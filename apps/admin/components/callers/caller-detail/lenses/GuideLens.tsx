@@ -4,6 +4,9 @@ import type { CallerInsights } from "../hooks/useCallerInsights";
 import type { CallerData, ParamConfig, SectionId } from "../types";
 import type { EnrollmentJourney } from "@/hooks/useEnrollmentJourney";
 import { AtAGlanceCard } from "../cards/AtAGlanceCard";
+import { SkillBandStripCard } from "../cards/SkillBandStripCard";
+import { MockResultCard } from "../cards/MockResultCard";
+import { TrustFooterCard } from "../cards/TrustFooterCard";
 import { ProgressStackCard } from "../cards/ProgressStackCard";
 import { FocusCard } from "../cards/FocusCard";
 import { WhoTheyAreCard } from "../cards/WhoTheyAreCard";
@@ -54,6 +57,20 @@ export function GuideLens({
       {/* At a Glance strip */}
       <AtAGlanceCard insights={insights} />
 
+      {/* Skill bands — per-criterion EMA (#417 + #564 + #575) */}
+      <SkillBandStripCard
+        callerTargets={(data.callerTargets ?? []) as never}
+        callScores={(data.scores ?? []) as never}
+        tierMapping={undefined}
+      />
+
+      {/* Mock results — sub-module breakdown via #491 fan-out */}
+      <MockResultCard
+        calls={(data.calls ?? []) as never}
+        scores={(data.scores ?? []) as never}
+        tierMapping={undefined}
+      />
+
       {/* Progress Stack — the core innovation */}
       <ProgressStackCard insights={insights} enrollmentJourneys={enrollmentJourneys} />
 
@@ -72,6 +89,12 @@ export function GuideLens({
 
       {/* Achievements */}
       <AchievementsCard achievements={insights.achievements} />
+
+      {/* Trust footer — surfaces evidence-aware scoring transparency (#566) */}
+      <TrustFooterCard
+        calls={(data.calls ?? []) as never}
+        scores={(data.scores ?? []) as never}
+      />
 
       {/* Quick Actions */}
       <div className="hf-card hf-quick-actions">
