@@ -6,6 +6,7 @@ import type { EnrollmentJourney } from "@/hooks/useEnrollmentJourney";
 import { AtAGlanceCard } from "../cards/AtAGlanceCard";
 import { SkillBandStripCard } from "../cards/SkillBandStripCard";
 import { MockResultCard } from "../cards/MockResultCard";
+import { TrustFooterCard } from "../cards/TrustFooterCard";
 import { ProgressStackCard } from "../cards/ProgressStackCard";
 import { FocusCard } from "../cards/FocusCard";
 import { WhoTheyAreCard } from "../cards/WhoTheyAreCard";
@@ -88,6 +89,12 @@ export function GuideLens({
 
       {/* Achievements */}
       <AchievementsCard achievements={insights.achievements} />
+
+      {/* Trust footer — surfaces evidence-aware scoring transparency (#566) */}
+      <TrustFooterCard
+        calls={(data.calls ?? []) as never}
+        scores={(data.scores ?? []) as never}
+      />
 
       {/* Quick Actions */}
       <div className="hf-card hf-quick-actions">

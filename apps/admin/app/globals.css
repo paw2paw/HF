@@ -1601,6 +1601,101 @@ html.light {
   opacity: 0.85;
 }
 
+/* Trust footer — measurement transparency strip. Lives near the bottom
+   of the Overview lens. Subtle by default; educators inspect when they
+   want to understand WHY a score might be low or missing. */
+.trust-footer-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+.trust-footer-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.trust-footer-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.trust-footer-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.trust-footer-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.trust-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  background: var(--surface-secondary);
+}
+.trust-footer-pill--evidence {
+  color: var(--status-success-text);
+  border-color: color-mix(in srgb, var(--status-success-text) 35%, var(--border-default));
+  background: var(--status-success-bg);
+}
+.trust-footer-pill--no-evidence {
+  color: var(--status-error-text);
+  border-color: color-mix(in srgb, var(--status-error-text) 35%, var(--border-default));
+  background: var(--status-error-bg);
+}
+.trust-footer-pill--unknown {
+  color: var(--text-muted);
+}
+.trust-footer-spark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-default);
+}
+.trust-footer-spark-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.trust-footer-spark-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.trust-footer-spark-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.trust-footer-spark-dot--good {
+  background: var(--status-success-text);
+}
+.trust-footer-spark-dot--mixed {
+  background: var(--status-warning-text);
+}
+.trust-footer-spark-dot--poor {
+  background: var(--status-error-text);
+}
+.trust-footer-spark-dot--empty {
+  background: transparent;
+  border: 1px solid var(--border-default);
+}
+
 /* Skill trend multi-line chart on the Uplift tab. SVG-rendered, no
    external chart dependency. */
 .skill-trend-chart {
