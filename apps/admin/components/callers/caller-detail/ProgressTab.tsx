@@ -19,10 +19,21 @@ import { Acronym } from "@/components/shared/Acronym";
 // ScoresSection
 // =====================================================
 
+/**
+ * Minimum value-spread across a parameter's history to count as "changed"
+ * for the `showOnlyChanged` filter on ScoresSection. Anything flatter than
+ * this is hidden when the toggle is on — kept generous (0.05 on a 0-1
+ * scale) to suppress micro-jitter while keeping any real movement.
+ */
+const CHANGED_THRESHOLD = 0.05;
+
 export function ScoresSection({ scores }: { scores: CallScore[] }) {
   const { isAdvanced } = useViewMode();
   const [expandedParam, setExpandedParam] = useState<string | null>(null);
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
+  // #UI4 — filter to parameters that actually moved across calls.
+  // Default OFF (educator sees everything; ON when the page is dense).
+  const [showOnlyChanged, setShowOnlyChanged] = useState(false);
 
   if (!scores || scores.length === 0) {
     return (
@@ -46,6 +57,22 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
   };
 
   const allGrouped = groupByParameter(scores);
+
+  // #UI4 — apply "show only changed" filter at the group level. A
+  // parameter is "changed" when its values across calls spread by more
+  // than CHANGED_THRESHOLD. Single-call params are always considered
+  // changed (they're new evidence the educator hasn't seen yet).
+  const isParamChanged = (paramScores: CallScore[]) => {
+    if (paramScores.length <= 1) return true;
+    const values = paramScores.map((s) => s.score);
+    return Math.max(...values) - Math.min(...values) > CHANGED_THRESHOLD;
+  };
+  const visibleGrouped: Record<string, CallScore[]> = showOnlyChanged
+    ? Object.fromEntries(Object.entries(allGrouped).filter(([, ss]) => isParamChanged(ss)))
+    : allGrouped;
+  const totalParamCount = Object.keys(allGrouped).length;
+  const visibleParamCount = Object.keys(visibleGrouped).length;
+  const hiddenByFilter = totalParamCount - visibleParamCount;
 
   // Score color helper
   const scoreColor = (v: number) => ({
@@ -203,10 +230,33 @@ export function ScoresSection({ scores }: { scores: CallScore[] }) {
 
   return (
     <SliderGroup
-      title={`Caller Scores (${Object.keys(allGrouped).length})`}
+      title={`Caller Scores (${showOnlyChanged ? `${visibleParamCount} of ${totalParamCount}` : totalParamCount})`}
       color={{ primary: "var(--button-primary-bg)", glow: "var(--button-primary-bg)" }}
     >
-      {renderScoreSliders(allGrouped, { primary: "var(--button-primary-bg)", glow: "var(--button-primary-bg)" }, "Scores", "No scores yet")}
+      {/* #UI4 — Show-only-changed filter. Hides parameters whose values are
+          flat across the caller's call history (spread < 5pp). Default off
+          so educators still see the full grid. */}
+      <div className="scores-filter-row">
+        <label className="scores-filter-toggle">
+          <input
+            type="checkbox"
+            checked={showOnlyChanged}
+            onChange={(e) => setShowOnlyChanged(e.target.checked)}
+          />
+          <span>Show only changed</span>
+        </label>
+        {showOnlyChanged && hiddenByFilter > 0 && (
+          <span className="scores-filter-hint">
+            {hiddenByFilter} parameter{hiddenByFilter === 1 ? "" : "s"} hidden (no meaningful change across calls)
+          </span>
+        )}
+        {showOnlyChanged && hiddenByFilter === 0 && totalParamCount > 0 && (
+          <span className="scores-filter-hint">
+            All {totalParamCount} parameters show movement
+          </span>
+        )}
+      </div>
+      {renderScoreSliders(visibleGrouped, { primary: "var(--button-primary-bg)", glow: "var(--button-primary-bg)" }, "Scores", showOnlyChanged && totalParamCount > 0 ? "No parameters moved across calls yet" : "No scores yet")}
     </SliderGroup>
   );
 }
