@@ -58,6 +58,7 @@ export function GuideLens({
       {/* Skill bands — per-criterion EMA (#417 + #564 + #575) */}
       <SkillBandStripCard
         callerTargets={(data.callerTargets ?? []) as never}
+        callScores={(data.scores ?? []) as never}
         tierMapping={undefined}
       />
 

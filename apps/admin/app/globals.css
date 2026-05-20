@@ -1470,6 +1470,137 @@ html.light {
   font-variant-numeric: tabular-nums;
 }
 
+/* Per-skill band detail drawer expanded from SkillBandStripCard tiles.
+   Shows current band descriptor + next-step + target band + mini history. */
+.skill-band-tile {
+  /* Make tile interactive — overrides default button reset for clean look. */
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+  font: inherit;
+  color: inherit;
+}
+.skill-band-tile:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 60%, var(--border-default));
+}
+.skill-band-tile--expanded {
+  border-color: var(--accent-primary);
+}
+.skill-band-detail {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+}
+.skill-band-detail-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.skill-band-detail-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.skill-band-detail-close {
+  padding: 2px 10px;
+  font-size: 16px;
+  line-height: 1;
+}
+.skill-band-detail-summary {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+}
+.skill-band-detail-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.skill-band-detail-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.skill-band-detail-targetval {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.skill-band-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.skill-band-detail-row {
+  padding: 12px 14px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+.skill-band-detail-row--current {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--surface-primary));
+}
+.skill-band-detail-row--target {
+  border-color: color-mix(in srgb, var(--status-success-text) 40%, var(--border-default));
+}
+.skill-band-detail-row-head {
+  margin-bottom: 4px;
+}
+.skill-band-detail-row-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.skill-band-detail-row-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.skill-band-detail-empty {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface-primary);
+  border-radius: 8px;
+  border: 1px dashed var(--border-default);
+}
+.skill-band-detail-history {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.skill-band-detail-history-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 44px;
+}
+.skill-band-detail-history-dot {
+  display: inline-block;
+  width: 8px;
+  border-radius: 2px;
+  background: var(--accent-primary);
+  opacity: 0.85;
+}
+
 /* "Show only changed" toggle row on ScoresSection (What tab). Sits above
    the slider grid. Subtle by default — educators only notice it when they
    reach for the filter. */
