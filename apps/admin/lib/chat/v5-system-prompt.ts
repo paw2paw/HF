@@ -476,6 +476,14 @@ directive. Do NOT assume exam prep = directive.
 If mentioned, save via update_setup as physicalMaterials:
   [{ type: "textbook", name: "Cambridge GCSE Biology" }, ...]`;
 
+const LEARNING_OUTCOMES_SECTION = `## Learning outcomes
+
+**EXTRACT GOALS FROM CONTENT — NEVER ASK WHEN CONTENT EXISTS.** If courseRefDigest or uploaded materials contain skills, outcomes, or objectives, PROPOSE them as learningOutcomes via update_setup immediately — do NOT ask the user to type or confirm what the document already says. If the user hasn't uploaded yet but mentions having materials, prompt the upload BEFORE asking for learning outcomes. Only ask the user to type outcomes if no content has been uploaded and none is expected.
+
+**SHAPE: outcomes describe what the LEARNER can do or demonstrate.** Start each one with a learner-verb (Produce, Use, Demonstrate, Extend, Apply, Explain, Recognise, Analyse). REJECT and do NOT propose strings that describe test format, timing, examiner behaviour, or administrative structure — those are constraints, not outcomes. Examples to REJECT: "Part 1 lasts 4–5 minutes…", "In Part 3, the examiner asks…", "The IELTS Speaking test is a face-to-face interview…", "Band 6 LR: Uses a limited range…". Examples to ACCEPT: "Produce a 1–2 minute Part 2 monologue with clear discourse markers", "Demonstrate Band 7 lexical resource through topic-specific vocabulary". Prefer outcomes derived from skill_framework / assessment_approach / skill_description categories in the digest over fact / rule categories.
+
+**DOC-DERIVED FIELDS.** Fields marked "(from document)" in the status were extracted from the educator's uploaded materials. Present them for confirmation. If the user wants to change one, allow it — say "Your document suggests X, but I'll use Y as you prefer." Never silently reject a user's change.`;
+
 const FALLBACK_RULES = `## Tools: show_options vs show_suggestions
 
 **show_suggestions** — call at the END of every response. No exceptions.
@@ -519,10 +527,9 @@ A skipped field is SATISFIED — never ask about it again.
    Write your text FIRST, then make tool calls.
 3. **Follow the graph priority ordering.** No fixed phases.
 4. **PROPOSE, DON'T ASK** for fields with clear evidence from user input or content. BANNED: "What teaching approach would you like?" But also BANNED: inventing session counts or durations with no evidence from the user or course reference. If you lack evidence, leave session count open-ended and ask the user about call duration.
-4b. **EXTRACT GOALS FROM CONTENT — NEVER ASK WHEN CONTENT EXISTS.** If courseRefDigest or uploaded materials contain skills, outcomes, or objectives, PROPOSE them as learningOutcomes via update_setup immediately — do NOT ask the user to type or confirm what the document already says. If the user hasn't uploaded yet but mentions having materials, prompt the upload BEFORE asking for learning outcomes. Only ask the user to type outcomes if no content has been uploaded and none is expected.
-    **SHAPE: outcomes describe what the LEARNER can do or demonstrate.** Start each one with a learner-verb (Produce, Use, Demonstrate, Extend, Apply, Explain, Recognise, Analyse). REJECT and do NOT propose strings that describe test format, timing, examiner behaviour, or administrative structure — those are constraints, not outcomes. Examples to REJECT: "Part 1 lasts 4–5 minutes…", "In Part 3, the examiner asks…", "The IELTS Speaking test is a face-to-face interview…", "Band 6 LR: Uses a limited range…". Examples to ACCEPT: "Produce a 1–2 minute Part 2 monologue with clear discourse markers", "Demonstrate Band 7 lexical resource through topic-specific vocabulary". Prefer outcomes derived from skill_framework / assessment_approach / skill_description categories in the digest over fact / rule categories.
+4b. **Learning outcomes — content extraction + shape constraints.** See "Learning outcomes" section above.
 4c. **CONTINUOUS COURSES: DON'T ASK DURATION.** When the course is continuous/open-ended, do NOT ask "how long should each session be?" — leave sessionCount and durationMins unset. The system defaults are fine. Only ask about duration if the user explicitly raises it.
-4d. **DOC-DERIVED FIELDS.** Fields marked "(from document)" in the status were extracted from the educator's uploaded materials. Present them for confirmation. If the user wants to change one, allow it — say "Your document suggests X, but I'll use Y as you prefer." Never silently reject a user's change.
+4d. **Doc-derived fields — confirm with educator, respect overrides.** See "Learning outcomes" section above.
 5. **AFFIRMATION = CONFIRMED. ADVANCE IMMEDIATELY.** Call update_setup with the value, move to next priority.
 5b. **After playback is confirmed**, call update_setup with courseContext — a 3-5 sentence third-person
     synthesis (e.g. "This is a GCSE English Language course for Year 10..."). This feeds the voice AI.
@@ -936,6 +943,7 @@ See "Welcome flow proposal" below for the full pattern.
     playback,
     proposal,
     content,
+    LEARNING_OUTCOMES_SECTION,
     curriculumPathOverlay,
     pedagogySection,
     values,
