@@ -5,6 +5,7 @@ import type { CallerData, ParamConfig, SectionId } from "../types";
 import type { EnrollmentJourney } from "@/hooks/useEnrollmentJourney";
 import { AtAGlanceCard } from "../cards/AtAGlanceCard";
 import { SkillBandStripCard } from "../cards/SkillBandStripCard";
+import { MockResultCard } from "../cards/MockResultCard";
 import { ProgressStackCard } from "../cards/ProgressStackCard";
 import { FocusCard } from "../cards/FocusCard";
 import { WhoTheyAreCard } from "../cards/WhoTheyAreCard";
@@ -59,6 +60,13 @@ export function GuideLens({
       <SkillBandStripCard
         callerTargets={(data.callerTargets ?? []) as never}
         callScores={(data.scores ?? []) as never}
+        tierMapping={undefined}
+      />
+
+      {/* Mock results — sub-module breakdown via #491 fan-out */}
+      <MockResultCard
+        calls={(data.calls ?? []) as never}
+        scores={(data.scores ?? []) as never}
         tierMapping={undefined}
       />
 

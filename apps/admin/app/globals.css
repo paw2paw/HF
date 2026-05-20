@@ -1601,6 +1601,92 @@ html.light {
   opacity: 0.85;
 }
 
+/* Mock result panel — surfaces the latest Mock call's per-skill bands
+   and per-Part sub-module breakdown using #491 fan-out scores. */
+.mock-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.mock-result-skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.mock-result-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-secondary);
+}
+.mock-result-skill-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mock-result-skill-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.mock-result-delta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.mock-result-delta--up {
+  color: var(--status-success-text);
+}
+.mock-result-delta--down {
+  color: var(--status-error-text);
+}
+.mock-result-breakdown {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-default);
+}
+.mock-result-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.mock-result-grid-head,
+.mock-result-grid-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.5fr) repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+.mock-result-grid-head {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+.mock-result-grid-row {
+  padding: 6px 0;
+  font-size: 13px;
+}
+.mock-result-grid-skill {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.mock-result-grid-cell {
+  font-variant-numeric: tabular-nums;
+}
+.mock-result-grid-cell--empty {
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* "Show only changed" toggle row on ScoresSection (What tab). Sits above
    the slider grid. Subtle by default — educators only notice it when they
    reach for the filter. */

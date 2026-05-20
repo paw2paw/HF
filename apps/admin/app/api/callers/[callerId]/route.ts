@@ -170,8 +170,9 @@ export async function GET(
           callSequence: true,
           playbookId: true,
           curriculumModuleId: true,
+          requestedModuleId: true,
           curriculumModule: {
-            select: { slug: true, title: true },
+            select: { id: true, slug: true, title: true, coversModules: true },
           },
           _count: {
             select: {
@@ -214,19 +215,27 @@ export async function GET(
           id: true,
           callId: true,
           parameterId: true,
+          moduleId: true,
           score: true,
           confidence: true,
           evidence: true,
           reasoning: true,
+          // #566 Step 1 — surface scorer's evidence judgement to UI surfaces.
+          hasLearnerEvidence: true,
+          evidenceQuality: true,
           scoredBy: true,
           scoredAt: true,
           analysisSpecId: true,
           createdAt: true,
           parameter: {
             select: {
+              parameterId: true,
               name: true,
               definition: true,
             },
+          },
+          curriculumModule: {
+            select: { id: true, slug: true, title: true },
           },
           analysisSpec: {
             select: {
