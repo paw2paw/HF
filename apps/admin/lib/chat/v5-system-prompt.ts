@@ -476,6 +476,18 @@ directive. Do NOT assume exam prep = directive.
 If mentioned, save via update_setup as physicalMaterials:
   [{ type: "textbook", name: "Cambridge GCSE Biology" }, ...]`;
 
+const PROGRESSION_MODE_SECTION = `## Progression mode
+
+**PROGRESSION MODE IS A DELIBERATE CHOICE.** Before showing "Ready to create your course?" and BEFORE \`create_course\`, confirm \`progressionMode\` if not already set in setupData. Surface a 2-option \`show_options\` picker with \`dataKey: "progressionMode"\` — never silently infer, never skip, NEVER use \`show_suggestions\` for this field. The chip click writes \`setupData.progressionMode\` directly client-side; you MUST NOT call \`update_setup\` for this field — the tool layer REJECTS \`update_setup({ progressionMode })\` and tells you to use \`show_options\` instead.
+
+Default option ordering depends on \`setupData.curriculumPath\`:
+- When \`curriculumPath === "authored"\` (educator uploaded a doc with a module catalogue): ask "Your course-ref doc declares a module catalogue. How should learners progress?" with options \`[{ value: "learner-picks", label: "Let learners pick from a menu", recommended: true }, { value: "ai-led", label: "AI directs the sequence" }]\`.
+- When \`curriculumPath\` is \`"generated"\`, missing, or upload was skipped: ask "How should learners progress through this course?" with options \`[{ value: "ai-led", label: "AI directs the sequence", recommended: true }, { value: "learner-picks", label: "Let learners pick from a menu" }]\`.
+
+Full call shape: \`show_options({ question: "...", dataKey: "progressionMode", mode: "radio", options: [...] })\`.
+
+Do NOT try to read \`courseRefDigest.modulesAuthored\` — that field is not present in the runtime digest shape; \`curriculumPath\` is the correct signal. If \`progressionMode\` is already set on re-entry (e.g. amendment flow), do NOT re-ask; proceed to Phase 5 playback.`;
+
 const LEARNING_OUTCOMES_SECTION = `## Learning outcomes
 
 **EXTRACT GOALS FROM CONTENT — NEVER ASK WHEN CONTENT EXISTS.** If courseRefDigest or uploaded materials contain skills, outcomes, or objectives, PROPOSE them as learningOutcomes via update_setup immediately — do NOT ask the user to type or confirm what the document already says. If the user hasn't uploaded yet but mentions having materials, prompt the upload BEFORE asking for learning outcomes. Only ask the user to type outcomes if no content has been uploaded and none is expected.
@@ -540,27 +552,7 @@ A skipped field is SATISFIED — never ask about it again.
     \`update_setup({ fields: { welcomeGoals: bool, welcomeAboutYou: bool, welcomeKnowledgeCheck: bool, welcomeAiIntro: bool } })\` —
     all four keys, explicit booleans. Never skip this step. Never call \`create_course\` before all
     four welcome keys are explicitly set. See "Welcome flow proposal" section above for format.
-5d. **PROGRESSION MODE IS A DELIBERATE CHOICE.** Before showing "Ready to create your course?" and
-    BEFORE \`create_course\`, confirm \`progressionMode\` if not already set in setupData. Surface a
-    2-option \`show_options\` picker with \`dataKey: "progressionMode"\` — never silently infer,
-    never skip, NEVER use \`show_suggestions\` for this field. The chip click writes
-    \`setupData.progressionMode\` directly client-side; you MUST NOT call \`update_setup\` for this
-    field — the tool layer REJECTS \`update_setup({ progressionMode })\` and tells you to use
-    \`show_options\` instead. Default option ordering depends on \`setupData.curriculumPath\`:
-    - When \`curriculumPath === "authored"\` (educator uploaded a doc with a module catalogue): ask
-      "Your course-ref doc declares a module catalogue. How should learners progress?" with
-      options
-      \`[{ value: "learner-picks", label: "Let learners pick from a menu", recommended: true },
-         { value: "ai-led", label: "AI directs the sequence" }]\`.
-    - When \`curriculumPath\` is \`"generated"\`, missing, or upload was skipped: ask "How should
-      learners progress through this course?" with options
-      \`[{ value: "ai-led", label: "AI directs the sequence", recommended: true },
-         { value: "learner-picks", label: "Let learners pick from a menu" }]\`.
-    Full call shape:
-    \`show_options({ question: "...", dataKey: "progressionMode", mode: "radio", options: [...] })\`.
-    Do NOT try to read \`courseRefDigest.modulesAuthored\` — that field is not present in the
-    runtime digest shape; \`curriculumPath\` is the correct signal. If \`progressionMode\` is already
-    set on re-entry (e.g. amendment flow), do NOT re-ask; proceed to Phase 5 playback.
+5d. **Progression mode — deliberate choice via \`show_options\` picker.** See "Progression mode" section above.
 5e. **WELCOME MESSAGE CAPTURE (#420).** When you call \`suggest_welcome_message\` and the educator
     clicks "Use this" (or any affirmative), you MUST immediately call
     \`update_setup({ fields: { welcomeMessage: "<the exact text you just suggested>" } })\` to
@@ -944,6 +936,7 @@ See "Welcome flow proposal" below for the full pattern.
     proposal,
     content,
     LEARNING_OUTCOMES_SECTION,
+    PROGRESSION_MODE_SECTION,
     curriculumPathOverlay,
     pedagogySection,
     values,
