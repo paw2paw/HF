@@ -124,6 +124,22 @@ export async function composeContentSection(
     return composeContentFromSubject(callerId, domainId);
   }
 
+  // If the playbook has a real relational Curriculum with CurriculumModule rows
+  // (wizard-projected courses), prefer those over the content spec's parameter-
+  // derived modules. The two use disjoint IDs (`MOD-1`..`MOD-N` vs slugs like
+  // `part1/part2/mock`) and the hero pulls progress off CallerModuleProgress
+  // keyed by module slug — so spec-derived modules render as 0% even when
+  // real progress exists. Route through the subject path which reads the
+  // relational rows directly.
+  if (playbook?.id) {
+    const hasRealModules = await prisma.curriculumModule.count({
+      where: { curriculum: { playbookId: playbook.id } },
+    });
+    if (hasRealModules > 0) {
+      return composeContentFromSubject(callerId, domainId);
+    }
+  }
+
   // 2. Extract curriculum metadata (with sensible defaults)
   const metadata = await extractCurriculumMetadata(contentSpec);
 
