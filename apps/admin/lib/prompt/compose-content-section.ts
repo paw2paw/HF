@@ -134,7 +134,8 @@ export async function composeContentSection(
   const progress = await loadCallerProgress(
     callerId,
     contentSpec.slug,
-    metadata.progressKey
+    metadata.progressKey,
+    playbook?.id ?? null,
   );
 
   // 5. Enhance modules with progress status
@@ -293,7 +294,8 @@ function sortModules(
 async function loadCallerProgress(
   callerId: string,
   specSlug: string,
-  progressKey: string
+  progressKey: string,
+  playbookId: string | null = null,
 ): Promise<CurriculumProgress> {
   // Get storage keys from contract
   const storageKeys = await ContractRegistry.getStorageKeys('CURRICULUM_PROGRESS_V1');
@@ -348,10 +350,18 @@ async function loadCallerProgress(
   // LEGACY_MASTERY_FALLBACK_ENABLED (default off). See
   // apps/admin/docs/mastery-store-migration.md.
   try {
-    const curriculum = await prisma.curriculum.findFirst({
-      where: { slug: specSlug },
-      select: { id: true },
-    });
+    // Prefer playbookId lookup — wizard-generated curricula use slugs like
+    // `course-<playbookId>-<timestamp>` that don't match the content spec slug.
+    // Fall back to spec slug for content-spec-seeded curricula.
+    const curriculum = playbookId
+      ? await prisma.curriculum.findFirst({
+          where: { playbookId },
+          select: { id: true },
+        })
+      : await prisma.curriculum.findFirst({
+          where: { slug: specSlug },
+          select: { id: true },
+        });
     if (curriculum) {
       const moduleRows = await prisma.curriculumModule.findMany({
         where: { curriculumId: curriculum.id },
